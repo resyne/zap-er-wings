@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id: string
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      bom_items: {
+        Row: {
+          bom_id: string
+          created_at: string
+          id: string
+          item_id: string
+          quantity: number
+        }
+        Insert: {
+          bom_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          quantity: number
+        }
+        Update: {
+          bom_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_items_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      boms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null
@@ -241,6 +343,50 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      executions: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          notes: string | null
+          operator_id: string | null
+          start_time: string
+          step_name: string
+          updated_at: string
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          start_time?: string
+          step_name: string
+          updated_at?: string
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          start_time?: string
+          step_name?: string
+          updated_at?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executions_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       items: {
         Row: {
@@ -612,6 +758,69 @@ export type Database = {
           },
         ]
       }
+      rma: {
+        Row: {
+          assigned_to: string | null
+          closed_date: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          description: string
+          id: string
+          opened_date: string
+          resolution_notes: string | null
+          rma_number: string
+          serial_id: string | null
+          status: Database["public"]["Enums"]["rma_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          closed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description: string
+          id?: string
+          opened_date?: string
+          resolution_notes?: string | null
+          rma_number: string
+          serial_id?: string | null
+          status?: Database["public"]["Enums"]["rma_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          closed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string
+          id?: string
+          opened_date?: string
+          resolution_notes?: string | null
+          rma_number?: string
+          serial_id?: string | null
+          status?: Database["public"]["Enums"]["rma_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rma_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rma_serial_id_fkey"
+            columns: ["serial_id"]
+            isOneToOne: false
+            referencedRelation: "serials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_orders: {
         Row: {
           created_at: string | null
@@ -674,6 +883,47 @@ export type Database = {
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      serials: {
+        Row: {
+          created_at: string
+          id: string
+          serial_number: string
+          status: Database["public"]["Enums"]["serial_status"]
+          test_notes: string | null
+          test_result: string | null
+          updated_at: string
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          serial_number: string
+          status?: Database["public"]["Enums"]["serial_status"]
+          test_notes?: string | null
+          test_result?: string | null
+          updated_at?: string
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          serial_number?: string
+          status?: Database["public"]["Enums"]["serial_status"]
+          test_notes?: string | null
+          test_result?: string | null
+          updated_at?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "serials_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -788,7 +1038,10 @@ export type Database = {
       }
       work_orders: {
         Row: {
+          actual_end_date: string | null
+          actual_start_date: string | null
           assigned_to: string | null
+          bom_id: string | null
           completed_date: string | null
           created_at: string | null
           created_by: string | null
@@ -798,14 +1051,19 @@ export type Database = {
           location: string | null
           notes: string | null
           number: string
+          planned_end_date: string | null
+          planned_start_date: string | null
           priority: string | null
           scheduled_date: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["wo_status"]
           title: string
           updated_at: string | null
         }
         Insert: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
           assigned_to?: string | null
+          bom_id?: string | null
           completed_date?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -815,14 +1073,19 @@ export type Database = {
           location?: string | null
           notes?: string | null
           number: string
+          planned_end_date?: string | null
+          planned_start_date?: string | null
           priority?: string | null
           scheduled_date?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["wo_status"]
           title: string
           updated_at?: string | null
         }
         Update: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
           assigned_to?: string | null
+          bom_id?: string | null
           completed_date?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -832,13 +1095,22 @@ export type Database = {
           location?: string | null
           notes?: string | null
           number?: string
+          planned_end_date?: string | null
+          planned_start_date?: string | null
           priority?: string | null
           scheduled_date?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["wo_status"]
           title?: string
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "work_orders_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "work_orders_customer_id_fkey"
             columns: ["customer_id"]
@@ -867,6 +1139,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      rma_status: "open" | "analysis" | "repaired" | "closed"
+      serial_status: "in_test" | "approved" | "rejected"
+      wo_status: "planned" | "in_progress" | "testing" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -995,6 +1270,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      rma_status: ["open", "analysis", "repaired", "closed"],
+      serial_status: ["in_test", "approved", "rejected"],
+      wo_status: ["planned", "in_progress", "testing", "closed"],
     },
   },
 } as const
