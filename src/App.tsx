@@ -17,6 +17,12 @@ import ContactsPage from "./pages/crm/ContactsPage";
 import CompaniesPage from "./pages/crm/CompaniesPage";
 import DealsPage from "./pages/crm/DealsPage";
 import NotesPage from "./pages/crm/NotesPage";
+import LeadsPage from "./pages/crm/LeadsPage";
+import OpportunitiesPage from "./pages/crm/OpportunitiesPage";
+import QuotesPage from "./pages/crm/QuotesPage";
+import OrdersPage from "./pages/crm/OrdersPage";
+import CustomersPage from "./pages/crm/CustomersPage";
+import PricingPage from "./pages/crm/PricingPage";
 
 const queryClient = new QueryClient();
 
