@@ -1,0 +1,367 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, Search, RefreshCw, Mail, Phone, Building2 } from "lucide-react";
+
+interface Contact {
+  id: string;
+  bigin_id?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  job_title?: string;
+  lead_source?: string;
+  company_id?: string;
+  company?: {
+    name: string;
+  };
+  created_at: string;
+  synced_at?: string;
+}
+
+export default function ContactsPage() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [newContact, setNewContact] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    mobile: "",
+    job_title: "",
+    lead_source: "",
+    company_id: "",
+  });
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadContacts();
+  }, []);
+
+  const loadContacts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("crm_contacts")
+        .select(`
+          *,
+          company:crm_companies(name)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare i contatti: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bigin-sync', {
+        body: { action: 'sync_contacts' }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Sincronizzazione completata",
+        description: "I contatti sono stati sincronizzati con Bigin",
+      });
+      
+      await loadContacts();
+    } catch (error: any) {
+      toast({
+        title: "Errore di sincronizzazione",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleCreateContact = async () => {
+    try {
+      const { error } = await supabase
+        .from("crm_contacts")
+        .insert([newContact]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Contatto creato",
+        description: "Il contatto è stato creato con successo",
+      });
+
+      setIsDialogOpen(false);
+      setNewContact({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        mobile: "",
+        job_title: "",
+        lead_source: "",
+        company_id: "",
+      });
+      await loadContacts();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il contatto: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredContacts = contacts.filter(contact =>
+    `${contact.first_name} ${contact.last_name} ${contact.email} ${contact.company?.name || ""}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-lg">Caricamento contatti...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Contatti</h1>
+          <p className="text-muted-foreground">Gestisci i tuoi contatti e sincronizza con Bigin</p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleSync} 
+            disabled={isSyncing}
+            variant="outline"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nuovo Contatto
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Crea Nuovo Contatto</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">Nome</Label>
+                  <Input
+                    id="first_name"
+                    value={newContact.first_name}
+                    onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
+                    placeholder="Nome"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Cognome</Label>
+                  <Input
+                    id="last_name"
+                    value={newContact.last_name}
+                    onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
+                    placeholder="Cognome"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newContact.email}
+                    onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                    placeholder="email@esempio.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Telefono</Label>
+                  <Input
+                    id="phone"
+                    value={newContact.phone}
+                    onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                    placeholder="+39 123 456 7890"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mobile">Cellulare</Label>
+                  <Input
+                    id="mobile"
+                    value={newContact.mobile}
+                    onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
+                    placeholder="+39 123 456 7890"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="job_title">Ruolo</Label>
+                  <Input
+                    id="job_title"
+                    value={newContact.job_title}
+                    onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
+                    placeholder="Manager, Direttore..."
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="lead_source">Fonte Lead</Label>
+                  <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona fonte" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="website">Sito Web</SelectItem>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="social_media">Social Media</SelectItem>
+                      <SelectItem value="cold_call">Cold Call</SelectItem>
+                      <SelectItem value="trade_show">Fiera</SelectItem>
+                      <SelectItem value="other">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Annulla
+                </Button>
+                <Button onClick={handleCreateContact}>
+                  Crea Contatto
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Lista Contatti ({filteredContacts.length})</CardTitle>
+            <div className="relative w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Cerca contatti..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Azienda</TableHead>
+                <TableHead>Contatto</TableHead>
+                <TableHead>Ruolo</TableHead>
+                <TableHead>Fonte</TableHead>
+                <TableHead>Stato Sync</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredContacts.map((contact) => (
+                <TableRow key={contact.id}>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">
+                        {contact.first_name} {contact.last_name}
+                      </span>
+                      {contact.email && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Mail className="w-3 h-3 mr-1" />
+                          {contact.email}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {contact.company?.name && (
+                      <div className="flex items-center">
+                        <Building2 className="w-4 h-4 mr-1 text-muted-foreground" />
+                        {contact.company.name}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {contact.phone && (
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-3 h-3 mr-1" />
+                          {contact.phone}
+                        </div>
+                      )}
+                      {contact.mobile && (
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-3 h-3 mr-1" />
+                          {contact.mobile}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {contact.job_title && (
+                      <Badge variant="secondary">{contact.job_title}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {contact.lead_source && (
+                      <Badge variant="outline">{contact.lead_source}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {contact.bigin_id ? (
+                      <Badge variant="default">Sincronizzato</Badge>
+                    ) : (
+                      <Badge variant="secondary">Locale</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredContacts.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      {searchTerm ? "Nessun contatto trovato" : "Nessun contatto presente"}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

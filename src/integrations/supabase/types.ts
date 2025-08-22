@@ -218,6 +218,240 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_companies: {
+        Row: {
+          annual_revenue: number | null
+          bigin_id: string | null
+          billing_address: string | null
+          created_at: string
+          email: string | null
+          employees_count: number | null
+          id: string
+          industry: string | null
+          name: string
+          phone: string | null
+          shipping_address: string | null
+          synced_at: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          annual_revenue?: number | null
+          bigin_id?: string | null
+          billing_address?: string | null
+          created_at?: string
+          email?: string | null
+          employees_count?: number | null
+          id?: string
+          industry?: string | null
+          name: string
+          phone?: string | null
+          shipping_address?: string | null
+          synced_at?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          annual_revenue?: number | null
+          bigin_id?: string | null
+          billing_address?: string | null
+          created_at?: string
+          email?: string | null
+          employees_count?: number | null
+          id?: string
+          industry?: string | null
+          name?: string
+          phone?: string | null
+          shipping_address?: string | null
+          synced_at?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      crm_contacts: {
+        Row: {
+          bigin_id: string | null
+          company_id: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          job_title: string | null
+          last_name: string | null
+          lead_source: string | null
+          mobile: string | null
+          phone: string | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          bigin_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          job_title?: string | null
+          last_name?: string | null
+          lead_source?: string | null
+          mobile?: string | null
+          phone?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bigin_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          job_title?: string | null
+          last_name?: string | null
+          lead_source?: string | null
+          mobile?: string | null
+          phone?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_contact_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          amount: number | null
+          assigned_to: string | null
+          bigin_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          expected_close_date: string | null
+          id: string
+          name: string
+          probability: number | null
+          stage: string | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          assigned_to?: string | null
+          bigin_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          expected_close_date?: string | null
+          id?: string
+          name: string
+          probability?: number | null
+          stage?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          assigned_to?: string | null
+          bigin_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          expected_close_date?: string | null
+          id?: string
+          name?: string
+          probability?: number | null
+          stage?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_notes: {
+        Row: {
+          bigin_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          id: string
+          synced_at: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          bigin_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          synced_at?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bigin_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          synced_at?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_notes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_notes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_quotes: {
         Row: {
           carbon_cartridges_count: string | null

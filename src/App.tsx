@@ -27,12 +27,16 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/" element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="mfg/bom" element={<BomPage />} />
-              <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
-              <Route path="mfg/executions" element={<ExecutionsPage />} />
-              <Route path="mfg/serials" element={<SerialsPage />} />
-              <Route path="mfg/rma" element={<RmaPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="mfg/bom" element={<BomPage />} />
+            <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
+            <Route path="mfg/executions" element={<ExecutionsPage />} />
+            <Route path="mfg/serials" element={<SerialsPage />} />
+            <Route path="mfg/rma" element={<RmaPage />} />
+            <Route path="crm/contacts" element={<ContactsPage />} />
+            <Route path="crm/companies" element={<CompaniesPage />} />
+            <Route path="crm/deals" element={<DealsPage />} />
+            <Route path="crm/notes" element={<NotesPage />} />
               {/* CRM & Sales routes will be added here */}
               {/* Service routes will be added here */}
               {/* Other ERP module routes will be added here */}
