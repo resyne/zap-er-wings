@@ -11,6 +11,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const biginClientId = Deno.env.get('BIGIN_CLIENT_ID')!;
 const biginClientSecret = Deno.env.get('BIGIN_CLIENT_SECRET')!;
+const biginRefreshToken = Deno.env.get('BIGIN_REFRESH_TOKEN')!;
 
 interface BiginAuthResponse {
   access_token: string;
@@ -65,57 +66,67 @@ interface BiginNote {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Get Bigin access token
+// Get Bigin access token using refresh token
 async function getBiginAccessToken(): Promise<string> {
-  console.log('Getting Bigin access token...');
+  console.log('Getting Bigin access token with refresh token...');
   
-  // For Bigin, we need to use the refresh token flow instead of client_credentials
-  // First check if we have the necessary credentials
-  if (!biginClientId || !biginClientSecret) {
-    throw new Error('Missing Bigin client credentials');
+  if (!biginClientId || !biginRefreshToken) {
+    throw new Error('Missing Bigin client credentials or refresh token');
   }
 
-  // Bigin uses a different OAuth flow - we need a refresh token
-  // For this demo, we'll return a mock token and log the attempt
-  console.log('Bigin OAuth configuration detected');
-  console.log('Client ID configured:', !!biginClientId);
-  console.log('Client Secret configured:', !!biginClientSecret);
+  const tokenUrl = 'https://accounts.zoho.com/oauth/v2/token';
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: biginClientId,
+    client_secret: biginClientSecret,
+    refresh_token: biginRefreshToken,
+  });
+
+  console.log('Making OAuth request to Zoho...');
   
-  // Return a mock token for now - in production you'd need proper OAuth setup
-  return 'mock_bigin_token_for_demo';
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OAuth error response:', errorText);
+    throw new Error(`Failed to get access token: ${response.status} ${response.statusText}`);
+  }
+
+  const data: BiginAuthResponse = await response.json();
+  console.log('Successfully obtained access token');
+  return data.access_token;
 }
 
-// Sync contacts from Bigin (Demo mode with mock data)
+// Sync contacts from Bigin
 async function syncContacts(accessToken: string) {
-  console.log('Syncing contacts from Bigin (demo mode)...');
+  console.log('Syncing contacts from Bigin...');
   
-  // Mock data for demonstration
-  const mockContacts = [
-    {
-      id: 'mock_contact_1',
-      First_Name: 'Mario',
-      Last_Name: 'Rossi',
-      Email: 'mario.rossi@example.com',
-      Phone: '+39 123 456 7890',
-      Mobile: '+39 333 123 4567',
-      Title: 'Sales Manager',
-      Lead_Source: 'website'
+  const response = await fetch('https://www.zohoapis.com/bigin/v1/Contacts', {
+    headers: {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
     },
-    {
-      id: 'mock_contact_2',
-      First_Name: 'Laura',
-      Last_Name: 'Bianchi',
-      Email: 'laura.bianchi@example.com',
-      Phone: '+39 987 654 3210',
-      Mobile: '+39 334 987 6543',
-      Title: 'Marketing Director',
-      Lead_Source: 'referral'
-    }
-  ];
+  });
 
-  console.log(`Found ${mockContacts.length} mock contacts`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('API error response:', errorText);
+    throw new Error(`Failed to fetch contacts: ${response.status} ${response.statusText}`);
+  }
 
-  for (const contact of mockContacts) {
+  const data = await response.json();
+  console.log('Bigin API response:', data);
+  
+  const contacts = data.data || [];
+  console.log(`Found ${contacts.length} contacts from Bigin`);
+
+  for (const contact of contacts) {
     const contactData = {
       bigin_id: contact.id,
       first_name: contact.First_Name || null,
@@ -142,36 +153,30 @@ async function syncContacts(accessToken: string) {
   console.log('Contacts sync completed');
 }
 
-// Sync companies from Bigin (Demo mode with mock data)
+// Sync companies from Bigin
 async function syncCompanies(accessToken: string) {
-  console.log('Syncing companies from Bigin (demo mode)...');
+  console.log('Syncing companies from Bigin...');
   
-  const mockCompanies = [
-    {
-      id: 'mock_company_1',
-      Account_Name: 'Tech Solutions SRL',
-      Website: 'https://techsolutions.com',
-      Phone: '+39 02 1234567',
-      Email: 'info@techsolutions.com',
-      Industry: 'Technology',
-      Employees: 50,
-      Annual_Revenue: 2000000,
-      Billing_Street: 'Via Milano 123, 20100 Milano, Italia'
+  const response = await fetch('https://www.zohoapis.com/bigin/v1/Accounts', {
+    headers: {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
     },
-    {
-      id: 'mock_company_2', 
-      Account_Name: 'Green Energy SpA',
-      Website: 'https://greenenergy.it',
-      Phone: '+39 06 9876543',
-      Email: 'contact@greenenergy.it',
-      Industry: 'Energy',
-      Employees: 120,
-      Annual_Revenue: 5000000,
-      Billing_Street: 'Via Roma 456, 00100 Roma, Italia'
-    }
-  ];
+  });
 
-  for (const company of mockCompanies) {
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('API error response:', errorText);
+    throw new Error(`Failed to fetch accounts: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log('Bigin API response for companies:', data);
+  
+  const companies = data.data || [];
+  console.log(`Found ${companies.length} companies from Bigin`);
+
+  for (const company of companies) {
     const companyData = {
       bigin_id: company.id,
       name: company.Account_Name || 'Unknown',
@@ -182,6 +187,7 @@ async function syncCompanies(accessToken: string) {
       employees_count: company.Employees || null,
       annual_revenue: company.Annual_Revenue || null,
       billing_address: company.Billing_Street || null,
+      shipping_address: company.Shipping_Street || null,
       synced_at: new Date().toISOString(),
     };
 
@@ -199,36 +205,60 @@ async function syncCompanies(accessToken: string) {
   console.log('Companies sync completed');
 }
 
-// Sync deals from Bigin (Demo mode with mock data)
+// Sync deals from Bigin
 async function syncDeals(accessToken: string) {
-  console.log('Syncing deals from Bigin (demo mode)...');
+  console.log('Syncing deals from Bigin...');
   
-  const mockDeals = [
-    {
-      id: 'mock_deal_1',
-      Deal_Name: 'Software Implementation Project',
-      Amount: 50000,
-      Stage: 'Proposal/Price Quote',
-      Probability: 75,
-      Closing_Date: '2024-03-15'
+  const response = await fetch('https://www.zohoapis.com/bigin/v1/Deals', {
+    headers: {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
     },
-    {
-      id: 'mock_deal_2',
-      Deal_Name: 'IT Infrastructure Upgrade',
-      Amount: 25000,
-      Stage: 'Negotiation/Review',
-      Probability: 60,
-      Closing_Date: '2024-02-28'
-    }
-  ];
+  });
 
-  for (const deal of mockDeals) {
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('API error response:', errorText);
+    throw new Error(`Failed to fetch deals: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log('Bigin API response for deals:', data);
+  
+  const deals = data.data || [];
+  console.log(`Found ${deals.length} deals from Bigin`);
+
+  for (const deal of deals) {
+    // Find contact and company IDs from our local database
+    let contactId = null;
+    let companyId = null;
+
+    if (deal.Contact_Name?.id) {
+      const { data: contact } = await supabase
+        .from('crm_contacts')
+        .select('id')
+        .eq('bigin_id', deal.Contact_Name.id)
+        .maybeSingle();
+      contactId = contact?.id || null;
+    }
+
+    if (deal.Account_Name?.id) {
+      const { data: company } = await supabase
+        .from('crm_companies')
+        .select('id')
+        .eq('bigin_id', deal.Account_Name.id)
+        .maybeSingle();
+      companyId = company?.id || null;
+    }
+
     const dealData = {
       bigin_id: deal.id,
       name: deal.Deal_Name || 'Unknown Deal',
       amount: deal.Amount || null,
       stage: deal.Stage || null,
       probability: deal.Probability || null,
+      contact_id: contactId,
+      company_id: companyId,
       expected_close_date: deal.Closing_Date ? new Date(deal.Closing_Date).toISOString().split('T')[0] : null,
       synced_at: new Date().toISOString(),
     };
@@ -247,28 +277,67 @@ async function syncDeals(accessToken: string) {
   console.log('Deals sync completed');
 }
 
-// Sync notes from Bigin (Demo mode with mock data)
+// Sync notes from Bigin
 async function syncNotes(accessToken: string) {
-  console.log('Syncing notes from Bigin (demo mode)...');
+  console.log('Syncing notes from Bigin...');
   
-  const mockNotes = [
-    {
-      id: 'mock_note_1',
-      Note_Title: 'Follow-up Meeting',
-      Note_Content: 'Discussed project requirements and timeline with the client. Next steps: prepare technical proposal.'
+  const response = await fetch('https://www.zohoapis.com/bigin/v1/Notes', {
+    headers: {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
     },
-    {
-      id: 'mock_note_2',
-      Note_Title: 'Technical Requirements',
-      Note_Content: 'Client needs integration with existing ERP system. Budget approved for custom development.'
-    }
-  ];
+  });
 
-  for (const note of mockNotes) {
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('API error response:', errorText);
+    throw new Error(`Failed to fetch notes: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log('Bigin API response for notes:', data);
+  
+  const notes = data.data || [];
+  console.log(`Found ${notes.length} notes from Bigin`);
+
+  for (const note of notes) {
+    // Find related record IDs from our local database
+    let contactId = null;
+    let companyId = null;
+    let dealId = null;
+
+    if (note.Parent_Id?.id) {
+      if (note.Parent_Id.module === 'Contacts') {
+        const { data: contact } = await supabase
+          .from('crm_contacts')
+          .select('id')
+          .eq('bigin_id', note.Parent_Id.id)
+          .maybeSingle();
+        contactId = contact?.id || null;
+      } else if (note.Parent_Id.module === 'Accounts') {
+        const { data: company } = await supabase
+          .from('crm_companies')
+          .select('id')
+          .eq('bigin_id', note.Parent_Id.id)
+          .maybeSingle();
+        companyId = company?.id || null;
+      } else if (note.Parent_Id.module === 'Deals') {
+        const { data: deal } = await supabase
+          .from('crm_deals')
+          .select('id')
+          .eq('bigin_id', note.Parent_Id.id)
+          .maybeSingle();
+        dealId = deal?.id || null;
+      }
+    }
+
     const noteData = {
       bigin_id: note.id,
       title: note.Note_Title || null,
       content: note.Note_Content || null,
+      contact_id: contactId,
+      company_id: companyId,
+      deal_id: dealId,
       synced_at: new Date().toISOString(),
     };
 
