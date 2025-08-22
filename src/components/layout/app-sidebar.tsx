@@ -65,10 +65,19 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Leads", url: "/crm/leads", icon: Target },
       { title: "Opportunities", url: "/crm/opportunities", icon: Users },
-      { title: "Quotes", url: "/sales/quotes", icon: FileText },
-      { title: "Orders", url: "/sales/orders", icon: ShoppingCart },
-      { title: "Customers", url: "/crm/accounts", icon: Building2 },
-      { title: "Pricing", url: "/sales/pricing", icon: DollarSign },
+      { title: "Quotes", url: "/crm/quotes", icon: FileText },
+      { title: "Orders", url: "/crm/orders", icon: ShoppingCart },
+      { title: "Customers", url: "/crm/customers", icon: Building2 },
+      { title: "Pricing", url: "/crm/pricing", icon: DollarSign },
+    ]
+  },
+  {
+    title: "Bigin Integration",
+    items: [
+      { title: "Contacts", url: "/crm/contacts", icon: UserCheck },
+      { title: "Companies", url: "/crm/companies", icon: Building2 },
+      { title: "Deals", url: "/crm/deals", icon: Target },
+      { title: "Notes", url: "/crm/notes", icon: FileText },
     ]
   },
   {
