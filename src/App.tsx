@@ -13,6 +13,10 @@ import WorkOrdersPage from "./pages/production/WorkOrdersPage";
 import ExecutionsPage from "./pages/production/ExecutionsPage";
 import SerialsPage from "./pages/production/SerialsPage";
 import RmaPage from "./pages/production/RmaPage";
+import ContactsPage from "./pages/crm/ContactsPage";
+import CompaniesPage from "./pages/crm/CompaniesPage";
+import DealsPage from "./pages/crm/DealsPage";
+import NotesPage from "./pages/crm/NotesPage";
 
 const queryClient = new QueryClient();
 
