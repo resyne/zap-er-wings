@@ -271,8 +271,10 @@ export type Database = {
       }
       crm_contacts: {
         Row: {
+          address: string | null
           bigin_id: string | null
           company_id: string | null
+          company_name: string | null
           created_at: string
           email: string | null
           first_name: string | null
@@ -281,13 +283,18 @@ export type Database = {
           last_name: string | null
           lead_source: string | null
           mobile: string | null
+          pec: string | null
           phone: string | null
+          piva: string | null
+          sdi_code: string | null
           synced_at: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           bigin_id?: string | null
           company_id?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
@@ -296,13 +303,18 @@ export type Database = {
           last_name?: string | null
           lead_source?: string | null
           mobile?: string | null
+          pec?: string | null
           phone?: string | null
+          piva?: string | null
+          sdi_code?: string | null
           synced_at?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           bigin_id?: string | null
           company_id?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
@@ -311,7 +323,10 @@ export type Database = {
           last_name?: string | null
           lead_source?: string | null
           mobile?: string | null
+          pec?: string | null
           phone?: string | null
+          piva?: string | null
+          sdi_code?: string | null
           synced_at?: string | null
           updated_at?: string
         }
@@ -329,10 +344,12 @@ export type Database = {
         Row: {
           amount: number | null
           assigned_to: string | null
+          attachment_urls: string[] | null
           bigin_id: string | null
           company_id: string | null
           contact_id: string | null
           created_at: string
+          description: string | null
           expected_close_date: string | null
           id: string
           name: string
@@ -344,10 +361,12 @@ export type Database = {
         Insert: {
           amount?: number | null
           assigned_to?: string | null
+          attachment_urls?: string[] | null
           bigin_id?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
+          description?: string | null
           expected_close_date?: string | null
           id?: string
           name: string
@@ -359,10 +378,12 @@ export type Database = {
         Update: {
           amount?: number | null
           assigned_to?: string | null
+          attachment_urls?: string[] | null
           bigin_id?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
+          description?: string | null
           expected_close_date?: string | null
           id?: string
           name?: string
