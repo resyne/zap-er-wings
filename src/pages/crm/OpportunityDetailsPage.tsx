@@ -104,7 +104,7 @@ export default function OpportunityDetailsPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setActivities(data || []);
+      setActivities((data as Activity[]) || []);
     } catch (error: any) {
       console.error("Errore nel caricamento attività:", error);
     }

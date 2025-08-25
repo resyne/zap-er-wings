@@ -712,6 +712,69 @@ export type Database = {
         }
         Relationships: []
       }
+      opportunity_activities: {
+        Row: {
+          activity_type: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          opportunity_id: string
+          scheduled_date: string | null
+          title: string
+        }
+        Insert: {
+          activity_type: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          opportunity_id: string
+          scheduled_date?: string | null
+          title: string
+        }
+        Update: {
+          activity_type?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          opportunity_id?: string
+          scheduled_date?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      opportunity_files: {
+        Row: {
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          opportunity_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          opportunity_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          opportunity_id?: string
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           billing_address: string | null
