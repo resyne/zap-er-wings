@@ -22,6 +22,11 @@ interface Contact {
   job_title?: string;
   lead_source?: string;
   company_id?: string;
+  company_name?: string;
+  piva?: string;
+  address?: string;
+  sdi_code?: string;
+  pec?: string;
   company?: {
     name: string;
   };
@@ -44,6 +49,11 @@ export default function ContactsPage() {
     job_title: "",
     lead_source: "",
     company_id: "",
+    company_name: "",
+    piva: "",
+    address: "",
+    sdi_code: "",
+    pec: "",
   });
   const { toast } = useToast();
 
@@ -98,6 +108,11 @@ export default function ContactsPage() {
         job_title: "",
         lead_source: "",
         company_id: "",
+        company_name: "",
+        piva: "",
+        address: "",
+        sdi_code: "",
+        pec: "",
       });
       await loadContacts();
     } catch (error: any) {
@@ -140,81 +155,140 @@ export default function ContactsPage() {
                 Nuovo Contatto
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crea Nuovo Contatto</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-6">
+                {/* Dati Personali */}
                 <div>
-                  <Label htmlFor="first_name">Nome</Label>
-                  <Input
-                    id="first_name"
-                    value={newContact.first_name}
-                    onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
-                    placeholder="Nome"
-                  />
+                  <h3 className="text-lg font-semibold mb-3">Dati Personali</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="first_name">Nome</Label>
+                      <Input
+                        id="first_name"
+                        value={newContact.first_name}
+                        onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
+                        placeholder="Nome"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Cognome</Label>
+                      <Input
+                        id="last_name"
+                        value={newContact.last_name}
+                        onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
+                        placeholder="Cognome"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newContact.email}
+                        onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                        placeholder="email@esempio.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Telefono</Label>
+                      <Input
+                        id="phone"
+                        value={newContact.phone}
+                        onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                        placeholder="+39 123 456 7890"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="mobile">Cellulare</Label>
+                      <Input
+                        id="mobile"
+                        value={newContact.mobile}
+                        onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
+                        placeholder="+39 123 456 7890"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="job_title">Ruolo</Label>
+                      <Input
+                        id="job_title"
+                        value={newContact.job_title}
+                        onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
+                        placeholder="Manager, Direttore..."
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="lead_source">Fonte Lead</Label>
+                      <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona fonte" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="website">Sito Web</SelectItem>
+                          <SelectItem value="referral">Referral</SelectItem>
+                          <SelectItem value="social_media">Social Media</SelectItem>
+                          <SelectItem value="cold_call">Cold Call</SelectItem>
+                          <SelectItem value="trade_show">Fiera</SelectItem>
+                          <SelectItem value="other">Altro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Anagrafica Azienda */}
                 <div>
-                  <Label htmlFor="last_name">Cognome</Label>
-                  <Input
-                    id="last_name"
-                    value={newContact.last_name}
-                    onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
-                    placeholder="Cognome"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newContact.email}
-                    onChange={(e) => setNewContact({...newContact, email: e.target.value})}
-                    placeholder="email@esempio.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Telefono</Label>
-                  <Input
-                    id="phone"
-                    value={newContact.phone}
-                    onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
-                    placeholder="+39 123 456 7890"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="mobile">Cellulare</Label>
-                  <Input
-                    id="mobile"
-                    value={newContact.mobile}
-                    onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
-                    placeholder="+39 123 456 7890"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="job_title">Ruolo</Label>
-                  <Input
-                    id="job_title"
-                    value={newContact.job_title}
-                    onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
-                    placeholder="Manager, Direttore..."
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="lead_source">Fonte Lead</Label>
-                  <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona fonte" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="website">Sito Web</SelectItem>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="social_media">Social Media</SelectItem>
-                      <SelectItem value="cold_call">Cold Call</SelectItem>
-                      <SelectItem value="trade_show">Fiera</SelectItem>
-                      <SelectItem value="other">Altro</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <h3 className="text-lg font-semibold mb-3">Anagrafica Azienda</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="company_name">Nome Azienda</Label>
+                      <Input
+                        id="company_name"
+                        value={newContact.company_name}
+                        onChange={(e) => setNewContact({...newContact, company_name: e.target.value})}
+                        placeholder="Nome dell'azienda"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="piva">P.IVA</Label>
+                      <Input
+                        id="piva"
+                        value={newContact.piva}
+                        onChange={(e) => setNewContact({...newContact, piva: e.target.value})}
+                        placeholder="12345678901"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sdi_code">Codice SDI</Label>
+                      <Input
+                        id="sdi_code"
+                        value={newContact.sdi_code}
+                        onChange={(e) => setNewContact({...newContact, sdi_code: e.target.value})}
+                        placeholder="ABCDEFG"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="address">Indirizzo</Label>
+                      <Input
+                        id="address"
+                        value={newContact.address}
+                        onChange={(e) => setNewContact({...newContact, address: e.target.value})}
+                        placeholder="Via Roma 123, Milano (MI)"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="pec">PEC</Label>
+                      <Input
+                        id="pec"
+                        type="email"
+                        value={newContact.pec}
+                        onChange={(e) => setNewContact({...newContact, pec: e.target.value})}
+                        placeholder="azienda@pec.it"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
@@ -253,6 +327,7 @@ export default function ContactsPage() {
                 <TableHead>Azienda</TableHead>
                 <TableHead>Contatto</TableHead>
                 <TableHead>Ruolo</TableHead>
+                <TableHead>P.IVA</TableHead>
                 <TableHead>Fonte</TableHead>
                 
               </TableRow>
@@ -274,10 +349,10 @@ export default function ContactsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {contact.company?.name && (
+                    {(contact.company?.name || contact.company_name) && (
                       <div className="flex items-center">
                         <Building2 className="w-4 h-4 mr-1 text-muted-foreground" />
-                        {contact.company.name}
+                        {contact.company?.name || contact.company_name}
                       </div>
                     )}
                   </TableCell>
@@ -303,6 +378,11 @@ export default function ContactsPage() {
                     )}
                   </TableCell>
                   <TableCell>
+                    {contact.piva && (
+                      <span className="text-sm font-mono">{contact.piva}</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {contact.lead_source && (
                       <Badge variant="outline">{contact.lead_source}</Badge>
                     )}
@@ -311,7 +391,7 @@ export default function ContactsPage() {
               ))}
               {filteredContacts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessun contatto trovato" : "Nessun contatto presente"}
                     </div>

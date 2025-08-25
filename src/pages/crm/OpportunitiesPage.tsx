@@ -53,6 +53,7 @@ export default function OpportunitiesPage() {
     expected_close_date: "",
     contact_id: "",
     company_id: "",
+    description: "",
   });
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -134,6 +135,7 @@ export default function OpportunitiesPage() {
         expected_close_date: "",
         contact_id: "",
         company_id: "",
+        description: "",
       });
       await loadOpportunities();
     } catch (error: any) {
@@ -319,6 +321,15 @@ export default function OpportunitiesPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="description">Descrizione</Label>
+                  <Input
+                    id="description"
+                    value={newOpportunity.description}
+                    onChange={(e) => setNewOpportunity({...newOpportunity, description: e.target.value})}
+                    placeholder="Descrizione dell'opportunità"
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
