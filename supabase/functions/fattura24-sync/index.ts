@@ -97,33 +97,75 @@ async function createCustomer(customerData: any) {
 async function createQuote(quoteData: any) {
   console.log('Creating quote in Fattura24:', quoteData);
 
-  const fattura24Quote = {
-    apiKey: fattura24ApiKey,
-    customerId: quoteData.customerId,
-    description: quoteData.description || 'Preventivo',
-    items: quoteData.items || [],
-    validUntil: quoteData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 giorni
-    notes: quoteData.notes || ''
-  };
+  // Costruisci XML secondo la specifica Fattura24
+  const xml = `<Fattura24>
+    <Document>
+      <DocumentType>C</DocumentType>
+      <CustomerName>${quoteData.customerName || ''}</CustomerName>
+      <CustomerAddress>${quoteData.customerAddress || ''}</CustomerAddress>
+      <CustomerPostcode>${quoteData.customerPostcode || ''}</CustomerPostcode>
+      <CustomerCity>${quoteData.customerCity || ''}</CustomerCity>
+      <CustomerProvince>${quoteData.customerProvince || ''}</CustomerProvince>
+      <CustomerCountry>${quoteData.customerCountry || ''}</CustomerCountry>
+      <CustomerFiscalCode>${quoteData.customerFiscalCode || ''}</CustomerFiscalCode>
+      <CustomerVatCode>${quoteData.customerVatCode || ''}</CustomerVatCode>
+      <CustomerCellPhone>${quoteData.customerPhone || ''}</CustomerCellPhone>
+      <CustomerEmail>${quoteData.customerEmail || ''}</CustomerEmail>
+      <DeliveryName>${quoteData.deliveryName || quoteData.customerName || ''}</DeliveryName>
+      <DeliveryAddress>${quoteData.deliveryAddress || quoteData.customerAddress || ''}</DeliveryAddress>
+      <DeliveryPostcode>${quoteData.deliveryPostcode || quoteData.customerPostcode || ''}</DeliveryPostcode>
+      <DeliveryCity>${quoteData.deliveryCity || quoteData.customerCity || ''}</DeliveryCity>
+      <DeliveryProvince>${quoteData.deliveryProvince || quoteData.customerProvince || ''}</DeliveryProvince>
+      <DeliveryCountry>${quoteData.deliveryCountry || quoteData.customerCountry || ''}</DeliveryCountry>
+      <Object>${quoteData.object || 'Preventivo'}</Object>
+      <TotalWithoutTax>${quoteData.totalWithoutTax || '0.00'}</TotalWithoutTax>
+      <PaymentMethodName>${quoteData.paymentMethodName || ''}</PaymentMethodName>
+      <PaymentMethodDescription>${quoteData.paymentMethodDescription || ''}</PaymentMethodDescription>
+      <VatAmount>${quoteData.vatAmount || '0.00'}</VatAmount>
+      <Total>${quoteData.total || '0.00'}</Total>
+      <FootNotes>${quoteData.footNotes || ''}</FootNotes>
+      <SendEmail>${quoteData.sendEmail || 'false'}</SendEmail>
+      ${quoteData.date ? `<Date>${quoteData.date}</Date>` : ''}
+      ${quoteData.number ? `<Number>${quoteData.number}</Number>` : ''}
+      <Rows>
+        ${(quoteData.items || []).map((item: any) => `
+          <Row>
+            <Code>${item.code || ''}</Code>
+            <Description>${item.description || ''}</Description>
+            <Qty>${item.quantity || '1'}</Qty>
+            <Um>${item.unit || ''}</Um>
+            <Price>${item.price || '0.00'}</Price>
+            <Discounts>${item.discounts || '0'}</Discounts>
+            <VatCode>${item.vatCode || '22'}</VatCode>
+            <VatDescription>${item.vatDescription || '22%'}</VatDescription>
+          </Row>
+        `).join('')}
+      </Rows>
+    </Document>
+  </Fattura24>`;
 
-  const response = await fetch('https://www.app.fattura24.com/api/v0.3/SaveQuote', {
+  const formData = new URLSearchParams();
+  formData.append('apiKey', fattura24ApiKey);
+  formData.append('xml', xml);
+
+  const response = await fetch('https://www.app.fattura24.com/api/v0.3/SaveDocument', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: JSON.stringify(fattura24Quote),
+    body: formData,
   });
 
-  console.log('Fattura24 SaveQuote response status:', response.status);
+  console.log('Fattura24 SaveDocument response status:', response.status);
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Fattura24 SaveQuote error:', errorText);
-    throw new Error(`Failed to create quote in Fattura24: ${response.status} - ${errorText}`);
+    console.error('Fattura24 SaveDocument error:', errorText);
+    throw new Error(`Failed to create document in Fattura24: ${response.status} - ${errorText}`);
   }
 
-  const result = await response.json();
-  console.log('Fattura24 SaveQuote result:', result);
+  const result = await response.text();
+  console.log('Fattura24 SaveDocument result:', result);
 
   return new Response(JSON.stringify({
     success: true,
