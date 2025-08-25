@@ -9,59 +9,65 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, User, Mail, Phone, Building2 } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2 } from "lucide-react";
 
-interface Lead {
+interface Contact {
   id: string;
-  company_name: string;
-  contact_name?: string;
+  bigin_id?: string;
+  first_name?: string;
+  last_name?: string;
   email?: string;
   phone?: string;
-  source?: string;
-  status?: string;
-  value?: number;
-  assigned_to?: string;
-  notes?: string;
+  mobile?: string;
+  job_title?: string;
+  lead_source?: string;
+  company_id?: string;
+  company?: {
+    name: string;
+  };
   created_at: string;
+  synced_at?: string;
 }
 
-const leadStatuses = ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"];
-const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "advertisement", "other"];
+const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "other"];
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newLead, setNewLead] = useState({
-    company_name: "",
-    contact_name: "",
+  const [newContact, setNewContact] = useState({
+    first_name: "",
+    last_name: "",
     email: "",
     phone: "",
-    source: "",
-    status: "new",
-    value: "",
-    notes: "",
+    mobile: "",
+    job_title: "",
+    lead_source: "",
+    company_id: "",
   });
   const { toast } = useToast();
 
   useEffect(() => {
-    loadLeads();
+    loadContacts();
   }, []);
 
-  const loadLeads = async () => {
+  const loadContacts = async () => {
     try {
       const { data, error } = await supabase
-        .from("leads")
-        .select("*")
+        .from("crm_contacts")
+        .select(`
+          *,
+          company:crm_companies(name)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setLeads(data || []);
+      setContacts(data || []);
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile caricare i leads: " + error.message,
+        description: "Impossibile caricare i contatti: " + error.message,
         variant: "destructive",
       });
     } finally {
@@ -69,74 +75,59 @@ export default function LeadsPage() {
     }
   };
 
-  const handleCreateLead = async () => {
+  const handleCreateContact = async () => {
     try {
-      const leadData = {
-        ...newLead,
-        value: newLead.value ? parseFloat(newLead.value) : null,
-      };
-
       const { error } = await supabase
-        .from("leads")
-        .insert([leadData]);
+        .from("crm_contacts")
+        .insert([newContact]);
 
       if (error) throw error;
 
       toast({
-        title: "Lead creato",
-        description: "Il lead è stato creato con successo",
+        title: "Contatto creato",
+        description: "Il contatto è stato creato con successo",
       });
 
       setIsDialogOpen(false);
-      setNewLead({
-        company_name: "",
-        contact_name: "",
+      setNewContact({
+        first_name: "",
+        last_name: "",
         email: "",
         phone: "",
-        source: "",
-        status: "new",
-        value: "",
-        notes: "",
+        mobile: "",
+        job_title: "",
+        lead_source: "",
+        company_id: "",
       });
-      await loadLeads();
+      await loadContacts();
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile creare il lead: " + error.message,
+        description: "Impossibile creare il contatto: " + error.message,
         variant: "destructive",
       });
     }
   };
 
-  const getStatusColor = (status?: string) => {
-    switch (status) {
-      case "won":
-        return "default";
-      case "lost":
-        return "destructive";
-      case "qualified":
-        return "secondary";
-      case "proposal":
-        return "outline";
-      default:
-        return "outline";
-    }
-  };
-
-  const filteredLeads = leads.filter(lead =>
-    `${lead.company_name} ${lead.contact_name || ""} ${lead.email || ""}`
+  const filteredContacts = contacts.filter(contact =>
+    `${contact.first_name} ${contact.last_name} ${contact.email} ${contact.company?.name || ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  const totalValue = filteredLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-  const qualifiedLeads = filteredLeads.filter(lead => ["qualified", "proposal", "negotiation"].includes(lead.status || ""));
+  const totalContacts = filteredContacts.length;
+  const recentContacts = filteredContacts.filter(contact => {
+    const createdDate = new Date(contact.created_at);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return createdDate > weekAgo;
+  }).length;
 
   if (loading) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-96">
-          <div className="text-lg">Caricamento leads...</div>
+          <div className="text-lg">Caricamento contatti...</div>
         </div>
       </div>
     );
@@ -147,37 +138,36 @@ export default function LeadsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Leads</h1>
-          <p className="text-muted-foreground">Gestisci i tuoi potenziali clienti e opportunità</p>
+          <p className="text-muted-foreground">Gestisci tutti i tuoi contatti come leads</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              Nuovo Lead
+              Nuovo Contatto
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Crea Nuovo Lead</DialogTitle>
+              <DialogTitle>Crea Nuovo Contatto</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="company_name">Nome Azienda *</Label>
+              <div>
+                <Label htmlFor="first_name">Nome</Label>
                 <Input
-                  id="company_name"
-                  value={newLead.company_name}
-                  onChange={(e) => setNewLead({...newLead, company_name: e.target.value})}
-                  placeholder="Nome azienda"
-                  required
+                  id="first_name"
+                  value={newContact.first_name}
+                  onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
+                  placeholder="Mario"
                 />
               </div>
               <div>
-                <Label htmlFor="contact_name">Nome Contatto</Label>
+                <Label htmlFor="last_name">Cognome</Label>
                 <Input
-                  id="contact_name"
-                  value={newLead.contact_name}
-                  onChange={(e) => setNewLead({...newLead, contact_name: e.target.value})}
-                  placeholder="Nome e cognome"
+                  id="last_name"
+                  value={newContact.last_name}
+                  onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
+                  placeholder="Rossi"
                 />
               </div>
               <div>
@@ -185,55 +175,53 @@ export default function LeadsPage() {
                 <Input
                   id="email"
                   type="email"
-                  value={newLead.email}
-                  onChange={(e) => setNewLead({...newLead, email: e.target.value})}
-                  placeholder="email@esempio.com"
+                  value={newContact.email}
+                  onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                  placeholder="mario.rossi@esempio.com"
                 />
               </div>
               <div>
                 <Label htmlFor="phone">Telefono</Label>
                 <Input
                   id="phone"
-                  value={newLead.phone}
-                  onChange={(e) => setNewLead({...newLead, phone: e.target.value})}
+                  value={newContact.phone}
+                  onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
                   placeholder="+39 123 456 7890"
                 />
               </div>
               <div>
-                <Label htmlFor="value">Valore Potenziale (€)</Label>
+                <Label htmlFor="mobile">Cellulare</Label>
                 <Input
-                  id="value"
-                  type="number"
-                  value={newLead.value}
-                  onChange={(e) => setNewLead({...newLead, value: e.target.value})}
-                  placeholder="10000"
+                  id="mobile"
+                  value={newContact.mobile}
+                  onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
+                  placeholder="+39 123 456 7890"
                 />
               </div>
               <div>
-                <Label htmlFor="source">Fonte</Label>
-                <Select value={newLead.source} onValueChange={(value) => setNewLead({...newLead, source: value})}>
+                <Label htmlFor="job_title">Ruolo</Label>
+                <Input
+                  id="job_title"
+                  value={newContact.job_title}
+                  onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
+                  placeholder="Manager, Direttore..."
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="lead_source">Fonte Lead</Label>
+                <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona fonte" />
                   </SelectTrigger>
                   <SelectContent>
                     {leadSources.map(source => (
                       <SelectItem key={source} value={source}>
-                        {source.replace('_', ' ').toUpperCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="status">Stato</Label>
-                <Select value={newLead.status} onValueChange={(value) => setNewLead({...newLead, status: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leadStatuses.map(status => (
-                      <SelectItem key={status} value={status}>
-                        {status.toUpperCase()}
+                        {source === "website" ? "Sito Web" :
+                         source === "referral" ? "Referral" :
+                         source === "social_media" ? "Social Media" :
+                         source === "cold_call" ? "Cold Call" :
+                         source === "trade_show" ? "Fiera" :
+                         "Altro"}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -244,8 +232,8 @@ export default function LeadsPage() {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Annulla
               </Button>
-              <Button onClick={handleCreateLead} disabled={!newLead.company_name}>
-                Crea Lead
+              <Button onClick={handleCreateContact}>
+                Crea Contatto
               </Button>
             </div>
           </DialogContent>
@@ -256,37 +244,39 @@ export default function LeadsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leads Totali</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Totale Contatti</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredLeads.length}</div>
+            <div className="text-2xl font-bold">{totalContacts}</div>
             <p className="text-xs text-muted-foreground">
-              Potenziali clienti
+              Contatti nel sistema
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leads Qualificati</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Nuovi questa settimana</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{qualifiedLeads.length}</div>
+            <div className="text-2xl font-bold">{recentContacts}</div>
             <p className="text-xs text-muted-foreground">
-              In fase avanzata
+              Aggiunti negli ultimi 7 giorni
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valore Pipeline</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Con Email</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {filteredContacts.filter(c => c.email).length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Valore totale potenziale
+              Contatti con email valida
             </p>
           </CardContent>
         </Card>
@@ -295,11 +285,11 @@ export default function LeadsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Lista Leads ({filteredLeads.length})</CardTitle>
+            <CardTitle>Lista Contatti ({filteredContacts.length})</CardTitle>
             <div className="relative w-80">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Cerca leads..."
+                placeholder="Cerca contatti..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -311,74 +301,70 @@ export default function LeadsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Nome</TableHead>
                 <TableHead>Azienda</TableHead>
                 <TableHead>Contatto</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Telefono</TableHead>
-                <TableHead>Valore</TableHead>
+                <TableHead>Ruolo</TableHead>
                 <TableHead>Fonte</TableHead>
-                <TableHead>Stato</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLeads.map((lead) => (
-                <TableRow key={lead.id}>
+              {filteredContacts.map((contact) => (
+                <TableRow key={contact.id}>
                   <TableCell>
-                    <div className="flex items-center">
-                      <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
-                      <span className="font-medium">{lead.company_name}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium">
+                        {contact.first_name} {contact.last_name}
+                      </span>
+                      {contact.email && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Mail className="w-3 h-3 mr-1" />
+                          {contact.email}
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {lead.contact_name && (
+                    {contact.company?.name && (
                       <div className="flex items-center">
-                        <User className="w-4 h-4 mr-2 text-muted-foreground" />
-                        {lead.contact_name}
+                        <Building2 className="w-4 h-4 mr-1 text-muted-foreground" />
+                        {contact.company.name}
                       </div>
                     )}
                   </TableCell>
                   <TableCell>
-                    {lead.email && (
-                      <div className="flex items-center">
-                        <Mail className="w-3 h-3 mr-1" />
-                        {lead.email}
-                      </div>
+                    <div className="space-y-1">
+                      {contact.phone && (
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-3 h-3 mr-1" />
+                          {contact.phone}
+                        </div>
+                      )}
+                      {contact.mobile && (
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-3 h-3 mr-1" />
+                          {contact.mobile}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {contact.job_title && (
+                      <Badge variant="secondary">{contact.job_title}</Badge>
                     )}
                   </TableCell>
                   <TableCell>
-                    {lead.phone && (
-                      <div className="flex items-center">
-                        <Phone className="w-3 h-3 mr-1" />
-                        {lead.phone}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {lead.value && (
-                      <span className="font-medium">€{lead.value.toLocaleString()}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {lead.source && (
-                      <Badge variant="outline">
-                        {lead.source.replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {lead.status && (
-                      <Badge variant={getStatusColor(lead.status)}>
-                        {lead.status.toUpperCase()}
-                      </Badge>
+                    {contact.lead_source && (
+                      <Badge variant="outline">{contact.lead_source}</Badge>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredLeads.length === 0 && (
+              {filteredContacts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={5} className="text-center py-8">
                     <div className="text-muted-foreground">
-                      {searchTerm ? "Nessun lead trovato" : "Nessun lead presente"}
+                      {searchTerm ? "Nessun contatto trovato" : "Nessun contatto presente"}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -3,17 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Calendar, DollarSign } from "lucide-react";
+import { Plus, Search, TrendingUp, Calendar, DollarSign, MoreHorizontal } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 interface Opportunity {
   id: string;
-  bigin_id?: string;
   name: string;
   amount?: number;
   stage?: string;
@@ -27,20 +26,15 @@ interface Opportunity {
     name: string;
   };
   created_at: string;
-  synced_at?: string;
 }
 
 const opportunityStages = [
-  "Prospecting",
-  "Qualification", 
-  "Needs Analysis",
-  "Value Proposition",
-  "Id. Decision Makers",
-  "Perception Analysis",
-  "Proposal/Price Quote",
-  "Negotiation/Review",
-  "Closed Won",
-  "Closed Lost"
+  { id: "qualificazione", name: "Qualificazione", color: "bg-blue-500" },
+  { id: "da_esaminare", name: "Da esaminare", color: "bg-yellow-500" },
+  { id: "proposta_preventivo", name: "Proposta preventivo", color: "bg-orange-500" },
+  { id: "negoziazione", name: "Negoziazione", color: "bg-purple-500" },
+  { id: "chiusa", name: "Chiusa", color: "bg-green-500" },
+  { id: "presa", name: "Presa", color: "bg-gray-500" },
 ];
 
 export default function OpportunitiesPage() {
@@ -53,7 +47,7 @@ export default function OpportunitiesPage() {
   const [newOpportunity, setNewOpportunity] = useState({
     name: "",
     amount: "",
-    stage: "",
+    stage: "qualificazione",
     probability: "",
     expected_close_date: "",
     contact_id: "",
@@ -133,7 +127,7 @@ export default function OpportunitiesPage() {
       setNewOpportunity({
         name: "",
         amount: "",
-        stage: "",
+        stage: "qualificazione",
         probability: "",
         expected_close_date: "",
         contact_id: "",
@@ -149,19 +143,46 @@ export default function OpportunitiesPage() {
     }
   };
 
-  const getStageColor = (stage?: string) => {
-    switch (stage) {
-      case "Closed Won":
-        return "default";
-      case "Closed Lost":
-        return "destructive";
-      case "Negotiation/Review":
-        return "secondary";
-      case "Proposal/Price Quote":
-        return "outline";
-      default:
-        return "outline";
+  const handleDragEnd = async (result: any) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+    const newStage = destination.droppableId;
+    
+    try {
+      const { error } = await supabase
+        .from("crm_deals")
+        .update({ stage: newStage })
+        .eq("id", draggableId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOpportunities(prev => 
+        prev.map(opp => 
+          opp.id === draggableId 
+            ? { ...opp, stage: newStage }
+            : opp
+        )
+      );
+
+      toast({
+        title: "Opportunità aggiornata",
+        description: "La fase dell'opportunità è stata aggiornata",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare l'opportunità: " + error.message,
+        variant: "destructive",
+      });
     }
+  };
+
+  const getOpportunitiesByStage = (stageId: string) => {
+    return opportunities.filter(opp => opp.stage === stageId);
   };
 
   const filteredOpportunities = opportunities.filter(opp =>
@@ -171,11 +192,8 @@ export default function OpportunitiesPage() {
   );
 
   const totalValue = filteredOpportunities.reduce((sum, opp) => sum + (opp.amount || 0), 0);
-  const wonOpportunities = filteredOpportunities.filter(opp => opp.stage === "Closed Won");
+  const wonOpportunities = filteredOpportunities.filter(opp => opp.stage === "chiusa");
   const wonValue = wonOpportunities.reduce((sum, opp) => sum + (opp.amount || 0), 0);
-  const avgProbability = filteredOpportunities.length > 0 
-    ? filteredOpportunities.reduce((sum, opp) => sum + (opp.probability || 0), 0) / filteredOpportunities.length 
-    : 0;
 
   if (loading) {
     return (
@@ -192,115 +210,126 @@ export default function OpportunitiesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Opportunità</h1>
-          <p className="text-muted-foreground">Gestisci le tue opportunità di vendita</p>
+          <p className="text-muted-foreground">Gestisci le tue opportunità di vendita con il kanban</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nuova Opportunità
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Crea Nuova Opportunità</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="name">Nome Opportunità *</Label>
-                <Input
-                  id="name"
-                  value={newOpportunity.name}
-                  onChange={(e) => setNewOpportunity({...newOpportunity, name: e.target.value})}
-                  placeholder="Nome dell'opportunità"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="amount">Valore (€)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={newOpportunity.amount}
-                  onChange={(e) => setNewOpportunity({...newOpportunity, amount: e.target.value})}
-                  placeholder="10000"
-                />
-              </div>
-              <div>
-                <Label htmlFor="probability">Probabilità (%)</Label>
-                <Input
-                  id="probability"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={newOpportunity.probability}
-                  onChange={(e) => setNewOpportunity({...newOpportunity, probability: e.target.value})}
-                  placeholder="75"
-                />
-              </div>
-              <div>
-                <Label htmlFor="stage">Fase</Label>
-                <Select value={newOpportunity.stage} onValueChange={(value) => setNewOpportunity({...newOpportunity, stage: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona fase" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {opportunityStages.map(stage => (
-                      <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="expected_close_date">Data Chiusura Prevista</Label>
-                <Input
-                  id="expected_close_date"
-                  type="date"
-                  value={newOpportunity.expected_close_date}
-                  onChange={(e) => setNewOpportunity({...newOpportunity, expected_close_date: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_id">Contatto</Label>
-                <Select value={newOpportunity.contact_id} onValueChange={(value) => setNewOpportunity({...newOpportunity, contact_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona contatto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contacts.map(contact => (
-                      <SelectItem key={contact.id} value={contact.id}>
-                        {contact.first_name} {contact.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="company_id">Azienda</Label>
-                <Select value={newOpportunity.company_id} onValueChange={(value) => setNewOpportunity({...newOpportunity, company_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona azienda" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map(company => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Annulla
+        <div className="flex gap-2">
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Cerca opportunità..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nuova Opportunità
               </Button>
-              <Button onClick={handleCreateOpportunity} disabled={!newOpportunity.name}>
-                Crea Opportunità
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Crea Nuova Opportunità</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="name">Nome Opportunità *</Label>
+                  <Input
+                    id="name"
+                    value={newOpportunity.name}
+                    onChange={(e) => setNewOpportunity({...newOpportunity, name: e.target.value})}
+                    placeholder="Nome dell'opportunità"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="amount">Valore (€)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    value={newOpportunity.amount}
+                    onChange={(e) => setNewOpportunity({...newOpportunity, amount: e.target.value})}
+                    placeholder="10000"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="probability">Probabilità (%)</Label>
+                  <Input
+                    id="probability"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newOpportunity.probability}
+                    onChange={(e) => setNewOpportunity({...newOpportunity, probability: e.target.value})}
+                    placeholder="75"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="stage">Fase</Label>
+                  <Select value={newOpportunity.stage} onValueChange={(value) => setNewOpportunity({...newOpportunity, stage: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona fase" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {opportunityStages.map(stage => (
+                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="expected_close_date">Data Chiusura Prevista</Label>
+                  <Input
+                    id="expected_close_date"
+                    type="date"
+                    value={newOpportunity.expected_close_date}
+                    onChange={(e) => setNewOpportunity({...newOpportunity, expected_close_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contact_id">Contatto</Label>
+                  <Select value={newOpportunity.contact_id} onValueChange={(value) => setNewOpportunity({...newOpportunity, contact_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona contatto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contacts.map(contact => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.first_name} {contact.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="company_id">Azienda</Label>
+                  <Select value={newOpportunity.company_id} onValueChange={(value) => setNewOpportunity({...newOpportunity, company_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona azienda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map(company => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Annulla
+                </Button>
+                <Button onClick={handleCreateOpportunity} disabled={!newOpportunity.name}>
+                  Crea Opportunità
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -345,104 +374,118 @@ export default function OpportunitiesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Prob. Media</CardTitle>
+            <CardTitle className="text-sm font-medium">In Negoziazione</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Math.round(avgProbability)}%</div>
+            <div className="text-2xl font-bold">
+              {getOpportunitiesByStage("negoziazione").length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Probabilità media di chiusura
+              Opportunità in fase di negoziazione
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista Opportunità ({filteredOpportunities.length})</CardTitle>
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Cerca opportunità..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Contatto/Azienda</TableHead>
-                <TableHead>Valore</TableHead>
-                <TableHead>Fase</TableHead>
-                <TableHead>Probabilità</TableHead>
-                <TableHead>Chiusura Prevista</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOpportunities.map((opportunity) => (
-                <TableRow key={opportunity.id}>
-                  <TableCell>
-                    <span className="font-medium">{opportunity.name}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {opportunity.contact && (
-                        <div className="text-sm">
-                          {opportunity.contact.first_name} {opportunity.contact.last_name}
-                        </div>
-                      )}
-                      {opportunity.company && (
-                        <div className="text-sm text-muted-foreground">
-                          {opportunity.company.name}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {opportunity.amount && (
-                      <span className="font-medium">€{opportunity.amount.toLocaleString()}</span>
+      {/* Kanban Board */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 min-h-[600px]">
+          {opportunityStages.map((stage) => {
+            const stageOpportunities = getOpportunitiesByStage(stage.id).filter(opp =>
+              searchTerm === "" || `${opp.name} ${opp.contact?.first_name || ""} ${opp.contact?.last_name || ""} ${opp.company?.name || ""}`
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase())
+            );
+
+            return (
+              <Card key={stage.id} className="flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${stage.color}`}></div>
+                      {stage.name}
+                    </CardTitle>
+                    <Badge variant="secondary">{stageOpportunities.length}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 pt-0">
+                  <Droppable droppableId={stage.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`space-y-3 min-h-[400px] p-2 rounded-lg transition-colors ${
+                          snapshot.isDraggingOver ? 'bg-muted/50' : ''
+                        }`}
+                      >
+                        {stageOpportunities.map((opportunity, index) => (
+                          <Draggable key={opportunity.id} draggableId={opportunity.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`p-3 rounded-lg border bg-card text-card-foreground shadow-sm transition-transform ${
+                                  snapshot.isDragging ? 'rotate-3 shadow-lg' : 'hover:shadow-md'
+                                }`}
+                              >
+                                <div className="space-y-2">
+                                  <h4 className="font-medium text-sm line-clamp-2">{opportunity.name}</h4>
+                                  
+                                  {opportunity.amount && (
+                                    <div className="text-sm font-semibold text-green-600">
+                                      €{opportunity.amount.toLocaleString()}
+                                    </div>
+                                  )}
+                                  
+                                  {(opportunity.contact || opportunity.company) && (
+                                    <div className="text-xs text-muted-foreground space-y-1">
+                                      {opportunity.contact && (
+                                        <div>{opportunity.contact.first_name} {opportunity.contact.last_name}</div>
+                                      )}
+                                      {opportunity.company && (
+                                        <div>{opportunity.company.name}</div>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {opportunity.expected_close_date && (
+                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      {new Date(opportunity.expected_close_date).toLocaleDateString('it-IT')}
+                                    </div>
+                                  )}
+                                  
+                                  {opportunity.probability && (
+                                    <div className="text-xs">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-muted-foreground">Probabilità</span>
+                                        <span>{opportunity.probability}%</span>
+                                      </div>
+                                      <div className="w-full bg-muted rounded-full h-1">
+                                        <div 
+                                          className="bg-primary h-1 rounded-full transition-all" 
+                                          style={{ width: `${opportunity.probability}%` }}
+                                        ></div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {opportunity.stage && (
-                      <Badge variant={getStageColor(opportunity.stage)}>
-                        {opportunity.stage}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {opportunity.probability && (
-                      <span className="text-sm">{opportunity.probability}%</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {opportunity.expected_close_date && (
-                      <span className="text-sm">
-                        {new Date(opportunity.expected_close_date).toLocaleDateString('it-IT')}
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredOpportunities.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      {searchTerm ? "Nessuna opportunità trovata" : "Nessuna opportunità presente"}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  </Droppable>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </DragDropContext>
     </div>
   );
 }

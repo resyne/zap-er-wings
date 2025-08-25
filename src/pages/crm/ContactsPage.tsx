@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, RefreshCw, Mail, Phone, Building2 } from "lucide-react";
+import { Plus, Search, Mail, Phone, Building2 } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -34,7 +34,7 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [newContact, setNewContact] = useState({
     first_name: "",
     last_name: "",
@@ -74,31 +74,6 @@ export default function ContactsPage() {
     }
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('bigin-sync', {
-        body: { action: 'sync_contacts' }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sincronizzazione completata",
-        description: "I contatti sono stati sincronizzati con Bigin",
-      });
-      
-      await loadContacts();
-    } catch (error: any) {
-      toast({
-        title: "Errore di sincronizzazione",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleCreateContact = async () => {
     try {
@@ -155,17 +130,9 @@ export default function ContactsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Contatti</h1>
-          <p className="text-muted-foreground">Gestisci i tuoi contatti e sincronizza con Bigin</p>
+          <p className="text-muted-foreground">Gestisci i tuoi contatti CRM</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing}
-            variant="outline"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -287,7 +254,7 @@ export default function ContactsPage() {
                 <TableHead>Contatto</TableHead>
                 <TableHead>Ruolo</TableHead>
                 <TableHead>Fonte</TableHead>
-                <TableHead>Stato Sync</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -340,18 +307,11 @@ export default function ContactsPage() {
                       <Badge variant="outline">{contact.lead_source}</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
-                    {contact.bigin_id ? (
-                      <Badge variant="default">Sincronizzato</Badge>
-                    ) : (
-                      <Badge variant="secondary">Locale</Badge>
-                    )}
-                  </TableCell>
                 </TableRow>
               ))}
               {filteredContacts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={5} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessun contatto trovato" : "Nessun contatto presente"}
                     </div>
