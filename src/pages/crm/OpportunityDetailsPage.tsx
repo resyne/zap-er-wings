@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Upload, FileText, Image, Calendar, Clock, User, Plus, CheckCircle } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Image, Calendar, Clock, User, Plus, CheckCircle, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -58,7 +58,8 @@ export function OpportunityDetailsPage() {
   const [files, setFiles] = useState<OpportunityFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
-  const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   
   const [newActivity, setNewActivity] = useState({
     title: "",
@@ -164,40 +165,134 @@ export function OpportunityDetailsPage() {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (uploadedFiles: FileList) => {
+    if (!id || uploadedFiles.length === 0) return;
+
+    setUploadingFiles(true);
+    
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `opportunities/${id}/${fileName}`;
+      for (const file of uploadedFiles) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('company-documents')
-        .upload(filePath, file);
+        // Upload file to storage
+        const { error: uploadError } = await supabase.storage
+          .from('opportunity-files')
+          .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
+        // Save file record to database
+        const { error: dbError } = await supabase
+          .from('opportunity_files')
+          .insert({
+            opportunity_id: id,
+            file_name: file.name,
+            file_path: filePath,
+            file_type: file.type,
+          });
+
+        if (dbError) throw dbError;
+      }
+
+      toast({
+        title: "File caricati",
+        description: `${uploadedFiles.length} file caricati con successo`,
+      });
+
+      loadFiles();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Errore durante il caricamento dei file: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(e.target.files);
+    }
+  };
+
+  const downloadFile = async (file: OpportunityFile) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('opportunity-files')
+        .download(file.file_path);
+
+      if (error) throw error;
+
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Errore durante il download del file: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteFile = async (file: OpportunityFile) => {
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('opportunity-files')
+        .remove([file.file_path]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
       const { error: dbError } = await supabase
-        .from("opportunity_files")
-        .insert([{
-          opportunity_id: id,
-          file_name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-        }]);
+        .from('opportunity_files')
+        .delete()
+        .eq('id', file.id);
 
       if (dbError) throw dbError;
 
       toast({
-        title: "File caricato",
-        description: "Il file è stato caricato con successo",
+        title: "File eliminato",
+        description: "Il file è stato eliminato con successo",
       });
 
-      setIsFileDialogOpen(false);
-      await loadFiles();
+      loadFiles();
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile caricare il file: " + error.message,
+        description: "Errore durante l'eliminazione del file: " + error.message,
         variant: "destructive",
       });
     }
@@ -299,61 +394,88 @@ export function OpportunityDetailsPage() {
 
           {/* File e Documenti */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>File e Documenti</CardTitle>
-              <Dialog open={isFileDialogOpen} onOpenChange={setIsFileDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Carica File
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Carica File</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="file-upload">Seleziona File</Label>
-                      <Input
-                        id="file-upload"
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleFileUpload(file);
-                          }
-                        }}
-                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                      />
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                File e Documenti
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {files.map((file) => (
-                  <div key={file.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                    {file.file_type.startsWith('image/') ? (
-                      <Image className="w-5 h-5 text-blue-500" />
-                    ) : (
-                      <FileText className="w-5 h-5 text-gray-500" />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-medium">{file.file_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Caricato il {format(new Date(file.uploaded_at), "dd MMM yyyy", { locale: it })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {files.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4">
-                    Nessun file caricato
+            <CardContent className="space-y-4">
+              {/* Drag and Drop Area */}
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragActive
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/25 hover:border-primary/50'
+                } ${uploadingFiles ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileInput}
+                  className="hidden"
+                  id="file-upload"
+                  disabled={uploadingFiles}
+                />
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {uploadingFiles
+                      ? 'Caricamento in corso...'
+                      : 'Trascina i file qui o clicca per selezionarli'
+                    }
                   </p>
-                )}
+                  <p className="text-xs text-muted-foreground">
+                    Supporta tutti i tipi di file
+                  </p>
+                </label>
               </div>
+
+              {/* Files List */}
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">File caricati:</h4>
+                  {files.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        {file.file_type.startsWith('image/') ? (
+                          <Image className="w-4 h-4 text-blue-500" />
+                        ) : (
+                          <FileText className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="font-medium">{file.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Caricato il {format(new Date(file.uploaded_at), "dd MMM yyyy", { locale: it })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => downloadFile(file)}
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteFile(file)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
