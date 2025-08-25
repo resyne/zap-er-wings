@@ -33,6 +33,12 @@ import BatchesSerialsPage from "./pages/warehouse/BatchesSerialsPage";
 import InventoryPage from "./pages/warehouse/InventoryPage";
 import PickingPage from "./pages/warehouse/PickingPage";
 import DdtPage from "./pages/warehouse/DdtPage";
+import SuppliersPage from "./pages/procurement/SuppliersPage";
+import RfqPage from "./pages/procurement/RfqPage";
+import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
+import ReceiptsPage from "./pages/procurement/ReceiptsPage";
+import QualityControlPage from "./pages/procurement/QualityControlPage";
+import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +82,12 @@ const App = () => (
                 <Route path="wms/inventory" element={<InventoryPage />} />
                 <Route path="wms/picking" element={<PickingPage />} />
                 <Route path="wms/ddt" element={<DdtPage />} />
+                <Route path="procurement/suppliers" element={<SuppliersPage />} />
+                <Route path="procurement/rfq" element={<RfqPage />} />
+                <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
+                <Route path="procurement/receipts" element={<ReceiptsPage />} />
+                <Route path="procurement/quality-control" element={<QualityControlPage />} />
+                <Route path="procurement/replenishment" element={<ReplenishmentPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
