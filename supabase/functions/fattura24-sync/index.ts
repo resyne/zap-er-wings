@@ -24,7 +24,31 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch customers from Fattura24
+    console.log('Starting Fattura24 sync with API key configured:', !!fattura24ApiKey);
+
+    // First, let's try a simple test API call to verify the connection
+    const testResponse = await fetch('https://www.app.fattura24.com/api/v0.3/TestApi', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        apiKey: fattura24ApiKey,
+      }),
+    });
+
+    console.log('Fattura24 test response status:', testResponse.status);
+    
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text();
+      console.error('Fattura24 test API error:', errorText);
+      throw new Error(`Fattura24 API connection failed: ${testResponse.status} - ${errorText}`);
+    }
+
+    const testData = await testResponse.json();
+    console.log('Fattura24 test response:', testData);
+
+    // Now fetch customers from Fattura24
     console.log('Fetching customers from Fattura24...');
     
     const response = await fetch('https://www.app.fattura24.com/api/v0.3/GetCustomerList', {
@@ -37,29 +61,61 @@ serve(async (req) => {
       }),
     });
 
+    console.log('GetCustomerList response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`Fattura24 API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Fattura24 GetCustomerList error:', errorText);
+      throw new Error(`Fattura24 API error: ${response.status} - ${errorText}`);
     }
 
     const fattura24Data = await response.json();
-    console.log('Fattura24 response:', fattura24Data);
+    console.log('Fattura24 response structure:', JSON.stringify(fattura24Data, null, 2));
 
-    if (!fattura24Data.customers || !Array.isArray(fattura24Data.customers)) {
-      throw new Error('Invalid response from Fattura24 API');
+    // Handle different possible response structures
+    let customers = [];
+    if (fattura24Data.customers && Array.isArray(fattura24Data.customers)) {
+      customers = fattura24Data.customers;
+    } else if (Array.isArray(fattura24Data)) {
+      customers = fattura24Data;
+    } else if (fattura24Data.data && Array.isArray(fattura24Data.data)) {
+      customers = fattura24Data.data;
+    } else {
+      console.log('No customers found in response or unexpected format');
+      return new Response(JSON.stringify({
+        success: true,
+        imported: 0,
+        total: 0,
+        errors: [],
+        message: 'Nessun cliente trovato in Fattura24 o formato risposta non riconosciuto'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    const customers = fattura24Data.customers;
     const importedContacts = [];
     const errors = [];
 
     for (const customer of customers) {
       try {
         // Check if contact already exists by email or VAT
-        const { data: existingContact } = await supabase
-          .from('crm_contacts')
-          .select('id')
-          .or(`email.eq.${customer.email || ''},piva.eq.${customer.vatNumber || ''}`)
-          .single();
+        let existingContact = null;
+        if (customer.email) {
+          const { data } = await supabase
+            .from('crm_contacts')
+            .select('id')
+            .eq('email', customer.email)
+            .maybeSingle();
+          existingContact = data;
+        }
+        
+        if (!existingContact && customer.vatNumber) {
+          const { data } = await supabase
+            .from('crm_contacts')
+            .select('id')
+            .eq('piva', customer.vatNumber)
+            .maybeSingle();
+          existingContact = data;
+        }
 
         if (existingContact) {
           console.log(`Contact already exists: ${customer.email || customer.vatNumber}`);
