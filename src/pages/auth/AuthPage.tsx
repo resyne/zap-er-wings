@@ -1,22 +1,54 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Zap } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
+import { LogIn, UserPlus, ArrowLeft } from "lucide-react";
 
-export function AuthPage() {
+export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Redirect authenticated users to dashboard
+        if (session?.user) {
+          navigate("/dashboard");
+        }
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,28 +61,30 @@ export function AuthPage() {
       });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
+        if (error.message.includes("Invalid login credentials")) {
           toast({
-            title: "Invalid credentials",
-            description: "Please check your email and password and try again.",
+            title: "Errore di accesso",
+            description: "Email o password non corretti",
             variant: "destructive",
           });
         } else {
-          throw error;
+          toast({
+            title: "Errore",
+            description: error.message,
+            variant: "destructive",
+          });
         }
         return;
       }
 
       toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in to ZAPPER ERP.",
+        title: "Accesso effettuato",
+        description: "Benvenuto!",
       });
-      
-      navigate('/dashboard');
     } catch (error: any) {
       toast({
-        title: "Sign in failed",
-        description: error.message,
+        title: "Errore",
+        description: "Si è verificato un errore inaspettato",
         variant: "destructive",
       });
     } finally {
@@ -63,7 +97,7 @@ export function AuthPage() {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      const redirectUrl = `${window.location.origin}/`;
       
       const { error } = await supabase.auth.signUp({
         email,
@@ -73,32 +107,37 @@ export function AuthPage() {
           data: {
             first_name: firstName,
             last_name: lastName,
-            full_name: `${firstName} ${lastName}`.trim(),
           }
         }
       });
 
       if (error) {
-        if (error.message.includes('User already registered')) {
+        if (error.message.includes("User already registered")) {
           toast({
-            title: "Account exists",
-            description: "An account with this email already exists. Please sign in instead.",
+            title: "Utente già registrato",
+            description: "Questo indirizzo email è già in uso. Prova ad accedere.",
             variant: "destructive",
           });
         } else {
-          throw error;
+          toast({
+            title: "Errore",
+            description: error.message,
+            variant: "destructive",
+          });
         }
         return;
       }
 
       toast({
-        title: "Account created!",
-        description: "Please check your email to verify your account, then sign in.",
+        title: "Registrazione completata",
+        description: "Controlla la tua email per confermare l'account",
       });
+      
+      setIsLogin(true);
     } catch (error: any) {
       toast({
-        title: "Sign up failed",
-        description: error.message,
+        title: "Errore",
+        description: "Si è verificato un errore inaspettato",
         variant: "destructive",
       });
     } finally {
@@ -107,146 +146,113 @@ export function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <div className="w-full max-w-md">
-        {/* Logo & Branding */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-elegant mb-4">
-            <Zap className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-            ZAPPER ERP
-          </h1>
-          <p className="text-muted-foreground text-center mt-2">
-            Complete Business Management System
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center space-y-2">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="w-4 h-4" />
+            Torna alla home
+          </Link>
+          <h1 className="text-3xl font-bold">CRM Dashboard</h1>
+          <p className="text-muted-foreground">
+            {isLogin ? "Accedi al tuo account" : "Crea un nuovo account"}
           </p>
         </div>
 
-        <Card className="shadow-elegant border-0 bg-card/80 backdrop-blur">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Welcome</CardTitle>
-            <CardDescription className="text-center">
-              Sign in to your account or create a new one
-            </CardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {isLogin ? (
+                <>
+                  <LogIn className="w-5 h-5" />
+                  Accedi
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-5 h-5" />
+                  Registrati
+                </>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="signin" className="space-y-4 mt-6">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      'Sign In'
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup" className="space-y-4 mt-6">
-                <form onSubmit={handleSignUp} className="space-y-4">
+            <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-4">
+              {!isLogin && (
+                <>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-firstname">First Name</Label>
+                    <div>
+                      <Label htmlFor="firstName">Nome</Label>
                       <Input
-                        id="signup-firstname"
+                        id="firstName"
                         type="text"
-                        placeholder="John"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        required
-                        disabled={loading}
+                        required={!isLogin}
+                        placeholder="Mario"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-lastname">Last Name</Label>
+                    <div>
+                      <Label htmlFor="lastName">Cognome</Label>
                       <Input
-                        id="signup-lastname"
+                        id="lastName"
                         type="text"
-                        placeholder="Doe"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        required
-                        disabled={loading}
+                        required={!isLogin}
+                        placeholder="Rossi"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Create a secure password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      disabled={loading}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating account...
-                      </>
-                    ) : (
-                      'Create Account'
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+                </>
+              )}
+              
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="mario.rossi@esempio.it"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  minLength={6}
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Caricamento..." : isLogin ? "Accedi" : "Registrati"}
+              </Button>
+            </form>
+
+            <div className="mt-4">
+              <Separator />
+              <div className="mt-4 text-center">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-sm"
+                >
+                  {isLogin
+                    ? "Non hai un account? Registrati"
+                    : "Hai già un account? Accedi"
+                  }
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
-
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Secure enterprise-grade authentication powered by Supabase
-        </p>
       </div>
     </div>
   );

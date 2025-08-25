@@ -4,10 +4,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/app-layout";
-import { AuthPage } from "./pages/auth/AuthPage";
+import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import NotFound from "./pages/NotFound";
+import Index from "./pages/Index";
 import BomPage from "./pages/production/BomPage";
 import WorkOrdersPage from "./pages/production/WorkOrdersPage";
 import ExecutionsPage from "./pages/production/ExecutionsPage";
@@ -29,41 +32,45 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<DashboardPage />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="mfg/bom" element={<BomPage />} />
-            <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
-            <Route path="mfg/executions" element={<ExecutionsPage />} />
-            <Route path="mfg/serials" element={<SerialsPage />} />
-            <Route path="mfg/rma" element={<RmaPage />} />
-            <Route path="crm/leads" element={<LeadsPage />} />
-            <Route path="crm/opportunities" element={<OpportunitiesPage />} />
-            <Route path="crm/opportunities/:id" element={<OpportunityDetailsPage />} />
-            <Route path="crm/quotes" element={<QuotesPage />} />
-            <Route path="crm/orders" element={<OrdersPage />} />
-            <Route path="crm/customers" element={<CustomersPage />} />
-            <Route path="crm/pricing" element={<PricingPage />} />
-            <Route path="crm/contacts" element={<ContactsPage />} />
-            <Route path="crm/companies" element={<CompaniesPage />} />
-            <Route path="crm/deals" element={<DealsPage />} />
-            <Route path="crm/notes" element={<NotesPage />} />
-              {/* CRM & Sales routes will be added here */}
-              {/* Service routes will be added here */}
-              {/* Other ERP module routes will be added here */}
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<DashboardPage />} />
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="mfg/bom" element={<BomPage />} />
+                <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
+                <Route path="mfg/executions" element={<ExecutionsPage />} />
+                <Route path="mfg/serials" element={<SerialsPage />} />
+                <Route path="mfg/rma" element={<RmaPage />} />
+                <Route path="crm/leads" element={<LeadsPage />} />
+                <Route path="crm/opportunities" element={<OpportunitiesPage />} />
+                <Route path="crm/opportunities/:id" element={<OpportunityDetailsPage />} />
+                <Route path="crm/quotes" element={<QuotesPage />} />
+                <Route path="crm/orders" element={<OrdersPage />} />
+                <Route path="crm/customers" element={<CustomersPage />} />
+                <Route path="crm/pricing" element={<PricingPage />} />
+                <Route path="crm/contacts" element={<ContactsPage />} />
+                <Route path="crm/companies" element={<CompaniesPage />} />
+                <Route path="crm/deals" element={<DealsPage />} />
+                <Route path="crm/notes" element={<NotesPage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
