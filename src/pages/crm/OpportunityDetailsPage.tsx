@@ -48,7 +48,7 @@ interface OpportunityFile {
   uploaded_at: string;
 }
 
-export default function OpportunityDetailsPage() {
+export function OpportunityDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
