@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Calendar, DollarSign, MoreHorizontal } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useNavigate } from "react-router-dom";
 
 interface Opportunity {
   id: string;
@@ -54,6 +55,7 @@ export default function OpportunitiesPage() {
     company_id: "",
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadOpportunities();
@@ -426,9 +428,15 @@ export default function OpportunitiesPage() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`p-3 rounded-lg border bg-card text-card-foreground shadow-sm transition-transform ${
+                                className={`p-3 rounded-lg border bg-card text-card-foreground shadow-sm transition-transform cursor-pointer ${
                                   snapshot.isDragging ? 'rotate-3 shadow-lg' : 'hover:shadow-md'
                                 }`}
+                                onClick={(e) => {
+                                  if (!snapshot.isDragging) {
+                                    e.stopPropagation();
+                                    navigate(`/crm/opportunities/${opportunity.id}`);
+                                  }
+                                }}
                               >
                                 <div className="space-y-2">
                                   <h4 className="font-medium text-sm line-clamp-2">{opportunity.name}</h4>
