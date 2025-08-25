@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, Mail, Phone, Building2 } from "lucide-react";
+import { Plus, Search, Mail, Phone, Building2, Download, Loader2 } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -39,6 +39,7 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
   
   const [newContact, setNewContact] = useState({
     first_name: "",
@@ -124,6 +125,35 @@ export default function ContactsPage() {
     }
   };
 
+  const handleImportFromFattura24 = async () => {
+    setImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fattura24-sync');
+      
+      if (error) throw error;
+
+      toast({
+        title: "Importazione completata",
+        description: data.message,
+      });
+
+      if (data.errors && data.errors.length > 0) {
+        console.warn('Import errors:', data.errors);
+      }
+
+      loadContacts();
+    } catch (error: any) {
+      console.error('Error importing from Fattura24:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'importazione da Fattura24",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredContacts = contacts.filter(contact =>
     `${contact.first_name} ${contact.last_name} ${contact.email} ${contact.company?.name || ""}`
       .toLowerCase()
@@ -148,6 +178,23 @@ export default function ContactsPage() {
           <p className="text-muted-foreground">Gestisci i tuoi contatti CRM</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleImportFromFattura24}
+            disabled={importing}
+          >
+            {importing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Importando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Importa da Fattura24
+              </>
+            )}
+          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
