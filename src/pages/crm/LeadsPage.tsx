@@ -22,6 +22,11 @@ interface Contact {
   job_title?: string;
   lead_source?: string;
   company_id?: string;
+  company_name?: string;
+  piva?: string;
+  address?: string;
+  sdi_code?: string;
+  pec?: string;
   company?: {
     name: string;
   };
@@ -36,6 +41,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [newContact, setNewContact] = useState({
     first_name: "",
     last_name: "",
@@ -45,6 +52,11 @@ export default function LeadsPage() {
     job_title: "",
     lead_source: "",
     company_id: "",
+    company_name: "",
+    piva: "",
+    address: "",
+    sdi_code: "",
+    pec: "",
   });
   const { toast } = useToast();
 
@@ -103,12 +115,85 @@ export default function LeadsPage() {
         job_title: "",
         lead_source: "",
         company_id: "",
+        company_name: "",
+        piva: "",
+        address: "",
+        sdi_code: "",
+        pec: "",
       });
       await loadContacts();
     } catch (error: any) {
       toast({
         title: "Errore",
         description: "Impossibile creare il contatto: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setNewContact({
+      first_name: contact.first_name || "",
+      last_name: contact.last_name || "",
+      email: contact.email || "",
+      phone: contact.phone || "",
+      mobile: contact.mobile || "",
+      job_title: contact.job_title || "",
+      lead_source: contact.lead_source || "",
+      company_id: contact.company_id || "",
+      company_name: contact.company_name || "",
+      piva: contact.piva || "",
+      address: contact.address || "",
+      sdi_code: contact.sdi_code || "",
+      pec: contact.pec || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateContact = async () => {
+    if (!selectedContact) return;
+    
+    try {
+      const contactData = {
+        ...newContact,
+        company_id: newContact.company_id || null
+      };
+      
+      const { error } = await supabase
+        .from("crm_contacts")
+        .update(contactData)
+        .eq("id", selectedContact.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Contatto aggiornato",
+        description: "Il contatto è stato aggiornato con successo",
+      });
+
+      setIsEditDialogOpen(false);
+      setSelectedContact(null);
+      setNewContact({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        mobile: "",
+        job_title: "",
+        lead_source: "",
+        company_id: "",
+        company_name: "",
+        piva: "",
+        address: "",
+        sdi_code: "",
+        pec: "",
+      });
+      await loadContacts();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare il contatto: " + error.message,
         variant: "destructive",
       });
     }
@@ -232,6 +317,59 @@ export default function LeadsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              
+              {/* Company Demographics Section */}
+              <div className="col-span-2 mt-4">
+                <h3 className="text-lg font-medium mb-3">Anagrafica Azienda</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="company_name">Nome Azienda</Label>
+                    <Input
+                      id="company_name"
+                      value={newContact.company_name}
+                      onChange={(e) => setNewContact({...newContact, company_name: e.target.value})}
+                      placeholder="ABC S.r.l."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="piva">P.IVA</Label>
+                    <Input
+                      id="piva"
+                      value={newContact.piva}
+                      onChange={(e) => setNewContact({...newContact, piva: e.target.value})}
+                      placeholder="12345678901"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="address">Indirizzo</Label>
+                    <Input
+                      id="address"
+                      value={newContact.address}
+                      onChange={(e) => setNewContact({...newContact, address: e.target.value})}
+                      placeholder="Via Roma 123, 00100 Roma"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sdi_code">Codice SDI</Label>
+                    <Input
+                      id="sdi_code"
+                      value={newContact.sdi_code}
+                      onChange={(e) => setNewContact({...newContact, sdi_code: e.target.value})}
+                      placeholder="ABCDEF1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pec">PEC</Label>
+                    <Input
+                      id="pec"
+                      type="email"
+                      value={newContact.pec}
+                      onChange={(e) => setNewContact({...newContact, pec: e.target.value})}
+                      placeholder="azienda@pec.it"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -239,6 +377,153 @@ export default function LeadsPage() {
               </Button>
               <Button onClick={handleCreateContact}>
                 Crea Contatto
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Contact Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Modifica Contatto</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_first_name">Nome</Label>
+                <Input
+                  id="edit_first_name"
+                  value={newContact.first_name}
+                  onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
+                  placeholder="Mario"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_last_name">Cognome</Label>
+                <Input
+                  id="edit_last_name"
+                  value={newContact.last_name}
+                  onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
+                  placeholder="Rossi"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_email">Email</Label>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  value={newContact.email}
+                  onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                  placeholder="mario.rossi@esempio.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_phone">Telefono</Label>
+                <Input
+                  id="edit_phone"
+                  value={newContact.phone}
+                  onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                  placeholder="+39 123 456 7890"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_mobile">Cellulare</Label>
+                <Input
+                  id="edit_mobile"
+                  value={newContact.mobile}
+                  onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
+                  placeholder="+39 123 456 7890"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_job_title">Ruolo</Label>
+                <Input
+                  id="edit_job_title"
+                  value={newContact.job_title}
+                  onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
+                  placeholder="Manager, Direttore..."
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="edit_lead_source">Fonte Lead</Label>
+                <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona fonte" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leadSources.map(source => (
+                      <SelectItem key={source} value={source}>
+                        {source === "website" ? "Sito Web" :
+                         source === "referral" ? "Referral" :
+                         source === "social_media" ? "Social Media" :
+                         source === "cold_call" ? "Cold Call" :
+                         source === "trade_show" ? "Fiera" :
+                         "Altro"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Company Demographics Section */}
+              <div className="col-span-2 mt-4">
+                <h3 className="text-lg font-medium mb-3">Anagrafica Azienda</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_company_name">Nome Azienda</Label>
+                    <Input
+                      id="edit_company_name"
+                      value={newContact.company_name}
+                      onChange={(e) => setNewContact({...newContact, company_name: e.target.value})}
+                      placeholder="ABC S.r.l."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_piva">P.IVA</Label>
+                    <Input
+                      id="edit_piva"
+                      value={newContact.piva}
+                      onChange={(e) => setNewContact({...newContact, piva: e.target.value})}
+                      placeholder="12345678901"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="edit_address">Indirizzo</Label>
+                    <Input
+                      id="edit_address"
+                      value={newContact.address}
+                      onChange={(e) => setNewContact({...newContact, address: e.target.value})}
+                      placeholder="Via Roma 123, 00100 Roma"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_sdi_code">Codice SDI</Label>
+                    <Input
+                      id="edit_sdi_code"
+                      value={newContact.sdi_code}
+                      onChange={(e) => setNewContact({...newContact, sdi_code: e.target.value})}
+                      placeholder="ABCDEF1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_pec">PEC</Label>
+                    <Input
+                      id="edit_pec"
+                      type="email"
+                      value={newContact.pec}
+                      onChange={(e) => setNewContact({...newContact, pec: e.target.value})}
+                      placeholder="azienda@pec.it"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleUpdateContact}>
+                Aggiorna Contatto
               </Button>
             </div>
           </DialogContent>
@@ -315,7 +600,11 @@ export default function LeadsPage() {
             </TableHeader>
             <TableBody>
               {filteredContacts.map((contact) => (
-                <TableRow key={contact.id}>
+                <TableRow 
+                  key={contact.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleEditContact(contact)}
+                >
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">
