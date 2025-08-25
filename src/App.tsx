@@ -27,6 +27,12 @@ import QuotesPage from "./pages/crm/QuotesPage";
 import OrdersPage from "./pages/crm/OrdersPage";
 import CustomersPage from "./pages/crm/CustomersPage";
 import PricingPage from "./pages/crm/PricingPage";
+import StockPage from "./pages/warehouse/StockPage";
+import MovementsPage from "./pages/warehouse/MovementsPage";
+import BatchesSerialsPage from "./pages/warehouse/BatchesSerialsPage";
+import InventoryPage from "./pages/warehouse/InventoryPage";
+import PickingPage from "./pages/warehouse/PickingPage";
+import DdtPage from "./pages/warehouse/DdtPage";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +70,12 @@ const App = () => (
                 <Route path="crm/companies" element={<CompaniesPage />} />
                 <Route path="crm/deals" element={<DealsPage />} />
                 <Route path="crm/notes" element={<NotesPage />} />
+                <Route path="wms/stock" element={<StockPage />} />
+                <Route path="wms/movements" element={<MovementsPage />} />
+                <Route path="wms/batches-serials" element={<BatchesSerialsPage />} />
+                <Route path="wms/inventory" element={<InventoryPage />} />
+                <Route path="wms/picking" element={<PickingPage />} />
+                <Route path="wms/ddt" element={<DdtPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
