@@ -77,9 +77,14 @@ export default function LeadsPage() {
 
   const handleCreateContact = async () => {
     try {
+      const contactData = {
+        ...newContact,
+        company_id: newContact.company_id || null
+      };
+      
       const { error } = await supabase
         .from("crm_contacts")
-        .insert([newContact]);
+        .insert([contactData]);
 
       if (error) throw error;
 
