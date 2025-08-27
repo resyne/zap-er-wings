@@ -909,6 +909,48 @@ export type Database = {
         }
         Relationships: []
       }
+      partners: {
+        Row: {
+          address: string
+          company_name: string
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          latitude: number | null
+          longitude: number | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          company_name: string
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          company_name?: string
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
