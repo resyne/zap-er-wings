@@ -36,7 +36,6 @@ export default function OrdersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [quotes, setQuotes] = useState<any[]>([]);
   const [newOrder, setNewOrder] = useState({
-    number: "",
     customer_id: "",
     quote_id: "",
     order_date: new Date().toISOString().split('T')[0],
@@ -46,7 +45,6 @@ export default function OrdersPage() {
     total_amount: "",
     status: "draft",
     notes: "",
-    order_type: "production", // production or field_service
   });
   const { toast } = useToast();
 
@@ -95,13 +93,16 @@ export default function OrdersPage() {
   const handleCreateOrder = async () => {
     try {
       const orderData = {
-        ...newOrder,
+        number: "", // Sarà sovrascritto dal trigger
         customer_id: newOrder.customer_id || null,
         quote_id: newOrder.quote_id || null,
+        order_date: newOrder.order_date || null,
+        delivery_date: newOrder.delivery_date || null,
         subtotal: newOrder.subtotal ? parseFloat(newOrder.subtotal) : null,
         tax_amount: newOrder.tax_amount ? parseFloat(newOrder.tax_amount) : null,
         total_amount: newOrder.total_amount ? parseFloat(newOrder.total_amount) : null,
-        delivery_date: newOrder.delivery_date || null,
+        status: newOrder.status,
+        notes: newOrder.notes || null,
       };
 
       const { error } = await supabase
@@ -117,7 +118,6 @@ export default function OrdersPage() {
 
       setIsDialogOpen(false);
       setNewOrder({
-        number: "",
         customer_id: "",
         quote_id: "",
         order_date: new Date().toISOString().split('T')[0],
@@ -127,7 +127,6 @@ export default function OrdersPage() {
         total_amount: "",
         status: "draft",
         notes: "",
-        order_type: "production",
       });
       await loadOrders();
     } catch (error: any) {
@@ -192,18 +191,9 @@ export default function OrdersPage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Crea Nuovo Ordine</DialogTitle>
+              <p className="text-sm text-muted-foreground">Il numero ordine sarà generato automaticamente</p>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="number">Numero Ordine *</Label>
-                <Input
-                  id="number"
-                  value={newOrder.number}
-                  onChange={(e) => setNewOrder({...newOrder, number: e.target.value})}
-                  placeholder="SO-2024-001"
-                  required
-                />
-              </div>
               <div>
                 <Label htmlFor="customer_id">Cliente</Label>
                 <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
@@ -231,18 +221,6 @@ export default function OrdersPage() {
                         {quote.number}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="order_type">Tipo Ordine</Label>
-                <Select value={newOrder.order_type} onValueChange={(value) => setNewOrder({...newOrder, order_type: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="production">Production Order</SelectItem>
-                    <SelectItem value="field_service">Work Order (Field Service)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -326,7 +304,7 @@ export default function OrdersPage() {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Annulla
               </Button>
-              <Button onClick={handleCreateOrder} disabled={!newOrder.number}>
+              <Button onClick={handleCreateOrder}>
                 Crea Ordine
               </Button>
             </div>
