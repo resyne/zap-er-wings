@@ -643,6 +643,172 @@ export type Database = {
           },
         ]
       }
+      hr_employees: {
+        Row: {
+          created_at: string
+          department: string | null
+          email: string | null
+          first_name: string
+          fluida_id: string
+          hire_date: string | null
+          id: string
+          last_name: string
+          phone: string | null
+          position: string | null
+          salary: number | null
+          status: string | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          first_name: string
+          fluida_id: string
+          hire_date?: string | null
+          id?: string
+          last_name: string
+          phone?: string | null
+          position?: string | null
+          salary?: number | null
+          status?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          first_name?: string
+          fluida_id?: string
+          hire_date?: string | null
+          id?: string
+          last_name?: string
+          phone?: string | null
+          position?: string | null
+          salary?: number | null
+          status?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          days_requested: number
+          employee_id: string
+          end_date: string
+          fluida_request_id: string | null
+          id: string
+          leave_type: string
+          reason: string | null
+          start_date: string
+          status: string | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          days_requested: number
+          employee_id: string
+          end_date: string
+          fluida_request_id?: string | null
+          id?: string
+          leave_type: string
+          reason?: string | null
+          start_date: string
+          status?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          days_requested?: number
+          employee_id?: string
+          end_date?: string
+          fluida_request_id?: string | null
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date?: string
+          status?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_timesheets: {
+        Row: {
+          break_minutes: number | null
+          clock_in: string | null
+          clock_out: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          fluida_timesheet_id: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          synced_at: string | null
+          total_hours: number | null
+          updated_at: string
+        }
+        Insert: {
+          break_minutes?: number | null
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date: string
+          employee_id: string
+          fluida_timesheet_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          synced_at?: string | null
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Update: {
+          break_minutes?: number | null
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          fluida_timesheet_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          synced_at?: string | null
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_timesheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           active: boolean | null
