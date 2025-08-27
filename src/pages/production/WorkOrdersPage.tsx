@@ -67,7 +67,7 @@ export default function WorkOrdersPage() {
       setWorkOrders(data || []);
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Errore",
         description: error.message,
         variant: "destructive",
       });
@@ -86,7 +86,7 @@ export default function WorkOrdersPage() {
       if (error) throw error;
       setBoms(data || []);
     } catch (error: any) {
-      console.error('Error fetching BOMs:', error);
+      console.error("Errore durante il caricamento delle distinte base:", error);
     }
   };
 
@@ -102,8 +102,8 @@ export default function WorkOrdersPage() {
         if (error) throw error;
 
         toast({
-          title: "Success",
-          description: "Work order updated successfully",
+          title: "Successo",
+          description: "Ordine di produzione aggiornato con successo",
         });
       } else {
         const { error } = await supabase
@@ -113,8 +113,8 @@ export default function WorkOrdersPage() {
         if (error) throw error;
 
         toast({
-          title: "Success",
-          description: "Work order created successfully",
+          title: "Successo",
+          description: "Ordine di produzione creato con successo",
         });
       }
 
@@ -124,7 +124,7 @@ export default function WorkOrdersPage() {
       fetchWorkOrders();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Errore",
         description: error.message,
         variant: "destructive",
       });
@@ -141,13 +141,13 @@ export default function WorkOrdersPage() {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: `Work order status updated to ${newStatus}`,
+        title: "Successo",
+        description: `Stato ordine di produzione aggiornato a ${newStatus}`,
       });
       fetchWorkOrders();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Errore",
         description: error.message,
         variant: "destructive",
       });
@@ -193,52 +193,52 @@ export default function WorkOrdersPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/mfg">Production</BreadcrumbLink>
+            <BreadcrumbLink href="/mfg">Produzione</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbPage>Work Orders</BreadcrumbPage>
+          <BreadcrumbPage>Ordini di Produzione</BreadcrumbPage>
         </BreadcrumbList>
       </Breadcrumb>
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Work Orders</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Ordini di Produzione</h1>
           <p className="text-muted-foreground">
-            Plan and track production orders through their lifecycle
+            Pianifica e monitora gli ordini di produzione durante il loro ciclo di vita
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => { setSelectedWO(null); setFormData({ number: "", title: "", bom_id: "", planned_start_date: "", planned_end_date: "", notes: "" }); }}>
               <Plus className="mr-2 h-4 w-4" />
-              New Work Order
+              Nuovo Ordine di Produzione
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{selectedWO ? "Edit Work Order" : "Create New Work Order"}</DialogTitle>
+              <DialogTitle>{selectedWO ? "Modifica Ordine di Produzione" : "Crea Nuovo Ordine di Produzione"}</DialogTitle>
               <DialogDescription>
-                {selectedWO ? "Update the work order details below." : "Create a new production work order."}
+                {selectedWO ? "Aggiorna i dettagli dell'ordine di produzione qui sotto." : "Crea un nuovo ordine di produzione."}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="number">Number *</Label>
+                  <Label htmlFor="number">Numero *</Label>
                   <Input
                     id="number"
                     value={formData.number}
                     onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
-                    placeholder="WO-2024-001"
+                    placeholder="OP-2024-001"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="bom_id">BOM *</Label>
+                  <Label htmlFor="bom_id">Distinta Base *</Label>
                   <Select value={formData.bom_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bom_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select BOM" />
+                      <SelectValue placeholder="Seleziona Distinta Base" />
                     </SelectTrigger>
                     <SelectContent>
                       {boms.map((bom) => (
@@ -251,18 +251,18 @@ export default function WorkOrdersPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title">Titolo *</Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Production order title"
+                  placeholder="Titolo ordine di produzione"
                   required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="planned_start_date">Planned Start</Label>
+                  <Label htmlFor="planned_start_date">Inizio Pianificato</Label>
                   <Input
                     id="planned_start_date"
                     type="datetime-local"
@@ -271,7 +271,7 @@ export default function WorkOrdersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="planned_end_date">Planned End</Label>
+                  <Label htmlFor="planned_end_date">Fine Pianificata</Label>
                   <Input
                     id="planned_end_date"
                     type="datetime-local"
@@ -281,20 +281,20 @@ export default function WorkOrdersPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">Note</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Optional notes"
+                  placeholder="Note opzionali"
                 />
               </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
+                  Annulla
                 </Button>
                 <Button type="submit">
-                  {selectedWO ? "Update" : "Create"} Work Order
+                  {selectedWO ? "Aggiorna" : "Crea"} Ordine di Produzione
                 </Button>
               </div>
             </form>
@@ -314,7 +314,11 @@ export default function WorkOrdersPage() {
               <div className="text-center">
                 <div className="text-2xl font-bold">{count}</div>
                 <div className="text-sm text-muted-foreground capitalize">
-                  {status.replace('_', ' ')}
+                  {status === 'all' ? 'Tutti' : 
+                   status === 'planned' ? 'Pianificati' :
+                   status === 'in_progress' ? 'In Corso' :
+                   status === 'testing' ? 'Test' :
+                   status === 'closed' ? 'Chiusi' : status.replace('_', ' ')}
                 </div>
               </div>
             </CardContent>
@@ -325,14 +329,14 @@ export default function WorkOrdersPage() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
+          <CardTitle>Ricerca e Filtri</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search work orders..."
+                placeholder="Cerca ordini di produzione..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
@@ -340,11 +344,11 @@ export default function WorkOrdersPage() {
             </div>
             <Button variant="outline" size="sm">
               <Filter className="mr-2 h-4 w-4" />
-              Filters
+              Filtri
             </Button>
             <Button variant="outline" size="sm">
               <Download className="mr-2 h-4 w-4" />
-              Export
+              Esporta
             </Button>
           </div>
         </CardContent>
@@ -353,33 +357,33 @@ export default function WorkOrdersPage() {
       {/* Work Orders Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Work Orders ({filteredWorkOrders.length})</CardTitle>
+          <CardTitle>Ordini di Produzione ({filteredWorkOrders.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Number</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>BOM</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Planned Start</TableHead>
-                  <TableHead>Planned End</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Numero</TableHead>
+                  <TableHead>Titolo</TableHead>
+                  <TableHead>Distinta Base</TableHead>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Inizio Pianificato</TableHead>
+                  <TableHead>Fine Pianificata</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      Loading work orders...
+                      Caricamento ordini di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      No work orders found
+                      Nessun ordine di produzione trovato
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -393,7 +397,7 @@ export default function WorkOrdersPage() {
                             {wo.boms.name} ({wo.boms.version})
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground">No BOM</span>
+                          <span className="text-muted-foreground">Nessuna Distinta Base</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -401,14 +405,14 @@ export default function WorkOrdersPage() {
                       </TableCell>
                       <TableCell>
                         {wo.planned_start_date ? 
-                          new Date(wo.planned_start_date).toLocaleDateString() : 
-                          <span className="text-muted-foreground">Not set</span>
+          new Date(wo.planned_start_date).toLocaleDateString() : 
+          <span className="text-muted-foreground">Non impostato</span>
                         }
                       </TableCell>
                       <TableCell>
                         {wo.planned_end_date ? 
-                          new Date(wo.planned_end_date).toLocaleDateString() : 
-                          <span className="text-muted-foreground">Not set</span>
+          new Date(wo.planned_end_date).toLocaleDateString() : 
+          <span className="text-muted-foreground">Non impostato</span>
                         }
                       </TableCell>
                       <TableCell className="text-right">

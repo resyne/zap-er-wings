@@ -57,108 +57,108 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Dashboard",
     items: [
-      { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+      { title: "Panoramica", url: "/dashboard", icon: LayoutDashboard },
     ]
   },
   {
     title: "CRM", 
     items: [
-      { title: "CRM Dashboard", url: "/crm/dashboard", icon: LayoutDashboard },
-      { title: "Orders", url: "/crm/orders", icon: ShoppingCart },
-      { title: "Customers", url: "/crm/customers", icon: Building2 },
+      { title: "Dashboard CRM", url: "/crm/dashboard", icon: LayoutDashboard },
+      { title: "Ordini", url: "/crm/orders", icon: ShoppingCart },
+      { title: "Clienti", url: "/crm/customers", icon: Building2 },
     ]
   },
   {
-    title: "Production",
+    title: "Produzione",
     items: [
-      { title: "BOMs", url: "/mfg/bom", icon: Database },
-      { title: "Work Orders", url: "/mfg/work-orders", icon: Wrench },
-      { title: "Executions", url: "/mfg/executions", icon: Clock },
-      { title: "Serials", url: "/mfg/serials", icon: Package },
+      { title: "Distinte Base", url: "/mfg/bom", icon: Database },
+      { title: "Ordini di Produzione", url: "/mfg/work-orders", icon: Wrench },
+      { title: "Esecuzioni", url: "/mfg/executions", icon: Clock },
+      { title: "Seriali", url: "/mfg/serials", icon: Package },
       { title: "RMA", url: "/mfg/rma", icon: ClipboardCheck },
     ]
   },
   {
-    title: "Field Service",
+    title: "Assistenza Tecnica",
     items: [
-      { title: "Schedule", url: "/service/schedule", icon: CalendarDays },
-      { title: "Work Orders", url: "/service/wo", icon: Wrench },
-      { title: "Checklists", url: "/service/checklists", icon: ClipboardCheck },
-      { title: "Reports", url: "/service/reports", icon: FileText },
-      { title: "Tickets", url: "/service/tickets", icon: Users },
-      { title: "Contracts", url: "/service/contracts", icon: FileText },
+      { title: "Programmazione", url: "/service/schedule", icon: CalendarDays },
+      { title: "Ordini di Lavoro", url: "/service/wo", icon: Wrench },
+      { title: "Checklist", url: "/service/checklists", icon: ClipboardCheck },
+      { title: "Report", url: "/service/reports", icon: FileText },
+      { title: "Ticket", url: "/service/tickets", icon: Users },
+      { title: "Contratti", url: "/service/contracts", icon: FileText },
     ]
   },
   {
-    title: "Warehouse",
+    title: "Magazzino",
     items: [
-      { title: "Stock", url: "/wms/stock", icon: Boxes },
-      { title: "Movements", url: "/wms/movements", icon: Truck },
-      { title: "Batches & Serials", url: "/wms/batches-serials", icon: Package },
-      { title: "Inventory", url: "/wms/inventory", icon: ClipboardCheck },
-      { title: "Picking", url: "/wms/picking", icon: Package },
+      { title: "Scorte", url: "/wms/stock", icon: Boxes },
+      { title: "Movimenti", url: "/wms/movements", icon: Truck },
+      { title: "Lotti e Seriali", url: "/wms/batches-serials", icon: Package },
+      { title: "Inventario", url: "/wms/inventory", icon: ClipboardCheck },
+      { title: "Prelievi", url: "/wms/picking", icon: Package },
       { title: "DDT", url: "/wms/ddt", icon: FileText },
     ]
   },
   {
-    title: "Procurement",
+    title: "Acquisti",
     items: [
-      { title: "Suppliers", url: "/procurement/suppliers", icon: Building2 },
-      { title: "RFQ", url: "/procurement/rfq", icon: FileText },
-      { title: "Purchase Orders", url: "/procurement/po", icon: ShoppingBag },
-      { title: "Receipts", url: "/procurement/receipts", icon: Package },
-      { title: "Quality Control", url: "/procurement/qc", icon: ClipboardCheck },
-      { title: "Replenishment", url: "/procurement/replenishment", icon: BarChart3 },
+      { title: "Fornitori", url: "/procurement/suppliers", icon: Building2 },
+      { title: "Richieste Offerta", url: "/procurement/rfq", icon: FileText },
+      { title: "Ordini Acquisto", url: "/procurement/po", icon: ShoppingBag },
+      { title: "Ricevimenti", url: "/procurement/receipts", icon: Package },
+      { title: "Controllo Qualità", url: "/procurement/qc", icon: ClipboardCheck },
+      { title: "Rifornimenti", url: "/procurement/replenishment", icon: BarChart3 },
     ]
   },
   {
-    title: "Quality",
+    title: "Qualità",
     items: [
-      { title: "Non Conformity", url: "/quality/nc", icon: ClipboardCheck },
+      { title: "Non Conformità", url: "/quality/nc", icon: ClipboardCheck },
       { title: "CAPA", url: "/quality/capa", icon: Target },
-      { title: "Audits", url: "/quality/audits", icon: ClipboardCheck },
+      { title: "Audit", url: "/quality/audits", icon: ClipboardCheck },
       { title: "HSE", url: "/quality/hse", icon: UserCheck },
     ]
   },
   {
-    title: "Finance",
+    title: "Finanza",
     items: [
       { title: "Prima Nota", url: "/finance/prima-nota", icon: FileText },
-      { title: "Invoices", url: "/finance/invoices", icon: FileText },
-      { title: "Cash Flow", url: "/finance/cash", icon: DollarSign },
-      { title: "Reports", url: "/finance/reports", icon: BarChart3 },
-      { title: "Exports", url: "/finance/exports", icon: FileText },
+      { title: "Fatture", url: "/finance/invoices", icon: FileText },
+      { title: "Flusso di Cassa", url: "/finance/cash", icon: DollarSign },
+      { title: "Report", url: "/finance/reports", icon: BarChart3 },
+      { title: "Esportazioni", url: "/finance/exports", icon: FileText },
     ]
   },
   {
-    title: "HR & Time",
+    title: "Risorse Umane",
     items: [
-      { title: "People", url: "/hr/people", icon: Users },
-      { title: "Timesheets", url: "/hr/timesheets", icon: Clock },
-      { title: "Expenses", url: "/hr/expenses", icon: DollarSign },
-      { title: "Roster", url: "/hr/roster", icon: CalendarDays },
+      { title: "Personale", url: "/hr/people", icon: Users },
+      { title: "Timesheet", url: "/hr/timesheets", icon: Clock },
+      { title: "Rimborsi", url: "/hr/expenses", icon: DollarSign },
+      { title: "Turni", url: "/hr/roster", icon: CalendarDays },
     ]
   },
   {
-    title: "Analytics",
+    title: "Analisi",
     items: [
-      { title: "Reports", url: "/bi/reports", icon: BarChart3 },
-      { title: "Analysis", url: "/bi/analysis", icon: PieChart },
-      { title: "KPIs", url: "/bi/kpi", icon: Target },
+      { title: "Report", url: "/bi/reports", icon: BarChart3 },
+      { title: "Analisi", url: "/bi/analysis", icon: PieChart },
+      { title: "KPI", url: "/bi/kpi", icon: Target },
     ]
   },
   {
-    title: "Partnerships",
+    title: "Partnership",
     items: [
-      { title: "Partners", url: "/partnerships/partners", icon: Users },
+      { title: "Partner", url: "/partnerships/partners", icon: Users },
     ]
   },
   {
-    title: "System",
+    title: "Sistema",
     items: [
-      { title: "Documents", url: "/docs", icon: FileText },
-      { title: "Integrations", url: "/integrations", icon: Zap },
-      { title: "Settings", url: "/settings", icon: Settings },
+      { title: "Documenti", url: "/docs", icon: FileText },
+      { title: "Integrazioni", url: "/integrations", icon: Zap },
+      { title: "Impostazioni", url: "/settings", icon: Settings },
     ]
   }
 ];
