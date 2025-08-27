@@ -138,7 +138,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Timesheet", url: "/hr/timesheets", icon: Clock },
       { title: "Rimborsi", url: "/hr/expenses", icon: DollarSign },
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },
-      { title: "Fluida", url: "https://app.fluida.io/auth", icon: Users, external: true },
+      { title: "Fluida", url: "/hr/fluida", icon: Users },
     ]
   },
   {
