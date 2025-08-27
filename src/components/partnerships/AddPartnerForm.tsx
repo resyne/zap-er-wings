@@ -44,8 +44,32 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
   const geocodeAddress = async (address: string): Promise<{ latitude: number; longitude: number } | null> => {
     try {
       console.log('Trying to geocode address:', address);
-      // Using Nominatim with proper headers
-      const response = await fetch(
+      
+      // Try Mapbox Geocoding first (more reliable)
+      const mapboxToken = 'pk.eyJ1IjoiemFwcGVyLWl0YWx5IiwiYSI6ImNtZXRyZHppNjAyMHMyanBmaDVjaXRqNGkifQ.a-m1oX08G8vNi9s6uzNr7Q';
+      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${mapboxToken}&limit=1`;
+      
+      const mapboxResponse = await fetch(mapboxUrl);
+      console.log('Mapbox geocoding response status:', mapboxResponse.status);
+      
+      if (mapboxResponse.ok) {
+        const mapboxData = await mapboxResponse.json();
+        console.log('Mapbox geocoding data:', mapboxData);
+        
+        if (mapboxData.features && mapboxData.features.length > 0) {
+          const [lng, lat] = mapboxData.features[0].center;
+          const coordinates = {
+            latitude: lat,
+            longitude: lng
+          };
+          console.log('Found Mapbox coordinates:', coordinates);
+          return coordinates;
+        }
+      }
+      
+      // Fallback to Nominatim if Mapbox fails
+      console.log('Trying Nominatim as fallback...');
+      const nominatimResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
         {
           headers: {
@@ -54,25 +78,23 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
         }
       );
       
-      console.log('Geocoding response status:', response.status);
+      console.log('Nominatim response status:', nominatimResponse.status);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (nominatimResponse.ok) {
+        const nominatimData = await nominatimResponse.json();
+        console.log('Nominatim data:', nominatimData);
+        
+        if (nominatimData && nominatimData.length > 0) {
+          const coordinates = {
+            latitude: parseFloat(nominatimData[0].lat),
+            longitude: parseFloat(nominatimData[0].lon)
+          };
+          console.log('Found Nominatim coordinates:', coordinates);
+          return coordinates;
+        }
       }
       
-      const data = await response.json();
-      console.log('Geocoding data:', data);
-      
-      if (data && data.length > 0) {
-        const coordinates = {
-          latitude: parseFloat(data[0].lat),
-          longitude: parseFloat(data[0].lon)
-        };
-        console.log('Found coordinates:', coordinates);
-        return coordinates;
-      } else {
-        console.log('No geocoding results found for address:', address);
-      }
+      console.log('No geocoding results found for address:', address);
     } catch (error) {
       console.error('Geocoding error:', error);
     }
