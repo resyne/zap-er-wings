@@ -109,12 +109,15 @@ export default function FluidaPage() {
   };
 
   const syncWithFluida = async (action: string) => {
+    console.log('Starting sync with action:', action);
     setSyncing(true);
     try {
+      console.log('Invoking fluida-sync function...');
       const { data, error } = await supabase.functions.invoke('fluida-sync', {
         body: { action }
       });
 
+      console.log('Function response:', { data, error });
       if (error) throw error;
 
       toast({
