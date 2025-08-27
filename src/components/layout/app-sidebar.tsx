@@ -159,6 +159,12 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Partnerships",
+    items: [
+      { title: "Partners", url: "/partnerships/partners", icon: Users },
+    ]
+  },
+  {
     title: "System",
     items: [
       { title: "Documents", url: "/docs", icon: FileText },

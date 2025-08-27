@@ -39,6 +39,7 @@ import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
 import ReceiptsPage from "./pages/procurement/ReceiptsPage";
 import QualityControlPage from "./pages/procurement/QualityControlPage";
 import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
+import PartnersPage from "./pages/partnerships/PartnersPage";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="procurement/receipts" element={<ReceiptsPage />} />
                 <Route path="procurement/quality-control" element={<QualityControlPage />} />
                 <Route path="procurement/replenishment" element={<ReplenishmentPage />} />
+                <Route path="partnerships/partners" element={<PartnersPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
