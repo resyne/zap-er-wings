@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
+import { PartnerActions } from "@/components/partnerships/PartnerActions";
 
 interface Partner {
   id: string;
@@ -63,6 +64,18 @@ export default function PartnersPage() {
       title: "Success",
       description: "Partner added successfully",
     });
+  };
+
+  const handlePartnerUpdated = (updatedPartner: Partner) => {
+    setPartners(prev => prev.map(p => p.id === updatedPartner.id ? updatedPartner : p));
+    toast({
+      title: "Success",
+      description: "Partner updated successfully",
+    });
+  };
+
+  const handlePartnerDeleted = (partnerId: string) => {
+    setPartners(prev => prev.filter(p => p.id !== partnerId));
   };
 
   const partnersWithLocation = partners.filter(p => p.latitude && p.longitude);
@@ -159,6 +172,7 @@ export default function PartnersPage() {
                   <TableHead>Contact</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-16">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -185,6 +199,13 @@ export default function PartnersPage() {
                       <Badge variant={partner.latitude && partner.longitude ? "default" : "secondary"}>
                         {partner.latitude && partner.longitude ? "Located" : "No Location"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <PartnerActions
+                        partner={partner}
+                        onPartnerUpdated={handlePartnerUpdated}
+                        onPartnerDeleted={handlePartnerDeleted}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
