@@ -5,42 +5,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface FluidaEmployee {
+interface FluidaContract {
   id: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email?: string;
   phone?: string;
   department?: string;
   position?: string;
-  hireDate?: string;
+  hire_date?: string;
   status: string;
-  salary?: number;
+  user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+  };
 }
 
-interface FluidaTimesheet {
+interface FluidaCalendarEntry {
   id: string;
-  employeeId: string;
+  contract_id: string;
   date: string;
-  clockIn?: string;
-  clockOut?: string;
-  breakMinutes?: number;
-  totalHours?: number;
+  clock_in?: string;
+  clock_out?: string;
+  total_minutes?: number;
   status: string;
   notes?: string;
 }
 
-interface FluidaLeaveRequest {
+interface FluidaJustification {
   id: string;
-  employeeId: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  daysRequested: number;
+  contract_id: string;
+  justification_type_name: string;
+  start_date: string;
+  end_date: string;
+  days_requested: number;
   status: string;
   reason?: string;
-  approvedBy?: string;
-  approvedAt?: string;
+  approved_by?: string;
+  approved_at?: string;
 }
 
 export default async function handler(req: Request) {
@@ -108,14 +112,15 @@ export default async function handler(req: Request) {
 }
 
 async function makeFluidaRequest(endpoint: string, apiKey: string, method = 'GET', body?: any) {
-  const url = `https://api.fluida.io/v1/${endpoint}`;
+  const url = `https://api.fluida.io/api/v1/${endpoint}`;
   console.log(`Making ${method} request to: ${url}`);
   
   const response = await fetch(url, {
     method,
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'x-fluida-app-uuid': apiKey,
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -130,24 +135,24 @@ async function makeFluidaRequest(endpoint: string, apiKey: string, method = 'GET
 }
 
 async function syncEmployees(supabase: any, apiKey: string, companyId: string) {
-  console.log('Syncing employees from Fluida...');
+  console.log('Syncing employees (contracts) from Fluida...');
   
   try {
-    const employees = await makeFluidaRequest(`companies/${companyId}/employees`, apiKey);
-    console.log(`Found ${employees.length} employees`);
+    // Get contracts for the company
+    const contracts = await makeFluidaRequest(`company/${companyId}/contracts`, apiKey);
+    console.log(`Found ${contracts.length} contracts`);
 
-    for (const emp of employees) {
+    for (const contract of contracts) {
       const employeeData = {
-        fluida_id: emp.id,
-        first_name: emp.firstName,
-        last_name: emp.lastName,
-        email: emp.email,
-        phone: emp.phone,
-        department: emp.department,
-        position: emp.position,
-        hire_date: emp.hireDate,
-        status: emp.status || 'active',
-        salary: emp.salary,
+        fluida_id: contract.id,
+        first_name: contract.user?.first_name || contract.first_name || '',
+        last_name: contract.user?.last_name || contract.last_name || '',
+        email: contract.user?.email || contract.email,
+        phone: contract.user?.phone || contract.phone,
+        department: contract.department,
+        position: contract.position,
+        hire_date: contract.hire_date,
+        status: contract.status || 'active',
         synced_at: new Date().toISOString(),
       };
 
@@ -159,17 +164,17 @@ async function syncEmployees(supabase: any, apiKey: string, companyId: string) {
         });
 
       if (error) {
-        console.error(`Error upserting employee ${emp.id}:`, error);
+        console.error(`Error upserting employee ${contract.id}:`, error);
       } else {
-        console.log(`Synced employee: ${emp.firstName} ${emp.lastName}`);
+        console.log(`Synced employee: ${employeeData.first_name} ${employeeData.last_name}`);
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Sincronizzati ${employees.length} dipendenti`,
-        count: employees.length 
+        message: `Sincronizzati ${contracts.length} dipendenti`,
+        count: contracts.length 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -187,41 +192,45 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
   console.log('Syncing timesheets from Fluida...');
   
   try {
-    // Get current month timesheets
+    // Get current month calendar entries
     const startDate = new Date();
     startDate.setDate(1);
     const endDate = new Date();
     
-    const timesheets = await makeFluidaRequest(
-      `companies/${companyId}/timesheets?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`, 
+    const fromDate = startDate.toISOString().split('T')[0];
+    const toDate = endDate.toISOString().split('T')[0];
+    
+    // Get calendar entries for company
+    const calendarEntries = await makeFluidaRequest(
+      `calendar/company/${companyId}/from/${fromDate}/to/${toDate}`, 
       apiKey
     );
     
-    console.log(`Found ${timesheets.length} timesheets`);
+    console.log(`Found ${calendarEntries.length} calendar entries`);
 
-    for (const ts of timesheets) {
+    for (const entry of calendarEntries) {
       // Get employee from our database
       const { data: employee } = await supabase
         .from('hr_employees')
         .select('id')
-        .eq('fluida_id', ts.employeeId)
+        .eq('fluida_id', entry.contract_id)
         .single();
 
       if (!employee) {
-        console.warn(`Employee not found for timesheet: ${ts.employeeId}`);
+        console.warn(`Employee not found for calendar entry: ${entry.contract_id}`);
         continue;
       }
 
       const timesheetData = {
         employee_id: employee.id,
-        fluida_timesheet_id: ts.id,
-        date: ts.date,
-        clock_in: ts.clockIn,
-        clock_out: ts.clockOut,
-        break_minutes: ts.breakMinutes || 0,
-        total_hours: ts.totalHours,
-        status: ts.status || 'pending',
-        notes: ts.notes,
+        fluida_timesheet_id: entry.id,
+        date: entry.date,
+        clock_in: entry.clock_in,
+        clock_out: entry.clock_out,
+        break_minutes: entry.break_minutes || 0,
+        total_hours: entry.total_minutes ? (entry.total_minutes / 60) : null,
+        status: entry.status || 'pending',
+        notes: entry.notes,
         synced_at: new Date().toISOString(),
       };
 
@@ -233,15 +242,15 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
         });
 
       if (error) {
-        console.error(`Error upserting timesheet ${ts.id}:`, error);
+        console.error(`Error upserting timesheet ${entry.id}:`, error);
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Sincronizzati ${timesheets.length} timesheet`,
-        count: timesheets.length 
+        message: `Sincronizzati ${calendarEntries.length} timesheet`,
+        count: calendarEntries.length 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -256,35 +265,36 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
 }
 
 async function syncLeaveRequests(supabase: any, apiKey: string, companyId: string) {
-  console.log('Syncing leave requests from Fluida...');
+  console.log('Syncing leave requests (justifications) from Fluida...');
   
   try {
-    const leaveRequests = await makeFluidaRequest(`companies/${companyId}/leave-requests`, apiKey);
-    console.log(`Found ${leaveRequests.length} leave requests`);
+    // Get justifications for the company (leave requests)
+    const justifications = await makeFluidaRequest(`justification/company/${companyId}`, apiKey);
+    console.log(`Found ${justifications.length} justifications`);
 
-    for (const req of leaveRequests) {
+    for (const justification of justifications) {
       // Get employee from our database
       const { data: employee } = await supabase
         .from('hr_employees')
         .select('id')
-        .eq('fluida_id', req.employeeId)
+        .eq('fluida_id', justification.contract_id)
         .single();
 
       if (!employee) {
-        console.warn(`Employee not found for leave request: ${req.employeeId}`);
+        console.warn(`Employee not found for justification: ${justification.contract_id}`);
         continue;
       }
 
       const leaveData = {
         employee_id: employee.id,
-        fluida_request_id: req.id,
-        leave_type: req.leaveType,
-        start_date: req.startDate,
-        end_date: req.endDate,
-        days_requested: req.daysRequested,
-        status: req.status || 'pending',
-        reason: req.reason,
-        approved_at: req.approvedAt,
+        fluida_request_id: justification.id,
+        leave_type: justification.justification_type_name || 'leave',
+        start_date: justification.start_date,
+        end_date: justification.end_date,
+        days_requested: justification.days_requested || 1,
+        status: justification.status || 'pending',
+        reason: justification.reason,
+        approved_at: justification.approved_at,
         synced_at: new Date().toISOString(),
       };
 
@@ -296,15 +306,15 @@ async function syncLeaveRequests(supabase: any, apiKey: string, companyId: strin
         });
 
       if (error) {
-        console.error(`Error upserting leave request ${req.id}:`, error);
+        console.error(`Error upserting leave request ${justification.id}:`, error);
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Sincronizzate ${leaveRequests.length} richieste ferie`,
-        count: leaveRequests.length 
+        message: `Sincronizzate ${justifications.length} richieste ferie`,
+        count: justifications.length 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
