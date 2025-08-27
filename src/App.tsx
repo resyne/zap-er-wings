@@ -40,7 +40,7 @@ import ReceiptsPage from "./pages/procurement/ReceiptsPage";
 import QualityControlPage from "./pages/procurement/QualityControlPage";
 import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
 import PartnersPage from "./pages/partnerships/PartnersPage";
-import PrimaNotaPage from "./pages/quality/PrimaNotaPage";
+import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
 
 const queryClient = new QueryClient();
 
@@ -91,7 +91,7 @@ const App = () => (
                 <Route path="procurement/quality-control" element={<QualityControlPage />} />
                 <Route path="procurement/replenishment" element={<ReplenishmentPage />} />
                 <Route path="partnerships/partners" element={<PartnersPage />} />
-                <Route path="quality/prima-nota" element={<PrimaNotaPage />} />
+                <Route path="finance/prima-nota" element={<PrimaNotaPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

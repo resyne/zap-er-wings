@@ -125,12 +125,12 @@ const navigationGroups: NavGroup[] = [
       { title: "CAPA", url: "/quality/capa", icon: Target },
       { title: "Audits", url: "/quality/audits", icon: ClipboardCheck },
       { title: "HSE", url: "/quality/hse", icon: UserCheck },
-      { title: "Prima Nota", url: "/quality/prima-nota", icon: FileText },
     ]
   },
   {
     title: "Finance",
     items: [
+      { title: "Prima Nota", url: "/finance/prima-nota", icon: FileText },
       { title: "Invoices", url: "/finance/invoices", icon: FileText },
       { title: "Cash Flow", url: "/finance/cash", icon: DollarSign },
       { title: "Reports", url: "/finance/reports", icon: BarChart3 },
