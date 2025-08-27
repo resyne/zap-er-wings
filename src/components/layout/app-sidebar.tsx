@@ -46,6 +46,7 @@ interface NavItem {
   url: string;
   icon: React.ComponentType<any>;
   badge?: string;
+  external?: boolean;
 }
 
 interface NavGroup {
@@ -137,6 +138,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Timesheet", url: "/hr/timesheets", icon: Clock },
       { title: "Rimborsi", url: "/hr/expenses", icon: DollarSign },
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },
+      { title: "Fluida", url: "https://app.fluida.io/auth", icon: Users, external: true },
     ]
   },
   {
@@ -232,27 +234,49 @@ export function AppSidebar() {
                       {group.items.map((item) => (
                         <SidebarMenuItem key={item.url}>
                           <SidebarMenuButton asChild>
-                            <NavLink
-                              to={item.url}
-                              className={({ isActive: linkIsActive }) =>
-                                cn(
+                            {item.external ? (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
                                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                  "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                                  (linkIsActive || isActive(item.url)) && 
-                                    "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                                )
-                              }
-                            >
-                              <item.icon className="h-4 w-4 shrink-0" />
-                              {!collapsed && (
-                                <span className="text-sm font-medium">{item.title}</span>
-                              )}
-                              {!collapsed && item.badge && (
-                                <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                                  {item.badge}
-                                </span>
-                              )}
-                            </NavLink>
+                                  "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                                )}
+                              >
+                                <item.icon className="h-4 w-4 shrink-0" />
+                                {!collapsed && (
+                                  <span className="text-sm font-medium">{item.title}</span>
+                                )}
+                                {!collapsed && item.badge && (
+                                  <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </a>
+                            ) : (
+                              <NavLink
+                                to={item.url}
+                                className={({ isActive: linkIsActive }) =>
+                                  cn(
+                                    "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                                    "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                                    (linkIsActive || isActive(item.url)) && 
+                                      "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                                  )
+                                }
+                              >
+                                <item.icon className="h-4 w-4 shrink-0" />
+                                {!collapsed && (
+                                  <span className="text-sm font-medium">{item.title}</span>
+                                )}
+                                {!collapsed && item.badge && (
+                                  <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </NavLink>
+                            )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       ))}
