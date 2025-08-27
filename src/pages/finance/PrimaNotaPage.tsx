@@ -98,7 +98,7 @@ export default function PrimaNotaPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [filtroTesto, setFiltroTesto] = useState("");
-  const [filtroMetodo, setFiltroMetodo] = useState("");
+  const [filtroMetodo, setFiltroMetodo] = useState("all");
   const [nuovoMovimento, setNuovoMovimento] = useState<Partial<MovimentoContabile>>({
     metodoPagamento: "Bonifico"
   });
@@ -151,7 +151,7 @@ export default function PrimaNotaPage() {
       movimento.descrizione.toLowerCase().includes(filtroTesto.toLowerCase()) ||
       movimento.numeroRegistrazione.toLowerCase().includes(filtroTesto.toLowerCase());
     
-    const metodoMatch = filtroMetodo === "" || movimento.metodoPagamento === filtroMetodo;
+    const metodoMatch = filtroMetodo === "" || filtroMetodo === "all" || movimento.metodoPagamento === filtroMetodo;
     
     return testoMatch && metodoMatch;
   });
@@ -363,7 +363,7 @@ export default function PrimaNotaPage() {
                   <SelectValue placeholder="Tutti i metodi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tutti i metodi</SelectItem>
+                  <SelectItem value="all">Tutti i metodi</SelectItem>
                   {metodiPagamento.map((metodo) => (
                     <SelectItem key={metodo} value={metodo}>{metodo}</SelectItem>
                   ))}
@@ -371,7 +371,7 @@ export default function PrimaNotaPage() {
               </Select>
             </div>
             <div className="flex items-end">
-              <Button variant="outline" onClick={() => { setFiltroTesto(""); setFiltroMetodo(""); }} className="w-full">
+              <Button variant="outline" onClick={() => { setFiltroTesto(""); setFiltroMetodo("all"); }} className="w-full">
                 Pulisci Filtri
               </Button>
             </div>
