@@ -22,13 +22,12 @@ interface PartnerMapProps {
 export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
-  const [showTokenInput, setShowTokenInput] = useState(true);
+  const mapboxToken = 'pk.eyJ1IjoiemFwcGVyLWl0YWx5IiwiYSI6ImNtZXRyZHppNjAyMHMyanBmaDVjaXRqNGkifQ.a-m1oX08G8vNi9s6uzNr7Q';
 
-  const initializeMap = (token: string) => {
+  const initializeMap = () => {
     if (!mapContainer.current || map.current) return;
 
-    mapboxgl.accessToken = token;
+    mapboxgl.accessToken = mapboxToken;
     
     try {
       map.current = new mapboxgl.Map({
@@ -46,11 +45,8 @@ export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
       map.current.on('load', () => {
         addPartnerMarkers();
       });
-
-      setShowTokenInput(false);
     } catch (error) {
       console.error('Error initializing map:', error);
-      setShowTokenInput(true);
     }
   };
 
@@ -106,6 +102,7 @@ export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
   };
 
   useEffect(() => {
+    initializeMap();
     return () => {
       if (map.current) {
         map.current.remove();
@@ -125,46 +122,6 @@ export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
     }
   }, [partners]);
 
-  const handleTokenSubmit = () => {
-    if (mapboxToken.trim()) {
-      initializeMap(mapboxToken.trim());
-    }
-  };
-
-  if (showTokenInput) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4 p-8 bg-muted/30 rounded-lg">
-        <MapPin className="h-12 w-12 text-muted-foreground" />
-        <div className="text-center space-y-2">
-          <h3 className="font-semibold">Mapbox Token Required</h3>
-          <p className="text-sm text-muted-foreground max-w-md">
-            Enter your Mapbox public token to display the partners map. 
-            You can get a free token at{' '}
-            <a 
-              href="https://mapbox.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              mapbox.com
-            </a>
-          </p>
-        </div>
-        <div className="flex space-x-2 w-full max-w-md">
-          <Input
-            type="text"
-            placeholder="Enter Mapbox public token"
-            value={mapboxToken}
-            onChange={(e) => setMapboxToken(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleTokenSubmit()}
-          />
-          <Button onClick={handleTokenSubmit} disabled={!mapboxToken.trim()}>
-            Load Map
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative w-full h-full">
