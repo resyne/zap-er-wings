@@ -13,7 +13,6 @@ import { Plus, Search, RefreshCw, TrendingUp, Calendar, DollarSign } from "lucid
 
 interface Deal {
   id: string;
-  bigin_id?: string;
   name: string;
   amount?: number;
   stage?: string;
@@ -27,7 +26,6 @@ interface Deal {
     name: string;
   };
   created_at: string;
-  synced_at?: string;
 }
 
 const dealStages = [
@@ -44,7 +42,7 @@ export default function DealsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [contacts, setContacts] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [newDeal, setNewDeal] = useState({
@@ -104,31 +102,6 @@ export default function DealsPage() {
     }
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('bigin-sync', {
-        body: { action: 'sync_deals' }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sincronizzazione completata",
-        description: "I deal sono stati sincronizzati con Bigin",
-      });
-      
-      await loadDeals();
-    } catch (error: any) {
-      toast({
-        title: "Errore di sincronizzazione",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleCreateDeal = async () => {
     try {
@@ -210,17 +183,9 @@ export default function DealsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Deal</h1>
-          <p className="text-muted-foreground">Gestisci le tue opportunità di vendita e sincronizza con Bigin</p>
+          <p className="text-muted-foreground">Gestisci le tue opportunità di vendita</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing}
-            variant="outline"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -398,7 +363,7 @@ export default function DealsPage() {
                 <TableHead>Fase</TableHead>
                 <TableHead>Probabilità</TableHead>
                 <TableHead>Chiusura Prevista</TableHead>
-                <TableHead>Stato Sync</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -445,18 +410,11 @@ export default function DealsPage() {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    {deal.bigin_id ? (
-                      <Badge variant="default">Sincronizzato</Badge>
-                    ) : (
-                      <Badge variant="secondary">Locale</Badge>
-                    )}
-                  </TableCell>
                 </TableRow>
               ))}
               {filteredDeals.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessun deal trovato" : "Nessun deal presente"}
                     </div>

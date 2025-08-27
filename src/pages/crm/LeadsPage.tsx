@@ -13,7 +13,6 @@ import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Download, Load
 
 interface Contact {
   id: string;
-  bigin_id?: string;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -31,7 +30,6 @@ interface Contact {
     name: string;
   };
   created_at: string;
-  synced_at?: string;
 }
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "other"];

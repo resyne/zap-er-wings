@@ -14,7 +14,6 @@ import { Plus, Search, Mail, Phone, Building2, FileText } from "lucide-react";
 
 interface Contact {
   id: string;
-  bigin_id?: string;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -32,7 +31,6 @@ interface Contact {
     name: string;
   };
   created_at: string;
-  synced_at?: string;
 }
 
 export default function ContactsPage() {

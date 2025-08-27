@@ -12,7 +12,6 @@ import { Plus, Search, RefreshCw, Globe, Mail, Phone, Building2 } from "lucide-r
 
 interface Company {
   id: string;
-  bigin_id?: string;
   name: string;
   website?: string;
   phone?: string;
@@ -23,7 +22,6 @@ interface Company {
   billing_address?: string;
   shipping_address?: string;
   created_at: string;
-  synced_at?: string;
 }
 
 export default function CompaniesPage() {
@@ -31,7 +29,7 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [newCompany, setNewCompany] = useState({
     name: "",
     website: "",
@@ -69,31 +67,6 @@ export default function CompaniesPage() {
     }
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('bigin-sync', {
-        body: { action: 'sync_companies' }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sincronizzazione completata",
-        description: "Le aziende sono state sincronizzate con Bigin",
-      });
-      
-      await loadCompanies();
-    } catch (error: any) {
-      toast({
-        title: "Errore di sincronizzazione",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleCreateCompany = async () => {
     try {
@@ -157,17 +130,9 @@ export default function CompaniesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Aziende</h1>
-          <p className="text-muted-foreground">Gestisci le tue aziende e sincronizza con Bigin</p>
+          <p className="text-muted-foreground">Gestisci le tue aziende</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing}
-            variant="outline"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -294,7 +259,7 @@ export default function CompaniesPage() {
                 <TableHead>Settore</TableHead>
                 <TableHead>Dipendenti</TableHead>
                 <TableHead>Fatturato</TableHead>
-                <TableHead>Stato Sync</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -352,18 +317,11 @@ export default function CompaniesPage() {
                       <span className="text-sm">€{company.annual_revenue.toLocaleString()}</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    {company.bigin_id ? (
-                      <Badge variant="default">Sincronizzato</Badge>
-                    ) : (
-                      <Badge variant="secondary">Locale</Badge>
-                    )}
-                  </TableCell>
                 </TableRow>
               ))}
               {filteredCompanies.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={5} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessuna azienda trovata" : "Nessuna azienda presente"}
                     </div>

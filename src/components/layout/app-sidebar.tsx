@@ -72,7 +72,7 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Bigin Integration",
+    title: "CRM Data",
     items: [
       { title: "Contacts", url: "/crm/contacts", icon: UserCheck },
       { title: "Companies", url: "/crm/companies", icon: Building2 },

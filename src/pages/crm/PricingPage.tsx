@@ -43,7 +43,7 @@ export default function PricingPage() {
               <li>• 50 GB di storage</li>
               <li>• Support prioritario</li>
               <li>• Analytics avanzate</li>
-              <li>• Integrazione Bigin</li>
+              
             </ul>
           </CardContent>
         </Card>

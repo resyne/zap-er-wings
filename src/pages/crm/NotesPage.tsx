@@ -13,14 +13,12 @@ import { Plus, Search, RefreshCw, FileText } from "lucide-react";
 
 interface Note {
   id: string;
-  bigin_id?: string;
   title?: string;
   content?: string;
   contact?: { first_name?: string; last_name?: string; };
   company?: { name: string; };
   deal?: { name: string; };
   created_at: string;
-  synced_at?: string;
 }
 
 export default function NotesPage() {
@@ -28,7 +26,7 @@ export default function NotesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [newNote, setNewNote] = useState({
     title: "",
     content: "",
@@ -64,29 +62,6 @@ export default function NotesPage() {
     }
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('bigin-sync', {
-        body: { action: 'sync_notes' }
-      });
-
-      if (error) throw error;
-      toast({
-        title: "Sincronizzazione completata",
-        description: "Le note sono state sincronizzate con Bigin",
-      });
-      await loadNotes();
-    } catch (error: any) {
-      toast({
-        title: "Errore di sincronizzazione",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleCreateNote = async () => {
     try {
@@ -122,13 +97,9 @@ export default function NotesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Note</h1>
-          <p className="text-muted-foreground">Gestisci le tue note e sincronizza con Bigin</p>
+          <p className="text-muted-foreground">Gestisci le tue note</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSync} disabled={isSyncing} variant="outline">
-            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -197,11 +168,11 @@ export default function NotesPage() {
                 <TableHead>Contenuto</TableHead>
                 <TableHead>Collegato a</TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Stato Sync</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredNotes.map((note) => (
+             {filteredNotes.map((note) => (
                 <TableRow key={note.id}>
                   <TableCell>
                     <div className="flex items-center">
@@ -234,15 +205,17 @@ export default function NotesPage() {
                       {new Date(note.created_at).toLocaleDateString('it-IT')}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    {note.bigin_id ? (
-                      <Badge variant="default">Sincronizzato</Badge>
-                    ) : (
-                      <Badge variant="secondary">Locale</Badge>
-                    )}
-                  </TableCell>
                 </TableRow>
               ))}
+              {filteredNotes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      {searchTerm ? "Nessuna nota trovata" : "Nessuna nota presente"}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
