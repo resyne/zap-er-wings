@@ -43,17 +43,35 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
 
   const geocodeAddress = async (address: string): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      // Using a free geocoding service (you can replace with your preferred service)
+      console.log('Trying to geocode address:', address);
+      // Using Nominatim with proper headers
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'PartnerMap/1.0'
+          }
+        }
       );
+      
+      console.log('Geocoding response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('Geocoding data:', data);
       
       if (data && data.length > 0) {
-        return {
+        const coordinates = {
           latitude: parseFloat(data[0].lat),
           longitude: parseFloat(data[0].lon)
         };
+        console.log('Found coordinates:', coordinates);
+        return coordinates;
+      } else {
+        console.log('No geocoding results found for address:', address);
       }
     } catch (error) {
       console.error('Geocoding error:', error);
@@ -104,10 +122,16 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
         address: '',
       });
 
-      if (!coordinates) {
+      if (coordinates) {
+        toast({
+          title: "Partner Added",
+          description: "Partner added successfully and located on the map!",
+        });
+      } else {
         toast({
           title: "Partner Added",
           description: "Partner added successfully, but location could not be determined from the address.",
+          variant: "destructive",
         });
       }
     } catch (error) {
