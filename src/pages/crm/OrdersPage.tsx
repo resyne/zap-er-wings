@@ -46,6 +46,7 @@ export default function OrdersPage() {
     total_amount: "",
     status: "draft",
     notes: "",
+    order_type: "production", // production or field_service
   });
   const { toast } = useToast();
 
@@ -126,6 +127,7 @@ export default function OrdersPage() {
         total_amount: "",
         status: "draft",
         notes: "",
+        order_type: "production",
       });
       await loadOrders();
     } catch (error: any) {
@@ -229,6 +231,18 @@ export default function OrdersPage() {
                         {quote.number}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="order_type">Tipo Ordine</Label>
+                <Select value={newOrder.order_type} onValueChange={(value) => setNewOrder({...newOrder, order_type: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Production Order</SelectItem>
+                    <SelectItem value="field_service">Work Order (Field Service)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

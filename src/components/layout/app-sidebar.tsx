@@ -63,16 +63,9 @@ const navigationGroups: NavGroup[] = [
   {
     title: "CRM", 
     items: [
-      { title: "Leads", url: "/crm/leads", icon: Target },
-      { title: "Contacts", url: "/crm/contacts", icon: UserCheck },
-      { title: "Companies", url: "/crm/companies", icon: Building2 },
-      { title: "Deals", url: "/crm/deals", icon: Target },
-      { title: "Opportunities", url: "/crm/opportunities", icon: Users },
-      { title: "Quotes", url: "/crm/quotes", icon: FileText },
+      { title: "CRM Dashboard", url: "/crm/dashboard", icon: LayoutDashboard },
       { title: "Orders", url: "/crm/orders", icon: ShoppingCart },
       { title: "Customers", url: "/crm/customers", icon: Building2 },
-      { title: "Notes", url: "/crm/notes", icon: FileText },
-      { title: "Pricing", url: "/crm/pricing", icon: DollarSign },
     ]
   },
   {

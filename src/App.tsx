@@ -16,17 +16,9 @@ import WorkOrdersPage from "./pages/production/WorkOrdersPage";
 import ExecutionsPage from "./pages/production/ExecutionsPage";
 import SerialsPage from "./pages/production/SerialsPage";
 import RmaPage from "./pages/production/RmaPage";
-import ContactsPage from "./pages/crm/ContactsPage";
-import CompaniesPage from "./pages/crm/CompaniesPage";
-import DealsPage from "./pages/crm/DealsPage";
-import NotesPage from "./pages/crm/NotesPage";
-import LeadsPage from "./pages/crm/LeadsPage";
-import OpportunitiesPage from "./pages/crm/OpportunitiesPage";
-import { OpportunityDetailsPage } from "./pages/crm/OpportunityDetailsPage";
-import QuotesPage from "./pages/crm/QuotesPage";
+import CrmPage from "./pages/crm/CrmPage";
 import OrdersPage from "./pages/crm/OrdersPage";
 import CustomersPage from "./pages/crm/CustomersPage";
-import PricingPage from "./pages/crm/PricingPage";
 import StockPage from "./pages/warehouse/StockPage";
 import MovementsPage from "./pages/warehouse/MovementsPage";
 import BatchesSerialsPage from "./pages/warehouse/BatchesSerialsPage";
@@ -68,17 +60,9 @@ const App = () => (
                 <Route path="mfg/executions" element={<ExecutionsPage />} />
                 <Route path="mfg/serials" element={<SerialsPage />} />
                 <Route path="mfg/rma" element={<RmaPage />} />
-                <Route path="crm/leads" element={<LeadsPage />} />
-                <Route path="crm/opportunities" element={<OpportunitiesPage />} />
-                <Route path="crm/opportunities/:id" element={<OpportunityDetailsPage />} />
-                <Route path="crm/quotes" element={<QuotesPage />} />
+                <Route path="crm/dashboard" element={<CrmPage />} />
                 <Route path="crm/orders" element={<OrdersPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
-                <Route path="crm/pricing" element={<PricingPage />} />
-                <Route path="crm/contacts" element={<ContactsPage />} />
-                <Route path="crm/companies" element={<CompaniesPage />} />
-                <Route path="crm/deals" element={<DealsPage />} />
-                <Route path="crm/notes" element={<NotesPage />} />
                 <Route path="wms/stock" element={<StockPage />} />
                 <Route path="wms/movements" element={<MovementsPage />} />
                 <Route path="wms/batches-serials" element={<BatchesSerialsPage />} />
