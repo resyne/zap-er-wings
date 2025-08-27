@@ -24,8 +24,7 @@ interface MovimentoContabile {
   data: string;
   numeroRegistrazione: string;
   causale: string;
-  contoDare: string;
-  contoAvere: string;
+  tipoMovimento: "incasso" | "acquisto";
   importo: number;
   metodoPagamento: string;
   descrizione: string;
@@ -91,8 +90,7 @@ export default function PrimaNotaPage() {
       data: "2024-01-15",
       numeroRegistrazione: "PN-2024-001",
       causale: "Incasso fattura",
-      contoDare: "1020 - Banca c/c",
-      contoAvere: "4010 - Ricavi vendite",
+      tipoMovimento: "incasso",
       importo: 1250.00,
       metodoPagamento: "Bonifico",
       descrizione: "Incasso fattura FT001/2024",
@@ -105,8 +103,7 @@ export default function PrimaNotaPage() {
       data: "2024-01-16",
       numeroRegistrazione: "PN-2024-002",
       causale: "Pagamento fornitore",
-      contoDare: "2010 - Debiti vs fornitori",
-      contoAvere: "1020 - Banca c/c",
+      tipoMovimento: "acquisto",
       importo: 850.00,
       metodoPagamento: "Bonifico",
       descrizione: "Pagamento fattura FOR123",
@@ -184,7 +181,7 @@ export default function PrimaNotaPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!nuovoMovimento.causale || !nuovoMovimento.contoDare || !nuovoMovimento.contoAvere || !nuovoMovimento.importo) {
+    if (!nuovoMovimento.causale || !nuovoMovimento.tipoMovimento || !nuovoMovimento.importo) {
       toast({
         title: "Errore",
         description: "Compila tutti i campi obbligatori",
@@ -210,8 +207,7 @@ export default function PrimaNotaPage() {
         data: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         numeroRegistrazione: generaNumeroRegistrazione(),
         causale: nuovoMovimento.causale!,
-        contoDare: nuovoMovimento.contoDare!,
-        contoAvere: nuovoMovimento.contoAvere!,
+        tipoMovimento: nuovoMovimento.tipoMovimento!,
         importo: Number(nuovoMovimento.importo),
         metodoPagamento: nuovoMovimento.metodoPagamento!,
         descrizione: nuovoMovimento.descrizione || "",
@@ -422,34 +418,18 @@ export default function PrimaNotaPage() {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="contoDare">Conto Dare *</Label>
-                      <Select value={nuovoMovimento.contoDare} onValueChange={(value) => setNuovoMovimento({ ...nuovoMovimento, contoDare: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona conto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {pianoConti.map((conto) => (
-                            <SelectItem key={conto} value={conto || "default-conto"}>{conto}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="contoAvere">Conto Avere *</Label>
-                      <Select value={nuovoMovimento.contoAvere} onValueChange={(value) => setNuovoMovimento({ ...nuovoMovimento, contoAvere: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona conto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {pianoConti.map((conto) => (
-                            <SelectItem key={conto} value={conto || "default-conto"}>{conto}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="tipoMovimento">Tipo Movimento *</Label>
+                     <Select value={nuovoMovimento.tipoMovimento} onValueChange={(value) => setNuovoMovimento({ ...nuovoMovimento, tipoMovimento: value as "incasso" | "acquisto" })}>
+                       <SelectTrigger>
+                         <SelectValue placeholder="Seleziona tipo movimento" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="incasso">Incasso</SelectItem>
+                         <SelectItem value="acquisto">Acquisto</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -580,16 +560,15 @@ export default function PrimaNotaPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>N. Registr.</TableHead>
-                    <TableHead>Causale</TableHead>
-                    <TableHead>Conto Dare</TableHead>
-                    <TableHead>Conto Avere</TableHead>
-                    <TableHead className="text-right">Importo</TableHead>
-                    <TableHead>Metodo</TableHead>
-                    <TableHead>Utente</TableHead>
-                    <TableHead>Descrizione</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead>Data</TableHead>
+                     <TableHead>N. Registr.</TableHead>
+                     <TableHead>Causale</TableHead>
+                     <TableHead>Tipo</TableHead>
+                     <TableHead className="text-right">Importo</TableHead>
+                     <TableHead>Metodo</TableHead>
+                     <TableHead>Utente</TableHead>
+                     <TableHead>Descrizione</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -618,12 +597,15 @@ export default function PrimaNotaPage() {
                           {movimento.numeroRegistrazione}
                         </code>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{movimento.causale}</Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{movimento.contoDare}</TableCell>
-                      <TableCell className="font-mono text-sm">{movimento.contoAvere}</TableCell>
-                      <TableCell className="text-right">
+                       <TableCell>
+                         <Badge variant="outline">{movimento.causale}</Badge>
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant={movimento.tipoMovimento === "incasso" ? "default" : "secondary"}>
+                           {movimento.tipoMovimento === "incasso" ? "💰 Incasso" : "🛒 Acquisto"}
+                         </Badge>
+                       </TableCell>
+                       <TableCell className="text-right">
                         <div className="flex items-center justify-end">
                           <Euro className="mr-1 h-4 w-4 text-muted-foreground" />
                           <span className="font-semibold">{movimento.importo.toFixed(2)}</span>
