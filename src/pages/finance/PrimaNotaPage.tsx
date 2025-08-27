@@ -15,6 +15,9 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FileUpload } from "@/components/ui/file-upload";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface MovimentoContabile {
   id: string;
@@ -102,6 +105,8 @@ export default function PrimaNotaPage() {
   const [nuovoMovimento, setNuovoMovimento] = useState<Partial<MovimentoContabile>>({
     metodoPagamento: "Bonifico"
   });
+  const [allegati, setAllegati] = useState<File[]>([]);
+  const { user } = useAuth();
 
   const generaNumeroRegistrazione = () => {
     const anno = new Date().getFullYear();
@@ -109,7 +114,27 @@ export default function PrimaNotaPage() {
     return `PN-${anno}-${ultimoNumero.toString().padStart(3, '0')}`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const uploadFiles = async (files: File[], movimentoId: string) => {
+    if (!user || files.length === 0) return [];
+
+    const uploadPromises = files.map(async (file) => {
+      const fileName = `${user.id}/${movimentoId}/${file.name}`;
+      const { data, error } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file);
+
+      if (error) {
+        console.error('Errore upload file:', error);
+        throw error;
+      }
+
+      return data.path;
+    });
+
+    return Promise.all(uploadPromises);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!nuovoMovimento.causale || !nuovoMovimento.contoDare || !nuovoMovimento.contoAvere || !nuovoMovimento.importo) {
@@ -121,28 +146,49 @@ export default function PrimaNotaPage() {
       return;
     }
 
-    const movimento: MovimentoContabile = {
-      id: Date.now().toString(),
-      data: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-      numeroRegistrazione: generaNumeroRegistrazione(),
-      causale: nuovoMovimento.causale!,
-      contoDare: nuovoMovimento.contoDare!,
-      contoAvere: nuovoMovimento.contoAvere!,
-      importo: Number(nuovoMovimento.importo),
-      metodoPagamento: nuovoMovimento.metodoPagamento!,
-      descrizione: nuovoMovimento.descrizione || "",
-      note: nuovoMovimento.note || ""
-    };
+    const movimentoId = Date.now().toString();
 
-    setMovimenti([movimento, ...movimenti]);
-    setNuovoMovimento({ metodoPagamento: "Bonifico" });
-    setSelectedDate(undefined);
-    setIsDialogOpen(false);
-    
-    toast({
-      title: "Movimento registrato",
-      description: "Il movimento contabile è stato registrato con successo",
-    });
+    try {
+      // Upload files if any
+      if (allegati.length > 0) {
+        await uploadFiles(allegati, movimentoId);
+        toast({
+          title: "File caricati",
+          description: `${allegati.length} file allegati caricati con successo`,
+        });
+      }
+
+      const movimento: MovimentoContabile = {
+        id: movimentoId,
+        data: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        numeroRegistrazione: generaNumeroRegistrazione(),
+        causale: nuovoMovimento.causale!,
+        contoDare: nuovoMovimento.contoDare!,
+        contoAvere: nuovoMovimento.contoAvere!,
+        importo: Number(nuovoMovimento.importo),
+        metodoPagamento: nuovoMovimento.metodoPagamento!,
+        descrizione: nuovoMovimento.descrizione || "",
+        note: nuovoMovimento.note || ""
+      };
+
+      setMovimenti([movimento, ...movimenti]);
+      setNuovoMovimento({ metodoPagamento: "Bonifico" });
+      setSelectedDate(undefined);
+      setAllegati([]);
+      setIsDialogOpen(false);
+      
+      toast({
+        title: "Movimento registrato",
+        description: "Il movimento contabile è stato registrato con successo",
+      });
+    } catch (error) {
+      console.error('Errore durante il salvataggio:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante il caricamento dei file. Riprova.",
+        variant: "destructive",
+      });
+    }
   };
 
   const movimentiFiltrati = movimenti.filter(movimento => {
@@ -319,6 +365,16 @@ export default function PrimaNotaPage() {
                   value={nuovoMovimento.note || ""}
                   onChange={(e) => setNuovoMovimento({ ...nuovoMovimento, note: e.target.value })}
                   placeholder="Note aggiuntive"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Allegati</Label>
+                <FileUpload
+                  value={allegati}
+                  onChange={setAllegati}
+                  maxFiles={5}
+                  acceptedFileTypes={["image/jpeg", "image/png", "image/webp", "application/pdf"]}
                 />
               </div>
 
