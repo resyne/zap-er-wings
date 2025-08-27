@@ -125,6 +125,7 @@ const navigationGroups: NavGroup[] = [
       { title: "CAPA", url: "/quality/capa", icon: Target },
       { title: "Audits", url: "/quality/audits", icon: ClipboardCheck },
       { title: "HSE", url: "/quality/hse", icon: UserCheck },
+      { title: "Prima Nota", url: "/quality/prima-nota", icon: FileText },
     ]
   },
   {
