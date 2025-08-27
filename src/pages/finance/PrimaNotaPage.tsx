@@ -41,7 +41,7 @@ const causaliPredefinite = [
   "Utenze",
   "Consulenze",
   "Altro"
-];
+].filter(item => item.trim() !== "");
 
 const metodiPagamento = [
   "Contanti",
@@ -51,7 +51,7 @@ const metodiPagamento = [
   "Assegno",
   "PayPal",
   "Altro"
-];
+].filter(item => item.trim() !== "");
 
 const pianoConti = [
   "1010 - Cassa",
@@ -64,7 +64,7 @@ const pianoConti = [
   "5030 - Spese carburante",
   "5040 - Consulenze",
   "6010 - Costi del personale"
-];
+].filter(item => item.trim() !== "");
 
 export default function PrimaNotaPage() {
   const { toast } = useToast();
@@ -240,7 +240,7 @@ export default function PrimaNotaPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {causaliPredefinite.map((causale) => (
-                      <SelectItem key={causale} value={causale}>{causale}</SelectItem>
+                      <SelectItem key={causale} value={causale || "default-causale"}>{causale}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -255,7 +255,7 @@ export default function PrimaNotaPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {pianoConti.map((conto) => (
-                        <SelectItem key={conto} value={conto}>{conto}</SelectItem>
+                        <SelectItem key={conto} value={conto || "default-conto"}>{conto}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -268,7 +268,7 @@ export default function PrimaNotaPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {pianoConti.map((conto) => (
-                        <SelectItem key={conto} value={conto}>{conto}</SelectItem>
+                        <SelectItem key={conto} value={conto || "default-conto"}>{conto}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -295,7 +295,7 @@ export default function PrimaNotaPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {metodiPagamento.map((metodo) => (
-                        <SelectItem key={metodo} value={metodo}>{metodo}</SelectItem>
+                        <SelectItem key={metodo} value={metodo || "default-metodo"}>{metodo}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
