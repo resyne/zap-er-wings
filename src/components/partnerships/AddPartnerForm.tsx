@@ -55,10 +55,16 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
 
   const geocodeAddress = async (address: string, country?: string): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      // Create a more specific search query including country if available
-      const searchQuery = country && country.trim() !== '' 
-        ? `${address}, ${country}` 
-        : address;
+      // Create a more specific search query with Italian context
+      let searchQuery = address;
+      
+      // Add country context if available
+      if (country && country.trim() !== '') {
+        searchQuery = `${address}, ${country}`;
+      } else if (!address.toLowerCase().includes('italia') && !address.toLowerCase().includes('italy')) {
+        // Default to Italy if no country specified for Italian addresses
+        searchQuery = `${address}, Italia`;
+      }
       
       console.log('Geocoding address:', searchQuery);
       
@@ -122,7 +128,7 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
 
   // Helper function to get country codes for better geocoding
   const getCountryCode = (country?: string): string => {
-    if (!country) return '';
+    if (!country) return 'it'; // Default to Italy
     
     const countryMap: Record<string, string> = {
       'italia': 'it',
@@ -147,7 +153,7 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
       'slovakia': 'sk'
     };
     
-    return countryMap[country.toLowerCase()] || '';
+    return countryMap[country.toLowerCase()] || 'it'; // Default to Italy if not found
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
