@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Search, Filter, BookOpen, Calendar as CalendarIcon, Euro, FileText, CreditCard, CheckCircle, XCircle, User, Repeat, Clock, Edit, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +32,7 @@ interface MovimentoContabile {
   descrizione: string;
   note: string;
   registrato: boolean;
-  controllato: boolean;
+  monitorare: boolean;
   utenteRiportante: string;
 }
 
@@ -44,7 +45,7 @@ interface AbbonamentoRicorrente {
   causale: string;
   metodoPagamento: string;
   attivo: boolean;
-  controllato: boolean;
+  monitorare: boolean;
   note?: string;
 }
 
@@ -139,7 +140,7 @@ export default function PrimaNotaPage() {
         descrizione: movement.description || "",
         note: movement.notes || "",
         registrato: movement.registered,
-        controllato: movement.checked || false,
+        monitorare: movement.monitor || false,
         utenteRiportante: movement.reporting_user
       })) || [];
 
@@ -175,7 +176,7 @@ export default function PrimaNotaPage() {
         causale: subscription.causale,
         metodoPagamento: subscription.payment_method,
         attivo: subscription.active,
-        controllato: subscription.checked || false,
+        monitorare: subscription.monitor || false,
         note: subscription.notes || ""
       })) || [];
 
@@ -275,7 +276,7 @@ export default function PrimaNotaPage() {
           description: nuovoMovimento.descrizione || "",
           notes: nuovoMovimento.note || "",
           registered: false,
-          checked: false,
+          monitor: nuovoMovimento.monitorare ?? true,
           reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
             : user?.email || "Utente sconosciuto",
@@ -354,7 +355,7 @@ export default function PrimaNotaPage() {
           causale: nuovoAbbonamento.causale || "Altro",
           payment_method: nuovoAbbonamento.metodoPagamento!,
           active: nuovoAbbonamento.attivo!,
-          checked: false,
+          monitor: nuovoAbbonamento.monitorare ?? true,
           notes: nuovoAbbonamento.note || ""
         })
         .select()
@@ -379,7 +380,7 @@ export default function PrimaNotaPage() {
           description: `Abbonamento: ${nuovoAbbonamento.nome}`,
           notes: `Movimento automatico per abbonamento ricorrente - Frequenza: ${nuovoAbbonamento.frequenza}`,
           registered: false,
-          checked: false,
+          monitor: true,
           reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
             : user?.email || "Sistema automatico",
@@ -449,14 +450,14 @@ export default function PrimaNotaPage() {
     }
   };
 
-  const toggleControllato = async (id: string) => {
+  const toggleMonitorare = async (id: string) => {
     try {
       const movimento = movimenti.find(m => m.id === id);
       if (!movimento) return;
 
       const { error } = await supabase
         .from('financial_movements')
-        .update({ checked: !movimento.controllato })
+        .update({ monitor: !movimento.monitorare })
         .eq('id', id);
 
       if (error) throw error;
@@ -465,27 +466,27 @@ export default function PrimaNotaPage() {
       await loadMovimenti();
       
       toast({
-        title: "Controllo aggiornato",
-        description: `Movimento ${movimento.controllato ? 'non controllato' : 'controllato'}`,
+        title: "Monitoraggio aggiornato",
+        description: `Movimento ${movimento.monitorare ? 'non da monitorare' : 'da monitorare'}`,
       });
     } catch (error) {
-      console.error('Errore aggiornamento controllo:', error);
+      console.error('Errore aggiornamento monitoraggio:', error);
       toast({
         title: "Errore",
-        description: "Errore durante l'aggiornamento del controllo",
+        description: "Errore durante l'aggiornamento del monitoraggio",
         variant: "destructive",
       });
     }
   };
 
-  const toggleControllatoAbbonamento = async (id: string) => {
+  const toggleMonitorareAbbonamento = async (id: string) => {
     try {
       const abbonamento = abbonamenti.find(a => a.id === id);
       if (!abbonamento) return;
 
       const { error } = await supabase
         .from('recurring_subscriptions')
-        .update({ checked: !abbonamento.controllato })
+        .update({ monitor: !abbonamento.monitorare })
         .eq('id', id);
 
       if (error) throw error;
@@ -494,8 +495,8 @@ export default function PrimaNotaPage() {
       await loadAbbonamenti();
       
       toast({
-        title: "Controllo aggiornato",
-        description: `Abbonamento ${abbonamento.controllato ? 'non controllato' : 'controllato'}`,
+        title: "Monitoraggio aggiornato",
+        description: `Abbonamento ${abbonamento.monitorare ? 'non da monitorare' : 'da monitorare'}`,
       });
     } catch (error) {
       console.error('Errore aggiornamento controllo:', error);
@@ -543,7 +544,7 @@ export default function PrimaNotaPage() {
           payment_method: movimentoInModifica.metodoPagamento,
           description: movimentoInModifica.descrizione || "",
           notes: movimentoInModifica.note || "",
-          checked: movimentoInModifica.controllato
+          monitor: movimentoInModifica.monitorare
         })
         .eq('id', movimentoInModifica.id);
 
@@ -618,6 +619,7 @@ export default function PrimaNotaPage() {
           causale: abbonamentoInModifica.causale,
           payment_method: abbonamentoInModifica.metodoPagamento,
           active: abbonamentoInModifica.attivo,
+          monitor: abbonamentoInModifica.monitorare,
           notes: abbonamentoInModifica.note || ""
         })
         .eq('id', abbonamentoInModifica.id);
@@ -882,15 +884,24 @@ export default function PrimaNotaPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Allegati</Label>
-                    <FileUpload
-                      value={allegati}
-                      onChange={setAllegati}
-                      maxFiles={5}
-                      acceptedFileTypes={["image/jpeg", "image/png", "image/webp", "application/pdf"]}
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label>Allegati</Label>
+                     <FileUpload
+                       value={allegati}
+                       onChange={setAllegati}
+                       maxFiles={5}
+                       acceptedFileTypes={["image/jpeg", "image/png", "image/webp", "application/pdf"]}
+                     />
+                   </div>
+
+                   <div className="flex items-center space-x-2">
+                     <Checkbox
+                       id="monitorare"
+                       checked={nuovoMovimento.monitorare ?? true}
+                       onCheckedChange={(checked) => setNuovoMovimento({ ...nuovoMovimento, monitorare: checked as boolean })}
+                     />
+                     <Label htmlFor="monitorare">Richiede monitoraggio</Label>
+                   </div>
 
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -1027,15 +1038,24 @@ export default function PrimaNotaPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="noteEdit">Note</Label>
-                      <Textarea
-                        id="noteEdit"
-                        value={movimentoInModifica.note || ""}
-                        onChange={(e) => setMovimentoInModifica({ ...movimentoInModifica, note: e.target.value })}
-                        placeholder="Note aggiuntive"
-                      />
-                    </div>
+                     <div className="space-y-2">
+                       <Label htmlFor="noteEdit">Note</Label>
+                       <Textarea
+                         id="noteEdit"
+                         value={movimentoInModifica.note || ""}
+                         onChange={(e) => setMovimentoInModifica({ ...movimentoInModifica, note: e.target.value })}
+                         placeholder="Note aggiuntive"
+                       />
+                     </div>
+
+                     <div className="flex items-center space-x-2">
+                       <Checkbox
+                         id="monitorareEdit"
+                         checked={movimentoInModifica.monitorare ?? true}
+                         onCheckedChange={(checked) => setMovimentoInModifica({ ...movimentoInModifica, monitorare: checked as boolean })}
+                       />
+                       <Label htmlFor="monitorareEdit">Richiede monitoraggio</Label>
+                     </div>
 
                     <div className="flex justify-end space-x-2">
                       <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -1111,7 +1131,6 @@ export default function PrimaNotaPage() {
                 <TableHeader>
                   <TableRow>
                      <TableHead>Status</TableHead>
-                     <TableHead>Controllato</TableHead>
                      <TableHead>Data</TableHead>
                      <TableHead>N. Registr.</TableHead>
                      <TableHead>Causale</TableHead>
@@ -1125,35 +1144,21 @@ export default function PrimaNotaPage() {
                 </TableHeader>
                 <TableBody>
                   {movimentiFiltrati.map((movimento) => (
-                     <TableRow key={movimento.id}>
-                       <TableCell>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => toggleRegistrato(movimento.id)}
-                           className="p-1"
+                    <TableRow key={movimento.id} className={movimento.monitorare ? "bg-red-50 border-red-200" : ""}>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleRegistrato(movimento.id)}
+                          className="p-1"
                         >
                           {movimento.registrato ? (
                             <CheckCircle className="h-5 w-5 text-green-600" />
                           ) : (
                             <XCircle className="h-5 w-5 text-red-600" />
-                          )}
-                         </Button>
-                       </TableCell>
-                       <TableCell>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => toggleControllato(movimento.id)}
-                           className="p-1"
-                         >
-                           {movimento.controllato ? (
-                             <CheckCircle className="h-5 w-5 text-blue-600" />
-                           ) : (
-                             <XCircle className="h-5 w-5 text-gray-400" />
                            )}
-                         </Button>
-                       </TableCell>
+                          </Button>
+                        </TableCell>
                        <TableCell className="flex items-center">
                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                          {format(new Date(movimento.data), "dd/MM/yyyy", { locale: it })}
@@ -1353,15 +1358,24 @@ export default function PrimaNotaPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="noteAbb">Note</Label>
-                    <Textarea
-                      id="noteAbb"
-                      value={nuovoAbbonamento.note || ""}
-                      onChange={(e) => setNuovoAbbonamento({ ...nuovoAbbonamento, note: e.target.value })}
-                      placeholder="Note aggiuntive sull'abbonamento"
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="noteAbb">Note</Label>
+                     <Textarea
+                       id="noteAbb"
+                       value={nuovoAbbonamento.note || ""}
+                       onChange={(e) => setNuovoAbbonamento({ ...nuovoAbbonamento, note: e.target.value })}
+                       placeholder="Note aggiuntive sull'abbonamento"
+                     />
+                   </div>
+
+                   <div className="flex items-center space-x-2">
+                     <Checkbox
+                       id="monitorareAbb"
+                       checked={nuovoAbbonamento.monitorare ?? true}
+                       onCheckedChange={(checked) => setNuovoAbbonamento({ ...nuovoAbbonamento, monitorare: checked as boolean })}
+                     />
+                     <Label htmlFor="monitorareAbb">Richiede monitoraggio</Label>
+                   </div>
 
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setIsAbbonamentoDialogOpen(false)}>
@@ -1462,15 +1476,24 @@ export default function PrimaNotaPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="noteAbbEdit">Note</Label>
-                      <Textarea
-                        id="noteAbbEdit"
-                        value={abbonamentoInModifica.note || ""}
-                        onChange={(e) => setAbbonamentoInModifica({ ...abbonamentoInModifica, note: e.target.value })}
-                        placeholder="Note aggiuntive sull'abbonamento"
-                      />
-                    </div>
+                     <div className="space-y-2">
+                       <Label htmlFor="noteAbbEdit">Note</Label>
+                       <Textarea
+                         id="noteAbbEdit"
+                         value={abbonamentoInModifica.note || ""}
+                         onChange={(e) => setAbbonamentoInModifica({ ...abbonamentoInModifica, note: e.target.value })}
+                         placeholder="Note aggiuntive sull'abbonamento"
+                       />
+                     </div>
+
+                     <div className="flex items-center space-x-2">
+                       <Checkbox
+                         id="monitorareAbbEdit"
+                         checked={abbonamentoInModifica.monitorare ?? true}
+                         onCheckedChange={(checked) => setAbbonamentoInModifica({ ...abbonamentoInModifica, monitorare: checked as boolean })}
+                       />
+                       <Label htmlFor="monitorareAbbEdit">Richiede monitoraggio</Label>
+                     </div>
 
                     <div className="flex justify-end space-x-2">
                       <Button type="button" variant="outline" onClick={() => setIsEditAbbonamentoDialogOpen(false)}>
@@ -1505,16 +1528,15 @@ export default function PrimaNotaPage() {
                     <TableHead>Prossimo Pagamento</TableHead>
                     <TableHead>Causale</TableHead>
                     <TableHead>Metodo</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Controllato</TableHead>
-                    <TableHead>Note</TableHead>
+                     <TableHead>Stato</TableHead>
+                     <TableHead>Note</TableHead>
                     <TableHead>Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {abbonamenti.map((abbonamento) => (
-                    <TableRow key={abbonamento.id}>
-                      <TableCell className="font-medium">{abbonamento.nome}</TableCell>
+                   {abbonamenti.map((abbonamento) => (
+                     <TableRow key={abbonamento.id} className={abbonamento.monitorare ? "bg-red-50 border-red-200" : ""}>
+                       <TableCell className="font-medium">{abbonamento.nome}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end">
                           <Euro className="mr-1 h-4 w-4 text-muted-foreground" />
@@ -1536,22 +1558,8 @@ export default function PrimaNotaPage() {
                          <Badge variant={abbonamento.attivo ? "default" : "secondary"}>
                            {abbonamento.attivo ? "Attivo" : "Inattivo"}
                          </Badge>
-                       </TableCell>
-                       <TableCell>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => toggleControllatoAbbonamento(abbonamento.id)}
-                           className="p-1"
-                         >
-                           {abbonamento.controllato ? (
-                             <CheckCircle className="h-5 w-5 text-blue-600" />
-                           ) : (
-                             <XCircle className="h-5 w-5 text-gray-400" />
-                           )}
-                         </Button>
-                       </TableCell>
-                       <TableCell className="max-w-xs">
+                        </TableCell>
+                        <TableCell className="max-w-xs">
                          <div className="truncate" title={abbonamento.note}>
                            {abbonamento.note || "-"}
                          </div>
