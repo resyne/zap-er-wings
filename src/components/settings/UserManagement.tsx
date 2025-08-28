@@ -46,46 +46,38 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      console.log("Fetching users...");
-      
+      // Fetch all profiles first
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name, created_at");
+
+      if (profilesError) throw profilesError;
+
       // Fetch user roles
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
-      console.log("Roles data:", roles);
-      if (rolesError) {
-        console.error("Roles error:", rolesError);
-        throw rolesError;
-      }
+      if (rolesError) throw rolesError;
 
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, email, first_name, last_name, created_at");
+      // Create users array by combining profiles with their roles
+      const usersWithRoles = profiles
+        ?.filter(profile => {
+          // Only include users that have a role
+          return roles?.some(role => role.user_id === profile.id);
+        })
+        .map(profile => {
+          const userRole = roles?.find(role => role.user_id === profile.id);
+          return {
+            id: profile.id,
+            email: profile.email,
+            first_name: profile.first_name || "",
+            last_name: profile.last_name || "",
+            role: (userRole?.role || "user") as "admin" | "moderator" | "user",
+            created_at: profile.created_at
+          };
+        }) || [];
 
-      console.log("Profiles data:", profiles);
-      if (profilesError) {
-        console.error("Profiles error:", profilesError);
-        throw profilesError;
-      }
-
-      // Combine data - start with roles and add profile info
-      const usersWithRoles = roles?.map(roleRecord => {
-        const profile = profiles?.find(p => p.id === roleRecord.user_id);
-        console.log(`User ${roleRecord.user_id}:`, profile);
-        
-        return {
-          id: roleRecord.user_id,
-          email: profile?.email || "Email non disponibile",
-          first_name: profile?.first_name || "",
-          last_name: profile?.last_name || "",
-          role: roleRecord.role as "admin" | "moderator" | "user",
-          created_at: profile?.created_at || new Date().toISOString()
-        };
-      }) || [];
-
-      console.log("Final users:", usersWithRoles);
       setUsers(usersWithRoles);
     } catch (error) {
       console.error("Error fetching users:", error);
