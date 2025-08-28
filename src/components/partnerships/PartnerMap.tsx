@@ -61,7 +61,7 @@ export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
         markerElement.className = 'custom-marker';
         
         // Use green for active importers, default primary color for others
-        const markerColor = partner.acquisition_status === 'active' 
+        const markerColor = (partner.acquisition_status === 'attivo' || partner.acquisition_status === 'active') 
           ? 'hsl(142, 76%, 36%)' // Green color for active
           : 'hsl(var(--primary))';
         
