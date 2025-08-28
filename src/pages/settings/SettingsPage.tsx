@@ -6,6 +6,7 @@ import { UserManagement } from "@/components/settings/UserManagement";
 import { RolePermissions } from "@/components/settings/RolePermissions";
 import { SystemSettings } from "@/components/settings/SystemSettings";
 import { PasswordChange } from "@/components/settings/PasswordChange";
+import { ProfileEdit } from "@/components/settings/ProfileEdit";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Users, Shield, Settings, AlertCircle, Lock } from "lucide-react";
@@ -45,7 +46,7 @@ export function SettingsPage() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Gestione Utenti
+            Profilo
           </TabsTrigger>
           <TabsTrigger value="password" className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
@@ -62,20 +63,23 @@ export function SettingsPage() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Gestione Utenti
-              </CardTitle>
-              <CardDescription>
-                Gestisci gli utenti del sistema e i loro ruoli
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserManagement />
-            </CardContent>
-          </Card>
+          <ProfileEdit />
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Gestione Utenti
+                </CardTitle>
+                <CardDescription>
+                  Gestisci gli utenti del sistema e i loro ruoli
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UserManagement />
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="password" className="space-y-4">
