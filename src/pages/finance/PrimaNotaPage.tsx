@@ -13,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Search, Filter, BookOpen, Calendar as CalendarIcon, Euro, FileText, CreditCard, CheckCircle, XCircle, User, Repeat, Clock, Edit, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,8 @@ interface MovimentoContabile {
   registrato: boolean;
   monitorare: boolean;
   utenteRiportante: string;
+  tempisticaPagamento: string;
+  dataPagamento?: string;
 }
 
 interface AbbonamentoRicorrente {
@@ -102,7 +104,8 @@ export default function PrimaNotaPage() {
   const [filtroTesto, setFiltroTesto] = useState("");
   const [filtroMetodo, setFiltroMetodo] = useState("all");
   const [nuovoMovimento, setNuovoMovimento] = useState<Partial<MovimentoContabile>>({
-    metodoPagamento: "Bonifico"
+    metodoPagamento: "Bonifico",
+    tempisticaPagamento: "immediato"
   });
   const [causalePersonalizzata, setCausalePersonalizzata] = useState("");
   const [allegati, setAllegati] = useState<File[]>([]);
@@ -141,7 +144,9 @@ export default function PrimaNotaPage() {
         note: movement.notes || "",
         registrato: movement.registered,
         monitorare: movement.monitor || false,
-        utenteRiportante: movement.reporting_user
+        utenteRiportante: movement.reporting_user,
+        tempisticaPagamento: movement.payment_timing || "immediato",
+        dataPagamento: movement.payment_date || undefined
       })) || [];
 
       setMovimenti(movimentiFormatted);
@@ -273,6 +278,8 @@ export default function PrimaNotaPage() {
           movement_type: nuovoMovimento.tipoMovimento!,
           amount: Number(nuovoMovimento.importo),
           payment_method: nuovoMovimento.metodoPagamento!,
+          payment_timing: nuovoMovimento.tempisticaPagamento || "immediato",
+          payment_date: nuovoMovimento.dataPagamento || null,
           description: nuovoMovimento.descrizione || "",
           notes: nuovoMovimento.note || "",
           registered: false,
@@ -299,7 +306,7 @@ export default function PrimaNotaPage() {
       // Reload data
       await loadMovimenti();
       
-      setNuovoMovimento({ metodoPagamento: "Bonifico", causale: "" });
+      setNuovoMovimento({ metodoPagamento: "Bonifico", causale: "", tempisticaPagamento: "immediato" });
       setCausalePersonalizzata("");
       setSelectedDate(undefined);
       setAllegati([]);
@@ -542,6 +549,8 @@ export default function PrimaNotaPage() {
           movement_type: movimentoInModifica.tipoMovimento,
           amount: Number(movimentoInModifica.importo),
           payment_method: movimentoInModifica.metodoPagamento,
+          payment_timing: movimentoInModifica.tempisticaPagamento || "immediato",
+          payment_date: movimentoInModifica.dataPagamento || null,
           description: movimentoInModifica.descrizione || "",
           notes: movimentoInModifica.note || "",
           monitor: movimentoInModifica.monitorare
@@ -862,6 +871,58 @@ export default function PrimaNotaPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="tempistica">Tempistica Pagamento</Label>
+                      <Select 
+                        value={nuovoMovimento.tempisticaPagamento || "immediato"} 
+                        onValueChange={(value) => setNuovoMovimento({ ...nuovoMovimento, tempisticaPagamento: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="immediato">Immediato</SelectItem>
+                          <SelectItem value="differito">Differito</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {nuovoMovimento.tempisticaPagamento === "differito" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="dataPagamento">Data Pagamento</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !nuovoMovimento.dataPagamento && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {nuovoMovimento.dataPagamento ? (
+                                format(new Date(nuovoMovimento.dataPagamento), "dd/MM/yyyy", { locale: it })
+                              ) : (
+                                <span>Seleziona data pagamento</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={nuovoMovimento.dataPagamento ? new Date(nuovoMovimento.dataPagamento) : undefined}
+                              onSelect={(date) => setNuovoMovimento({ 
+                                ...nuovoMovimento, 
+                                dataPagamento: date ? format(date, "yyyy-MM-dd") : undefined 
+                              })}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -1026,6 +1087,58 @@ export default function PrimaNotaPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="tempisticaEdit">Tempistica Pagamento</Label>
+                        <Select 
+                          value={movimentoInModifica.tempisticaPagamento || "immediato"} 
+                          onValueChange={(value) => setMovimentoInModifica({ ...movimentoInModifica, tempisticaPagamento: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="immediato">Immediato</SelectItem>
+                            <SelectItem value="differito">Differito</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {movimentoInModifica.tempisticaPagamento === "differito" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="dataPagamentoEdit">Data Pagamento</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !movimentoInModifica.dataPagamento && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {movimentoInModifica.dataPagamento ? (
+                                  format(new Date(movimentoInModifica.dataPagamento), "dd/MM/yyyy", { locale: it })
+                                ) : (
+                                  <span>Seleziona data pagamento</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={movimentoInModifica.dataPagamento ? new Date(movimentoInModifica.dataPagamento) : undefined}
+                                onSelect={(date) => setMovimentoInModifica({ 
+                                  ...movimentoInModifica, 
+                                  dataPagamento: date ? format(date, "yyyy-MM-dd") : undefined 
+                                })}
+                                initialFocus
+                                className="pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">

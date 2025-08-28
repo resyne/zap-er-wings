@@ -700,7 +700,9 @@ export type Database = {
           monitor: boolean | null
           movement_type: string
           notes: string | null
+          payment_date: string | null
           payment_method: string
+          payment_timing: string | null
           registered: boolean | null
           registration_number: string
           reporting_user: string
@@ -718,7 +720,9 @@ export type Database = {
           monitor?: boolean | null
           movement_type: string
           notes?: string | null
+          payment_date?: string | null
           payment_method: string
+          payment_timing?: string | null
           registered?: boolean | null
           registration_number: string
           reporting_user: string
@@ -736,7 +740,9 @@ export type Database = {
           monitor?: boolean | null
           movement_type?: string
           notes?: string | null
+          payment_date?: string | null
           payment_method?: string
+          payment_timing?: string | null
           registered?: boolean | null
           registration_number?: string
           reporting_user?: string
