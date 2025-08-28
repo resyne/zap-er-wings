@@ -693,6 +693,7 @@ export type Database = {
           amount: number
           attachments: string[] | null
           causale: string
+          checked: boolean | null
           created_at: string
           date: string
           description: string | null
@@ -710,6 +711,7 @@ export type Database = {
           amount: number
           attachments?: string[] | null
           causale: string
+          checked?: boolean | null
           created_at?: string
           date: string
           description?: string | null
@@ -727,6 +729,7 @@ export type Database = {
           amount?: number
           attachments?: string[] | null
           causale?: string
+          checked?: boolean | null
           created_at?: string
           date?: string
           description?: string | null
@@ -1464,6 +1467,7 @@ export type Database = {
           active: boolean | null
           amount: number
           causale: string
+          checked: boolean | null
           created_at: string
           frequency: string
           id: string
@@ -1478,6 +1482,7 @@ export type Database = {
           active?: boolean | null
           amount: number
           causale: string
+          checked?: boolean | null
           created_at?: string
           frequency: string
           id?: string
@@ -1492,6 +1497,7 @@ export type Database = {
           active?: boolean | null
           amount?: number
           causale?: string
+          checked?: boolean | null
           created_at?: string
           frequency?: string
           id?: string

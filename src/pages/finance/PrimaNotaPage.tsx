@@ -31,6 +31,7 @@ interface MovimentoContabile {
   descrizione: string;
   note: string;
   registrato: boolean;
+  controllato: boolean;
   utenteRiportante: string;
 }
 
@@ -43,6 +44,7 @@ interface AbbonamentoRicorrente {
   causale: string;
   metodoPagamento: string;
   attivo: boolean;
+  controllato: boolean;
   note?: string;
 }
 
@@ -137,6 +139,7 @@ export default function PrimaNotaPage() {
         descrizione: movement.description || "",
         note: movement.notes || "",
         registrato: movement.registered,
+        controllato: movement.checked || false,
         utenteRiportante: movement.reporting_user
       })) || [];
 
@@ -172,6 +175,7 @@ export default function PrimaNotaPage() {
         causale: subscription.causale,
         metodoPagamento: subscription.payment_method,
         attivo: subscription.active,
+        controllato: subscription.checked || false,
         note: subscription.notes || ""
       })) || [];
 
@@ -271,6 +275,7 @@ export default function PrimaNotaPage() {
           description: nuovoMovimento.descrizione || "",
           notes: nuovoMovimento.note || "",
           registered: false,
+          checked: false,
           reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
             : user?.email || "Utente sconosciuto",
@@ -349,6 +354,7 @@ export default function PrimaNotaPage() {
           causale: nuovoAbbonamento.causale || "Altro",
           payment_method: nuovoAbbonamento.metodoPagamento!,
           active: nuovoAbbonamento.attivo!,
+          checked: false,
           notes: nuovoAbbonamento.note || ""
         })
         .select()
@@ -373,6 +379,7 @@ export default function PrimaNotaPage() {
           description: `Abbonamento: ${nuovoAbbonamento.nome}`,
           notes: `Movimento automatico per abbonamento ricorrente - Frequenza: ${nuovoAbbonamento.frequenza}`,
           registered: false,
+          checked: false,
           reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
             ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
             : user?.email || "Sistema automatico",
@@ -442,6 +449,64 @@ export default function PrimaNotaPage() {
     }
   };
 
+  const toggleControllato = async (id: string) => {
+    try {
+      const movimento = movimenti.find(m => m.id === id);
+      if (!movimento) return;
+
+      const { error } = await supabase
+        .from('financial_movements')
+        .update({ checked: !movimento.controllato })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Reload data
+      await loadMovimenti();
+      
+      toast({
+        title: "Controllo aggiornato",
+        description: `Movimento ${movimento.controllato ? 'non controllato' : 'controllato'}`,
+      });
+    } catch (error) {
+      console.error('Errore aggiornamento controllo:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante l'aggiornamento del controllo",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleControllatoAbbonamento = async (id: string) => {
+    try {
+      const abbonamento = abbonamenti.find(a => a.id === id);
+      if (!abbonamento) return;
+
+      const { error } = await supabase
+        .from('recurring_subscriptions')
+        .update({ checked: !abbonamento.controllato })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Reload data
+      await loadAbbonamenti();
+      
+      toast({
+        title: "Controllo aggiornato",
+        description: `Abbonamento ${abbonamento.controllato ? 'non controllato' : 'controllato'}`,
+      });
+    } catch (error) {
+      console.error('Errore aggiornamento controllo:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante l'aggiornamento del controllo",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleModificaMovimento = (movimento: MovimentoContabile) => {
     setMovimentoInModifica(movimento);
     setSelectedDate(new Date(movimento.data));
@@ -477,7 +542,8 @@ export default function PrimaNotaPage() {
           amount: Number(movimentoInModifica.importo),
           payment_method: movimentoInModifica.metodoPagamento,
           description: movimentoInModifica.descrizione || "",
-          notes: movimentoInModifica.note || ""
+          notes: movimentoInModifica.note || "",
+          checked: movimentoInModifica.controllato
         })
         .eq('id', movimentoInModifica.id);
 
@@ -1045,6 +1111,7 @@ export default function PrimaNotaPage() {
                 <TableHeader>
                   <TableRow>
                      <TableHead>Status</TableHead>
+                     <TableHead>Controllato</TableHead>
                      <TableHead>Data</TableHead>
                      <TableHead>N. Registr.</TableHead>
                      <TableHead>Causale</TableHead>
@@ -1058,25 +1125,39 @@ export default function PrimaNotaPage() {
                 </TableHeader>
                 <TableBody>
                   {movimentiFiltrati.map((movimento) => (
-                    <TableRow key={movimento.id}>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleRegistrato(movimento.id)}
-                          className="p-1"
+                     <TableRow key={movimento.id}>
+                       <TableCell>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => toggleRegistrato(movimento.id)}
+                           className="p-1"
                         >
                           {movimento.registrato ? (
                             <CheckCircle className="h-5 w-5 text-green-600" />
                           ) : (
                             <XCircle className="h-5 w-5 text-red-600" />
                           )}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="flex items-center">
-                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {format(new Date(movimento.data), "dd/MM/yyyy", { locale: it })}
-                      </TableCell>
+                         </Button>
+                       </TableCell>
+                       <TableCell>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => toggleControllato(movimento.id)}
+                           className="p-1"
+                         >
+                           {movimento.controllato ? (
+                             <CheckCircle className="h-5 w-5 text-blue-600" />
+                           ) : (
+                             <XCircle className="h-5 w-5 text-gray-400" />
+                           )}
+                         </Button>
+                       </TableCell>
+                       <TableCell className="flex items-center">
+                         <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                         {format(new Date(movimento.data), "dd/MM/yyyy", { locale: it })}
+                       </TableCell>
                       <TableCell>
                         <code className="bg-muted px-2 py-1 rounded text-sm">
                           {movimento.numeroRegistrazione}
@@ -1425,6 +1506,7 @@ export default function PrimaNotaPage() {
                     <TableHead>Causale</TableHead>
                     <TableHead>Metodo</TableHead>
                     <TableHead>Stato</TableHead>
+                    <TableHead>Controllato</TableHead>
                     <TableHead>Note</TableHead>
                     <TableHead>Azioni</TableHead>
                   </TableRow>
@@ -1450,16 +1532,30 @@ export default function PrimaNotaPage() {
                         <Badge variant="outline">{abbonamento.causale}</Badge>
                       </TableCell>
                       <TableCell>{getMetodoPagamentoBadge(abbonamento.metodoPagamento)}</TableCell>
-                      <TableCell>
-                        <Badge variant={abbonamento.attivo ? "default" : "secondary"}>
-                          {abbonamento.attivo ? "Attivo" : "Inattivo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="truncate" title={abbonamento.note}>
-                          {abbonamento.note || "-"}
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <Badge variant={abbonamento.attivo ? "default" : "secondary"}>
+                           {abbonamento.attivo ? "Attivo" : "Inattivo"}
+                         </Badge>
+                       </TableCell>
+                       <TableCell>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => toggleControllatoAbbonamento(abbonamento.id)}
+                           className="p-1"
+                         >
+                           {abbonamento.controllato ? (
+                             <CheckCircle className="h-5 w-5 text-blue-600" />
+                           ) : (
+                             <XCircle className="h-5 w-5 text-gray-400" />
+                           )}
+                         </Button>
+                       </TableCell>
+                       <TableCell className="max-w-xs">
+                         <div className="truncate" title={abbonamento.note}>
+                           {abbonamento.note || "-"}
+                         </div>
+                       </TableCell>
                       <TableCell>
                         <Button
                           variant="outline"
