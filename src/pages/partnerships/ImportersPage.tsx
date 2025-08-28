@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { ImporterKanban } from "@/components/partnerships/ImporterKanban";
+import { EmailComposer } from "@/components/partnerships/EmailComposer";
 interface Importer {
   id: string;
   first_name: string;
@@ -147,36 +148,8 @@ export default function ImportersPage() {
                 Send Email
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Send Email to Importers</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Region</label>
-                  <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)} className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background">
-                    <option value="all">All Regions</option>
-                    {regions.map(region => <option key={region} value={region}>{region}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Subject</label>
-                  <input type="text" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background" placeholder="Email subject..." />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Message</label>
-                  <Textarea value={emailMessage} onChange={e => setEmailMessage(e.target.value)} className="w-full mt-1 min-h-32" placeholder="Write your message here..." />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSendEmail} disabled={!emailSubject || !emailMessage}>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Email
-                  </Button>
-                </div>
-              </div>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+              <EmailComposer onClose={() => setIsEmailDialogOpen(false)} />
             </DialogContent>
           </Dialog>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
