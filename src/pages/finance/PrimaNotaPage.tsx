@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Search, Filter, BookOpen, Calendar as CalendarIcon, Euro, FileText, CreditCard, CheckCircle, XCircle, User, Repeat, Clock, Edit } from "lucide-react";
+import { Plus, Search, Filter, BookOpen, Calendar as CalendarIcon, Euro, FileText, CreditCard, CheckCircle, XCircle, User, Repeat, Clock, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -458,6 +459,32 @@ export default function PrimaNotaPage() {
       toast({
         title: "Errore",
         description: "Errore durante l'aggiornamento del movimento. Riprova.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteMovimento = async (movimento: MovimentoContabile) => {
+    try {
+      const { error } = await supabase
+        .from('financial_movements')
+        .delete()
+        .eq('id', movimento.id);
+
+      if (error) throw error;
+
+      // Reload data
+      await loadMovimenti();
+      
+      toast({
+        title: "Movimento eliminato",
+        description: "Il movimento contabile è stato eliminato con successo",
+      });
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante l'eliminazione del movimento. Riprova.",
         variant: "destructive",
       });
     }
@@ -999,13 +1026,51 @@ export default function PrimaNotaPage() {
                          )}
                        </TableCell>
                        <TableCell>
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => handleModificaMovimento(movimento)}
-                         >
-                           <Edit className="h-4 w-4" />
-                         </Button>
+                         <div className="flex items-center space-x-2">
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => handleModificaMovimento(movimento)}
+                           >
+                             <Edit className="h-4 w-4" />
+                           </Button>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="text-destructive hover:text-destructive"
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Sei sicuro di voler eliminare questo movimento contabile?
+                                   <br />
+                                   <strong>Numero:</strong> {movimento.numeroRegistrazione}
+                                   <br />
+                                   <strong>Causale:</strong> {movimento.causale}
+                                   <br />
+                                   <strong>Importo:</strong> € {movimento.importo.toFixed(2)}
+                                   <br />
+                                   Questa azione non può essere annullata.
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                 <AlertDialogAction
+                                   onClick={() => handleDeleteMovimento(movimento)}
+                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                 >
+                                   Elimina
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </div>
                        </TableCell>
                     </TableRow>
                   ))}
