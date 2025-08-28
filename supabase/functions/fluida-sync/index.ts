@@ -52,7 +52,6 @@ serve(async (req) => {
   console.log('=== FLUIDA SYNC FUNCTION STARTED ===');
   console.log('Request method:', req.method);
   console.log('Request URL:', req.url);
-  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -143,7 +142,7 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-}
+});
 
 async function makeFluidaRequest(endpoint: string, apiKey: string, method = 'GET', body?: any) {
   const url = `https://api.fluida.io/api/v1/${endpoint}`;
