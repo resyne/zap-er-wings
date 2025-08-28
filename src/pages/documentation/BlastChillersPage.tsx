@@ -81,48 +81,68 @@ export default function BlastChillersPage() {
   };
 
   const onDrop = async (acceptedFiles: File[]) => {
+    console.log('Starting file upload process...', acceptedFiles.length, 'files');
+    
     if (!selectedCategory) {
+      console.error('No category selected');
       toast.error("Seleziona prima una categoria");
       return;
     }
 
     if (!user) {
+      console.error('No user logged in');
       toast.error("Devi essere loggato per caricare documenti");
       return;
     }
+
+    console.log('User authenticated:', user.id);
+    console.log('Selected category:', selectedCategory);
+    console.log('Selected language:', selectedLanguage);
 
     setLoading(true);
 
     for (const file of acceptedFiles) {
       try {
+        console.log('Processing file:', file.name, 'size:', file.size, 'type:', file.type);
+        
         // Sanitize filename by removing spaces and special characters
         const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        console.log('Sanitized filename:', sanitizedName);
+        
         // Create filename with metadata: category_language_originalname
         const fileName = `${selectedCategory}_${selectedLanguage}_${sanitizedName}`;
         const filePath = `blast-chillers/${fileName}`;
+        
+        console.log('Final file path:', filePath);
 
         // Upload file to Supabase Storage
-        const { error: uploadError } = await supabase.storage
+        console.log('Attempting upload to Supabase Storage...');
+        const { data, error: uploadError } = await supabase.storage
           .from('company-documents')
           .upload(filePath, file, {
             cacheControl: '3600',
             upsert: true
           });
 
+        console.log('Upload response data:', data);
+        console.log('Upload error:', uploadError);
+
         if (uploadError) {
-          console.error('Upload error:', uploadError);
+          console.error('Upload error details:', uploadError);
           toast.error(`Errore caricamento ${file.name}: ${uploadError.message}`);
           continue;
         }
 
+        console.log('File uploaded successfully:', fileName);
         toast.success(`Documento ${file.name} caricato in ${selectedCategory} - ${languages.find(l => l.code === selectedLanguage)?.name}`);
       } catch (error) {
-        console.error('Error uploading file:', error);
+        console.error('Unexpected error uploading file:', error);
         toast.error(`Errore durante il caricamento di ${file.name}`);
       }
     }
 
     setLoading(false);
+    console.log('Reloading documents after upload...');
     // Reload documents to show the newly uploaded ones
     await loadDocuments();
   };
