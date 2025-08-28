@@ -13,7 +13,9 @@ import {
   Calendar,
   User,
   LogOut,
-  Settings
+  Settings,
+  Plus,
+  Receipt
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -183,6 +185,12 @@ export function DashboardPage() {
             <User className="w-4 h-4" />
             {profile?.role || "User"}
           </div>
+          <Button variant="default" size="sm" asChild>
+            <a href="/finance/prima-nota">
+              <Receipt className="w-4 h-4 mr-2" />
+              Prima Nota
+            </a>
+          </Button>
           <Button variant="outline" size="sm">
             <Settings className="w-4 h-4 mr-2" />
             Profilo
