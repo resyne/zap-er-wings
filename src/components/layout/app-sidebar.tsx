@@ -24,7 +24,9 @@ import {
   LayoutDashboard,
   ChevronDown,
   ChevronRight,
-  Store
+  Store,
+  ShieldCheck,
+  BookOpen
 } from "lucide-react";
 
 import {
@@ -159,9 +161,18 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Documentazione",
+    items: [
+      { title: "Dashboard", url: "/docs", icon: FileText },
+      { title: "Schede Tecniche", url: "/docs/technical-sheets", icon: FileText },
+      { title: "Conformità", url: "/docs/compliance", icon: ShieldCheck },
+      { title: "Manuali", url: "/docs/manuals", icon: BookOpen },
+      { title: "Listini", url: "/docs/price-lists", icon: DollarSign },
+    ]
+  },
+  {
     title: "Sistema",
     items: [
-      { title: "Documenti", url: "/docs", icon: FileText },
       { title: "Integrazioni", url: "/integrations", icon: Zap },
       { title: "Impostazioni", url: "/settings", icon: Settings },
     ]

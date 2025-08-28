@@ -37,6 +37,13 @@ import ResellersPage from "./pages/partnerships/ResellersPage";
 import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
 import InvoicesPage from "./pages/finance/InvoicesPage";
 import FluidaPage from "./pages/hr/FluidaPage";
+import DocumentationPage from "./pages/documentation/DocumentationPage";
+import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
+import BlastChillersPage from "./pages/documentation/BlastChillersPage";
+import OvensPage from "./pages/documentation/OvensPage";
+import CompliancePage from "./pages/documentation/CompliancePage";
+import ManualsPage from "./pages/documentation/ManualsPage";
+import PriceListsPage from "./pages/documentation/PriceListsPage";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +91,13 @@ const App = () => (
                 <Route path="finance/prima-nota" element={<PrimaNotaPage />} />
                 <Route path="finance/invoices" element={<InvoicesPage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />
+                <Route path="docs" element={<DocumentationPage />} />
+                <Route path="docs/technical-sheets" element={<TechnicalSheetsPage />} />
+                <Route path="docs/technical-sheets/blast-chillers" element={<BlastChillersPage />} />
+                <Route path="docs/technical-sheets/ovens" element={<OvensPage />} />
+                <Route path="docs/compliance" element={<CompliancePage />} />
+                <Route path="docs/manuals" element={<ManualsPage />} />
+                <Route path="docs/price-lists" element={<PriceListsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
