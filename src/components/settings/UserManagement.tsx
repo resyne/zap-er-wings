@@ -46,10 +46,16 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
+      console.log('Fetching users...');
+      console.log('Current user:', currentUser);
+      console.log('Is admin:', isAdmin);
+      
       // Fetch all profiles first
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name, created_at");
+
+      console.log('Profiles response:', { profiles, error: profilesError });
 
       if (profilesError) throw profilesError;
 
@@ -58,26 +64,27 @@ export function UserManagement() {
         .from("user_roles")
         .select("user_id, role");
 
+      console.log('Roles response:', { roles, error: rolesError });
+
       if (rolesError) throw rolesError;
 
       // Create users array by combining profiles with their roles
-      const usersWithRoles = profiles
-        ?.filter(profile => {
-          // Only include users that have a role
-          return roles?.some(role => role.user_id === profile.id);
-        })
-        .map(profile => {
-          const userRole = roles?.find(role => role.user_id === profile.id);
-          return {
-            id: profile.id,
-            email: profile.email,
-            first_name: profile.first_name || "",
-            last_name: profile.last_name || "",
-            role: (userRole?.role || "user") as "admin" | "moderator" | "user",
-            created_at: profile.created_at
-          };
-        }) || [];
+      // Include ALL users, not just those with roles
+      const usersWithRoles = profiles?.map(profile => {
+        const userRole = roles?.find(role => role.user_id === profile.id);
+        const user = {
+          id: profile.id,
+          email: profile.email,
+          first_name: profile.first_name || "",
+          last_name: profile.last_name || "",
+          role: (userRole?.role || "user") as "admin" | "moderator" | "user",
+          created_at: profile.created_at
+        };
+        console.log('Processing user:', user);
+        return user;
+      }) || [];
 
+      console.log('Final users array:', usersWithRoles);
       setUsers(usersWithRoles);
     } catch (error) {
       console.error("Error fetching users:", error);
