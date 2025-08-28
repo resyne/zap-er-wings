@@ -36,6 +36,7 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
     message: "",
     partner_type: "all",
     region: "",
+    acquisition_status: "all",
     sender_name: "Partnership Team",
     sender_email: "noreply@erp.abbattitorizapper.it"
   });
@@ -59,6 +60,7 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
         body: {
           partner_type: emailData.partner_type === "all" ? undefined : emailData.partner_type,
           region: emailData.region || undefined,
+          acquisition_status: emailData.acquisition_status === "all" ? undefined : emailData.acquisition_status,
           subject: emailData.subject,
           message: emailData.message,
           is_cronjob: false
@@ -78,6 +80,7 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
         message: "",
         partner_type: "all",
         region: "",
+        acquisition_status: "all",
         sender_name: "Partnership Team",
         sender_email: "noreply@erp.abbattitorizapper.it"
       });
@@ -107,6 +110,9 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
       }
       if (emailData.region) {
         query = query.eq('region', emailData.region);
+      }
+      if (emailData.acquisition_status !== "all") {
+        query = query.eq('acquisition_status', emailData.acquisition_status);
       }
 
       const { count } = await query;
@@ -264,7 +270,7 @@ Puoi usare:
               <span className="font-semibold">Filtra Destinatari</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="partner_type">Tipo Partner</Label>
                 <Select 
@@ -297,6 +303,30 @@ Puoi usare:
                   }}
                   placeholder="Filtra per regione (opzionale)"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="acquisition_status">Fase Acquisizione</Label>
+                <Select 
+                  value={emailData.acquisition_status} 
+                  onValueChange={(value) => {
+                    setEmailData({...emailData, acquisition_status: value});
+                    getRecipientsPreview();
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona fase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte le fasi</SelectItem>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="contatto">Primo Contatto</SelectItem>
+                    <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                    <SelectItem value="contratto">Contratto</SelectItem>
+                    <SelectItem value="attivo">Attivo</SelectItem>
+                    <SelectItem value="inattivo">Inattivo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

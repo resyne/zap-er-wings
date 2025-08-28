@@ -16,6 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 interface EmailRequest {
   partner_type?: string;
   region?: string;
+  acquisition_status?: string;
   subject: string;
   message: string;
   is_cronjob?: boolean;
@@ -41,12 +42,13 @@ const handler = async (req: Request): Promise<Response> => {
     const { 
       partner_type, 
       region, 
+      acquisition_status,
       subject, 
       message, 
       is_cronjob = false 
     }: EmailRequest = await req.json();
 
-    console.log('Email request received:', { partner_type, region, subject, is_cronjob });
+    console.log('Email request received:', { partner_type, region, acquisition_status, subject, is_cronjob });
 
     // Build query to fetch partners
     let query = supabase
@@ -60,6 +62,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
     if (region) {
       query = query.eq('region', region);
+    }
+    if (acquisition_status) {
+      query = query.eq('acquisition_status', acquisition_status);
     }
 
     const { data: partners, error: fetchError } = await query;
@@ -153,6 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
           new_values: {
             partner_type,
             region,
+            acquisition_status,
             subject,
             recipients_count: partners.length,
             success_count: successCount,
