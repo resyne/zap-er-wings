@@ -2,23 +2,29 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, AlertCircle, Clock, Handshake, FileCheck, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, AlertCircle, Clock, Handshake, FileCheck, CheckCircle2, XCircle, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AddPartnerForm } from "./AddPartnerForm";
+import { EditPartnerForm } from "./EditPartnerForm";
 
 interface Importer {
   id: string;
   first_name: string;
   last_name: string;
   company_name: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
   country?: string;
-  acquisition_status: string;
+  acquisition_status?: string;
   acquisition_notes?: string;
-  priority: string;
+  priority?: string;
   email?: string;
   phone?: string;
+  partner_type?: string;
   created_at: string;
 }
 
@@ -71,6 +77,8 @@ export const ImporterKanban = () => {
   const [importers, setImporters] = useState<Importer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingImporter, setEditingImporter] = useState<Importer | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -141,6 +149,47 @@ export const ImporterKanban = () => {
     });
   };
 
+  const handleImporterUpdated = (updatedImporter: any) => {
+    setImporters(prev => prev.map(imp => 
+      imp.id === updatedImporter.id ? updatedImporter : imp
+    ));
+    setIsEditDialogOpen(false);
+    setEditingImporter(null);
+    toast({
+      title: "Success",
+      description: "Importer updated successfully",
+    });
+  };
+
+  const handleImporterDeleted = async (importerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('partners')
+        .delete()
+        .eq('id', importerId);
+
+      if (error) throw error;
+
+      setImporters(prev => prev.filter(imp => imp.id !== importerId));
+      toast({
+        title: "Success",
+        description: "Importer deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting importer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete importer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditDialog = (importer: Importer) => {
+    setEditingImporter(importer);
+    setIsEditDialogOpen(true);
+  };
+
   const renderColumn = (status: string) => {
     const config = statusConfig[status as keyof typeof statusConfig];
     const columnImporters = importers.filter(imp => imp.acquisition_status === status);
@@ -162,22 +211,19 @@ export const ImporterKanban = () => {
             {columnImporters.map((importer) => (
               <Card 
                 key={importer.id}
-                className="bg-white border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => {
-                  // Qui si potrebbero aggiungere azioni specifiche per l'importer
-                }}
+                className="bg-white border shadow-sm hover:shadow-md transition-shadow"
               >
                 <CardContent className="p-4">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <h4 className="font-medium text-sm">
                         {importer.first_name} {importer.last_name}
                       </h4>
                       <Badge 
                         variant="outline" 
-                        className={priorityColors[importer.priority as keyof typeof priorityColors]}
+                        className={priorityColors[(importer.priority || 'medium') as keyof typeof priorityColors]}
                       >
-                        {importer.priority}
+                        {importer.priority || 'medium'}
                       </Badge>
                     </div>
                     
@@ -197,7 +243,54 @@ export const ImporterKanban = () => {
                       </p>
                     )}
 
-                    <div className="flex gap-1 mt-3">
+                    {/* Action buttons - Edit and Delete */}
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => openEditDialog(importer)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Importer</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {importer.first_name} {importer.last_name} from {importer.company_name}? 
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleImporterDeleted(importer.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+
+                    {/* Status change buttons */}
+                    <div className="flex flex-wrap gap-1">
                       {Object.keys(statusConfig).map((newStatus) => {
                         if (newStatus === status) return null;
                         const targetConfig = statusConfig[newStatus as keyof typeof statusConfig];
@@ -279,6 +372,22 @@ export const ImporterKanban = () => {
       <div className="flex gap-4 overflow-x-auto pb-4">
         {Object.keys(statusConfig).map(status => renderColumn(status))}
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Importer</DialogTitle>
+          </DialogHeader>
+          {editingImporter && (
+            <EditPartnerForm 
+              partner={editingImporter}
+              onPartnerUpdated={handleImporterUpdated}
+              onCancel={() => setIsEditDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
