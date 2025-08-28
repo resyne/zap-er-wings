@@ -298,6 +298,8 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
         clock_out: entry.clock_out,
         break_minutes: entry.break_minutes || 0,
         total_hours: totalMinutes ? (totalMinutes / 60) : null,
+        regular_hours: regularMinutes ? (regularMinutes / 60) : 0,
+        overtime_hours: overtimeMinutes ? (overtimeMinutes / 60) : 0,
         status: entry.status || 'completed',
         notes: entry.notes || `Ore regolari: ${(regularMinutes/60).toFixed(2)}, Straordinari: ${(overtimeMinutes/60).toFixed(2)}`,
         synced_at: new Date().toISOString(),
@@ -313,7 +315,7 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
       if (error) {
         console.error(`Error upserting timesheet ${entry.id}:`, error);
       } else {
-        console.log(`Synced timesheet for ${entry.date}: ${(totalMinutes/60).toFixed(2)} hours`);
+        console.log(`Synced timesheet for ${entry.date}: ${(regularMinutes/60).toFixed(2)} reg + ${(overtimeMinutes/60).toFixed(2)} over = ${(totalMinutes/60).toFixed(2)} total hours`);
       }
     }
 

@@ -872,6 +872,8 @@ export type Database = {
           fluida_timesheet_id: string | null
           id: string
           notes: string | null
+          overtime_hours: number | null
+          regular_hours: number | null
           status: string | null
           synced_at: string | null
           total_hours: number | null
@@ -887,6 +889,8 @@ export type Database = {
           fluida_timesheet_id?: string | null
           id?: string
           notes?: string | null
+          overtime_hours?: number | null
+          regular_hours?: number | null
           status?: string | null
           synced_at?: string | null
           total_hours?: number | null
@@ -902,6 +906,8 @@ export type Database = {
           fluida_timesheet_id?: string | null
           id?: string
           notes?: string | null
+          overtime_hours?: number | null
+          regular_hours?: number | null
           status?: string | null
           synced_at?: string | null
           total_hours?: number | null

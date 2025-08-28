@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Clock, Calendar, RefreshCw, UserCheck, Coffee, AlertCircle } from "lucide-react";
+import { Users, Clock, Calendar, RefreshCw, UserCheck, Coffee, AlertCircle, BarChart3 } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -30,6 +31,8 @@ interface Timesheet {
   clock_in?: string;
   clock_out?: string;
   total_hours?: number;
+  regular_hours?: number;
+  overtime_hours?: number;
   status: string;
   notes?: string;
   hr_employees: Employee;
@@ -47,17 +50,31 @@ interface LeaveRequest {
   hr_employees: Employee;
 }
 
+interface MonthlyReport {
+  employee_id: string;
+  employee_name: string;
+  month: string;
+  year: number;
+  total_regular_hours: number;
+  total_overtime_hours: number;
+  total_hours: number;
+}
+
 export default function FluidaPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     loadData();
-  }, []);
+    loadMonthlyReports();
+  }, [selectedYear, selectedMonth]);
 
   const loadData = async () => {
     setLoading(true);
@@ -108,6 +125,61 @@ export default function FluidaPage() {
     }
   };
 
+  const loadMonthlyReports = async () => {
+    try {
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0);
+      
+      const { data, error } = await supabase
+        .from('hr_timesheets')
+        .select(`
+          employee_id,
+          regular_hours,
+          overtime_hours,
+          total_hours,
+          hr_employees (
+            first_name,
+            last_name
+          )
+        `)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .lte('date', endDate.toISOString().split('T')[0]);
+
+      if (error) throw error;
+
+      // Aggregate hours by employee
+      const aggregated = data?.reduce((acc: Record<string, MonthlyReport>, item) => {
+        const employeeKey = item.employee_id;
+        if (!acc[employeeKey]) {
+          acc[employeeKey] = {
+            employee_id: item.employee_id,
+            employee_name: `${item.hr_employees.first_name} ${item.hr_employees.last_name}`,
+            month: new Date(selectedYear, selectedMonth - 1).toLocaleDateString('it-IT', { month: 'long' }),
+            year: selectedYear,
+            total_regular_hours: 0,
+            total_overtime_hours: 0,
+            total_hours: 0
+          };
+        }
+        
+        acc[employeeKey].total_regular_hours += item.regular_hours || 0;
+        acc[employeeKey].total_overtime_hours += item.overtime_hours || 0;
+        acc[employeeKey].total_hours += item.total_hours || 0;
+        
+        return acc;
+      }, {}) || {};
+
+      setMonthlyReports(Object.values(aggregated));
+    } catch (error) {
+      console.error('Error loading monthly reports:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento del report mensile",
+        variant: "destructive",
+      });
+    }
+  };
+
   const syncWithFluida = async (action: string) => {
     console.log('Starting sync with action:', action);
     setSyncing(true);
@@ -130,6 +202,7 @@ export default function FluidaPage() {
 
       // Reload data after sync
       await loadData();
+      await loadMonthlyReports();
 
     } catch (error) {
       console.error('Sync error:', error);
@@ -232,6 +305,7 @@ export default function FluidaPage() {
           <TabsTrigger value="employees">Dipendenti</TabsTrigger>
           <TabsTrigger value="timesheets">Timesheet</TabsTrigger>
           <TabsTrigger value="leave-requests">Ferie e Permessi</TabsTrigger>
+          <TabsTrigger value="monthly-reports">Report Mensile</TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees">
@@ -397,6 +471,94 @@ export default function FluidaPage() {
                         <TableCell>{request.reason || '-'}</TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="monthly-reports">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Report Mensile Ore Lavorate</CardTitle>
+              <div className="flex gap-2">
+                <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem key={i + 1} value={(i + 1).toString()}>
+                        {new Date(2024, i).toLocaleDateString('it-IT', { month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <SelectItem key={2024 - i} value={(2024 - i).toString()}>
+                        {2024 - i}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center p-8">
+                  <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                  Caricamento...
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Dipendente</TableHead>
+                      <TableHead>Mese/Anno</TableHead>
+                      <TableHead>Ore Ordinarie</TableHead>
+                      <TableHead>Ore Straordinarie</TableHead>
+                      <TableHead>Totale Ore</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monthlyReports.map((report) => (
+                      <TableRow key={`${report.employee_id}-${report.year}-${report.month}`}>
+                        <TableCell className="font-medium">
+                          {report.employee_name}
+                        </TableCell>
+                        <TableCell>
+                          {report.month} {report.year}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-blue-600 font-medium">
+                            {report.total_regular_hours.toFixed(1)}h
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-orange-600 font-medium">
+                            {report.total_overtime_hours.toFixed(1)}h
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-green-600 font-bold">
+                            {report.total_hours.toFixed(1)}h
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {monthlyReports.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          Nessun dato trovato per il periodo selezionato
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               )}
