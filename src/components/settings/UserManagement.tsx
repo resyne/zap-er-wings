@@ -46,29 +46,35 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      // Start with user roles to get all users with roles
+      console.log("Fetching users...");
+      
+      // Fetch user roles
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
-      if (rolesError) throw rolesError;
+      console.log("Roles data:", roles);
+      if (rolesError) {
+        console.error("Roles error:", rolesError);
+        throw rolesError;
+      }
 
-      // Fetch profiles for all users
+      // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select(`
-          id,
-          email,
-          first_name,
-          last_name,
-          created_at
-        `);
+        .select("id, email, first_name, last_name, created_at");
 
-      if (profilesError) throw profilesError;
+      console.log("Profiles data:", profiles);
+      if (profilesError) {
+        console.error("Profiles error:", profilesError);
+        throw profilesError;
+      }
 
-      // Combine data - start with roles and add profile info where available
+      // Combine data - start with roles and add profile info
       const usersWithRoles = roles?.map(roleRecord => {
         const profile = profiles?.find(p => p.id === roleRecord.user_id);
+        console.log(`User ${roleRecord.user_id}:`, profile);
+        
         return {
           id: roleRecord.user_id,
           email: profile?.email || "Email non disponibile",
@@ -79,6 +85,7 @@ export function UserManagement() {
         };
       }) || [];
 
+      console.log("Final users:", usersWithRoles);
       setUsers(usersWithRoles);
     } catch (error) {
       console.error("Error fetching users:", error);
