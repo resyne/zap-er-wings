@@ -32,7 +32,7 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
-  const [selectedUserType, setSelectedUserType] = useState("all");
+  const [selectedUserType, setSelectedUserType] = useState("erp"); // Default to ERP users only
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     email: "",
@@ -320,9 +320,9 @@ export function UserManagement() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Utenti ({filteredUsers.length})</CardTitle>
+              <CardTitle>Utenti ERP ({filteredUsers.length})</CardTitle>
               <CardDescription>
-                Gestisci gli utenti ERP (@abbattitorizapper.it) e utenti dei siti web (zkor/pro)
+                Gestisci gli utenti dell'ERP (@abbattitorizapper.it)
               </CardDescription>
             </div>
             {isAdmin && (
