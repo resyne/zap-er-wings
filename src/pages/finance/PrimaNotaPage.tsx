@@ -105,13 +105,6 @@ export default function PrimaNotaPage() {
   });
 
   // Load data from database
-  useEffect(() => {
-    if (user) {
-      loadMovimenti();
-      loadAbbonamenti();
-    }
-  }, [user]);
-
   const loadMovimenti = async () => {
     if (!user) return;
     
@@ -120,34 +113,32 @@ export default function PrimaNotaPage() {
         .from('financial_movements')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('date', { ascending: false });
 
       if (error) throw error;
 
-      const mappedMovimenti = data.map(row => ({
-        id: row.id,
-        data: row.date,
-        numeroRegistrazione: row.registration_number,
-        causale: row.causale,
-        tipoMovimento: row.movement_type as "incasso" | "acquisto",
-        importo: Number(row.amount),
-        metodoPagamento: row.payment_method,
-        descrizione: row.description || "",
-        note: row.notes || "",
-        registrato: row.registered,
-        utenteRiportante: row.reporting_user
-      }));
+      const movimentiFormatted = data?.map(movement => ({
+        id: movement.id,
+        data: movement.date,
+        numeroRegistrazione: movement.registration_number,
+        causale: movement.causale,
+        tipoMovimento: movement.movement_type as "incasso" | "acquisto",
+        importo: Number(movement.amount),
+        metodoPagamento: movement.payment_method,
+        descrizione: movement.description || "",
+        note: movement.notes || "",
+        registrato: movement.registered,
+        utenteRiportante: movement.reporting_user
+      })) || [];
 
-      setMovimenti(mappedMovimenti);
+      setMovimenti(movimentiFormatted);
     } catch (error) {
-      console.error('Error loading movements:', error);
+      console.error('Errore caricamento movimenti:', error);
       toast({
         title: "Errore",
-        description: "Impossibile caricare i movimenti",
+        description: "Errore nel caricamento dei movimenti",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -163,37 +154,50 @@ export default function PrimaNotaPage() {
 
       if (error) throw error;
 
-      const mappedAbbonamenti = data.map(row => ({
-        id: row.id,
-        nome: row.name,
-        importo: Number(row.amount),
-        frequenza: row.frequency as "mensile" | "trimestrale" | "semestrale" | "annuale",
-        prossimoPagamento: row.next_payment,
-        causale: row.causale,
-        metodoPagamento: row.payment_method,
-        attivo: row.active
-      }));
+      const abbonamentiFormatted = data?.map(subscription => ({
+        id: subscription.id,
+        nome: subscription.name,
+        importo: Number(subscription.amount),
+        frequenza: subscription.frequency as "mensile" | "trimestrale" | "semestrale" | "annuale",
+        prossimoPagamento: subscription.next_payment,
+        causale: subscription.causale,
+        metodoPagamento: subscription.payment_method,
+        attivo: subscription.active
+      })) || [];
 
-      setAbbonamenti(mappedAbbonamenti);
+      setAbbonamenti(abbonamentiFormatted);
     } catch (error) {
-      console.error('Error loading subscriptions:', error);
+      console.error('Errore caricamento abbonamenti:', error);
       toast({
         title: "Errore",
-        description: "Impossibile caricare gli abbonamenti",
+        description: "Errore nel caricamento degli abbonamenti",
         variant: "destructive",
       });
     }
   };
 
+  useEffect(() => {
+    const loadData = async () => {
+      if (user) {
+        setLoading(true);
+        await Promise.all([loadMovimenti(), loadAbbonamenti()]);
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user]);
+
   const generaNumeroRegistrazione = async () => {
-    if (!user) return `PN-${new Date().getFullYear()}-001`;
+    const anno = new Date().getFullYear();
     
+    // Get count of movements for this year
     const { count } = await supabase
       .from('financial_movements')
-      .select('id', { count: 'exact' })
-      .eq('user_id', user.id);
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user?.id)
+      .gte('date', `${anno}-01-01`)
+      .lte('date', `${anno}-12-31`);
     
-    const anno = new Date().getFullYear();
     const ultimoNumero = (count || 0) + 1;
     return `PN-${anno}-${ultimoNumero.toString().padStart(3, '0')}`;
   };
@@ -221,7 +225,7 @@ export default function PrimaNotaPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !nuovoMovimento.causale || !nuovoMovimento.tipoMovimento || !nuovoMovimento.importo) {
+    if (!nuovoMovimento.causale || !nuovoMovimento.tipoMovimento || !nuovoMovimento.importo || !user) {
       toast({
         title: "Errore",
         description: "Compila tutti i campi obbligatori",
@@ -231,41 +235,43 @@ export default function PrimaNotaPage() {
     }
 
     try {
-      const registrationNumber = await generaNumeroRegistrazione();
-      const movimentoData = {
-        user_id: user.id,
-        date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-        registration_number: registrationNumber,
-        causale: nuovoMovimento.causale!,
-        movement_type: nuovoMovimento.tipoMovimento!,
-        amount: Number(nuovoMovimento.importo),
-        payment_method: nuovoMovimento.metodoPagamento!,
-        description: nuovoMovimento.descrizione || "",
-        notes: nuovoMovimento.note || "",
-        registered: false,
-        reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
-          : user?.email || "Utente sconosciuto"
-      };
-
-      const { data, error } = await supabase
+      const numeroRegistrazione = await generaNumeroRegistrazione();
+      const dataMovimento = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      
+      // Insert into database
+      const { data: newMovement, error } = await supabase
         .from('financial_movements')
-        .insert(movimentoData)
+        .insert({
+          user_id: user.id,
+          date: dataMovimento,
+          registration_number: numeroRegistrazione,
+          causale: nuovoMovimento.causale!,
+          movement_type: nuovoMovimento.tipoMovimento!,
+          amount: Number(nuovoMovimento.importo),
+          payment_method: nuovoMovimento.metodoPagamento!,
+          description: nuovoMovimento.descrizione || "",
+          notes: nuovoMovimento.note || "",
+          registered: false,
+          reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
+            ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
+            : user?.email || "Utente sconosciuto",
+          attachments: []
+        })
         .select()
         .single();
 
       if (error) throw error;
 
       // Upload files if any
-      if (allegati.length > 0) {
-        await uploadFiles(allegati, data.id);
+      if (allegati.length > 0 && newMovement) {
+        await uploadFiles(allegati, newMovement.id);
         toast({
           title: "File caricati",
           description: `${allegati.length} file allegati caricati con successo`,
         });
       }
 
-      // Reload movements
+      // Reload data
       await loadMovimenti();
       
       setNuovoMovimento({ metodoPagamento: "Bonifico" });
@@ -281,7 +287,7 @@ export default function PrimaNotaPage() {
       console.error('Errore durante il salvataggio:', error);
       toast({
         title: "Errore",
-        description: "Errore durante il salvataggio. Riprova.",
+        description: "Errore durante il salvataggio del movimento. Riprova.",
         variant: "destructive",
       });
     }
@@ -301,7 +307,7 @@ export default function PrimaNotaPage() {
   const handleAbbonamentoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !nuovoAbbonamento.nome || !nuovoAbbonamento.importo || !nuovoAbbonamento.frequenza) {
+    if (!nuovoAbbonamento.nome || !nuovoAbbonamento.importo || !nuovoAbbonamento.frequenza || !user) {
       toast({
         title: "Errore",
         description: "Compila tutti i campi obbligatori",
@@ -311,24 +317,22 @@ export default function PrimaNotaPage() {
     }
 
     try {
-      const abbonamentoData = {
-        user_id: user.id,
-        name: nuovoAbbonamento.nome!,
-        amount: Number(nuovoAbbonamento.importo),
-        frequency: nuovoAbbonamento.frequenza!,
-        next_payment: nuovoAbbonamento.prossimoPagamento || format(new Date(), 'yyyy-MM-dd'),
-        causale: nuovoAbbonamento.causale || "Altro",
-        payment_method: nuovoAbbonamento.metodoPagamento!,
-        active: nuovoAbbonamento.attivo!
-      };
-
       const { error } = await supabase
         .from('recurring_subscriptions')
-        .insert(abbonamentoData);
+        .insert({
+          user_id: user.id,
+          name: nuovoAbbonamento.nome!,
+          amount: Number(nuovoAbbonamento.importo),
+          frequency: nuovoAbbonamento.frequenza!,
+          next_payment: nuovoAbbonamento.prossimoPagamento || format(new Date(), 'yyyy-MM-dd'),
+          causale: nuovoAbbonamento.causale || "Altro",
+          payment_method: nuovoAbbonamento.metodoPagamento!,
+          active: nuovoAbbonamento.attivo!
+        });
 
       if (error) throw error;
 
-      // Reload subscriptions
+      // Reload data
       await loadAbbonamenti();
       
       setNuovoAbbonamento({ 
@@ -346,43 +350,36 @@ export default function PrimaNotaPage() {
       console.error('Errore durante il salvataggio:', error);
       toast({
         title: "Errore",
-        description: "Errore durante il salvataggio. Riprova.",
+        description: "Errore durante il salvataggio dell'abbonamento. Riprova.",
         variant: "destructive",
       });
     }
   };
 
   const toggleRegistrato = async (id: string) => {
-    if (!user) return;
-    
-    const movimento = movimenti.find(m => m.id === id);
-    if (!movimento) return;
-
     try {
+      const movimento = movimenti.find(m => m.id === id);
+      if (!movimento) return;
+
       const { error } = await supabase
         .from('financial_movements')
         .update({ registered: !movimento.registrato })
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id);
 
       if (error) throw error;
 
-      // Update local state
-      setMovimenti(movimenti.map(movimento => 
-        movimento.id === id 
-          ? { ...movimento, registrato: !movimento.registrato }
-          : movimento
-      ));
-
+      // Reload data
+      await loadMovimenti();
+      
       toast({
         title: "Stato aggiornato",
-        description: `Movimento ${movimento.registrato ? 'deregistrato' : 'registrato'} con successo`,
+        description: `Movimento ${movimento.registrato ? 'non registrato' : 'registrato'}`,
       });
     } catch (error) {
-      console.error('Errore aggiornamento:', error);
+      console.error('Errore aggiornamento stato:', error);
       toast({
         title: "Errore",
-        description: "Impossibile aggiornare lo stato",
+        description: "Errore durante l'aggiornamento dello stato",
         variant: "destructive",
       });
     }
@@ -414,6 +411,19 @@ export default function PrimaNotaPage() {
         return <Badge variant="outline">{metodo}</Badge>;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex-1 space-y-6 p-8">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Caricamento dati...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-6 p-8">
@@ -845,6 +855,7 @@ export default function PrimaNotaPage() {
             </Dialog>
           </div>
 
+          {/* Elenco Abbonamenti */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -852,7 +863,7 @@ export default function PrimaNotaPage() {
                 Abbonamenti Attivi ({abbonamenti.filter(a => a.attivo).length})
               </CardTitle>
               <CardDescription>
-                Gestisci i tuoi pagamenti ricorrenti e abbonamenti
+                Gestione abbonamenti e pagamenti ricorrenti
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -860,26 +871,25 @@ export default function PrimaNotaPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Frequenza</TableHead>
                     <TableHead className="text-right">Importo</TableHead>
-                    <TableHead>Metodo</TableHead>
+                    <TableHead>Frequenza</TableHead>
                     <TableHead>Prossimo Pagamento</TableHead>
                     <TableHead>Causale</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Metodo</TableHead>
+                    <TableHead>Stato</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {abbonamenti.map((abbonamento) => (
                     <TableRow key={abbonamento.id}>
                       <TableCell className="font-medium">{abbonamento.nome}</TableCell>
-                      <TableCell>{getFrequenzaBadge(abbonamento.frequenza)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end">
                           <Euro className="mr-1 h-4 w-4 text-muted-foreground" />
                           <span className="font-semibold">{abbonamento.importo.toFixed(2)}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{getMetodoPagamentoBadge(abbonamento.metodoPagamento)}</TableCell>
+                      <TableCell>{getFrequenzaBadge(abbonamento.frequenza)}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -889,12 +899,11 @@ export default function PrimaNotaPage() {
                       <TableCell>
                         <Badge variant="outline">{abbonamento.causale}</Badge>
                       </TableCell>
+                      <TableCell>{getMetodoPagamentoBadge(abbonamento.metodoPagamento)}</TableCell>
                       <TableCell>
-                        {abbonamento.attivo ? (
-                          <Badge className="bg-green-100 text-green-800">Attivo</Badge>
-                        ) : (
-                          <Badge variant="secondary">Sospeso</Badge>
-                        )}
+                        <Badge variant={abbonamento.attivo ? "default" : "secondary"}>
+                          {abbonamento.attivo ? "Attivo" : "Inattivo"}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
