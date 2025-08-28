@@ -155,6 +155,25 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
             Questa email è stata inviata automaticamente dal sistema di gestione partnership.
           </p>
         </div>
+
+        <Separator />
+
+        {/* Company Footer */}
+        <div className="flex flex-col items-center space-y-3 py-4 bg-muted/30 rounded-lg">
+          <img 
+            src="/lovable-uploads/e8493046-02d3-407a-ae34-b061ef9720af.png" 
+            alt="ZAPPER Logo" 
+            className="h-12 object-contain"
+          />
+          <div className="text-center text-xs text-muted-foreground leading-relaxed">
+            <div className="font-medium">info@abbattitorizapper.it | Scafati (SA) - Italy | 08119968436</div>
+            <div className="text-blue-600 hover:text-blue-800">
+              <a href="https://www.abbattitorizapper.it" target="_blank" rel="noopener noreferrer">
+                www.abbattitorizapper.it
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
