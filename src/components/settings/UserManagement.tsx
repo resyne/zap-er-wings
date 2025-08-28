@@ -46,7 +46,14 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      // Fetch profiles with user roles
+      // Start with user roles to get all users with roles
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) throw rolesError;
+
+      // Fetch profiles for all users
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select(`
@@ -59,18 +66,18 @@ export function UserManagement() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch user roles
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-
-      if (rolesError) throw rolesError;
-
-      // Combine data
-      const usersWithRoles = profiles?.map(profile => ({
-        ...profile,
-        role: (roles?.find(r => r.user_id === profile.id)?.role || "user") as "admin" | "moderator" | "user"
-      })) || [];
+      // Combine data - start with roles and add profile info where available
+      const usersWithRoles = roles?.map(roleRecord => {
+        const profile = profiles?.find(p => p.id === roleRecord.user_id);
+        return {
+          id: roleRecord.user_id,
+          email: profile?.email || "Email non disponibile",
+          first_name: profile?.first_name || "",
+          last_name: profile?.last_name || "",
+          role: roleRecord.role as "admin" | "moderator" | "user",
+          created_at: profile?.created_at || new Date().toISOString()
+        };
+      }) || [];
 
       setUsers(usersWithRoles);
     } catch (error) {
