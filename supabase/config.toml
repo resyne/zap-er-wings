@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.fattura24-sync]
 verify_jwt = false
+
+[functions.process-recurring-subscriptions]
+verify_jwt = false
