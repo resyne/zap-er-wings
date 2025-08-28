@@ -688,6 +688,60 @@ export type Database = {
           },
         ]
       }
+      financial_movements: {
+        Row: {
+          amount: number
+          attachments: string[] | null
+          causale: string
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          movement_type: string
+          notes: string | null
+          payment_method: string
+          registered: boolean | null
+          registration_number: string
+          reporting_user: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          attachments?: string[] | null
+          causale: string
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          movement_type: string
+          notes?: string | null
+          payment_method: string
+          registered?: boolean | null
+          registration_number: string
+          reporting_user: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          attachments?: string[] | null
+          causale?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          payment_method?: string
+          registered?: boolean | null
+          registration_number?: string
+          reporting_user?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hr_employees: {
         Row: {
           created_at: string
@@ -1404,6 +1458,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      recurring_subscriptions: {
+        Row: {
+          active: boolean | null
+          amount: number
+          causale: string
+          created_at: string
+          frequency: string
+          id: string
+          name: string
+          next_payment: string
+          payment_method: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean | null
+          amount: number
+          causale: string
+          created_at?: string
+          frequency: string
+          id?: string
+          name: string
+          next_payment: string
+          payment_method: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean | null
+          amount?: number
+          causale?: string
+          created_at?: string
+          frequency?: string
+          id?: string
+          name?: string
+          next_payment?: string
+          payment_method?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       requests: {
         Row: {
