@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { UserManagement } from "@/components/settings/UserManagement";
 import { RolePermissions } from "@/components/settings/RolePermissions";
 import { SystemSettings } from "@/components/settings/SystemSettings";
+import { PasswordChange } from "@/components/settings/PasswordChange";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Users, Shield, Settings, AlertCircle } from "lucide-react";
+import { Users, Shield, Settings, AlertCircle, Lock } from "lucide-react";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -41,10 +42,14 @@ export function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Gestione Utenti
+          </TabsTrigger>
+          <TabsTrigger value="password" className="flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            Password
           </TabsTrigger>
           <TabsTrigger value="roles" className="flex items-center gap-2" disabled={!isAdmin}>
             <Shield className="h-4 w-4" />
@@ -71,6 +76,10 @@ export function SettingsPage() {
               <UserManagement />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="password" className="space-y-4">
+          <PasswordChange />
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4">
