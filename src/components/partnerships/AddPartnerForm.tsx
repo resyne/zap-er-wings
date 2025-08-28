@@ -53,13 +53,18 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const geocodeAddress = async (address: string): Promise<{ latitude: number; longitude: number } | null> => {
+  const geocodeAddress = async (address: string, country?: string): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      console.log('Trying to geocode address:', address);
+      // Create a more specific search query including country if available
+      const searchQuery = country && country.trim() !== '' 
+        ? `${address}, ${country}` 
+        : address;
+      
+      console.log('Geocoding address:', searchQuery);
       
       // Try Mapbox Geocoding first (more reliable)
       const mapboxToken = 'pk.eyJ1IjoiemFwcGVyLWl0YWx5IiwiYSI6ImNtZXRyZHppNjAyMHMyanBmaDVjaXRqNGkifQ.a-m1oX08G8vNi9s6uzNr7Q';
-      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${mapboxToken}&limit=1`;
+      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${mapboxToken}&limit=1&types=address,place`;
       
       const mapboxResponse = await fetch(mapboxUrl);
       console.log('Mapbox geocoding response status:', mapboxResponse.status);
@@ -79,16 +84,18 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
         }
       }
       
-      // Fallback to Nominatim if Mapbox fails
+      // Fallback to Nominatim if Mapbox fails  
       console.log('Trying Nominatim as fallback...');
-      const nominatimResponse = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-        {
-          headers: {
-            'User-Agent': 'PartnerMap/1.0'
-          }
+      const countryCode = getCountryCode(country);
+      const nominatimUrl = countryCode 
+        ? `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&countrycodes=${countryCode}`
+        : `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+        
+      const nominatimResponse = await fetch(nominatimUrl, {
+        headers: {
+          'User-Agent': 'PartnerMap/1.0'
         }
-      );
+      });
       
       console.log('Nominatim response status:', nominatimResponse.status);
       
@@ -106,11 +113,41 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
         }
       }
       
-      console.log('No geocoding results found for address:', address);
+      console.log('No geocoding results found for address:', searchQuery);
     } catch (error) {
       console.error('Geocoding error:', error);
     }
     return null;
+  };
+
+  // Helper function to get country codes for better geocoding
+  const getCountryCode = (country?: string): string => {
+    if (!country) return '';
+    
+    const countryMap: Record<string, string> = {
+      'italia': 'it',
+      'italy': 'it',
+      'francia': 'fr', 
+      'france': 'fr',
+      'spagna': 'es',
+      'spain': 'es',
+      'germania': 'de',
+      'germany': 'de',
+      'olanda': 'nl',
+      'netherlands': 'nl',
+      'belgio': 'be',
+      'belgium': 'be',
+      'polonia': 'pl',
+      'poland': 'pl',
+      'norvegia': 'no',
+      'norway': 'no',
+      'irlanda': 'ie',
+      'ireland': 'ie',
+      'slovacchia': 'sk',
+      'slovakia': 'sk'
+    };
+    
+    return countryMap[country.toLowerCase()] || '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,7 +165,7 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
 
     try {
       // Try to geocode the address
-      const coordinates = await geocodeAddress(formData.address);
+      const coordinates = await geocodeAddress(formData.address, formData.country);
       
       const partnerData = {
         ...formData,
