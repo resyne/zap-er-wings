@@ -63,6 +63,7 @@ const metodiPagamento = [
   "Bonifico",
   "Carta di credito",
   "Carta di debito", 
+  "American Express",
   "Assegno",
   "PayPal",
   "Altro"
@@ -97,6 +98,7 @@ export default function PrimaNotaPage() {
   const [nuovoMovimento, setNuovoMovimento] = useState<Partial<MovimentoContabile>>({
     metodoPagamento: "Bonifico"
   });
+  const [causalePersonalizzata, setCausalePersonalizzata] = useState("");
   const [allegati, setAllegati] = useState<File[]>([]);
   const [nuovoAbbonamento, setNuovoAbbonamento] = useState<Partial<AbbonamentoRicorrente>>({
     frequenza: "mensile",
@@ -189,7 +191,6 @@ export default function PrimaNotaPage() {
 
   const generaNumeroRegistrazione = async () => {
     const anno = new Date().getFullYear();
-    
     // Get count of movements for this year
     const { count } = await supabase
       .from('financial_movements')
@@ -234,7 +235,17 @@ export default function PrimaNotaPage() {
       return;
     }
 
+    if (nuovoMovimento.causale === "Altro" && !causalePersonalizzata.trim()) {
+      toast({
+        title: "Errore",
+        description: "Inserisci la descrizione della causale personalizzata",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      const causaleFinale = nuovoMovimento.causale === "Altro" ? causalePersonalizzata : nuovoMovimento.causale;
       const numeroRegistrazione = await generaNumeroRegistrazione();
       const dataMovimento = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
       
@@ -245,7 +256,7 @@ export default function PrimaNotaPage() {
           user_id: user.id,
           date: dataMovimento,
           registration_number: numeroRegistrazione,
-          causale: nuovoMovimento.causale!,
+          causale: causaleFinale!,
           movement_type: nuovoMovimento.tipoMovimento!,
           amount: Number(nuovoMovimento.importo),
           payment_method: nuovoMovimento.metodoPagamento!,
@@ -275,6 +286,7 @@ export default function PrimaNotaPage() {
       await loadMovimenti();
       
       setNuovoMovimento({ metodoPagamento: "Bonifico" });
+      setCausalePersonalizzata("");
       setSelectedDate(undefined);
       setAllegati([]);
       setIsDialogOpen(false);
@@ -405,8 +417,9 @@ export default function PrimaNotaPage() {
       case "Bonifico":
         return <Badge variant="default">🏦 {metodo}</Badge>;
       case "Carta di credito":
-      case "Carta di debito":
+      case "American Express":
         return <Badge variant="outline" className="border-blue-500 text-blue-700">💳 {metodo}</Badge>;
+      case "Carta di debito":
       default:
         return <Badge variant="outline">{metodo}</Badge>;
     }
@@ -521,6 +534,18 @@ export default function PrimaNotaPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {nuovoMovimento.causale === "Altro" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="causalePersonalizzata">Descrivi la causale *</Label>
+                      <Input
+                        id="causalePersonalizzata"
+                        value={causalePersonalizzata}
+                        onChange={(e) => setCausalePersonalizzata(e.target.value)}
+                        placeholder="Inserisci la causale personalizzata"
+                      />
+                    </div>
+                  )}
 
                    <div className="space-y-2">
                      <Label htmlFor="tipoMovimento">Tipo Movimento *</Label>
