@@ -19,6 +19,7 @@ interface Partner {
   longitude?: number;
   partner_type?: string;
   country?: string;
+  region?: string;
   acquisition_status?: string;
   acquisition_notes?: string;
   priority?: string;
@@ -40,6 +41,7 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
     address: '',
     partner_type: defaultPartnerType,
     country: '',
+    region: '',
     acquisition_notes: '',
     priority: 'medium',
   });
@@ -154,6 +156,7 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
         address: '',
         partner_type: defaultPartnerType,
         country: '',
+        region: '',
         acquisition_notes: '',
         priority: 'medium',
       });
@@ -254,7 +257,7 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="country">Country</Label>
           <Input
@@ -263,6 +266,16 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
             value={formData.country}
             onChange={handleInputChange}
             placeholder="Italy"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="region">Region</Label>
+          <Input
+            id="region"
+            name="region"
+            value={formData.region}
+            onChange={handleInputChange}
+            placeholder="Lombardy, Lazio, etc."
           />
         </div>
         {formData.partner_type === 'importatore' && (

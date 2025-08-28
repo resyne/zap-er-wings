@@ -19,6 +19,7 @@ interface Partner {
   longitude?: number;
   partner_type?: string;
   country?: string;
+  region?: string;
   acquisition_status?: string;
   acquisition_notes?: string;
   priority?: string;
@@ -45,6 +46,7 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
     address: partner.address,
     partner_type: partner.partner_type || 'rivenditore',
     country: partner.country || '',
+    region: partner.region || '',
     acquisition_status: partner.acquisition_status || 'prospect',
     acquisition_notes: partner.acquisition_notes || '',
     priority: partner.priority || 'medium',
@@ -244,7 +246,7 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="country">Country</Label>
           <Input
@@ -253,6 +255,16 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
             value={formData.country}
             onChange={handleInputChange}
             placeholder="Italy"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="region">Region</Label>
+          <Input
+            id="region"
+            name="region"
+            value={formData.region}
+            onChange={handleInputChange}
+            placeholder="Lombardy, Lazio, etc."
           />
         </div>
         {formData.partner_type === 'importatore' && (

@@ -23,6 +23,7 @@ interface Installer {
   longitude?: number;
   partner_type?: string;
   country?: string;
+  region?: string;
   acquisition_status?: string;
   acquisition_notes?: string;
   priority?: string;
@@ -90,7 +91,7 @@ export default function InstallersPage() {
     try {
       const targetInstallers = selectedRegion === "all" 
         ? installers 
-        : installers.filter(i => i.country === selectedRegion);
+        : installers.filter(i => i.region === selectedRegion);
       
       const recipients = targetInstallers.filter(i => i.email).map(i => i.email);
       
@@ -128,13 +129,13 @@ export default function InstallersPage() {
 
   const installersWithLocation = installers.filter(p => p.latitude && p.longitude);
   const activeInstallers = installers.filter(i => i.acquisition_status === 'attivo' || !i.acquisition_status);
-  const regions = [...new Set(installers.map(i => i.country).filter(Boolean))];
+  const regions = [...new Set(installers.map(i => i.region).filter(Boolean))];
   
   const getInstallersByRegion = () => {
     const regionGroups: Record<string, Installer[]> = {};
     
     installers.forEach(installer => {
-      const region = installer.country || 'No Region';
+      const region = installer.region || 'No Region';
       if (!regionGroups[region]) {
         regionGroups[region] = [];
       }
