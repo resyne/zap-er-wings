@@ -31,7 +31,7 @@ import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
 import ReceiptsPage from "./pages/procurement/ReceiptsPage";
 import QualityControlPage from "./pages/procurement/QualityControlPage";
 import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
-import PartnersPage from "./pages/partnerships/PartnersPage";
+import ImportersPage from "./pages/partnerships/ImportersPage";
 import InstallersPage from "./pages/partnerships/InstallersPage";
 import ResellersPage from "./pages/partnerships/ResellersPage";
 import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
@@ -78,7 +78,7 @@ const App = () => (
                 <Route path="procurement/receipts" element={<ReceiptsPage />} />
                 <Route path="procurement/quality-control" element={<QualityControlPage />} />
                 <Route path="procurement/replenishment" element={<ReplenishmentPage />} />
-                <Route path="partnerships/partners" element={<PartnersPage />} />
+                <Route path="partnerships/importers" element={<ImportersPage />} />
                 <Route path="partnerships/installers" element={<InstallersPage />} />
                 <Route path="partnerships/resellers" element={<ResellersPage />} />
                 <Route path="finance/prima-nota" element={<PrimaNotaPage />} />

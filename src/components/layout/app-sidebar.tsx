@@ -153,7 +153,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Partnership",
     items: [
-      { title: "Partner", url: "/partnerships/partners", icon: Users },
+      { title: "Importers", url: "/partnerships/importers", icon: Users },
       { title: "Installers", url: "/partnerships/installers", icon: Wrench },
       { title: "Resellers", url: "/partnerships/resellers", icon: Store },
     ]
