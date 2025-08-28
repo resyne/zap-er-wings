@@ -1469,6 +1469,7 @@ export type Database = {
           id: string
           name: string
           next_payment: string
+          notes: string | null
           payment_method: string
           updated_at: string
           user_id: string
@@ -1482,6 +1483,7 @@ export type Database = {
           id?: string
           name: string
           next_payment: string
+          notes?: string | null
           payment_method: string
           updated_at?: string
           user_id: string
@@ -1495,6 +1497,7 @@ export type Database = {
           id?: string
           name?: string
           next_payment?: string
+          notes?: string | null
           payment_method?: string
           updated_at?: string
           user_id?: string
