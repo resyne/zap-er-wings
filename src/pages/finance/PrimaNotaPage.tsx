@@ -333,7 +333,8 @@ export default function PrimaNotaPage() {
     }
 
     try {
-      const { error } = await supabase
+      // Crea l'abbonamento
+      const { data: abbonamentoData, error: abbonamentoError } = await supabase
         .from('recurring_subscriptions')
         .insert({
           user_id: user.id,
@@ -344,12 +345,47 @@ export default function PrimaNotaPage() {
           causale: nuovoAbbonamento.causale || "Altro",
           payment_method: nuovoAbbonamento.metodoPagamento!,
           active: nuovoAbbonamento.attivo!
+        })
+        .select()
+        .single();
+
+      if (abbonamentoError) throw abbonamentoError;
+
+      // Crea automaticamente il movimento in prima nota per oggi
+      const numeroRegistrazione = await generaNumeroRegistrazione();
+      const dataOggi = format(new Date(), 'yyyy-MM-dd');
+      
+      const { error: movimentoError } = await supabase
+        .from('financial_movements')
+        .insert({
+          user_id: user.id,
+          date: dataOggi,
+          registration_number: numeroRegistrazione,
+          causale: nuovoAbbonamento.causale || "Abbonamento ricorrente",
+          movement_type: "acquisto",
+          amount: Number(nuovoAbbonamento.importo),
+          payment_method: nuovoAbbonamento.metodoPagamento!,
+          description: `Abbonamento: ${nuovoAbbonamento.nome}`,
+          notes: `Movimento automatico per abbonamento ricorrente - Frequenza: ${nuovoAbbonamento.frequenza}`,
+          registered: false,
+          reporting_user: user?.user_metadata?.first_name && user?.user_metadata?.last_name 
+            ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
+            : user?.email || "Sistema automatico",
+          attachments: []
         });
 
-      if (error) throw error;
+      if (movimentoError) {
+        console.error('Errore creazione movimento:', movimentoError);
+        // Non blocchiamo l'abbonamento se il movimento fallisce, ma avvisiamo l'utente
+        toast({
+          title: "Abbonamento creato",
+          description: "Abbonamento creato, ma errore nella creazione del movimento contabile. Puoi crearlo manualmente.",
+          variant: "destructive",
+        });
+      }
 
       // Reload data
-      await loadAbbonamenti();
+      await Promise.all([loadAbbonamenti(), loadMovimenti()]);
       
       setNuovoAbbonamento({ 
         frequenza: "mensile",
@@ -360,7 +396,7 @@ export default function PrimaNotaPage() {
       
       toast({
         title: "Abbonamento aggiunto",
-        description: "L'abbonamento ricorrente è stato aggiunto con successo",
+        description: "L'abbonamento ricorrente è stato aggiunto e il movimento contabile creato automaticamente",
       });
     } catch (error) {
       console.error('Errore durante il salvataggio:', error);
