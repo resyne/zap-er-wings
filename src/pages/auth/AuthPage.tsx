@@ -8,14 +8,11 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
-import { LogIn, UserPlus, ArrowLeft } from "lucide-react";
+import { LogIn, ArrowLeft } from "lucide-react";
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -92,59 +89,6 @@ export default function AuthPage() {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          }
-        }
-      });
-
-      if (error) {
-        if (error.message.includes("User already registered")) {
-          toast({
-            title: "Utente già registrato",
-            description: "Questo indirizzo email è già in uso. Prova ad accedere.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Errore",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      toast({
-        title: "Registrazione completata",
-        description: "Controlla la tua email per confermare l'account",
-      });
-      
-      setIsLogin(true);
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: "Si è verificato un errore inaspettato",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -155,57 +99,19 @@ export default function AuthPage() {
           </Link>
           <h1 className="text-3xl font-bold">CRM Dashboard</h1>
           <p className="text-muted-foreground">
-            {isLogin ? "Accedi al tuo account" : "Crea un nuovo account"}
+            Accedi al tuo account
           </p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {isLogin ? (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  Accedi
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-5 h-5" />
-                  Registrati
-                </>
-              )}
+              <LogIn className="w-5 h-5" />
+              Accedi
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-4">
-              {!isLogin && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">Nome</Label>
-                      <Input
-                        id="firstName"
-                        type="text"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required={!isLogin}
-                        placeholder="Mario"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Cognome</Label>
-                      <Input
-                        id="lastName"
-                        type="text"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required={!isLogin}
-                        placeholder="Rossi"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-              
+            <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -232,25 +138,9 @@ export default function AuthPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Caricamento..." : isLogin ? "Accedi" : "Registrati"}
+                {loading ? "Caricamento..." : "Accedi"}
               </Button>
             </form>
-
-            <div className="mt-4">
-              <Separator />
-              <div className="mt-4 text-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-sm"
-                >
-                  {isLogin
-                    ? "Non hai un account? Registrati"
-                    : "Hai già un account? Accedi"
-                  }
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
