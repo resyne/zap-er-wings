@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,7 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
 
   // Recipients preview
   const [recipientsCount, setRecipientsCount] = useState(0);
+  const [partnersBreakdown, setPartnersBreakdown] = useState<any[]>([]);
 
   const handleSendEmail = async () => {
     if (!emailData.subject.trim() || !emailData.message.trim()) {
@@ -100,9 +101,10 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
 
   const getRecipientsPreview = async () => {
     try {
+      // Get count with current filters
       let query = supabase
         .from('partners')
-        .select('id, first_name, last_name, email, company_name, partner_type, region', { count: 'exact' })
+        .select('id', { count: 'exact' })
         .not('email', 'is', null);
 
       if (emailData.partner_type !== "all") {
@@ -117,15 +119,34 @@ export function EmailComposer({ onClose }: EmailComposerProps) {
 
       const { count } = await query;
       setRecipientsCount(count || 0);
+
+      // Get breakdown for debugging
+      const { data: breakdown } = await supabase
+        .from('partners')
+        .select('partner_type, acquisition_status')
+        .not('email', 'is', null);
+
+      if (breakdown) {
+        const stats = breakdown.reduce((acc: any, partner) => {
+          const key = `${partner.partner_type || 'undefined'}_${partner.acquisition_status || 'undefined'}`;
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
+        
+        setPartnersBreakdown(Object.entries(stats).map(([key, count]) => {
+          const [type, status] = key.split('_');
+          return { type, status, count };
+        }));
+      }
     } catch (error) {
       console.error('Error getting recipients:', error);
     }
   };
 
-  // Get recipients count when filters change
-  useState(() => {
+  // Get recipients count when component mounts and filters change
+  useEffect(() => {
     getRecipientsPreview();
-  });
+  }, [emailData.partner_type, emailData.region, emailData.acquisition_status]);
 
   const renderPreview = () => (
     <div className="border rounded-lg p-6 bg-white">
@@ -338,6 +359,27 @@ Puoi usare:
               <div className="text-2xl font-bold text-blue-600">{recipientsCount}</div>
               <div className="text-sm text-muted-foreground">
                 partner riceveranno questa email
+              </div>
+            </div>
+
+            {/* Debug breakdown */}
+            <div className="border rounded-lg p-4">
+              <h4 className="font-semibold mb-3">📊 Ripartizione Partner (Debug)</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {partnersBreakdown.map((item, index) => (
+                  <div key={index} className="flex justify-between border-b pb-1">
+                    <span className="font-medium">
+                      {item.type} - {item.status}
+                    </span>
+                    <span className="text-blue-600">{item.count}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-2 border-t font-semibold flex justify-between">
+                <span>Totale:</span>
+                <span className="text-blue-600">
+                  {partnersBreakdown.reduce((sum, item) => sum + item.count, 0)}
+                </span>
               </div>
             </div>
           </TabsContent>
