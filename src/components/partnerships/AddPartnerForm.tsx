@@ -221,19 +221,6 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="partner_type">Partner Type</Label>
-        <select
-          id="partner_type"
-          name="partner_type"
-          value={formData.partner_type}
-          onChange={handleInputChange}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-        >
-          <option value="rivenditore">Rivenditore</option>
-          <option value="importatore">Importatore</option>
-        </select>
-      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
