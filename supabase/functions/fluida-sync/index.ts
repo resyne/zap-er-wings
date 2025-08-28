@@ -138,18 +138,18 @@ async function syncEmployees(supabase: any, apiKey: string, companyId: string) {
   console.log('Syncing employees (contracts) from Fluida...');
   
   try {
-    // Get contracts for the company - endpoint corretto dalla documentazione
-    const contractsResponse = await makeFluidaRequest(`contract/company/${companyId}`, apiKey);
+    // Endpoint corretto dalla documentazione: "Renders a list contract entries for a given company id"
+    const contractsResponse = await makeFluidaRequest(`contracts/company/${companyId}`, apiKey);
     const contracts = contractsResponse.data || contractsResponse;
     console.log(`Found ${contracts.length} contracts`);
 
     for (const contract of contracts) {
       const employeeData = {
         fluida_id: contract.id,
-        first_name: contract.user?.first_name || contract.first_name || '',
-        last_name: contract.user?.last_name || contract.last_name || '',
-        email: contract.user?.email || contract.email,
-        phone: contract.user?.phone || contract.phone,
+        first_name: contract.first_name || '',
+        last_name: contract.last_name || '',
+        email: contract.email,
+        phone: contract.phone,
         department: contract.department,
         position: contract.position,
         hire_date: contract.hire_date,
@@ -193,7 +193,7 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
   console.log('Syncing timesheets from Fluida...');
   
   try {
-    // Get current month calendar entries
+    // Get current month calendar entries - endpoint corretto dalla documentazione
     const startDate = new Date();
     startDate.setDate(1);
     const endDate = new Date();
@@ -201,17 +201,17 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
     const fromDate = startDate.toISOString().split('T')[0];
     const toDate = endDate.toISOString().split('T')[0];
     
-    // Get calendar entries for company - endpoint corretto dalla documentazione  
+    // Endpoint corretto: "Renders a list of working days for a given company in a range of days"
     const calendarResponse = await makeFluidaRequest(
       `calendar/company/${companyId}/from/${fromDate}/to/${toDate}`, 
       apiKey
     );
     
-    const calendarEntries = calendarResponse.data || calendarResponse;
+    const calendarEntries = calendarResponse.data || calendarResponse || [];
     console.log(`Found ${calendarEntries.length} calendar entries`);
 
     for (const entry of calendarEntries) {
-      // Get employee from our database
+      // Get employee from our database using contract_id
       const { data: employee } = await supabase
         .from('hr_employees')
         .select('id')
@@ -223,6 +223,11 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
         continue;
       }
 
+      // Calculate total hours from minutes - distinguendo ordinarie e straordinarie  
+      const regularMinutes = entry.regular_minutes || entry.minutes || 0;
+      const overtimeMinutes = entry.overtime_minutes || 0;
+      const totalMinutes = regularMinutes + overtimeMinutes;
+
       const timesheetData = {
         employee_id: employee.id,
         fluida_timesheet_id: entry.id,
@@ -230,9 +235,9 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
         clock_in: entry.clock_in,
         clock_out: entry.clock_out,
         break_minutes: entry.break_minutes || 0,
-        total_hours: entry.total_minutes ? (entry.total_minutes / 60) : null,
-        status: entry.status || 'pending',
-        notes: entry.notes,
+        total_hours: totalMinutes ? (totalMinutes / 60) : null,
+        status: entry.status || 'completed',
+        notes: entry.notes || `Ore regolari: ${(regularMinutes/60).toFixed(2)}, Straordinari: ${(overtimeMinutes/60).toFixed(2)}`,
         synced_at: new Date().toISOString(),
       };
 
@@ -245,6 +250,8 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
 
       if (error) {
         console.error(`Error upserting timesheet ${entry.id}:`, error);
+      } else {
+        console.log(`Synced timesheet for ${entry.date}: ${(totalMinutes/60).toFixed(2)} hours`);
       }
     }
 
