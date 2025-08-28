@@ -1,3 +1,4 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
 const corsHeaders = {
@@ -47,7 +48,7 @@ interface FluidaJustification {
   approved_at?: string;
 }
 
-export default async function handler(req: Request) {
+serve(async (req) => {
   console.log('=== FLUIDA SYNC FUNCTION STARTED ===');
   console.log('Request method:', req.method);
   console.log('Request URL:', req.url);
