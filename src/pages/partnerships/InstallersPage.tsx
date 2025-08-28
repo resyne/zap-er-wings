@@ -1,21 +1,18 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, MapPin, Users, Building2, Store, Globe } from "lucide-react";
+import { Plus, MapPin, Users, Building2, Wrench, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { PartnerActions } from "@/components/partnerships/PartnerActions";
-import { ImporterKanban } from "@/components/partnerships/ImporterKanban";
 
-interface Partner {
+interface Installer {
   id: string;
   first_name: string;
   last_name: string;
@@ -33,31 +30,31 @@ interface Partner {
   created_at: string;
 }
 
-export default function PartnersPage() {
-  const [partners, setPartners] = useState<Partner[]>([]);
+export default function InstallersPage() {
+  const [installers, setInstallers] = useState<Installer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchPartners();
+    fetchInstallers();
   }, []);
 
-  const fetchPartners = async () => {
+  const fetchInstallers = async () => {
     try {
       const { data, error } = await supabase
         .from('partners')
         .select('*')
-        .eq('partner_type', 'importatore')
+        .eq('partner_type', 'rivenditore')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPartners(data || []);
+      setInstallers(data || []);
     } catch (error) {
-      console.error('Error fetching partners:', error);
+      console.error('Error fetching installers:', error);
       toast({
         title: "Error",
-        description: "Failed to load partners",
+        description: "Failed to load installers",
         variant: "destructive",
       });
     } finally {
@@ -65,85 +62,74 @@ export default function PartnersPage() {
     }
   };
 
-  const handlePartnerAdded = (newPartner: Partner) => {
-    setPartners(prev => [newPartner, ...prev]);
+  const handleInstallerAdded = (newInstaller: Installer) => {
+    setInstallers(prev => [newInstaller, ...prev]);
     setIsAddDialogOpen(false);
     toast({
       title: "Success",
-      description: "Partner added successfully",
+      description: "Installer added successfully",
     });
   };
 
-  const handlePartnerUpdated = (updatedPartner: Partner) => {
-    setPartners(prev => prev.map(p => p.id === updatedPartner.id ? updatedPartner : p));
+  const handleInstallerUpdated = (updatedInstaller: Installer) => {
+    setInstallers(prev => prev.map(p => p.id === updatedInstaller.id ? updatedInstaller : p));
     toast({
       title: "Success",
-      description: "Partner updated successfully",
+      description: "Installer updated successfully",
     });
   };
 
-  const handlePartnerDeleted = (partnerId: string) => {
-    setPartners(prev => prev.filter(p => p.id !== partnerId));
+  const handleInstallerDeleted = (installerId: string) => {
+    setInstallers(prev => prev.filter(p => p.id !== installerId));
   };
 
-  const partnersWithLocation = partners.filter(p => p.latitude && p.longitude);
-  const importers = partners.filter(p => p.partner_type === 'importatore');
+  const installersWithLocation = installers.filter(p => p.latitude && p.longitude);
+  const activeInstallers = installers.filter(i => i.acquisition_status === 'attivo' || !i.acquisition_status);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Partners</h1>
+          <h1 className="text-3xl font-bold">Installers</h1>
           <p className="text-muted-foreground">
-            Manage your global importer network and acquisition pipeline
+            Manage your network of certified installers and service providers
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Add Partner
+              Add Installer
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add New Partner</DialogTitle>
+              <DialogTitle>Add New Installer</DialogTitle>
             </DialogHeader>
-            <AddPartnerForm onPartnerAdded={handlePartnerAdded} defaultPartnerType="importatore" />
+            <AddPartnerForm onPartnerAdded={handleInstallerAdded} defaultPartnerType="rivenditore" />
           </DialogContent>
         </Dialog>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Partners</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Installers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{partners.length}</div>
+            <div className="text-2xl font-bold">{installers.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Importers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Installers</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{importers.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Importers</CardTitle>
-            <Globe className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {importers.filter(i => i.acquisition_status === 'attivo').length}
-            </div>
+            <div className="text-2xl font-bold">{activeInstallers.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -152,7 +138,7 @@ export default function PartnersPage() {
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{partnersWithLocation.length}</div>
+            <div className="text-2xl font-bold">{installersWithLocation.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -162,48 +148,30 @@ export default function PartnersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Set(importers.map(p => p.company_name)).size}
+              {new Set(installers.map(p => p.company_name)).size}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs for different views */}
-      <Tabs defaultValue="acquisition" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="acquisition">Importer Pipeline</TabsTrigger>
-          <TabsTrigger value="map">Partners Map</TabsTrigger>
-          <TabsTrigger value="importers">Importers List</TabsTrigger>
+      <Tabs defaultValue="list" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="list">Installers List</TabsTrigger>
+          <TabsTrigger value="map">Installers Map</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="acquisition">
-          <ImporterKanban />
-        </TabsContent>
-
-        <TabsContent value="map">
+        <TabsContent value="list">
           <Card>
             <CardHeader>
-              <CardTitle>Importers Map</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-96 w-full">
-                <PartnerMap partners={importers.filter(p => p.latitude && p.longitude)} />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="importers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Importers ({importers.length})</CardTitle>
+              <CardTitle>Installers ({installers.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="text-center py-4">Loading partners...</div>
-              ) : importers.length === 0 ? (
+                <div className="text-center py-4">Loading installers...</div>
+              ) : installers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No importers found. Add your first importer to get started.
+                  No installers found. Add your first installer to get started.
                 </div>
               ) : (
                 <Table>
@@ -211,49 +179,47 @@ export default function PartnersPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Company</TableHead>
-                      <TableHead>Country</TableHead>
                       <TableHead>Contact</TableHead>
+                      <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
                       <TableHead className="w-16">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {importers.map((partner) => (
-                      <TableRow key={partner.id}>
+                    {installers.map((installer) => (
+                      <TableRow key={installer.id}>
                         <TableCell>
-                          {partner.first_name} {partner.last_name}
+                          {installer.first_name} {installer.last_name}
                         </TableCell>
-                        <TableCell>{partner.company_name}</TableCell>
-                        <TableCell>{partner.country || "N/A"}</TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            {partner.email && (
-                              <div className="text-sm">{partner.email}</div>
-                            )}
-                            {partner.phone && (
-                              <div className="text-sm text-muted-foreground">{partner.phone}</div>
-                            )}
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-4 w-4 text-muted-foreground" />
+                            {installer.company_name}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={partner.acquisition_status === 'attivo' ? 'default' : 'secondary'}>
-                            {partner.acquisition_status || 'N/A'}
-                          </Badge>
+                          <div className="space-y-1">
+                            {installer.email && (
+                              <div className="text-sm">{installer.email}</div>
+                            )}
+                            {installer.phone && (
+                              <div className="text-sm text-muted-foreground">{installer.phone}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {installer.address}
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={partner.priority === 'high' ? 'destructive' : 
-                                   partner.priority === 'medium' ? 'default' : 'secondary'}
-                          >
-                            {partner.priority || 'medium'}
+                          <Badge variant={installer.latitude && installer.longitude ? "default" : "secondary"}>
+                            {installer.latitude && installer.longitude ? "Located" : "No Location"}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <PartnerActions
-                            partner={partner}
-                            onPartnerUpdated={handlePartnerUpdated}
-                            onPartnerDeleted={handlePartnerDeleted}
+                            partner={installer}
+                            onPartnerUpdated={handleInstallerUpdated}
+                            onPartnerDeleted={handleInstallerDeleted}
                           />
                         </TableCell>
                       </TableRow>
@@ -261,6 +227,19 @@ export default function PartnersPage() {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="map">
+          <Card>
+            <CardHeader>
+              <CardTitle>Installers Map</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-96 w-full">
+                <PartnerMap partners={installersWithLocation} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
