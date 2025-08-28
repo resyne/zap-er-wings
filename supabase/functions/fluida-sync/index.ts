@@ -48,33 +48,48 @@ interface FluidaJustification {
 }
 
 export default async function handler(req: Request) {
-  console.log('Fluida sync function called');
+  console.log('=== FLUIDA SYNC FUNCTION STARTED ===');
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Log environment variables availability
     const apiKey = Deno.env.get('FLUIDA_API_KEY');
     const companyId = Deno.env.get('FLUIDA_COMPANY_ID');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('=== FLUIDA SYNC DEBUG ===');
-    console.log('API Key available:', apiKey ? 'YES' : 'NO');
-    console.log('Company ID available:', companyId ? 'YES' : 'NO');
+    console.log('=== FLUIDA ENVIRONMENT CHECK ===');
+    console.log('FLUIDA_API_KEY available:', apiKey ? 'YES' : 'NO');
+    console.log('FLUIDA_COMPANY_ID available:', companyId ? 'YES' : 'NO');
+    console.log('SUPABASE_URL available:', supabaseUrl ? 'YES' : 'NO');
+    console.log('SUPABASE_SERVICE_ROLE_KEY available:', supabaseKey ? 'YES' : 'NO');
     console.log('API Key length:', apiKey ? apiKey.length : 0);
-    console.log('Company ID:', companyId);
+    console.log('Company ID value:', companyId);
+    console.log('Supabase URL:', supabaseUrl);
     
-    if (!apiKey || !companyId) {
-      console.error('Missing Fluida API credentials');
-      console.error('API Key missing:', !apiKey);
-      console.error('Company ID missing:', !companyId);
+    if (!apiKey || !companyId || !supabaseUrl || !supabaseKey) {
+      console.error('=== MISSING CREDENTIALS ===');
+      console.error('FLUIDA_API_KEY missing:', !apiKey);
+      console.error('FLUIDA_COMPANY_ID missing:', !companyId);
+      console.error('SUPABASE_URL missing:', !supabaseUrl);
+      console.error('SUPABASE_SERVICE_ROLE_KEY missing:', !supabaseKey);
+      
       return new Response(
         JSON.stringify({ 
-          error: 'Missing Fluida API credentials',
+          error: 'Missing required environment variables',
           details: {
-            apiKey: apiKey ? 'present' : 'missing',
-            companyId: companyId ? 'present' : 'missing'
+            fluidaApiKey: apiKey ? 'present' : 'missing',
+            fluidaCompanyId: companyId ? 'present' : 'missing',
+            supabaseUrl: supabaseUrl ? 'present' : 'missing',
+            supabaseServiceKey: supabaseKey ? 'present' : 'missing'
           }
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -82,12 +97,16 @@ export default async function handler(req: Request) {
     }
 
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    console.log('Initializing Supabase client...');
     const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client initialized');
 
-    const { action } = await req.json();
-
+    // Parse request body
+    console.log('Parsing request body...');
+    const requestBody = await req.json();
+    console.log('Request body:', requestBody);
+    
+    const { action } = requestBody;
     console.log(`Processing action: ${action}`);
 
     switch (action) {
