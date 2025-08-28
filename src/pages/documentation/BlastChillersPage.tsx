@@ -272,15 +272,15 @@ export default function BlastChillersPage() {
             ) : (
               <div>
                 <p className="text-foreground mb-2">Trascina i file qui o clicca per selezionare</p>
-                <p className="text-sm text-muted-foreground">
-                  Formati supportati: PDF, DOC, DOCX
+                <div className="text-sm text-muted-foreground">
+                  <p>Formati supportati: PDF, DOC, DOCX</p>
                   {selectedCategory && (
-                    <><br />Categoria selezionata: <Badge variant="secondary">{selectedCategory}</Badge></>
+                    <p>Categoria selezionata: <Badge variant="secondary">{selectedCategory}</Badge></p>
                   )}
-                  <br />Lingua: <Badge variant="secondary">
+                  <p>Lingua: <Badge variant="secondary">
                     {languages.find(l => l.code === selectedLanguage)?.flag} {languages.find(l => l.code === selectedLanguage)?.name}
-                  </Badge>
-                </p>
+                  </Badge></p>
+                </div>
               </div>
             )}
           </div>
