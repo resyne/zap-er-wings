@@ -1130,7 +1130,7 @@ export default function PrimaNotaPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead>Status</TableHead>
+                     <TableHead>Registrato</TableHead>
                      <TableHead>Data</TableHead>
                      <TableHead>N. Registr.</TableHead>
                      <TableHead>Causale</TableHead>
