@@ -33,6 +33,7 @@ import QualityControlPage from "./pages/procurement/QualityControlPage";
 import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
 import PartnersPage from "./pages/partnerships/PartnersPage";
 import InstallersPage from "./pages/partnerships/InstallersPage";
+import ResellersPage from "./pages/partnerships/ResellersPage";
 import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
 import InvoicesPage from "./pages/finance/InvoicesPage";
 import FluidaPage from "./pages/hr/FluidaPage";
@@ -79,6 +80,7 @@ const App = () => (
                 <Route path="procurement/replenishment" element={<ReplenishmentPage />} />
                 <Route path="partnerships/partners" element={<PartnersPage />} />
                 <Route path="partnerships/installers" element={<InstallersPage />} />
+                <Route path="partnerships/resellers" element={<ResellersPage />} />
                 <Route path="finance/prima-nota" element={<PrimaNotaPage />} />
                 <Route path="finance/invoices" element={<InvoicesPage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />

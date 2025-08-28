@@ -23,7 +23,8 @@ import {
   PieChart,
   LayoutDashboard,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Store
 } from "lucide-react";
 
 import {
@@ -154,6 +155,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Partner", url: "/partnerships/partners", icon: Users },
       { title: "Installers", url: "/partnerships/installers", icon: Wrench },
+      { title: "Resellers", url: "/partnerships/resellers", icon: Store },
     ]
   },
   {
