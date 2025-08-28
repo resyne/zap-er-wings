@@ -44,6 +44,7 @@ import OvensPage from "./pages/documentation/OvensPage";
 import CompliancePage from "./pages/documentation/CompliancePage";
 import ManualsPage from "./pages/documentation/ManualsPage";
 import PriceListsPage from "./pages/documentation/PriceListsPage";
+import { SettingsPage } from "./pages/settings/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +99,7 @@ const App = () => (
                 <Route path="docs/compliance" element={<CompliancePage />} />
                 <Route path="docs/manuals" element={<ManualsPage />} />
                 <Route path="docs/price-lists" element={<PriceListsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
