@@ -114,24 +114,34 @@ export default async function handler(req: Request) {
 async function makeFluidaRequest(endpoint: string, apiKey: string, method = 'GET', body?: any) {
   const url = `https://api.fluida.io/api/v1/${endpoint}`;
   console.log(`Making ${method} request to: ${url}`);
+  console.log(`Using API key: ${apiKey ? 'SET' : 'NOT SET'}`);
+  
+  const headers: Record<string, string> = {
+    'x-fluida-app-uuid': apiKey,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  console.log(`Request headers:`, headers);
   
   const response = await fetch(url, {
     method,
-    headers: {
-      'x-fluida-app-uuid': apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  console.log(`Response status: ${response.status} ${response.statusText}`);
+  
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Fluida API error: ${response.status} - ${errorText}`);
+    console.error(`Full response headers:`, Object.fromEntries(response.headers.entries()));
     throw new Error(`Fluida API error: ${response.status} - ${errorText}`);
   }
 
-  return await response.json();
+  const responseData = await response.json();
+  console.log(`Response data structure:`, Object.keys(responseData));
+  return responseData;
 }
 
 async function syncEmployees(supabase: any, apiKey: string, companyId: string) {
