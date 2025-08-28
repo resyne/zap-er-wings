@@ -138,8 +138,9 @@ async function syncEmployees(supabase: any, apiKey: string, companyId: string) {
   console.log('Syncing employees (contracts) from Fluida...');
   
   try {
-    // Get contracts for the company
-    const contracts = await makeFluidaRequest(`company/${companyId}/contracts`, apiKey);
+    // Get contracts for the company - endpoint corretto dalla documentazione
+    const contractsResponse = await makeFluidaRequest(`contract/company/${companyId}`, apiKey);
+    const contracts = contractsResponse.data || contractsResponse;
     console.log(`Found ${contracts.length} contracts`);
 
     for (const contract of contracts) {
@@ -200,12 +201,13 @@ async function syncTimesheets(supabase: any, apiKey: string, companyId: string) 
     const fromDate = startDate.toISOString().split('T')[0];
     const toDate = endDate.toISOString().split('T')[0];
     
-    // Get calendar entries for company
-    const calendarEntries = await makeFluidaRequest(
+    // Get calendar entries for company - endpoint corretto dalla documentazione  
+    const calendarResponse = await makeFluidaRequest(
       `calendar/company/${companyId}/from/${fromDate}/to/${toDate}`, 
       apiKey
     );
     
+    const calendarEntries = calendarResponse.data || calendarResponse;
     console.log(`Found ${calendarEntries.length} calendar entries`);
 
     for (const entry of calendarEntries) {
@@ -268,8 +270,9 @@ async function syncLeaveRequests(supabase: any, apiKey: string, companyId: strin
   console.log('Syncing leave requests (justifications) from Fluida...');
   
   try {
-    // Get justifications for the company (leave requests)
-    const justifications = await makeFluidaRequest(`justification/company/${companyId}`, apiKey);
+    // Get justifications for the company (leave requests) - endpoint corretto dalla documentazione
+    const justificationsResponse = await makeFluidaRequest(`justification/company/${companyId}`, apiKey);
+    const justifications = justificationsResponse.data || justificationsResponse;
     console.log(`Found ${justifications.length} justifications`);
 
     for (const justification of justifications) {
