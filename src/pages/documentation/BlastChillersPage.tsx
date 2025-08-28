@@ -39,11 +39,16 @@ export default function BlastChillersPage() {
 
   // Load documents from Supabase Storage on component mount
   useEffect(() => {
+    console.log('Component mounted, loading documents...');
+    console.log('Current user:', user);
     loadDocuments();
   }, []);
 
   const loadDocuments = async () => {
     try {
+      console.log('Loading documents from storage...');
+      console.log('User authenticated:', !!user);
+      
       const { data: files, error } = await supabase.storage
         .from('company-documents')
         .list('blast-chillers/', {
@@ -51,8 +56,11 @@ export default function BlastChillersPage() {
           offset: 0,
         });
 
+      console.log('Storage list response:', { files, error });
+
       if (error) {
         console.error('Error loading documents:', error);
+        toast.error(`Errore caricamento documenti: ${error.message}`);
         return;
       }
 
@@ -62,6 +70,13 @@ export default function BlastChillersPage() {
         const category = parts[0] || 'Varie';
         const language = parts[1] || 'it';
         const originalName = parts.slice(2).join('_') || file.name;
+
+        console.log('Processing file:', { 
+          originalName: file.name, 
+          category, 
+          language, 
+          displayName: originalName 
+        });
 
         return {
           id: file.id || file.name,
@@ -74,9 +89,11 @@ export default function BlastChillersPage() {
         };
       }) || [];
 
+      console.log('Processed documents:', documentsData);
       setDocuments(documentsData);
     } catch (error) {
-      console.error('Error loading documents:', error);
+      console.error('Unexpected error loading documents:', error);
+      toast.error('Errore durante il caricamento dei documenti');
     }
   };
 
