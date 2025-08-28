@@ -285,7 +285,7 @@ export default function PrimaNotaPage() {
       // Reload data
       await loadMovimenti();
       
-      setNuovoMovimento({ metodoPagamento: "Bonifico" });
+      setNuovoMovimento({ metodoPagamento: "Bonifico", causale: "" });
       setCausalePersonalizzata("");
       setSelectedDate(undefined);
       setAllegati([]);
@@ -423,6 +423,34 @@ export default function PrimaNotaPage() {
       default:
         return <Badge variant="outline">{metodo}</Badge>;
     }
+  };
+
+  // Calcola totali abbonamenti
+  const calcolaTotaliAbbonamenti = () => {
+    const abbonamentiAttivi = abbonamenti.filter(a => a.attivo);
+    
+    const totaleMensile = abbonamentiAttivi.reduce((total, abbonamento) => {
+      let importoMensile = 0;
+      switch (abbonamento.frequenza) {
+        case 'mensile':
+          importoMensile = abbonamento.importo;
+          break;
+        case 'trimestrale':
+          importoMensile = abbonamento.importo / 3;
+          break;
+        case 'semestrale':
+          importoMensile = abbonamento.importo / 6;
+          break;
+        case 'annuale':
+          importoMensile = abbonamento.importo / 12;
+          break;
+      }
+      return total + importoMensile;
+    }, 0);
+
+    const totaleAnnuale = totaleMensile * 12;
+
+    return { totaleMensile, totaleAnnuale };
   };
 
   if (loading) {
@@ -934,6 +962,27 @@ export default function PrimaNotaPage() {
                   ))}
                 </TableBody>
               </Table>
+              
+              {/* Totali Abbonamenti */}
+              {abbonamenti.length > 0 && (
+                <div className="mt-6 p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-3 flex items-center">
+                    <Euro className="mr-2 h-4 w-4" />
+                    Riepilogo Costi Abbonamenti
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between items-center p-3 bg-background rounded border">
+                      <span className="text-sm font-medium">Totale Mensile:</span>
+                      <span className="font-bold text-lg">€ {calcolaTotaliAbbonamenti().totaleMensile.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-background rounded border">
+                      <span className="text-sm font-medium">Totale Annuale:</span>
+                      <span className="font-bold text-lg">€ {calcolaTotaliAbbonamenti().totaleAnnuale.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {abbonamenti.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Repeat className="mx-auto h-12 w-12 mb-4" />
