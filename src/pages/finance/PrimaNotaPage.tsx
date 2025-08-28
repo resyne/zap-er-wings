@@ -43,6 +43,7 @@ interface AbbonamentoRicorrente {
   causale: string;
   metodoPagamento: string;
   attivo: boolean;
+  note?: string;
 }
 
 const causaliPredefinite = [
@@ -109,6 +110,8 @@ export default function PrimaNotaPage() {
   });
   const [movimentoInModifica, setMovimentoInModifica] = useState<MovimentoContabile | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [abbonamentoInModifica, setAbbonamentoInModifica] = useState<AbbonamentoRicorrente | null>(null);
+  const [isEditAbbonamentoDialogOpen, setIsEditAbbonamentoDialogOpen] = useState(false);
 
   // Load data from database
   const loadMovimenti = async () => {
@@ -168,7 +171,8 @@ export default function PrimaNotaPage() {
         prossimoPagamento: subscription.next_payment,
         causale: subscription.causale,
         metodoPagamento: subscription.payment_method,
-        attivo: subscription.active
+        attivo: subscription.active,
+        note: subscription.notes || ""
       })) || [];
 
       setAbbonamenti(abbonamentiFormatted);
@@ -344,7 +348,8 @@ export default function PrimaNotaPage() {
           next_payment: nuovoAbbonamento.prossimoPagamento || format(new Date(), 'yyyy-MM-dd'),
           causale: nuovoAbbonamento.causale || "Altro",
           payment_method: nuovoAbbonamento.metodoPagamento!,
-          active: nuovoAbbonamento.attivo!
+          active: nuovoAbbonamento.attivo!,
+          notes: nuovoAbbonamento.note || ""
         })
         .select()
         .single();
@@ -521,6 +526,53 @@ export default function PrimaNotaPage() {
       toast({
         title: "Errore",
         description: "Errore durante l'eliminazione del movimento. Riprova.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleModificaAbbonamento = (abbonamento: AbbonamentoRicorrente) => {
+    setAbbonamentoInModifica(abbonamento);
+    setIsEditAbbonamentoDialogOpen(true);
+  };
+
+  const handleUpdateAbbonamento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!abbonamentoInModifica || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('recurring_subscriptions')
+        .update({
+          name: abbonamentoInModifica.nome,
+          amount: Number(abbonamentoInModifica.importo),
+          frequency: abbonamentoInModifica.frequenza,
+          next_payment: abbonamentoInModifica.prossimoPagamento,
+          causale: abbonamentoInModifica.causale,
+          payment_method: abbonamentoInModifica.metodoPagamento,
+          active: abbonamentoInModifica.attivo,
+          notes: abbonamentoInModifica.note || ""
+        })
+        .eq('id', abbonamentoInModifica.id);
+
+      if (error) throw error;
+
+      // Reload data
+      await loadAbbonamenti();
+      
+      setAbbonamentoInModifica(null);
+      setIsEditAbbonamentoDialogOpen(false);
+      
+      toast({
+        title: "Abbonamento aggiornato",
+        description: "L'abbonamento è stato aggiornato con successo",
+      });
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante l'aggiornamento dell'abbonamento. Riprova.",
         variant: "destructive",
       });
     }
@@ -1220,6 +1272,16 @@ export default function PrimaNotaPage() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="noteAbb">Note</Label>
+                    <Textarea
+                      id="noteAbb"
+                      value={nuovoAbbonamento.note || ""}
+                      onChange={(e) => setNuovoAbbonamento({ ...nuovoAbbonamento, note: e.target.value })}
+                      placeholder="Note aggiuntive sull'abbonamento"
+                    />
+                  </div>
+
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setIsAbbonamentoDialogOpen(false)}>
                       Annulla
@@ -1227,6 +1289,116 @@ export default function PrimaNotaPage() {
                     <Button type="submit">Aggiungi Abbonamento</Button>
                   </div>
                 </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Dialog per Modifica Abbonamento */}
+            <Dialog open={isEditAbbonamentoDialogOpen} onOpenChange={setIsEditAbbonamentoDialogOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Modifica Abbonamento</DialogTitle>
+                  <DialogDescription>
+                    Modifica i dettagli dell'abbonamento ricorrente
+                  </DialogDescription>
+                </DialogHeader>
+                {abbonamentoInModifica && (
+                  <form onSubmit={handleUpdateAbbonamento} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nomeEdit">Nome Abbonamento *</Label>
+                        <Input
+                          id="nomeEdit"
+                          value={abbonamentoInModifica.nome || ""}
+                          onChange={(e) => setAbbonamentoInModifica({ ...abbonamentoInModifica, nome: e.target.value })}
+                          placeholder="es. Office 365, Assicurazione..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="importoAbbEdit">Importo (€) *</Label>
+                        <Input
+                          id="importoAbbEdit"
+                          type="number"
+                          step="0.01"
+                          value={abbonamentoInModifica.importo || ""}
+                          onChange={(e) => setAbbonamentoInModifica({ ...abbonamentoInModifica, importo: Number(e.target.value) })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="frequenzaEdit">Frequenza *</Label>
+                        <Select value={abbonamentoInModifica.frequenza} onValueChange={(value) => setAbbonamentoInModifica({ ...abbonamentoInModifica, frequenza: value as AbbonamentoRicorrente["frequenza"] })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona frequenza" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mensile">Mensile</SelectItem>
+                            <SelectItem value="trimestrale">Trimestrale</SelectItem>
+                            <SelectItem value="semestrale">Semestrale</SelectItem>
+                            <SelectItem value="annuale">Annuale</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="prossimoPagamentoEdit">Prossimo Pagamento</Label>
+                        <Input
+                          id="prossimoPagamentoEdit"
+                          type="date"
+                          value={abbonamentoInModifica.prossimoPagamento || ""}
+                          onChange={(e) => setAbbonamentoInModifica({ ...abbonamentoInModifica, prossimoPagamento: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="causaleAbbEdit">Causale</Label>
+                        <Select value={abbonamentoInModifica.causale} onValueChange={(value) => setAbbonamentoInModifica({ ...abbonamentoInModifica, causale: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona causale" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {causaliPredefinite.map((causale) => (
+                              <SelectItem key={causale} value={causale || "default-causale"}>{causale}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="metodoAbbEdit">Metodo di Pagamento</Label>
+                        <Select value={abbonamentoInModifica.metodoPagamento} onValueChange={(value) => setAbbonamentoInModifica({ ...abbonamentoInModifica, metodoPagamento: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {metodiPagamento.map((metodo) => (
+                              <SelectItem key={metodo} value={metodo || "default-metodo"}>{metodo}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="noteAbbEdit">Note</Label>
+                      <Textarea
+                        id="noteAbbEdit"
+                        value={abbonamentoInModifica.note || ""}
+                        onChange={(e) => setAbbonamentoInModifica({ ...abbonamentoInModifica, note: e.target.value })}
+                        placeholder="Note aggiuntive sull'abbonamento"
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setIsEditAbbonamentoDialogOpen(false)}>
+                        Annulla
+                      </Button>
+                      <Button type="submit">Aggiorna Abbonamento</Button>
+                    </div>
+                  </form>
+                )}
               </DialogContent>
             </Dialog>
           </div>
@@ -1253,6 +1425,8 @@ export default function PrimaNotaPage() {
                     <TableHead>Causale</TableHead>
                     <TableHead>Metodo</TableHead>
                     <TableHead>Stato</TableHead>
+                    <TableHead>Note</TableHead>
+                    <TableHead>Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1280,6 +1454,20 @@ export default function PrimaNotaPage() {
                         <Badge variant={abbonamento.attivo ? "default" : "secondary"}>
                           {abbonamento.attivo ? "Attivo" : "Inattivo"}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="truncate" title={abbonamento.note}>
+                          {abbonamento.note || "-"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleModificaAbbonamento(abbonamento)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
