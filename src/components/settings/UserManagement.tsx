@@ -20,6 +20,7 @@ interface User {
   first_name?: string;
   last_name?: string;
   role?: "admin" | "moderator" | "user";
+  user_type?: "erp" | "website";
   created_at: string;
 }
 
@@ -31,6 +32,7 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
+  const [selectedUserType, setSelectedUserType] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     email: "",
@@ -53,7 +55,7 @@ export function UserManagement() {
       // Fetch all profiles first
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, created_at");
+        .select("id, email, first_name, last_name, user_type, created_at");
 
       console.log('Profiles response:', { profiles, error: profilesError });
 
@@ -77,6 +79,7 @@ export function UserManagement() {
           email: profile.email,
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
+          user_type: (profile.user_type as "erp" | "website") || "website",
           role: (userRole?.role || "user") as "admin" | "moderator" | "user",
           created_at: profile.created_at
         };
@@ -243,8 +246,9 @@ export function UserManagement() {
       `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = selectedRole === "all" || user.role === selectedRole;
+    const matchesUserType = selectedUserType === "all" || user.user_type === selectedUserType;
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && matchesUserType;
   });
 
   const getRoleBadgeVariant = (role: string) => {
@@ -253,6 +257,10 @@ export function UserManagement() {
       case "moderator": return "default";
       default: return "secondary";
     }
+  };
+
+  const getUserTypeBadgeVariant = (userType: string) => {
+    return userType === "erp" ? "default" : "outline";
   };
 
   if (loading) {
@@ -291,6 +299,20 @@ export function UserManagement() {
             </SelectContent>
           </Select>
         </div>
+        
+        <div>
+          <Label htmlFor="usertype-filter">Filtra per tipo</Label>
+          <Select value={selectedUserType} onValueChange={setSelectedUserType}>
+            <SelectTrigger id="usertype-filter" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i tipi</SelectItem>
+              <SelectItem value="erp">ERP (@abbattitorizapper.it)</SelectItem>
+              <SelectItem value="website">Siti Web (zkor/pro)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Users Table */}
@@ -300,7 +322,7 @@ export function UserManagement() {
             <div>
               <CardTitle>Utenti ({filteredUsers.length})</CardTitle>
               <CardDescription>
-                Gestisci gli utenti e i loro ruoli nel sistema
+                Gestisci gli utenti ERP (@abbattitorizapper.it) e utenti dei siti web (zkor/pro)
               </CardDescription>
             </div>
             {isAdmin && (
@@ -401,6 +423,7 @@ export function UserManagement() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Ruolo</TableHead>
                 <TableHead>Data Registrazione</TableHead>
                 {isAdmin && <TableHead>Azioni</TableHead>}
@@ -416,6 +439,11 @@ export function UserManagement() {
                     }
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={getUserTypeBadgeVariant(user.user_type || "website")}>
+                      {user.user_type === "erp" ? "ERP" : "Web"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={getRoleBadgeVariant(user.role || "user")}>
                       {user.role || "user"}
