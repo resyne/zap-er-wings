@@ -59,10 +59,24 @@ export default async function handler(req: Request) {
     const apiKey = Deno.env.get('FLUIDA_API_KEY');
     const companyId = Deno.env.get('FLUIDA_COMPANY_ID');
     
+    console.log('=== FLUIDA SYNC DEBUG ===');
+    console.log('API Key available:', apiKey ? 'YES' : 'NO');
+    console.log('Company ID available:', companyId ? 'YES' : 'NO');
+    console.log('API Key length:', apiKey ? apiKey.length : 0);
+    console.log('Company ID:', companyId);
+    
     if (!apiKey || !companyId) {
       console.error('Missing Fluida API credentials');
+      console.error('API Key missing:', !apiKey);
+      console.error('Company ID missing:', !companyId);
       return new Response(
-        JSON.stringify({ error: 'Missing Fluida API credentials' }),
+        JSON.stringify({ 
+          error: 'Missing Fluida API credentials',
+          details: {
+            apiKey: apiKey ? 'present' : 'missing',
+            companyId: companyId ? 'present' : 'missing'
+          }
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -113,8 +127,9 @@ export default async function handler(req: Request) {
 
 async function makeFluidaRequest(endpoint: string, apiKey: string, method = 'GET', body?: any) {
   const url = `https://api.fluida.io/api/v1/${endpoint}`;
+  console.log(`=== FLUIDA API REQUEST ===`);
   console.log(`Making ${method} request to: ${url}`);
-  console.log(`Using API key: ${apiKey ? 'SET' : 'NOT SET'}`);
+  console.log(`API key first 8 chars: ${apiKey ? apiKey.substring(0, 8) + '...' : 'NOT SET'}`);
   
   const headers: Record<string, string> = {
     'x-fluida-app-uuid': apiKey,
@@ -122,26 +137,44 @@ async function makeFluidaRequest(endpoint: string, apiKey: string, method = 'GET
     'Accept': 'application/json',
   };
 
-  console.log(`Request headers:`, headers);
-  
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
+  console.log(`Request headers (without API key):`, {
+    'Content-Type': headers['Content-Type'],
+    'Accept': headers['Accept'],
+    'x-fluida-app-uuid': headers['x-fluida-app-uuid'] ? '[PRESENT]' : '[MISSING]'
   });
-
-  console.log(`Response status: ${response.status} ${response.statusText}`);
   
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Fluida API error: ${response.status} - ${errorText}`);
-    console.error(`Full response headers:`, Object.fromEntries(response.headers.entries()));
-    throw new Error(`Fluida API error: ${response.status} - ${errorText}`);
-  }
+  try {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
 
-  const responseData = await response.json();
-  console.log(`Response data structure:`, Object.keys(responseData));
-  return responseData;
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+    console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`=== FLUIDA API ERROR ===`);
+      console.error(`Status: ${response.status} ${response.statusText}`);
+      console.error(`Error body: ${errorText}`);
+      console.error(`Request URL: ${url}`);
+      console.error(`Request headers: ${JSON.stringify(headers, null, 2)}`);
+      throw new Error(`Fluida API error: ${response.status} - ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log(`=== FLUIDA API SUCCESS ===`);
+    console.log(`Response data keys:`, Object.keys(responseData));
+    console.log(`Response data:`, JSON.stringify(responseData, null, 2));
+    return responseData;
+  } catch (error) {
+    console.error(`=== FLUIDA API FETCH ERROR ===`);
+    console.error(`Error:`, error);
+    console.error(`URL:`, url);
+    console.error(`Headers:`, headers);
+    throw error;
+  }
 }
 
 async function syncEmployees(supabase: any, apiKey: string, companyId: string) {
