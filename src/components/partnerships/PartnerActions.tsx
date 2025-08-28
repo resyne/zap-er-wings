@@ -18,6 +18,11 @@ interface Partner {
   address: string;
   latitude?: number;
   longitude?: number;
+  partner_type?: string;
+  country?: string;
+  acquisition_status?: string;
+  acquisition_notes?: string;
+  priority?: string;
   created_at: string;
 }
 

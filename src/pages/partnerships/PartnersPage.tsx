@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Users, Building2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, MapPin, Users, Building2, Store, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { PartnerActions } from "@/components/partnerships/PartnerActions";
+import { ImporterKanban } from "@/components/partnerships/ImporterKanban";
 
 interface Partner {
   id: string;
@@ -23,6 +25,11 @@ interface Partner {
   address: string;
   latitude?: number;
   longitude?: number;
+  partner_type?: string;
+  country?: string;
+  acquisition_status?: string;
+  acquisition_notes?: string;
+  priority?: string;
   created_at: string;
 }
 
@@ -79,6 +86,8 @@ export default function PartnersPage() {
   };
 
   const partnersWithLocation = partners.filter(p => p.latitude && p.longitude);
+  const importers = partners.filter(p => p.partner_type === 'importatore');
+  const resellers = partners.filter(p => p.partner_type === 'rivenditore' || !p.partner_type);
 
   return (
     <div className="space-y-6">
@@ -87,7 +96,7 @@ export default function PartnersPage() {
         <div>
           <h1 className="text-3xl font-bold">Partners</h1>
           <p className="text-muted-foreground">
-            Manage your global partner network
+            Manage your global partner network and acquisition pipeline
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -107,7 +116,7 @@ export default function PartnersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Partners</CardTitle>
@@ -115,6 +124,24 @@ export default function PartnersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{partners.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Importers</CardTitle>
+            <Globe className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{importers.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Resellers</CardTitle>
+            <Store className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{resellers.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -139,81 +166,169 @@ export default function PartnersPage() {
         </Card>
       </div>
 
-      {/* Map */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Partners Map</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-96 w-full">
-            <PartnerMap partners={partnersWithLocation} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs for different views */}
+      <Tabs defaultValue="acquisition" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="acquisition">Importer Pipeline</TabsTrigger>
+          <TabsTrigger value="map">Partners Map</TabsTrigger>
+          <TabsTrigger value="importers">Importers</TabsTrigger>
+          <TabsTrigger value="resellers">Resellers</TabsTrigger>
+        </TabsList>
 
-      {/* Partners List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Partners List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-4">Loading partners...</div>
-          ) : partners.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No partners found. Add your first partner to get started.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-16">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {partners.map((partner) => (
-                  <TableRow key={partner.id}>
-                    <TableCell>
-                      {partner.first_name} {partner.last_name}
-                    </TableCell>
-                    <TableCell>{partner.company_name}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {partner.email && (
-                          <div className="text-sm">{partner.email}</div>
-                        )}
-                        {partner.phone && (
-                          <div className="text-sm text-muted-foreground">{partner.phone}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {partner.address}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={partner.latitude && partner.longitude ? "default" : "secondary"}>
-                        {partner.latitude && partner.longitude ? "Located" : "No Location"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <PartnerActions
-                        partner={partner}
-                        onPartnerUpdated={handlePartnerUpdated}
-                        onPartnerDeleted={handlePartnerDeleted}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="acquisition">
+          <ImporterKanban />
+        </TabsContent>
+
+        <TabsContent value="map">
+          <Card>
+            <CardHeader>
+              <CardTitle>Partners Map</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-96 w-full">
+                <PartnerMap partners={partnersWithLocation} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="importers">
+          <Card>
+            <CardHeader>
+              <CardTitle>Importers ({importers.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4">Loading partners...</div>
+              ) : importers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No importers found. Add your first importer to get started.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Country</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead className="w-16">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importers.map((partner) => (
+                      <TableRow key={partner.id}>
+                        <TableCell>
+                          {partner.first_name} {partner.last_name}
+                        </TableCell>
+                        <TableCell>{partner.company_name}</TableCell>
+                        <TableCell>{partner.country || "N/A"}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {partner.email && (
+                              <div className="text-sm">{partner.email}</div>
+                            )}
+                            {partner.phone && (
+                              <div className="text-sm text-muted-foreground">{partner.phone}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={partner.acquisition_status === 'attivo' ? 'default' : 'secondary'}>
+                            {partner.acquisition_status || 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={partner.priority === 'high' ? 'destructive' : 
+                                   partner.priority === 'medium' ? 'default' : 'secondary'}
+                          >
+                            {partner.priority || 'medium'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <PartnerActions
+                            partner={partner}
+                            onPartnerUpdated={handlePartnerUpdated}
+                            onPartnerDeleted={handlePartnerDeleted}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="resellers">
+          <Card>
+            <CardHeader>
+              <CardTitle>Resellers ({resellers.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4">Loading partners...</div>
+              ) : resellers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No resellers found. Add your first reseller to get started.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-16">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {resellers.map((partner) => (
+                      <TableRow key={partner.id}>
+                        <TableCell>
+                          {partner.first_name} {partner.last_name}
+                        </TableCell>
+                        <TableCell>{partner.company_name}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {partner.email && (
+                              <div className="text-sm">{partner.email}</div>
+                            )}
+                            {partner.phone && (
+                              <div className="text-sm text-muted-foreground">{partner.phone}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {partner.address}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={partner.latitude && partner.longitude ? "default" : "secondary"}>
+                            {partner.latitude && partner.longitude ? "Located" : "No Location"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <PartnerActions
+                            partner={partner}
+                            onPartnerUpdated={handlePartnerUpdated}
+                            onPartnerDeleted={handlePartnerDeleted}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

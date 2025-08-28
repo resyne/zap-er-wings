@@ -17,14 +17,20 @@ interface Partner {
   address: string;
   latitude?: number;
   longitude?: number;
+  partner_type?: string;
+  country?: string;
+  acquisition_status?: string;
+  acquisition_notes?: string;
+  priority?: string;
   created_at: string;
 }
 
 interface AddPartnerFormProps {
   onPartnerAdded: (partner: Partner) => void;
+  defaultPartnerType?: string;
 }
 
-export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }) => {
+export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, defaultPartnerType = 'rivenditore' }) => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -32,11 +38,15 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
     email: '',
     company_name: '',
     address: '',
+    partner_type: defaultPartnerType,
+    country: '',
+    acquisition_notes: '',
+    priority: 'medium',
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -142,6 +152,10 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
         email: '',
         company_name: '',
         address: '',
+        partner_type: defaultPartnerType,
+        country: '',
+        acquisition_notes: '',
+        priority: 'medium',
       });
 
       if (coordinates) {
@@ -204,6 +218,20 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="partner_type">Partner Type</Label>
+        <select
+          id="partner_type"
+          name="partner_type"
+          value={formData.partner_type}
+          onChange={handleInputChange}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <option value="rivenditore">Rivenditore</option>
+          <option value="importatore">Importatore</option>
+        </select>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -226,6 +254,35 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="country">Country</Label>
+          <Input
+            id="country"
+            name="country"
+            value={formData.country}
+            onChange={handleInputChange}
+            placeholder="Italy"
+          />
+        </div>
+        {formData.partner_type === 'importatore' && (
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <select
+              id="priority"
+              name="priority"
+              value={formData.priority}
+              onChange={handleInputChange}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="address">Address *</Label>
         <Textarea
@@ -238,6 +295,20 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded }
           required
         />
       </div>
+
+      {formData.partner_type === 'importatore' && (
+        <div className="space-y-2">
+          <Label htmlFor="acquisition_notes">Acquisition Notes</Label>
+          <Textarea
+            id="acquisition_notes"
+            name="acquisition_notes"
+            value={formData.acquisition_notes}
+            onChange={handleInputChange}
+            placeholder="Notes about the acquisition process..."
+            rows={3}
+          />
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

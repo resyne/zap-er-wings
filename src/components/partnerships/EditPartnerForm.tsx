@@ -17,6 +17,11 @@ interface Partner {
   address: string;
   latitude?: number;
   longitude?: number;
+  partner_type?: string;
+  country?: string;
+  acquisition_status?: string;
+  acquisition_notes?: string;
+  priority?: string;
   created_at: string;
 }
 
@@ -38,11 +43,16 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
     email: partner.email || '',
     company_name: partner.company_name,
     address: partner.address,
+    partner_type: partner.partner_type || 'rivenditore',
+    country: partner.country || '',
+    acquisition_status: partner.acquisition_status || 'prospect',
+    acquisition_notes: partner.acquisition_notes || '',
+    priority: partner.priority || 'medium',
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -198,6 +208,20 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="partner_type">Partner Type</Label>
+        <select
+          id="partner_type"
+          name="partner_type"
+          value={formData.partner_type}
+          onChange={handleInputChange}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <option value="rivenditore">Rivenditore</option>
+          <option value="importatore">Importatore</option>
+        </select>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -220,6 +244,55 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="country">Country</Label>
+          <Input
+            id="country"
+            name="country"
+            value={formData.country}
+            onChange={handleInputChange}
+            placeholder="Italy"
+          />
+        </div>
+        {formData.partner_type === 'importatore' && (
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <select
+              id="priority"
+              name="priority"
+              value={formData.priority}
+              onChange={handleInputChange}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {formData.partner_type === 'importatore' && (
+        <div className="space-y-2">
+          <Label htmlFor="acquisition_status">Acquisition Status</Label>
+          <select
+            id="acquisition_status"
+            name="acquisition_status"
+            value={formData.acquisition_status}
+            onChange={handleInputChange}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <option value="prospect">Prospect</option>
+            <option value="contatto">Primo Contatto</option>
+            <option value="negoziazione">Negoziazione</option>
+            <option value="contratto">Contratto</option>
+            <option value="attivo">Attivo</option>
+            <option value="inattivo">Inattivo</option>
+          </select>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="address">Address *</Label>
         <Textarea
@@ -232,6 +305,20 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
           required
         />
       </div>
+
+      {formData.partner_type === 'importatore' && (
+        <div className="space-y-2">
+          <Label htmlFor="acquisition_notes">Acquisition Notes</Label>
+          <Textarea
+            id="acquisition_notes"
+            name="acquisition_notes"
+            value={formData.acquisition_notes}
+            onChange={handleInputChange}
+            placeholder="Notes about the acquisition process..."
+            rows={3}
+          />
+        </div>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

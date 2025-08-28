@@ -1077,8 +1077,11 @@ export type Database = {
       }
       partners: {
         Row: {
+          acquisition_notes: string | null
+          acquisition_status: string | null
           address: string
           company_name: string
+          country: string | null
           created_at: string
           email: string | null
           first_name: string
@@ -1086,12 +1089,17 @@ export type Database = {
           last_name: string
           latitude: number | null
           longitude: number | null
+          partner_type: string | null
           phone: string | null
+          priority: string | null
           updated_at: string
         }
         Insert: {
+          acquisition_notes?: string | null
+          acquisition_status?: string | null
           address: string
           company_name: string
+          country?: string | null
           created_at?: string
           email?: string | null
           first_name: string
@@ -1099,12 +1107,17 @@ export type Database = {
           last_name: string
           latitude?: number | null
           longitude?: number | null
+          partner_type?: string | null
           phone?: string | null
+          priority?: string | null
           updated_at?: string
         }
         Update: {
+          acquisition_notes?: string | null
+          acquisition_status?: string | null
           address?: string
           company_name?: string
+          country?: string | null
           created_at?: string
           email?: string | null
           first_name?: string
@@ -1112,7 +1125,9 @@ export type Database = {
           last_name?: string
           latitude?: number | null
           longitude?: number | null
+          partner_type?: string | null
           phone?: string | null
+          priority?: string | null
           updated_at?: string
         }
         Relationships: []
