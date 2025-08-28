@@ -13,6 +13,7 @@ interface Partner {
   address: string;
   latitude?: number;
   longitude?: number;
+  acquisition_status?: string;
 }
 
 interface PartnerMapProps {
@@ -55,13 +56,19 @@ export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
 
     partners.forEach(partner => {
       if (partner.latitude && partner.longitude) {
-        // Create a custom marker element
+        // Create a custom marker element with color based on status
         const markerElement = document.createElement('div');
         markerElement.className = 'custom-marker';
+        
+        // Use green for active importers, default primary color for others
+        const markerColor = partner.acquisition_status === 'active' 
+          ? 'hsl(142, 76%, 36%)' // Green color for active
+          : 'hsl(var(--primary))';
+        
         markerElement.style.cssText = `
           width: 30px;
           height: 30px;
-          background: hsl(var(--primary));
+          background: ${markerColor};
           border: 2px solid white;
           border-radius: 50%;
           cursor: pointer;
