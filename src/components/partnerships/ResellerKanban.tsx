@@ -322,14 +322,14 @@ export const ResellerKanban = () => {
                     <CardContent className="flex items-center justify-center p-4">
                       <Button variant="ghost" size="sm" className="text-muted-foreground">
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Reseller
+                        Aggiungi Rivenditore
                       </Button>
                     </CardContent>
                   </Card>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Add New Reseller</DialogTitle>
+                    <DialogTitle>Aggiungi Nuovo Rivenditore</DialogTitle>
                   </DialogHeader>
                   <AddPartnerForm 
                     onPartnerAdded={handleResellerAdded}

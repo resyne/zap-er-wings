@@ -217,12 +217,12 @@ export default function ResellersPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Reseller
+                Aggiungi Rivenditore
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add New Reseller</DialogTitle>
+                <DialogTitle>Aggiungi Nuovo Rivenditore</DialogTitle>
               </DialogHeader>
               <AddPartnerForm onPartnerAdded={handleResellerAdded} defaultPartnerType="rivenditore" />
             </DialogContent>

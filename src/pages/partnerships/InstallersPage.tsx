@@ -217,12 +217,12 @@ export default function InstallersPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Installer
+                Aggiungi Installatore
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add New Installer</DialogTitle>
+                <DialogTitle>Aggiungi Nuovo Installatore</DialogTitle>
               </DialogHeader>
               <AddPartnerForm onPartnerAdded={handleInstallerAdded} defaultPartnerType="installatore" />
             </DialogContent>

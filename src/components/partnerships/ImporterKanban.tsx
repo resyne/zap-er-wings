@@ -322,14 +322,14 @@ export const ImporterKanban = () => {
                     <CardContent className="flex items-center justify-center p-4">
                       <Button variant="ghost" size="sm" className="text-muted-foreground">
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Importer
+                        Aggiungi Importatore
                       </Button>
                     </CardContent>
                   </Card>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Add New Importer</DialogTitle>
+                    <DialogTitle>Aggiungi Nuovo Importatore</DialogTitle>
                   </DialogHeader>
                   <AddPartnerForm 
                     onPartnerAdded={handleImporterAdded}

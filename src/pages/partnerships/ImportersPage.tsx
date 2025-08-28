@@ -217,12 +217,12 @@ export default function ImportersPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Importer
+                Aggiungi Importatore
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add New Importer</DialogTitle>
+                <DialogTitle>Aggiungi Nuovo Importatore</DialogTitle>
               </DialogHeader>
               <AddPartnerForm onPartnerAdded={handleImporterAdded} defaultPartnerType="importatore" />
             </DialogContent>

@@ -322,14 +322,14 @@ export const InstallerKanban = () => {
                     <CardContent className="flex items-center justify-center p-4">
                       <Button variant="ghost" size="sm" className="text-muted-foreground">
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Installer
+                        Aggiungi Installatore
                       </Button>
                     </CardContent>
                   </Card>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Add New Installer</DialogTitle>
+                    <DialogTitle>Aggiungi Nuovo Installatore</DialogTitle>
                   </DialogHeader>
                   <AddPartnerForm 
                     onPartnerAdded={handleInstallerAdded}
