@@ -125,16 +125,6 @@ export default function BlastChillersPage() {
     await loadDocuments();
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
-    },
-    disabled: loading
-  });
-
   const deleteDocument = async (document: TechnicalDocument) => {
     if (!document.storage_path) {
       toast.error("Percorso file non trovato");
@@ -203,6 +193,16 @@ export default function BlastChillersPage() {
     (!selectedCategory || doc.category === selectedCategory) &&
     doc.language === selectedLanguage
   );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    disabled: loading
+  });
 
   return (
     <div className="container mx-auto p-6">
