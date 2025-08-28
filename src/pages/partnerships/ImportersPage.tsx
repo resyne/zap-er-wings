@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { ImporterKanban } from "@/components/partnerships/ImporterKanban";
-
 interface Importer {
   id: string;
   first_name: string;
@@ -30,7 +29,6 @@ interface Importer {
   priority?: string;
   created_at: string;
 }
-
 export default function ImportersPage() {
   const [importers, setImporters] = useState<Importer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,20 +37,20 @@ export default function ImportersPage() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("all");
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     fetchImporters();
   }, []);
-
   const fetchImporters = async () => {
     try {
-      const { data, error } = await supabase
-        .from('partners')
-        .select('*')
-        .eq('partner_type', 'importatore')
-        .order('created_at', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('partners').select('*').eq('partner_type', 'importatore').order('created_at', {
+        ascending: false
+      });
       if (error) throw error;
       setImporters(data || []);
     } catch (error) {
@@ -60,39 +58,37 @@ export default function ImportersPage() {
       toast({
         title: "Error",
         description: "Failed to load importers",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleImporterAdded = (newImporter: Importer) => {
     setImporters(prev => [newImporter, ...prev]);
     setIsAddDialogOpen(false);
     toast({
       title: "Success",
-      description: "Importer added successfully",
+      description: "Importer added successfully"
     });
   };
-
   const handleImporterUpdated = (updatedImporter: Importer) => {
     setImporters(prev => prev.map(p => p.id === updatedImporter.id ? updatedImporter : p));
     toast({
       title: "Success",
-      description: "Importer updated successfully",
+      description: "Importer updated successfully"
     });
   };
-
   const handleImporterDeleted = (importerId: string) => {
     setImporters(prev => prev.filter(p => p.id !== importerId));
   };
-
   const handleSendEmail = async () => {
     try {
       setIsEmailDialogOpen(false);
-      
-      const { data, error } = await supabase.functions.invoke('send-partner-emails', {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('send-partner-emails', {
         body: {
           partner_type: 'importatore',
           region: selectedRegion === "all" ? undefined : selectedRegion,
@@ -101,14 +97,12 @@ export default function ImportersPage() {
           is_cronjob: false
         }
       });
-
       if (error) throw error;
-
       toast({
         title: "Successo",
-        description: `Email inviata a ${data.emails_sent} importatori`,
+        description: `Email inviata a ${data.emails_sent} importatori`
       });
-      
+
       // Reset form
       setEmailSubject('');
       setEmailMessage('');
@@ -118,18 +112,15 @@ export default function ImportersPage() {
       toast({
         title: "Errore",
         description: "Errore nell'invio delle email",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const importersWithLocation = importers.filter(p => p.latitude && p.longitude);
   const activeImporters = importers.filter(i => i.acquisition_status === 'attivo' || !i.acquisition_status);
   const regions = [...new Set(importers.map(i => i.region).filter(Boolean))];
-  
   const getImportersByRegion = () => {
     const regionGroups: Record<string, Importer[]> = {};
-    
     importers.forEach(importer => {
       const region = importer.region || 'No Region';
       if (!regionGroups[region]) {
@@ -137,12 +128,9 @@ export default function ImportersPage() {
       }
       regionGroups[region].push(importer);
     });
-    
     return regionGroups;
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -166,35 +154,18 @@ export default function ImportersPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Region</label>
-                  <select 
-                    value={selectedRegion} 
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
-                  >
+                  <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)} className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background">
                     <option value="all">All Regions</option>
-                    {regions.map(region => (
-                      <option key={region} value={region}>{region}</option>
-                    ))}
+                    {regions.map(region => <option key={region} value={region}>{region}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium">Subject</label>
-                  <input
-                    type="text"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
-                    placeholder="Email subject..."
-                  />
+                  <input type="text" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background" placeholder="Email subject..." />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Message</label>
-                  <Textarea
-                    value={emailMessage}
-                    onChange={(e) => setEmailMessage(e.target.value)}
-                    className="w-full mt-1 min-h-32"
-                    placeholder="Write your message here..."
-                  />
+                  <Textarea value={emailMessage} onChange={e => setEmailMessage(e.target.value)} className="w-full mt-1 min-h-32" placeholder="Write your message here..." />
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
@@ -229,7 +200,7 @@ export default function ImportersPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Importers</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Selected Importers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -261,15 +232,9 @@ export default function ImportersPage() {
 
         <TabsContent value="regions">
           <div className="space-y-6">
-            {loading ? (
-              <div className="text-center py-4">Loading importers...</div>
-            ) : importers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+            {loading ? <div className="text-center py-4">Loading importers...</div> : importers.length === 0 ? <div className="text-center py-8 text-muted-foreground">
                 No importers found. Add your first importer to get started.
-              </div>
-            ) : (
-              Object.entries(getImportersByRegion()).map(([region, regionImporters]) => (
-                <Card key={region}>
+              </div> : Object.entries(getImportersByRegion()).map(([region, regionImporters]) => <Card key={region}>
                   <CardHeader>
                     <CardTitle>{region} ({regionImporters.length})</CardTitle>
                   </CardHeader>
@@ -285,8 +250,7 @@ export default function ImportersPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {regionImporters.map((importer) => (
-                          <TableRow key={importer.id}>
+                        {regionImporters.map(importer => <TableRow key={importer.id}>
                             <TableCell>
                               {importer.first_name} {importer.last_name}
                             </TableCell>
@@ -302,14 +266,11 @@ export default function ImportersPage() {
                             <TableCell className="max-w-xs truncate">
                               {importer.address}
                             </TableCell>
-                          </TableRow>
-                        ))}
+                          </TableRow>)}
                       </TableBody>
                     </Table>
                   </CardContent>
-                </Card>
-              ))
-            )}
+                </Card>)}
           </div>
         </TabsContent>
 
@@ -326,6 +287,5 @@ export default function ImportersPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 }
