@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AddPartnerForm } from "./AddPartnerForm";
 import { EditPartnerForm } from "./EditPartnerForm";
+import { MaterialsManager } from "./MaterialsManager";
 
 interface Reseller {
   id: string;
@@ -242,6 +243,12 @@ export const ResellerKanban = () => {
                         {reseller.acquisition_notes}
                       </p>
                     )}
+
+                    {/* Materials Manager */}
+                    <MaterialsManager 
+                      partnerId={reseller.id} 
+                      partnerName={`${reseller.first_name} ${reseller.last_name}`}
+                    />
 
                     {/* Action buttons - Edit and Delete */}
                     <div className="flex justify-between items-center pt-2 border-t">

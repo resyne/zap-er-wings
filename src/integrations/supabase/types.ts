@@ -1075,6 +1075,50 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_materials: {
+        Row: {
+          created_at: string
+          id: string
+          material_name: string
+          material_type: string | null
+          notes: string | null
+          partner_id: string
+          quantity: number | null
+          updated_at: string
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_name: string
+          material_type?: string | null
+          notes?: string | null
+          partner_id: string
+          quantity?: number | null
+          updated_at?: string
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_name?: string
+          material_type?: string | null
+          notes?: string | null
+          partner_id?: string
+          quantity?: number | null
+          updated_at?: string
+          uploaded_file_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_materials_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partners: {
         Row: {
           acquisition_notes: string | null

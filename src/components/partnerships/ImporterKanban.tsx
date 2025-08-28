@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AddPartnerForm } from "./AddPartnerForm";
 import { EditPartnerForm } from "./EditPartnerForm";
+import { MaterialsManager } from "./MaterialsManager";
 
 interface Importer {
   id: string;
@@ -242,6 +243,12 @@ export const ImporterKanban = () => {
                         {importer.acquisition_notes}
                       </p>
                     )}
+
+                    {/* Materials Manager */}
+                    <MaterialsManager 
+                      partnerId={importer.id} 
+                      partnerName={`${importer.first_name} ${importer.last_name}`}
+                    />
 
                     {/* Action buttons - Edit and Delete */}
                     <div className="flex justify-between items-center pt-2 border-t">
