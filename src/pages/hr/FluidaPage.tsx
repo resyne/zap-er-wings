@@ -113,16 +113,19 @@ export default function FluidaPage() {
     setSyncing(true);
     try {
       console.log('Invoking fluida-sync function...');
-      const { data, error } = await supabase.functions.invoke('fluida-sync', {
+      const response = await supabase.functions.invoke('fluida-sync', {
         body: { action }
       });
 
-      console.log('Function response:', { data, error });
-      if (error) throw error;
+      console.log('Full function response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response error:', response.error);
+      
+      if (response.error) throw response.error;
 
       toast({
         title: "Sincronizzazione completata",
-        description: data.message,
+        description: response.data?.message || "Sincronizzazione completata",
       });
 
       // Reload data after sync
