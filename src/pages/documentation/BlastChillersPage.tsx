@@ -95,8 +95,10 @@ export default function BlastChillersPage() {
 
     for (const file of acceptedFiles) {
       try {
+        // Sanitize filename by removing spaces and special characters
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
         // Create filename with metadata: category_language_originalname
-        const fileName = `${selectedCategory}_${selectedLanguage}_${file.name}`;
+        const fileName = `${selectedCategory}_${selectedLanguage}_${sanitizedName}`;
         const filePath = `blast-chillers/${fileName}`;
 
         // Upload file to Supabase Storage
