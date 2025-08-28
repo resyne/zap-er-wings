@@ -32,6 +32,13 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    email: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+    role: "user" as "admin" | "moderator" | "user"
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -146,6 +153,77 @@ export function UserManagement() {
     }
   };
 
+  const createUser = async () => {
+    try {
+      setLoading(true);
+      
+      // Create user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUserForm.email,
+        password: newUserForm.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            first_name: newUserForm.firstName,
+            last_name: newUserForm.lastName,
+          }
+        }
+      });
+
+      if (authError) {
+        if (authError.message.includes("User already registered")) {
+          toast({
+            title: "Errore",
+            description: "Un utente con questa email esiste già",
+            variant: "destructive",
+          });
+        } else {
+          throw authError;
+        }
+        return;
+      }
+
+      if (authData.user) {
+        // Add user role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ 
+            user_id: authData.user.id, 
+            role: newUserForm.role as any 
+          });
+
+        if (roleError) throw roleError;
+
+        toast({
+          title: "Successo",
+          description: "Nuovo utente creato con successo",
+        });
+
+        // Reset form and close dialog
+        setNewUserForm({
+          email: "",
+          password: "",
+          firstName: "",
+          lastName: "",
+          role: "user"
+        });
+        setIsDialogOpen(false);
+        
+        // Refresh users list
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error("Error creating user:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il nuovo utente",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = !searchTerm || 
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -212,6 +290,96 @@ export function UserManagement() {
                 Gestisci gli utenti e i loro ruoli nel sistema
               </CardDescription>
             </div>
+            {isAdmin && (
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi Utente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Crea Nuovo Utente</DialogTitle>
+                    <DialogDescription>
+                      Aggiungi un nuovo utente al sistema con email e password.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-email">Email</Label>
+                      <Input
+                        id="new-email"
+                        type="email"
+                        value={newUserForm.email}
+                        onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="utente@esempio.it"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-password">Password</Label>
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={newUserForm.password}
+                        onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
+                        placeholder="••••••••"
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="grid gap-2">
+                        <Label htmlFor="new-firstName">Nome</Label>
+                        <Input
+                          id="new-firstName"
+                          value={newUserForm.firstName}
+                          onChange={(e) => setNewUserForm(prev => ({ ...prev, firstName: e.target.value }))}
+                          placeholder="Mario"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="new-lastName">Cognome</Label>
+                        <Input
+                          id="new-lastName"
+                          value={newUserForm.lastName}
+                          onChange={(e) => setNewUserForm(prev => ({ ...prev, lastName: e.target.value }))}
+                          placeholder="Rossi"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-role">Ruolo</Label>
+                      <Select 
+                        value={newUserForm.role} 
+                        onValueChange={(value) => setNewUserForm(prev => ({ ...prev, role: value as any }))}
+                      >
+                        <SelectTrigger id="new-role">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="moderator">Moderator</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Annulla
+                    </Button>
+                    <Button 
+                      onClick={createUser}
+                      disabled={!newUserForm.email || !newUserForm.password || loading}
+                    >
+                      {loading ? "Creazione..." : "Crea Utente"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>
