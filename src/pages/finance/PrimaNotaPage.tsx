@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Search, Filter, BookOpen, Calendar as CalendarIcon, Euro, FileText, CreditCard, CheckCircle, XCircle, User, Repeat, Clock } from "lucide-react";
+import { Plus, Search, Filter, BookOpen, Calendar as CalendarIcon, Euro, FileText, CreditCard, CheckCircle, XCircle, User, Repeat, Clock, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +55,7 @@ const causaliPredefinite = [
   "Tasse e imposte",
   "Utenze",
   "Consulenze",
+  "Servizio",
   "Altro"
 ].filter(item => item.trim() !== "");
 
@@ -105,6 +106,8 @@ export default function PrimaNotaPage() {
     metodoPagamento: "Bonifico",
     attivo: true
   });
+  const [movimentoInModifica, setMovimentoInModifica] = useState<MovimentoContabile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Load data from database
   const loadMovimenti = async () => {
@@ -397,6 +400,69 @@ export default function PrimaNotaPage() {
     }
   };
 
+  const handleModificaMovimento = (movimento: MovimentoContabile) => {
+    setMovimentoInModifica(movimento);
+    setSelectedDate(new Date(movimento.data));
+    setCausalePersonalizzata(movimento.causale && !causaliPredefinite.includes(movimento.causale) ? movimento.causale : "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateMovimento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!movimentoInModifica || !user) return;
+
+    const causaleFinale = movimentoInModifica.causale === "Altro" ? causalePersonalizzata : movimentoInModifica.causale;
+
+    if (movimentoInModifica.causale === "Altro" && !causalePersonalizzata.trim()) {
+      toast({
+        title: "Errore",
+        description: "Inserisci la descrizione della causale personalizzata",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const dataMovimento = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : movimentoInModifica.data;
+      
+      const { error } = await supabase
+        .from('financial_movements')
+        .update({
+          date: dataMovimento,
+          causale: causaleFinale!,
+          movement_type: movimentoInModifica.tipoMovimento,
+          amount: Number(movimentoInModifica.importo),
+          payment_method: movimentoInModifica.metodoPagamento,
+          description: movimentoInModifica.descrizione || "",
+          notes: movimentoInModifica.note || ""
+        })
+        .eq('id', movimentoInModifica.id);
+
+      if (error) throw error;
+
+      // Reload data
+      await loadMovimenti();
+      
+      setMovimentoInModifica(null);
+      setCausalePersonalizzata("");
+      setSelectedDate(undefined);
+      setIsEditDialogOpen(false);
+      
+      toast({
+        title: "Movimento aggiornato",
+        description: "Il movimento contabile è stato aggiornato con successo",
+      });
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante l'aggiornamento del movimento. Riprova.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getFrequenzaBadge = (frequenza: string) => {
     const colors = {
       mensile: "bg-blue-100 text-blue-800",
@@ -654,6 +720,152 @@ export default function PrimaNotaPage() {
                 </form>
               </DialogContent>
             </Dialog>
+
+            {/* Dialog per Modifica Movimento */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Modifica Movimento</DialogTitle>
+                  <DialogDescription>
+                    Modifica i dettagli del movimento contabile
+                  </DialogDescription>
+                </DialogHeader>
+                {movimentoInModifica && (
+                  <form onSubmit={handleUpdateMovimento} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="dataEdit">Data Operazione *</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !selectedDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {selectedDate ? format(selectedDate, "dd/MM/yyyy", { locale: it }) : <span>Seleziona data</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={setSelectedDate}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="numeroEdit">Numero Registrazione</Label>
+                         <Input
+                           id="numeroEdit"
+                           value={movimentoInModifica.numeroRegistrazione}
+                           disabled
+                           className="bg-muted"
+                         />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="causaleEdit">Causale *</Label>
+                      <Select value={movimentoInModifica.causale} onValueChange={(value) => setMovimentoInModifica({ ...movimentoInModifica, causale: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona causale" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {causaliPredefinite.map((causale) => (
+                            <SelectItem key={causale} value={causale || "default-causale"}>{causale}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {movimentoInModifica.causale === "Altro" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="causalePersonalizzataEdit">Descrivi la causale *</Label>
+                        <Input
+                          id="causalePersonalizzataEdit"
+                          value={causalePersonalizzata}
+                          onChange={(e) => setCausalePersonalizzata(e.target.value)}
+                          placeholder="Inserisci la causale personalizzata"
+                        />
+                      </div>
+                    )}
+
+                     <div className="space-y-2">
+                       <Label htmlFor="tipoMovimentoEdit">Tipo Movimento *</Label>
+                       <Select value={movimentoInModifica.tipoMovimento} onValueChange={(value) => setMovimentoInModifica({ ...movimentoInModifica, tipoMovimento: value as "incasso" | "acquisto" })}>
+                         <SelectTrigger>
+                           <SelectValue placeholder="Seleziona tipo movimento" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="incasso">Incasso</SelectItem>
+                           <SelectItem value="acquisto">Acquisto</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="importoEdit">Importo (€) *</Label>
+                        <Input
+                          id="importoEdit"
+                          type="number"
+                          step="0.01"
+                          value={movimentoInModifica.importo || ""}
+                          onChange={(e) => setMovimentoInModifica({ ...movimentoInModifica, importo: Number(e.target.value) })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="metodoEdit">Metodo di Pagamento</Label>
+                        <Select value={movimentoInModifica.metodoPagamento} onValueChange={(value) => setMovimentoInModifica({ ...movimentoInModifica, metodoPagamento: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {metodiPagamento.map((metodo) => (
+                              <SelectItem key={metodo} value={metodo || "default-metodo"}>{metodo}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="descrizioneEdit">Descrizione</Label>
+                      <Input
+                        id="descrizioneEdit"
+                        value={movimentoInModifica.descrizione || ""}
+                        onChange={(e) => setMovimentoInModifica({ ...movimentoInModifica, descrizione: e.target.value })}
+                        placeholder="Descrizione del movimento"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="noteEdit">Note</Label>
+                      <Textarea
+                        id="noteEdit"
+                        value={movimentoInModifica.note || ""}
+                        onChange={(e) => setMovimentoInModifica({ ...movimentoInModifica, note: e.target.value })}
+                        placeholder="Note aggiuntive"
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                        Annulla
+                      </Button>
+                      <Button type="submit">Aggiorna Movimento</Button>
+                    </div>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Filtri */}
@@ -726,6 +938,7 @@ export default function PrimaNotaPage() {
                      <TableHead>Metodo</TableHead>
                      <TableHead>Utente</TableHead>
                      <TableHead>Descrizione</TableHead>
+                     <TableHead>Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -775,16 +988,25 @@ export default function PrimaNotaPage() {
                           <span className="text-sm">{movimento.utenteRiportante}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="truncate" title={movimento.descrizione}>
-                          {movimento.descrizione}
-                        </div>
-                        {movimento.note && (
-                          <div className="text-xs text-muted-foreground truncate" title={movimento.note}>
-                            {movimento.note}
-                          </div>
-                        )}
-                      </TableCell>
+                       <TableCell className="max-w-xs">
+                         <div className="truncate" title={movimento.descrizione}>
+                           {movimento.descrizione}
+                         </div>
+                         {movimento.note && (
+                           <div className="text-xs text-muted-foreground truncate" title={movimento.note}>
+                             {movimento.note}
+                           </div>
+                         )}
+                       </TableCell>
+                       <TableCell>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleModificaMovimento(movimento)}
+                         >
+                           <Edit className="h-4 w-4" />
+                         </Button>
+                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
