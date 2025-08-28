@@ -90,39 +90,34 @@ export default function ImportersPage() {
 
   const handleSendEmail = async () => {
     try {
-      const targetImporters = selectedRegion === "all" 
-        ? importers 
-        : importers.filter(i => i.region === selectedRegion);
+      setIsEmailDialogOpen(false);
       
-      const recipients = targetImporters.filter(i => i.email).map(i => i.email);
-      
-      if (recipients.length === 0) {
-        toast({
-          title: "Warning",
-          description: "No importers with email addresses found",
-          variant: "destructive",
-        });
-        return;
-      }
+      const { data, error } = await supabase.functions.invoke('send-partner-emails', {
+        body: {
+          partner_type: 'importatore',
+          region: selectedRegion === "all" ? undefined : selectedRegion,
+          subject: emailSubject,
+          message: emailMessage,
+          is_cronjob: false
+        }
+      });
 
-      // Here you would implement the actual email sending logic
-      console.log('Sending email to:', recipients);
-      console.log('Subject:', emailSubject);
-      console.log('Message:', emailMessage);
-      
+      if (error) throw error;
+
       toast({
-        title: "Success",
-        description: `Email sent to ${recipients.length} importers`,
+        title: "Successo",
+        description: `Email inviata a ${data.emails_sent} importatori`,
       });
       
-      setIsEmailDialogOpen(false);
-      setEmailSubject("");
-      setEmailMessage("");
+      // Reset form
+      setEmailSubject('');
+      setEmailMessage('');
+      setSelectedRegion('all');
     } catch (error) {
       console.error('Error sending email:', error);
       toast({
-        title: "Error",
-        description: "Failed to send email",
+        title: "Errore",
+        description: "Errore nell'invio delle email",
         variant: "destructive",
       });
     }

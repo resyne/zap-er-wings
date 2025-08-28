@@ -1,1 +1,13 @@
 project_id = "rucjkoleodtwrbftwgsm"
+
+[functions.send-partner-emails]
+verify_jwt = false
+
+[functions.scheduled-partner-communication]
+verify_jwt = false
+
+[functions.fluida-sync]
+verify_jwt = false
+
+[functions.fattura24-sync]
+verify_jwt = false

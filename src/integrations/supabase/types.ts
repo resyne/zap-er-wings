@@ -599,6 +599,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_campaigns: {
+        Row: {
+          campaign_type: string
+          created_at: string | null
+          failure_count: number | null
+          id: string
+          message: string
+          partner_type: string | null
+          recipients_count: number | null
+          region: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          subject: string
+          success_count: number | null
+        }
+        Insert: {
+          campaign_type: string
+          created_at?: string | null
+          failure_count?: number | null
+          id?: string
+          message: string
+          partner_type?: string | null
+          recipients_count?: number | null
+          region?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          subject: string
+          success_count?: number | null
+        }
+        Update: {
+          campaign_type?: string
+          created_at?: string | null
+          failure_count?: number | null
+          id?: string
+          message?: string
+          partner_type?: string | null
+          recipients_count?: number | null
+          region?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          subject?: string
+          success_count?: number | null
+        }
+        Relationships: []
+      }
       executions: {
         Row: {
           created_at: string
