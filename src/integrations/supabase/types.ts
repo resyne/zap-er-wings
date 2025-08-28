@@ -1837,6 +1837,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_quote_by_code: {
+        Args: { input_code: string }
+        Returns: {
+          code: string
+          created_at: string
+          expires_at: string
+          quote_id: string
+        }[]
+      }
       has_minimum_role: {
         Args: {
           _min_role: Database["public"]["Enums"]["app_role"]
@@ -1849,6 +1858,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      validate_quote_code: {
+        Args: { input_code: string }
         Returns: boolean
       }
     }
