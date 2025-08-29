@@ -498,15 +498,6 @@ export default function StockPage() {
                 </table>
                   </div>
 
-                  <div className="bg-gray-100 p-3 rounded-lg mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Informazioni Interne</h4>
-                    <p className="text-xs text-gray-600">
-                      Riferimento costo interno: €{emailPreviewData.totalPrice.toFixed(2)} (IVA esclusa)
-                    </p>
-                    <p className="text-xs text-gray-500 italic">
-                      Questi dati sono per uso interno e non costituiscono un'offerta vincolante
-                    </p>
-                  </div>
 
                   {emailPreviewData.formValues.notes && (
                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
