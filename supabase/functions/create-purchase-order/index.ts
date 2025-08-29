@@ -217,7 +217,7 @@ const handler = async (req: Request): Promise<Response> => {
         : "Da concordare";
 
       const confirmationUrl = confirmation 
-        ? `${Deno.env.get('SUPABASE_URL')}/functions/v1/confirm-purchase-order?token=${confirmationToken}`
+        ? `https://927bac44-432a-46fc-b33f-adc680e49394.sandbox.lovable.dev/procurement/purchase-order-confirm?token=${confirmationToken}`
         : null;
 
       const emailHtml = `
