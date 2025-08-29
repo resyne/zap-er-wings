@@ -241,18 +241,26 @@ export default function OrdersPage() {
       let serviceWO = null;
 
       // Create work orders based on type
+      console.log('Creating work orders for type:', newOrder.order_type);
       switch (newOrder.order_type) {
         case 'odp':
+          console.log('Creating production work order...');
           productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
+          console.log('Production WO created:', productionWO);
           break;
         
         case 'odl':
+          console.log('Creating service work order...');
           serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder);
+          console.log('Service WO created:', serviceWO);
           break;
         
         case 'odpel':
+          console.log('Creating both production and service work orders...');
           productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
+          console.log('Production WO created:', productionWO);
           serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO.id);
+          console.log('Service WO created:', serviceWO);
           break;
       }
 
