@@ -24,10 +24,17 @@ interface WorkOrder {
   planned_start_date?: string;
   planned_end_date?: string;
   assigned_to?: string;
+  customer_id?: string;
+  contact_id?: string;
+  priority?: string;
   notes?: string;
   boms?: {
     name: string;
     version: string;
+  };
+  customers?: {
+    name: string;
+    code: string;
   };
   technician?: {
     id: string;
@@ -48,6 +55,8 @@ export default function WorkOrdersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showFiltersDialog, setShowFiltersDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -278,6 +287,51 @@ export default function WorkOrdersPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleEdit = (wo: WorkOrder) => {
+    setSelectedWO(wo);
+    // Find the BOM ID by matching the name and version
+    const bomMatch = boms.find(bom => 
+      bom.name === wo.boms?.name && bom.version === wo.boms?.version
+    );
+    
+    setFormData({
+      title: wo.title,
+      bom_id: bomMatch?.id || "",
+      customer_id: wo.customer_id || "",
+      contact_id: wo.contact_id || "",
+      assigned_to: wo.assigned_to || "",
+      priority: wo.priority || "medium",
+      planned_start_date: wo.planned_start_date || "",
+      planned_end_date: wo.planned_end_date || "",
+      notes: wo.notes || "",
+      createServiceOrder: false,
+      serviceOrderTitle: "",
+      serviceOrderNotes: ""
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleViewDetails = (wo: WorkOrder) => {
+    setSelectedWO(wo);
+    setShowDetailsDialog(true);
+  };
+
+  const handleExport = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "Numero,Titolo,Cliente,Tecnico,Priorità,Stato,Inizio Pianificato\n"
+      + filteredWorkOrders.map(wo => 
+          `${wo.number},"${wo.title}","${wo.customers?.name || ''}","${wo.technician ? `${wo.technician.first_name} ${wo.technician.last_name}` : ''}","${wo.priority}","${wo.status}","${wo.planned_start_date || ''}"`
+        ).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "ordini_produzione.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleStatusChange = async (woId: string, newStatus: 'planned' | 'in_progress' | 'testing' | 'closed') => {
@@ -612,11 +666,11 @@ export default function WorkOrdersPage() {
                 className="pl-8"
               />
             </div>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowFiltersDialog(true)}>
               <Filter className="mr-2 h-4 w-4" />
               Filtri
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
               Esporta
             </Button>
@@ -714,7 +768,7 @@ export default function WorkOrdersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleViewDetails(wo)}>
                             <Eye className="h-4 w-4" />
                           </Button>
                           {wo.status === 'planned' && (
@@ -744,7 +798,7 @@ export default function WorkOrdersPage() {
                               <CheckCircle className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                         </div>
@@ -757,6 +811,125 @@ export default function WorkOrdersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dettagli Ordine di Produzione</DialogTitle>
+            <DialogDescription>
+              Informazioni complete sull'ordine di produzione {selectedWO?.number}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedWO && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Numero</Label>
+                  <p className="text-sm text-muted-foreground">{selectedWO.number}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Stato</Label>
+                  <div className="mt-1">
+                    <StatusBadge status={selectedWO.status} />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Titolo</Label>
+                <p className="text-sm text-muted-foreground">{selectedWO.title}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Cliente</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.customers ? `${selectedWO.customers.name} (${selectedWO.customers.code})` : 'Non assegnato'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Tecnico</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Priorità</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.priority === 'urgent' ? 'Urgente' :
+                     selectedWO.priority === 'high' ? 'Alta' :
+                     selectedWO.priority === 'medium' ? 'Media' : 'Bassa'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Distinta Base</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.boms ? `${selectedWO.boms.name} (${selectedWO.boms.version})` : 'Non assegnata'}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Inizio Pianificato</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.planned_start_date ? new Date(selectedWO.planned_start_date).toLocaleString() : 'Non impostato'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Fine Pianificata</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.planned_end_date ? new Date(selectedWO.planned_end_date).toLocaleString() : 'Non impostato'}
+                  </p>
+                </div>
+              </div>
+              {selectedWO.notes && (
+                <div>
+                  <Label className="text-sm font-medium">Note</Label>
+                  <p className="text-sm text-muted-foreground">{selectedWO.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Filters Dialog */}
+      <Dialog open={showFiltersDialog} onOpenChange={setShowFiltersDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Filtri Avanzati</DialogTitle>
+            <DialogDescription>
+              Applica filtri avanzati per raffinare la ricerca degli ordini di produzione
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Stato</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti gli stati</SelectItem>
+                  <SelectItem value="planned">Pianificato</SelectItem>
+                  <SelectItem value="in_progress">In Corso</SelectItem>
+                  <SelectItem value="testing">Test</SelectItem>
+                  <SelectItem value="closed">Chiuso</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowFiltersDialog(false)}>
+                Annulla
+              </Button>
+              <Button onClick={() => setShowFiltersDialog(false)}>
+                Applica Filtri
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <CreateCustomerDialog
         open={showCreateCustomer}
