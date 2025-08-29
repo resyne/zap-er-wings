@@ -401,11 +401,20 @@ export default function BlastChillersPage() {
           ) : (
             <div className="space-y-3">
               {filteredDocuments.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
+                <div key={doc.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div 
+                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                    onClick={() => handleDocumentClick(doc)}
+                    title={doc.name.toLowerCase().endsWith('.pdf') ? 'Clicca per aprire anteprima PDF' : 'Clicca per scaricare file'}
+                  >
                     <FileText className="w-8 h-8 text-primary" />
                     <div>
-                      <h4 className="font-medium text-foreground">{doc.name}</h4>
+                      <h4 className="font-medium text-foreground hover:text-primary transition-colors">
+                        {doc.name}
+                        {doc.name.toLowerCase().endsWith('.pdf') && (
+                          <span className="ml-2 text-xs text-primary">(Clicca per anteprima)</span>
+                        )}
+                      </h4>
                       <div className="flex gap-2 mt-1">
                         <Badge variant="secondary" className="text-xs">{doc.category}</Badge>
                         <Badge variant="outline" className="text-xs">
@@ -416,11 +425,14 @@ export default function BlastChillersPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 ml-4">
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={() => handleDocumentClick(doc)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDocumentClick(doc);
+                      }}
                       disabled={loading}
                       title={doc.name.toLowerCase().endsWith('.pdf') ? 'Anteprima PDF' : 'Scarica file'}
                     >
