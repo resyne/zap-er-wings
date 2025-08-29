@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,25 +18,29 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    code: "",
+    company_name: "",
     email: "",
     phone: "",
     address: "",
-    tax_id: ""
+    shipping_address: "",
+    city: "",
+    country: "",
+    tax_id: "",
+    active: true
   });
   const { toast } = useToast();
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.code.trim()) {
+    if (!formData.name.trim()) {
       toast({
         title: "Errore",
-        description: "Nome e codice sono obbligatori",
+        description: "Il nome è obbligatorio",
         variant: "destructive",
       });
       return;
@@ -44,15 +50,19 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
     try {
       const { data, error } = await supabase
         .from('customers')
-        .insert([{
+        .insert({
           name: formData.name,
-          code: formData.code,
+          code: '', // Verrà generato automaticamente dal trigger
+          company_name: formData.company_name || null,
           email: formData.email || null,
           phone: formData.phone || null,
           address: formData.address || null,
+          shipping_address: formData.shipping_address || null,
+          city: formData.city || null,
+          country: formData.country || null,
           tax_id: formData.tax_id || null,
-          active: true
-        }])
+          active: formData.active
+        })
         .select()
         .single();
 
@@ -66,11 +76,15 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
       onCustomerCreated(data);
       setFormData({
         name: "",
-        code: "",
+        company_name: "",
         email: "",
         phone: "",
         address: "",
-        tax_id: ""
+        shipping_address: "",
+        city: "",
+        country: "",
+        tax_id: "",
+        active: true
       });
       onOpenChange(false);
     } catch (error: any) {
@@ -86,7 +100,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crea Nuovo Cliente</DialogTitle>
           <DialogDescription>
@@ -94,28 +108,27 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Nome cliente"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="code">Codice *</Label>
-              <Input
-                id="code"
-                value={formData.code}
-                onChange={(e) => handleInputChange('code', e.target.value)}
-                placeholder="Codice cliente"
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="Nome cliente"
+              required
+            />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company_name">Nome Azienda</Label>
+            <Input
+              id="company_name"
+              value={formData.company_name}
+              onChange={(e) => handleInputChange('company_name', e.target.value)}
+              placeholder="Nome dell'azienda"
+            />
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -137,25 +150,71 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
               />
             </div>
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="address">Indirizzo</Label>
-            <Input
+            <Label htmlFor="address">Indirizzo di Fatturazione</Label>
+            <Textarea
               id="address"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
-              placeholder="Via, Città, CAP"
+              placeholder="Via, numero civico"
+              rows={2}
             />
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="tax_id">Partita IVA</Label>
-            <Input
-              id="tax_id"
-              value={formData.tax_id}
-              onChange={(e) => handleInputChange('tax_id', e.target.value)}
-              placeholder="IT12345678901"
+            <Label htmlFor="shipping_address">Indirizzo di Spedizione (se diverso)</Label>
+            <Textarea
+              id="shipping_address"
+              value={formData.shipping_address}
+              onChange={(e) => handleInputChange('shipping_address', e.target.value)}
+              placeholder="Via, numero civico (lascia vuoto se uguale all'indirizzo di fatturazione)"
+              rows={2}
             />
           </div>
-          <div className="flex justify-end gap-2">
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Città</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="Milano"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Paese</Label>
+              <Input
+                id="country"
+                value={formData.country}
+                onChange={(e) => handleInputChange('country', e.target.value)}
+                placeholder="Italia"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tax_id">Partita IVA</Label>
+              <Input
+                id="tax_id"
+                value={formData.tax_id}
+                onChange={(e) => handleInputChange('tax_id', e.target.value)}
+                placeholder="IT12345678901"
+              />
+            </div>
+            <div className="flex items-center space-x-2 pt-6">
+              <Switch
+                id="active"
+                checked={formData.active}
+                onCheckedChange={(checked) => handleInputChange('active', checked)}
+              />
+              <Label htmlFor="active">Cliente attivo</Label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
