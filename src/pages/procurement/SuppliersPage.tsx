@@ -1,103 +1,263 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 interface Supplier {
   id: string;
   code: string;
   name: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  country: string;
-  taxId: string;
-  paymentTerms: number;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  tax_id?: string;
+  payment_terms: number;
   active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
+
+const supplierSchema = z.object({
+  name: z.string().min(1, "Nome richiesto"),
+  email: z.string().email("Email non valida").optional().or(z.literal("")),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  tax_id: z.string().optional(),
+  payment_terms: z.number().min(0, "Giorni di pagamento devono essere positivi"),
+});
 
 const SuppliersPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const suppliers: Supplier[] = [
-    {
-      id: "1",
-      code: "SUP001",
-      name: "Acme Corporation",
-      email: "orders@acme.com",
-      phone: "+39 02 1234567",
-      address: "Via Milano 123",
-      city: "Milano",
-      country: "Italia",
-      taxId: "IT12345678901",
-      paymentTerms: 30,
-      active: true
+  const form = useForm<z.infer<typeof supplierSchema>>({
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      country: "",
+      tax_id: "",
+      payment_terms: 30,
     },
-    {
-      id: "2",
-      code: "SUP002",
-      name: "Tech Solutions Ltd",
-      email: "procurement@techsol.com",
-      phone: "+39 06 9876543",
-      address: "Via Roma 456",
-      city: "Roma",
-      country: "Italia",
-      taxId: "IT98765432109",
-      paymentTerms: 60,
-      active: true
+  });
+
+  const editForm = useForm<z.infer<typeof supplierSchema>>({
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      country: "",
+      tax_id: "",
+      payment_terms: 30,
     },
-    {
-      id: "3",
-      code: "SUP003",
-      name: "Global Supplies Inc",
-      email: "sales@globalsupplies.com",
-      phone: "+39 011 5554433",
-      address: "Corso Torino 789",
-      city: "Torino",
-      country: "Italia",
-      taxId: "IT11223344556",
-      paymentTerms: 45,
-      active: false
+  });
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching suppliers:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nel caricamento dei fornitori",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento dei fornitori",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const filteredSuppliers = suppliers.filter(supplier =>
     supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     supplier.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleAddSupplier = () => {
-    toast({
-      title: "Funzione non implementata",
-      description: "La creazione di nuovi fornitori sarà implementata presto.",
-    });
-    setIsDialogOpen(false);
+  const onSubmit = async (values: z.infer<typeof supplierSchema>) => {
+    try {
+      // Generate a simple code since there's no auto-generation trigger
+      const supplierCode = `SUP${Date.now().toString().slice(-6)}`;
+      
+      const supplierData = {
+        code: supplierCode,
+        name: values.name,
+        email: values.email || null,
+        phone: values.phone || null,
+        address: values.address || null,
+        city: values.city || null,
+        country: values.country || null,
+        tax_id: values.tax_id || null,
+        payment_terms: values.payment_terms,
+        active: true,
+      };
+
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert(supplierData)
+        .select();
+
+      if (error) {
+        console.error('Error creating supplier:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nella creazione del fornitore",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Successo",
+        description: "Fornitore creato con successo",
+      });
+
+      setIsDialogOpen(false);
+      form.reset();
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error creating supplier:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione del fornitore",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onEditSubmit = async (values: z.infer<typeof supplierSchema>) => {
+    if (!selectedSupplier) return;
+
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .update(values)
+        .eq('id', selectedSupplier.id);
+
+      if (error) {
+        console.error('Error updating supplier:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nell'aggiornamento del fornitore",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Successo",
+        description: "Fornitore aggiornato con successo",
+      });
+
+      setIsEditDialogOpen(false);
+      setSelectedSupplier(null);
+      editForm.reset();
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiornamento del fornitore",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditSupplier = (supplier: Supplier) => {
-    toast({
-      title: "Funzione non implementata",
-      description: `Modifica fornitore ${supplier.name} sarà implementata presto.`,
+    setSelectedSupplier(supplier);
+    editForm.reset({
+      name: supplier.name,
+      email: supplier.email || "",
+      phone: supplier.phone || "",
+      address: supplier.address || "",
+      city: supplier.city || "",
+      country: supplier.country || "",
+      tax_id: supplier.tax_id || "",
+      payment_terms: supplier.payment_terms,
     });
+    setIsEditDialogOpen(true);
   };
 
-  const handleDeleteSupplier = (supplier: Supplier) => {
-    toast({
-      title: "Funzione non implementata",
-      description: `Eliminazione fornitore ${supplier.name} sarà implementata presto.`,
-      variant: "destructive",
-    });
+  const handleDeleteSupplier = async (supplier: Supplier) => {
+    if (!confirm(`Sei sicuro di voler eliminare il fornitore ${supplier.name}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('id', supplier.id);
+
+      if (error) {
+        console.error('Error deleting supplier:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nell'eliminazione del fornitore",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Successo",
+        description: "Fornitore eliminato con successo",
+      });
+
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione del fornitore",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (loading) {
+    return <div className="p-8 text-center">Caricamento...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -115,21 +275,281 @@ const SuppliersPage = () => {
               Nuovo Fornitore
             </Button>
           </DialogTrigger>
-          <DialogContent>
+            <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Aggiungi Nuovo Fornitore</DialogTitle>
               <DialogDescription>
                 Inserisci i dati del nuovo fornitore qui sotto.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                Form di creazione fornitore in fase di implementazione...
-              </p>
-              <Button onClick={handleAddSupplier} className="w-full">
-                Salva Fornitore
-              </Button>
-            </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome Fornitore *</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefono</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Indirizzo</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Città</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Paese</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="tax_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Partita IVA</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="payment_terms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Giorni Pagamento</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number" 
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Annulla
+                  </Button>
+                  <Button type="submit">Salva Fornitore</Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Modifica Fornitore</DialogTitle>
+              <DialogDescription>
+                Modifica i dati del fornitore selezionato.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome Fornitore *</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefono</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={editForm.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Indirizzo</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Città</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Paese</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="tax_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Partita IVA</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="payment_terms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Giorni Pagamento</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number" 
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(false)}
+                  >
+                    Annulla
+                  </Button>
+                  <Button type="submit">Aggiorna Fornitore</Button>
+                </div>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -166,7 +586,7 @@ const SuppliersPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(suppliers.reduce((acc, s) => acc + s.paymentTerms, 0) / suppliers.length)} gg
+              {suppliers.length > 0 ? Math.round(suppliers.reduce((acc, s) => acc + s.payment_terms, 0) / suppliers.length) : 0} gg
             </div>
             <p className="text-xs text-muted-foreground">
               Giorni di pagamento
@@ -220,34 +640,44 @@ const SuppliersPage = () => {
               {filteredSuppliers.map((supplier) => (
                 <TableRow key={supplier.id}>
                   <TableCell className="font-medium">{supplier.code}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{supplier.name}</div>
-                      <div className="text-sm text-muted-foreground">{supplier.taxId}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm">
-                        <Mail className="mr-1 h-3 w-3" />
-                        {supplier.email}
-                      </div>
-                      <div className="flex items-center text-sm">
-                        <Phone className="mr-1 h-3 w-3" />
-                        {supplier.phone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center text-sm">
-                      <MapPin className="mr-1 h-3 w-3" />
-                      <div>
-                        <div>{supplier.address}</div>
-                        <div className="text-muted-foreground">{supplier.city}, {supplier.country}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{supplier.paymentTerms} giorni</TableCell>
+                   <TableCell>
+                     <div>
+                       <div className="font-medium">{supplier.name}</div>
+                       <div className="text-sm text-muted-foreground">{supplier.tax_id}</div>
+                     </div>
+                   </TableCell>
+                   <TableCell>
+                     <div className="space-y-1">
+                       {supplier.email && (
+                         <div className="flex items-center text-sm">
+                           <Mail className="mr-1 h-3 w-3" />
+                           {supplier.email}
+                         </div>
+                       )}
+                       {supplier.phone && (
+                         <div className="flex items-center text-sm">
+                           <Phone className="mr-1 h-3 w-3" />
+                           {supplier.phone}
+                         </div>
+                       )}
+                     </div>
+                   </TableCell>
+                   <TableCell>
+                     {(supplier.address || supplier.city || supplier.country) && (
+                       <div className="flex items-center text-sm">
+                         <MapPin className="mr-1 h-3 w-3" />
+                         <div>
+                           {supplier.address && <div>{supplier.address}</div>}
+                           {(supplier.city || supplier.country) && (
+                             <div className="text-muted-foreground">
+                               {[supplier.city, supplier.country].filter(Boolean).join(', ')}
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     )}
+                   </TableCell>
+                   <TableCell>{supplier.payment_terms} giorni</TableCell>
                   <TableCell>
                     <Badge variant={supplier.active ? "default" : "secondary"}>
                       {supplier.active ? "Attivo" : "Inattivo"}
