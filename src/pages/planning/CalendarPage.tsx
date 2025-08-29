@@ -18,7 +18,7 @@ interface WorkOrder {
   scheduled_date?: string;
   actual_start_date?: string;
   actual_end_date?: string;
-  estimated_hours?: number;
+  
   location?: string;
   customer?: {
     name: string;
@@ -74,7 +74,6 @@ export default function CalendarPage() {
           title,
           status,
           scheduled_date,
-          estimated_hours,
           location,
           customers (
             name,
@@ -98,7 +97,6 @@ export default function CalendarPage() {
           scheduled_date,
           actual_start_date,
           actual_end_date,
-          estimated_hours,
           location,
           customers (
             name,
@@ -238,11 +236,11 @@ export default function CalendarPage() {
                           const end = parseISO(order.actual_end_date);
                           const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
                           return `📅 ${diffDays} giorni`;
-                        } else if (order.estimated_hours) {
-                          return `⏱️ ${order.estimated_hours}h stimato`;
-                        }
-                      } else if (order.type === 'production' && order.estimated_hours) {
-                        return `⚙️ ${order.estimated_hours}h lavorazione`;
+                         } else {
+                           return `⏱️ Senza durata`;
+                         }
+                       } else if (order.type === 'production') {
+                         return `⚙️ Produzione`;
                       }
                       return null;
                     };
