@@ -195,10 +195,10 @@ export default function WorkOrdersPage() {
             bom_id: formData.bom_id || null,
             accessori_ids: formData.accessori_ids,
             customer_id: formData.customer_id || null,
-            assigned_to: formData.assigned_to || null,
+            assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' ? formData.assigned_to : null,
             priority: formData.priority,
-            planned_start_date: formData.planned_start_date,
-            planned_end_date: formData.planned_end_date,
+            planned_start_date: formData.planned_start_date || null,
+            planned_end_date: formData.planned_end_date || null,
             notes: formData.notes
           })
           .eq('id', selectedWO.id);
@@ -219,10 +219,10 @@ export default function WorkOrdersPage() {
             bom_id: formData.bom_id || null,
             accessori_ids: formData.accessori_ids,
             customer_id: formData.customer_id || null,
-            assigned_to: formData.assigned_to || null,
+            assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' ? formData.assigned_to : null,
             priority: formData.priority,
-            planned_start_date: formData.planned_start_date,
-            planned_end_date: formData.planned_end_date,
+            planned_start_date: formData.planned_start_date || null,
+            planned_end_date: formData.planned_end_date || null,
             notes: formData.notes,
             status: 'planned' 
           }])
