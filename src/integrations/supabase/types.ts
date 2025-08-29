@@ -2516,6 +2516,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_customer_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_material_code: {
         Args: Record<PropertyKey, never>
         Returns: string
