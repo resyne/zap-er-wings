@@ -561,54 +561,70 @@ export default function WorkOrdersServicePage() {
               ) : (
                 filteredWorkOrders.map((workOrder: any) => (
                   <TableRow key={workOrder.id}>
-                    <TableCell className="font-mono text-sm">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          {workOrder.number}
-                          {workOrder.production_work_order && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Factory className="w-3 h-3 mr-1" />
-                              Da Produzione
-                            </Badge>
-                          )}
-                        </div>
-                        {workOrder.production_work_order && (
-                          <div className="text-xs text-muted-foreground">
-                            OdP: {workOrder.production_work_order.number} 
-                            <Badge 
-                              variant="outline" 
-                              className="ml-1 text-xs"
-                            >
-                              {workOrder.production_work_order.status}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {workOrder.title}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        {workOrder.customers ? `${workOrder.customers.name} (${workOrder.customers.code})` : "—"}
-                        {workOrder.crm_contacts && (
-                          <div className="text-sm text-muted-foreground">
-                            {workOrder.crm_contacts.first_name} {workOrder.crm_contacts.last_name}
-                            {workOrder.crm_contacts.company_name && ` - ${workOrder.crm_contacts.company_name}`}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {workOrder.technician ? (
-                        <div>
-                          <div className="font-medium">{workOrder.technician.first_name} {workOrder.technician.last_name}</div>
-                          <div className="text-sm text-muted-foreground">({workOrder.technician.employee_code})</div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
+                     <TableCell>
+                       <div className="space-y-1">
+                         <div className="font-mono text-sm font-medium">
+                           {workOrder.number}
+                         </div>
+                         {workOrder.production_work_order && (
+                           <div className="flex items-center gap-1">
+                             <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700">
+                               <Factory className="w-3 h-3 mr-1" />
+                               Da OdP
+                             </Badge>
+                           </div>
+                         )}
+                       </div>
+                     </TableCell>
+                     <TableCell>
+                       <div className="space-y-1">
+                         <div className="font-medium text-sm leading-tight">
+                           {workOrder.title}
+                         </div>
+                         {workOrder.production_work_order && (
+                           <div className="text-xs text-muted-foreground">
+                             Correlato a: {workOrder.production_work_order.number}
+                             <Badge variant="secondary" className="ml-1 text-xs">
+                               {workOrder.production_work_order.status}
+                             </Badge>
+                           </div>
+                         )}
+                       </div>
+                     </TableCell>
+                     <TableCell>
+                       <div className="space-y-1">
+                         {workOrder.customers ? (
+                           <div className="text-sm">
+                             <div className="font-medium">{workOrder.customers.name}</div>
+                             <div className="text-xs text-muted-foreground">({workOrder.customers.code})</div>
+                           </div>
+                         ) : (
+                           <span className="text-muted-foreground text-sm">—</span>
+                         )}
+                         {workOrder.crm_contacts && (
+                           <div className="text-xs text-muted-foreground">
+                             {workOrder.crm_contacts.first_name} {workOrder.crm_contacts.last_name}
+                             {workOrder.crm_contacts.company_name && (
+                               <div>{workOrder.crm_contacts.company_name}</div>
+                             )}
+                           </div>
+                         )}
+                       </div>
+                     </TableCell>
+                     <TableCell>
+                       {workOrder.technician ? (
+                         <div className="space-y-1">
+                           <div className="text-sm font-medium">
+                             {workOrder.technician.first_name} {workOrder.technician.last_name}
+                           </div>
+                           <div className="text-xs text-muted-foreground font-mono">
+                             {workOrder.technician.employee_code}
+                           </div>
+                         </div>
+                       ) : (
+                         <span className="text-muted-foreground text-sm">Non assegnato</span>
+                       )}
+                     </TableCell>
                     <TableCell>
                       <Badge variant={workOrder.priority === 'urgent' ? 'destructive' : 
                                    workOrder.priority === 'high' ? 'default' :
@@ -618,45 +634,59 @@ export default function WorkOrdersServicePage() {
                          workOrder.priority === 'medium' ? 'Media' : 'Bassa'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Select
-                        value={workOrder.status}
-                        onValueChange={(value) => updateWorkOrderStatus(workOrder.id, value as 'planned' | 'in_progress' | 'testing' | 'closed')}
-                      >
-                        <SelectTrigger className="w-auto h-auto p-0 border-0 bg-transparent">
-                          <Badge className={statusColors[workOrder.status as keyof typeof statusColors]}>
-                            {statusLabels[workOrder.status as keyof typeof statusLabels]}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="planned">Pianificato</SelectItem>
-                          <SelectItem value="in_progress">In Corso</SelectItem>
-                          <SelectItem value="testing">Test</SelectItem>
-                          <SelectItem value="closed">Chiuso</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        {workOrder.scheduled_date ? 
-                          new Date(workOrder.scheduled_date).toLocaleDateString('it-IT') + ' ' +
-                          new Date(workOrder.scheduled_date).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-                          : 'Non programmata'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedWorkOrder(workOrder);
-                          setShowDetailsDialog(true);
-                        }}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
+                     <TableCell>
+                       <Badge className={statusColors[workOrder.status as keyof typeof statusColors]}>
+                         {statusLabels[workOrder.status as keyof typeof statusLabels]}
+                       </Badge>
+                     </TableCell>
+                     <TableCell>
+                       <div className="text-sm">
+                         <div className="flex items-center gap-1 text-muted-foreground">
+                           <Calendar className="w-3 h-3" />
+                           {workOrder.scheduled_date ? (
+                             <div>
+                               <div>{new Date(workOrder.scheduled_date).toLocaleDateString('it-IT')}</div>
+                               <div className="text-xs">
+                                 {new Date(workOrder.scheduled_date).toLocaleTimeString('it-IT', { 
+                                   hour: '2-digit', 
+                                   minute: '2-digit' 
+                                 })}
+                               </div>
+                             </div>
+                           ) : (
+                             'Non programmata'
+                           )}
+                         </div>
+                       </div>
+                     </TableCell>
+                     <TableCell>
+                       <div className="flex justify-end gap-1">
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => {
+                             setSelectedWorkOrder(workOrder);
+                             setShowDetailsDialog(true);
+                           }}
+                         >
+                           <Eye className="w-4 h-4" />
+                         </Button>
+                         <Select
+                           value={workOrder.status}
+                           onValueChange={(value) => updateWorkOrderStatus(workOrder.id, value as 'planned' | 'in_progress' | 'testing' | 'closed')}
+                         >
+                           <SelectTrigger className="w-8 h-8 p-0">
+                             <Edit className="w-3 h-3" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="planned">Pianificato</SelectItem>
+                             <SelectItem value="in_progress">In Corso</SelectItem>
+                             <SelectItem value="testing">Test</SelectItem>
+                             <SelectItem value="closed">Chiuso</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+                     </TableCell>
                   </TableRow>
                 ))
               )}
