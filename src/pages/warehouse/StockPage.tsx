@@ -575,7 +575,7 @@ export default function StockPage() {
                           €{(material.current_stock * material.cost).toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          {material.supplier_id && material.current_stock <= material.minimum_stock && (
+                          {material.supplier_id && (
                             <Button
                               variant="outline"
                               size="sm"
