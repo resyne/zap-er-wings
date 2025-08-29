@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ShoppingCart, Calendar, TrendingUp, Package, Eye, Edit, Trash2, Building2 } from "lucide-react";
+import { Plus, Search, ShoppingCart, Calendar, TrendingUp, Package, Eye, Edit, Trash2, Building2, Archive, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +17,7 @@ interface PurchaseOrder {
   supplier_name?: string;
   order_date: string;
   expected_delivery_date: string | null;
-  status: "draft" | "pending" | "confirmed" | "partial" | "delivered" | "cancelled";
+  status: "draft" | "pending" | "confirmed" | "partial" | "delivered" | "cancelled" | "archived";
   total_amount: number;
   notes?: string;
   created_at: string;
@@ -97,6 +98,7 @@ const PurchaseOrdersPage = () => {
       case "partial": return "destructive";
       case "delivered": return "default";
       case "cancelled": return "secondary";
+      case "archived": return "secondary";
       default: return "secondary";
     }
   };
@@ -109,6 +111,7 @@ const PurchaseOrdersPage = () => {
       case "partial": return "Parziale";
       case "delivered": return "Consegnato";
       case "cancelled": return "Annullato";
+      case "archived": return "Archiviato";
       default: return status;
     }
   };
@@ -140,12 +143,105 @@ const PurchaseOrdersPage = () => {
     });
   };
 
-  const handleDeleteOrder = (order: PurchaseOrder) => {
-    toast({
-      title: "Funzione non implementata",
-      description: `Eliminazione ordine ${order.number} sarà implementata presto.`,
-      variant: "destructive",
-    });
+  const handleArchiveOrder = async (order: PurchaseOrder) => {
+    try {
+      const { error } = await supabase
+        .from('purchase_orders')
+        .update({ status: 'archived' })
+        .eq('id', order.id);
+
+      if (error) {
+        console.error('Error archiving order:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nell'archiviazione dell'ordine",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Ordine archiviato",
+        description: `L'ordine ${order.number} è stato archiviato con successo.`,
+      });
+
+      // Refresh the orders list
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error('Error archiving order:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'archiviazione dell'ordine",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteOrder = async (order: PurchaseOrder) => {
+    try {
+      // First delete related confirmations
+      const { error: confirmationError } = await supabase
+        .from('purchase_order_confirmations')
+        .delete()
+        .eq('purchase_order_id', order.id);
+
+      if (confirmationError) {
+        console.error('Error deleting confirmations:', confirmationError);
+        toast({
+          title: "Errore",
+          description: "Errore nell'eliminazione delle conferme correlate",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Then delete order items
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('purchase_order_id', order.id);
+
+      if (itemsError) {
+        console.error('Error deleting order items:', itemsError);
+        toast({
+          title: "Errore",
+          description: "Errore nell'eliminazione degli articoli dell'ordine",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Finally delete the order
+      const { error } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', order.id);
+
+      if (error) {
+        console.error('Error deleting order:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nell'eliminazione dell'ordine",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Ordine eliminato",
+        description: `L'ordine ${order.number} è stato eliminato definitivamente.`,
+      });
+
+      // Refresh the orders list
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione dell'ordine",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -312,11 +408,12 @@ const PurchaseOrdersPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewOrder(order)}
+                          title="Visualizza ordine"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -324,16 +421,76 @@ const PurchaseOrdersPage = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEditOrder(order)}
+                          title="Modifica ordine"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteOrder(order)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {order.status !== 'archived' && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Archivia ordine"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Archivia ordine</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Sei sicuro di voler archiviare l'ordine {order.number}?
+                                  L'ordine sarà marcato come archiviato ma non verrà eliminato.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleArchiveOrder(order)}>
+                                  Archivia
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Elimina ordine"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-destructive" />
+                                Elimina ordine
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                <strong>Attenzione!</strong> Sei sicuro di voler eliminare definitivamente l'ordine {order.number}?
+                                <br /><br />
+                                Questa azione non può essere annullata e rimuoverà:
+                                <ul className="list-disc list-inside mt-2 space-y-1">
+                                  <li>L'ordine di acquisto</li>
+                                  <li>Tutti gli articoli associati</li>
+                                  <li>Le conferme del fornitore</li>
+                                </ul>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annulla</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteOrder(order)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Elimina definitivamente
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
