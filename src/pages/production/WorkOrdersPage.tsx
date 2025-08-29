@@ -76,7 +76,6 @@ export default function WorkOrdersPage() {
           *,
           boms(name, version),
           customers(name, code),
-          crm_contacts(first_name, last_name, company_name),
           technicians(first_name, last_name, employee_code),
           service_work_orders!production_work_order_id(id, number, title)
         `)
