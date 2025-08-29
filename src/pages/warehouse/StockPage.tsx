@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,119 +7,118 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Package, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, TrendingUp, TrendingDown, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface StockItem {
+interface Material {
   id: string;
   code: string;
   name: string;
   description?: string;
-  quantity: number;
-  reserved_quantity: number;
-  available_quantity: number;
-  min_stock: number;
-  max_stock: number;
-  location: string;
+  material_type: string;
   category?: string;
   unit: string;
   cost: number;
-  price: number;
-  last_movement_date?: string;
+  supplier_id?: string;
+  minimum_stock: number;
+  maximum_stock: number;
+  current_stock: number;
+  location?: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
 }
 
 export default function StockPage() {
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Mock data for now - replace with real data from items table + stock calculations
   useEffect(() => {
-    const mockData: StockItem[] = [
-      {
-        id: "1",
-        code: "ITM-001",
-        name: "Filtro acqua standard",
-        description: "Filtro acqua per impianti domestici",
-        quantity: 150,
-        reserved_quantity: 20,
-        available_quantity: 130,
-        min_stock: 50,
-        max_stock: 200,
-        location: "A-01-A",
-        category: "Filtri",
-        unit: "pcs",
-        cost: 15.50,
-        price: 25.00,
-        last_movement_date: "2024-01-20"
-      },
-      {
-        id: "2",
-        code: "ITM-002",
-        name: "Cartuccia carboni attivi",
-        description: "Cartuccia per filtrazione carboni attivi",
-        quantity: 25,
-        reserved_quantity: 5,
-        available_quantity: 20,
-        min_stock: 30,
-        max_stock: 100,
-        location: "A-01-B",
-        category: "Cartucce",
-        unit: "pcs",
-        cost: 8.75,
-        price: 15.00,
-        last_movement_date: "2024-01-18"
-      },
-      {
-        id: "3",
-        code: "ITM-003",
-        name: "Valvola di sicurezza",
-        description: "Valvola di sicurezza per impianti",
-        quantity: 200,
-        reserved_quantity: 0,
-        available_quantity: 200,
-        min_stock: 20,
-        max_stock: 300,
-        location: "B-02-A",
-        category: "Valvole",
-        unit: "pcs",
-        cost: 45.00,
-        price: 75.00,
-        last_movement_date: "2024-01-15"
-      }
-    ];
-    
-    setStockItems(mockData);
-    setLoading(false);
+    fetchData();
   }, []);
 
-  const filteredItems = stockItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.code.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const fetchData = async () => {
+    try {
+      // Fetch materials
+      const { data: materialsData, error: materialsError } = await supabase
+        .from('materials' as any)
+        .select('*')
+        .eq('active', true)
+        .order('name');
+
+      if (materialsError) {
+        console.error('Error fetching materials:', materialsError);
+        toast({
+          title: "Errore",
+          description: "Errore nel caricamento dei materiali",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch suppliers
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+
+      if (suppliersError) {
+        console.error('Error fetching suppliers:', suppliersError);
+      }
+
+      setMaterials((materialsData as any) || []);
+      setSuppliers((suppliersData as any) || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento dei dati",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredMaterials = materials.filter(material => {
+    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         material.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || material.category === selectedCategory;
+    const matchesType = selectedType === "all" || material.material_type === selectedType;
+    return matchesSearch && matchesCategory && matchesType;
   });
 
-  const getStockStatus = (item: StockItem) => {
-    if (item.available_quantity <= item.min_stock) {
+  const getStockStatus = (material: Material) => {
+    if (material.current_stock <= material.minimum_stock) {
       return { status: "low", color: "destructive", icon: AlertTriangle };
     }
-    if (item.available_quantity >= item.max_stock) {
+    if (material.current_stock >= material.maximum_stock) {
       return { status: "high", color: "secondary", icon: TrendingUp };
     }
     return { status: "normal", color: "default", icon: Package };
   };
 
-  const categories = [...new Set(stockItems.map(item => item.category).filter(Boolean))];
+  const categories = [...new Set(materials.map(material => material.category).filter(Boolean))];
+  const types = [...new Set(materials.map(material => material.material_type).filter(Boolean))];
 
   const stockSummary = {
-    totalItems: stockItems.length,
-    lowStock: stockItems.filter(item => item.available_quantity <= item.min_stock).length,
-    totalValue: stockItems.reduce((sum, item) => sum + (item.quantity * item.cost), 0)
+    totalItems: materials.length,
+    lowStock: materials.filter(material => material.current_stock <= material.minimum_stock).length,
+    totalValue: materials.reduce((sum, material) => sum + (material.current_stock * material.cost), 0),
+    outOfStock: materials.filter(material => material.current_stock === 0).length
   };
 
   return (
@@ -153,9 +152,9 @@ export default function StockPage() {
                     <SelectValue placeholder="Seleziona articolo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {stockItems.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.code} - {item.name}
+                    {materials.map((material) => (
+                      <SelectItem key={material.id} value={material.id}>
+                        {material.code} - {material.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -196,7 +195,7 @@ export default function StockPage() {
       </div>
 
       {/* Stock Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Articoli Totali</CardTitle>
@@ -224,6 +223,15 @@ export default function StockPage() {
             <div className="text-2xl font-bold">€{stockSummary.totalValue.toFixed(2)}</div>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Esauriti</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{stockSummary.outOfStock}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -232,43 +240,56 @@ export default function StockPage() {
           <CardTitle>Filtri</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cerca per nome o codice..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cerca per nome o codice..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
               </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le categorie</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category || ""}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Tipo Materiale" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i tipi</SelectItem>
+                  {types.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte le categorie</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category || ""}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Stock Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Inventario Stock</CardTitle>
-          <CardDescription>
-            {filteredItems.length} di {stockItems.length} articoli
-          </CardDescription>
-        </CardHeader>
+        {/* Stock Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Inventario Stock</CardTitle>
+            <CardDescription>
+              {filteredMaterials.length} di {materials.length} materiali
+            </CardDescription>
+          </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
@@ -276,11 +297,12 @@ export default function StockPage() {
                 <TableRow>
                   <TableHead>Codice</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Categoria</TableHead>
+                  <TableHead>Fornitore</TableHead>
                   <TableHead>Ubicazione</TableHead>
-                  <TableHead className="text-right">Disponibile</TableHead>
-                  <TableHead className="text-right">Riservato</TableHead>
-                  <TableHead className="text-right">Totale</TableHead>
+                  <TableHead className="text-right">Scorta Attuale</TableHead>
+                  <TableHead className="text-right">Min/Max</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead className="text-right">Valore</TableHead>
                 </TableRow>
@@ -288,37 +310,59 @@ export default function StockPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       Caricamento...
                     </TableCell>
                   </TableRow>
-                ) : filteredItems.length === 0 ? (
+                ) : filteredMaterials.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      Nessun articolo trovato
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      Nessun materiale trovato
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredItems.map((item) => {
-                    const stockStatus = getStockStatus(item);
+                  filteredMaterials.map((material) => {
+                    const stockStatus = getStockStatus(material);
                     const StatusIcon = stockStatus.icon;
+                    const supplier = suppliers.find(s => s.id === material.supplier_id);
                     
                     return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.code}</TableCell>
+                      <TableRow key={material.id}>
+                        <TableCell className="font-medium">{material.code}</TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{item.name}</div>
-                            {item.description && (
-                              <div className="text-sm text-muted-foreground">{item.description}</div>
+                            <div className="font-medium">{material.name}</div>
+                            {material.description && (
+                              <div className="text-sm text-muted-foreground">{material.description}</div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{item.category}</TableCell>
-                        <TableCell>{item.location}</TableCell>
-                        <TableCell className="text-right">{item.available_quantity} {item.unit}</TableCell>
-                        <TableCell className="text-right">{item.reserved_quantity} {item.unit}</TableCell>
-                        <TableCell className="text-right">{item.quantity} {item.unit}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {material.material_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{material.category || "-"}</TableCell>
+                        <TableCell>
+                          {supplier ? (
+                            <div className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{supplier.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Nessun fornitore</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{material.location || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-medium">{material.current_stock} {material.unit}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="text-sm">
+                            <div>Min: {material.minimum_stock} {material.unit}</div>
+                            <div>Max: {material.maximum_stock} {material.unit}</div>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={stockStatus.color as any} className="gap-1">
                             <StatusIcon className="h-3 w-3" />
@@ -327,7 +371,7 @@ export default function StockPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          €{(item.quantity * item.cost).toFixed(2)}
+                          €{(material.current_stock * material.cost).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     );
