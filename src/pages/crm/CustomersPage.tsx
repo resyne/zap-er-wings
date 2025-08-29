@@ -44,12 +44,12 @@ export default function CustomersPage() {
   };
 
   const filteredCustomers = customers.filter(customer =>
-    `${customer.name} ${customer.email || ""} ${customer.city || ""}`
+    `${customer.name} ${customer.company_name || ""} ${customer.email || ""} ${customer.city || ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  const totalValue = filteredCustomers.reduce((sum, customer) => sum + (customer.credit_limit || 0), 0);
+  const totalCustomers = filteredCustomers.length;
   const activeCustomers = filteredCustomers.filter(customer => customer.active);
 
   return (
@@ -71,7 +71,7 @@ export default function CustomersPage() {
             <CardTitle className="text-sm font-medium">Clienti Totali</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredCustomers.length}</div>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
           </CardContent>
         </Card>
         <Card>
@@ -84,10 +84,10 @@ export default function CustomersPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Credito Totale</CardTitle>
+            <CardTitle className="text-sm font-medium">Con Azienda Specificata</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{filteredCustomers.filter(c => c.company_name).length}</div>
           </CardContent>
         </Card>
       </div>
@@ -112,10 +112,9 @@ export default function CustomersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Azienda</TableHead>
                 <TableHead>Contatto</TableHead>
                 <TableHead>Località</TableHead>
-                <TableHead>Credito</TableHead>
-                <TableHead>Condizioni</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>Azioni</TableHead>
               </TableRow>
@@ -133,6 +132,11 @@ export default function CustomersPage() {
                         </div>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {customer.company_name && (
+                      <span className="text-sm font-medium">{customer.company_name}</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
@@ -158,18 +162,6 @@ export default function CustomersPage() {
                           {customer.city}{customer.city && customer.country && ", "}{customer.country}
                         </span>
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {customer.credit_limit && (
-                      <span className="font-medium">€{customer.credit_limit.toLocaleString()}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {customer.payment_terms && (
-                      <span className="text-sm text-muted-foreground">
-                        {customer.payment_terms} giorni
-                      </span>
                     )}
                   </TableCell>
                   <TableCell>

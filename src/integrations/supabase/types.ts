@@ -557,6 +557,7 @@ export type Database = {
           address: string | null
           city: string | null
           code: string
+          company_name: string | null
           country: string | null
           created_at: string | null
           credit_limit: number | null
@@ -565,6 +566,7 @@ export type Database = {
           name: string
           payment_terms: number | null
           phone: string | null
+          shipping_address: string | null
           tax_id: string | null
           updated_at: string | null
         }
@@ -573,6 +575,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           code: string
+          company_name?: string | null
           country?: string | null
           created_at?: string | null
           credit_limit?: number | null
@@ -581,6 +584,7 @@ export type Database = {
           name: string
           payment_terms?: number | null
           phone?: string | null
+          shipping_address?: string | null
           tax_id?: string | null
           updated_at?: string | null
         }
@@ -589,6 +593,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           code?: string
+          company_name?: string | null
           country?: string | null
           created_at?: string | null
           credit_limit?: number | null
@@ -597,6 +602,7 @@ export type Database = {
           name?: string
           payment_terms?: number | null
           phone?: string | null
+          shipping_address?: string | null
           tax_id?: string | null
           updated_at?: string | null
         }

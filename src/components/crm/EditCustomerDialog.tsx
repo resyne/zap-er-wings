@@ -20,14 +20,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
   const [formData, setFormData] = useState({
     name: "",
     code: "",
+    company_name: "",
     email: "",
     phone: "",
     address: "",
+    shipping_address: "",
     city: "",
     country: "",
     tax_id: "",
-    credit_limit: "",
-    payment_terms: "30",
     active: true
   });
   const { toast } = useToast();
@@ -37,14 +37,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
       setFormData({
         name: customer.name || "",
         code: customer.code || "",
+        company_name: customer.company_name || "",
         email: customer.email || "",
         phone: customer.phone || "",
         address: customer.address || "",
+        shipping_address: customer.shipping_address || "",
         city: customer.city || "",
         country: customer.country || "",
         tax_id: customer.tax_id || "",
-        credit_limit: customer.credit_limit ? customer.credit_limit.toString() : "",
-        payment_terms: customer.payment_terms ? customer.payment_terms.toString() : "30",
         active: customer.active !== false
       });
     }
@@ -73,14 +73,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
         .update({
           name: formData.name,
           code: formData.code,
+          company_name: formData.company_name || null,
           email: formData.email || null,
           phone: formData.phone || null,
           address: formData.address || null,
+          shipping_address: formData.shipping_address || null,
           city: formData.city || null,
           country: formData.country || null,
           tax_id: formData.tax_id || null,
-          credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : null,
-          payment_terms: parseInt(formData.payment_terms),
           active: formData.active,
           updated_at: new Date().toISOString()
         })
@@ -135,6 +135,16 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
               />
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company_name">Nome Azienda</Label>
+            <Input
+              id="company_name"
+              value={formData.company_name}
+              onChange={(e) => handleInputChange('company_name', e.target.value)}
+              placeholder="Nome dell'azienda"
+            />
+          </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -159,12 +169,23 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Indirizzo</Label>
+            <Label htmlFor="address">Indirizzo di Fatturazione</Label>
             <Textarea
               id="address"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder="Via, numero civico"
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="shipping_address">Indirizzo di Spedizione (se diverso)</Label>
+            <Textarea
+              id="shipping_address"
+              value={formData.shipping_address}
+              onChange={(e) => handleInputChange('shipping_address', e.target.value)}
+              placeholder="Via, numero civico (lascia vuoto se uguale all'indirizzo di fatturazione)"
               rows={2}
             />
           </div>
@@ -200,39 +221,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
                 placeholder="IT12345678901"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment_terms">Condizioni di Pagamento (giorni)</Label>
-              <Input
-                id="payment_terms"
-                type="number"
-                value={formData.payment_terms}
-                onChange={(e) => handleInputChange('payment_terms', e.target.value)}
-                placeholder="30"
-                min="0"
+            <div className="flex items-center space-x-2 pt-6">
+              <Switch
+                id="active"
+                checked={formData.active}
+                onCheckedChange={(checked) => handleInputChange('active', checked)}
               />
+              <Label htmlFor="active">Cliente attivo</Label>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="credit_limit">Limite di Credito (€)</Label>
-            <Input
-              id="credit_limit"
-              type="number"
-              value={formData.credit_limit}
-              onChange={(e) => handleInputChange('credit_limit', e.target.value)}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="active"
-              checked={formData.active}
-              onCheckedChange={(checked) => handleInputChange('active', checked)}
-            />
-            <Label htmlFor="active">Cliente attivo</Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
