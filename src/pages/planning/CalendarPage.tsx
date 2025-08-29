@@ -16,6 +16,7 @@ interface WorkOrder {
   status: string;
   type: 'production' | 'service';
   scheduled_date?: string;
+  location?: string;
   customer?: {
     name: string;
     code: string;
@@ -70,6 +71,7 @@ export default function CalendarPage() {
           title,
           status,
           scheduled_date,
+          location,
           customers (
             name,
             code
@@ -90,6 +92,7 @@ export default function CalendarPage() {
           title,
           status,
           scheduled_date,
+          location,
           customers (
             name,
             code
@@ -219,21 +222,7 @@ export default function CalendarPage() {
                         setShowDetailsDialog(true);
                       }}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        {order.type === 'production' ? (
-                          <Factory className="w-4 h-4 text-blue-600" />
-                        ) : (
-                          <Wrench className="w-4 h-4 text-green-600" />
-                        )}
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs ${order.type === 'production' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-green-200 bg-green-50 text-green-700'}`}
-                        >
-                          {order.type === 'production' ? 'Produzione' : 'Servizio'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <div className="font-medium text-sm leading-tight">
                           {order.number}
                         </div>
@@ -245,11 +234,11 @@ export default function CalendarPage() {
                             {order.customer.name}
                           </div>
                         )}
-                        <Badge 
-                          className={`text-xs ${statusColors[order.status as keyof typeof statusColors]}`}
-                        >
-                          {statusLabels[order.status as keyof typeof statusLabels]}
-                        </Badge>
+                        {order.location && (
+                          <div className="text-xs text-muted-foreground bg-gray-50 px-2 py-1 rounded">
+                            📍 {order.location}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
