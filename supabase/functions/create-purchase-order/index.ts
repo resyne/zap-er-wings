@@ -324,7 +324,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         const emailResult = await resend.emails.send({
-          from: "Sistema ERP <noreply@abbattitorizapper.it>",
+          from: "Sistema ERP <acquisti@abbattitorizapper.it>",
           to: [supplier.email],
           subject: `🔔 Ordine di Acquisto N° ${purchaseOrder.number} - Conferma Richiesta`,
           html: emailHtml,
