@@ -139,7 +139,7 @@ export default function OrdersPage() {
       status: 'planned' as const,
       bom_id: newOrder.bom_id || null,
       customer_id: newOrder.customer_id,
-      assigned_to: newOrder.assigned_technician || null,
+      assigned_to: null, // Set to null for now - requires auth.users ID
       priority: newOrder.priority,
       planned_start_date: newOrder.planned_start_date || null,
       planned_end_date: newOrder.planned_end_date || null,
@@ -164,7 +164,7 @@ export default function OrdersPage() {
       description: newOrder.work_description || newOrder.notes,
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
-      assigned_to: newOrder.assigned_technician || null,
+      assigned_to: null, // Set to null for now - requires auth.users ID
       priority: newOrder.priority,
       scheduled_date: newOrder.planned_start_date ? new Date(newOrder.planned_start_date).toISOString() : null,
       location: newOrder.location || null,
