@@ -48,7 +48,7 @@ export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
+  
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -64,7 +64,6 @@ export default function WorkOrdersPage() {
     title: "",
     bom_id: "",
     customer_id: "",
-    contact_id: "",
     assigned_to: "",
     priority: "medium",
     planned_start_date: "",
@@ -79,7 +78,7 @@ export default function WorkOrdersPage() {
     fetchWorkOrders();
     fetchBoms();
     fetchCustomers();
-    fetchContacts();
+    
     fetchTechnicians();
   }, []);
 
@@ -154,19 +153,6 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const fetchContacts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('crm_contacts')
-        .select('id, first_name, last_name, company_name, email, phone')
-        .order('first_name');
-
-      if (error) throw error;
-      setContacts(data || []);
-    } catch (error: any) {
-      console.error("Errore durante il caricamento dei contatti:", error);
-    }
-  };
 
   const fetchTechnicians = async () => {
     try {
@@ -235,7 +221,7 @@ export default function WorkOrdersPage() {
               description: formData.serviceOrderNotes || `Ordine di lavoro collegato all'ordine di produzione ${productionWO.number}`,
               production_work_order_id: productionWO.id,
               customer_id: formData.customer_id || null,
-              contact_id: formData.contact_id || null,
+              contact_id: null,
               assigned_to: formData.assigned_to || null,
               priority: formData.priority,
               status: 'planned',
@@ -269,7 +255,6 @@ export default function WorkOrdersPage() {
         title: "", 
         bom_id: "", 
         customer_id: "",
-        contact_id: "",
         assigned_to: "",
         priority: "medium",
         planned_start_date: "", 
@@ -300,7 +285,6 @@ export default function WorkOrdersPage() {
       title: wo.title,
       bom_id: bomMatch?.id || "",
       customer_id: wo.customer_id || "",
-      contact_id: wo.contact_id || "",
       assigned_to: wo.assigned_to || "",
       priority: wo.priority || "medium",
       planned_start_date: wo.planned_start_date || "",
@@ -419,7 +403,6 @@ export default function WorkOrdersPage() {
                 title: "", 
                 bom_id: "", 
                 customer_id: "",
-                contact_id: "",
                 assigned_to: "",
                 priority: "medium",
                 planned_start_date: "", 
@@ -428,7 +411,7 @@ export default function WorkOrdersPage() {
                 createServiceOrder: false,
                 serviceOrderTitle: "",
                 serviceOrderNotes: ""
-              }); 
+              });
             }}>
               <Plus className="mr-2 h-4 w-4" />
               Nuovo Ordine di Produzione
@@ -485,46 +468,28 @@ export default function WorkOrdersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customer_id">Cliente</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.customer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, customer_id: value }))}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleziona cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} ({customer.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowCreateCustomer(true)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contact_id">Contatto</Label>
-                  <Select value={formData.contact_id} onValueChange={(value) => setFormData(prev => ({ ...prev, contact_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona contatto" />
+              <div className="space-y-2">
+                <Label htmlFor="customer_id">Cliente</Label>
+                <div className="flex gap-2">
+                  <Select value={formData.customer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, customer_id: value }))}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {contacts.map((contact) => (
-                        <SelectItem key={contact.id} value={contact.id}>
-                          {contact.first_name} {contact.last_name}
-                          {contact.company_name && ` - ${contact.company_name}`}
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.code})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateCustomer(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
 
