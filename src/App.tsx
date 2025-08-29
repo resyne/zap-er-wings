@@ -50,6 +50,7 @@ import { SettingsPage } from "./pages/settings/SettingsPage";
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
+import MaterialsPage from "./pages/warehouse/MaterialsPage";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ const App = () => (
                 <Route path="crm/dashboard" element={<CrmPage />} />
                 <Route path="crm/orders" element={<OrdersPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
+                <Route path="warehouse/materials" element={<MaterialsPage />} />
                 <Route path="wms/stock" element={<StockPage />} />
                 <Route path="wms/movements" element={<MovementsPage />} />
                 <Route path="wms/batches-serials" element={<BatchesSerialsPage />} />
