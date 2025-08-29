@@ -162,7 +162,6 @@ export default function WorkOrdersPage() {
     }
   };
 
-
   const fetchTechnicians = async () => {
     try {
       const { data, error } = await supabase
@@ -176,6 +175,19 @@ export default function WorkOrdersPage() {
     } catch (error: any) {
       console.error("Errore durante il caricamento dei tecnici:", error);
     }
+  };
+
+  // Fast buttons function for setting planned dates
+  const setPlannedDuration = (hours: number) => {
+    const now = new Date();
+    const startDate = now.toISOString().slice(0, 16); // Format for datetime-local
+    const endDate = new Date(now.getTime() + (hours * 60 * 60 * 1000)).toISOString().slice(0, 16);
+    
+    setFormData(prev => ({
+      ...prev,
+      planned_start_date: startDate,
+      planned_end_date: endDate
+    }));
   };
 
   const handleCustomerCreated = (newCustomer: { id: string; name: string; code: string }) => {
@@ -585,6 +597,61 @@ export default function WorkOrdersPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, planned_end_date: e.target.value }))}
                   />
                 </div>
+              </div>
+
+              {/* Fast Duration Buttons */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Durata Rapida</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24)}
+                    className="text-xs"
+                  >
+                    24h
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(48)}
+                    className="text-xs"
+                  >
+                    48h
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24 * 7)}
+                    className="text-xs"
+                  >
+                    7gg
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24 * 15)}
+                    className="text-xs"
+                  >
+                    15gg
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24 * 30)}
+                    className="text-xs"
+                  >
+                    30gg
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Clicca per impostare automaticamente inizio (ora) e fine pianificata
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="notes">Note</Label>
