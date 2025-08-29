@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, Calendar, Package, FileImage, Upload, X } from "lucide-react";
+import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Order {
   id: string;
@@ -41,6 +43,8 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
@@ -301,6 +305,111 @@ export default function OrdersPage() {
       toast({
         title: "Errore",
         description: "Impossibile creare l'ordine: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditOrder = (order: Order) => {
+    setEditingOrder(order);
+    setNewOrder({
+      customer_id: order.customer_id || "",
+      order_type: order.order_type || "",
+      order_date: order.order_date || new Date().toISOString().split('T')[0],
+      delivery_date: order.delivery_date || "",
+      status: order.status || "draft",
+      notes: order.notes || "",
+      work_description: "",
+      bom_id: "",
+      assigned_technician: "",
+      priority: "medium",
+      planned_start_date: "",
+      planned_end_date: "",
+      location: "",
+      equipment_needed: ""
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateOrder = async () => {
+    if (!editingOrder || !newOrder.customer_id || !newOrder.order_type) {
+      toast({
+        title: "Errore",
+        description: "Cliente e tipo ordine sono obbligatori",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const updateData = {
+        customer_id: newOrder.customer_id,
+        order_date: newOrder.order_date || null,
+        delivery_date: newOrder.delivery_date || null,
+        status: newOrder.status,
+        notes: newOrder.notes || null,
+        order_type: newOrder.order_type
+      };
+
+      const { error } = await supabase
+        .from("sales_orders")
+        .update(updateData)
+        .eq("id", editingOrder.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ordine aggiornato con successo",
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingOrder(null);
+      setNewOrder({
+        customer_id: "",
+        order_type: "",
+        order_date: new Date().toISOString().split('T')[0],
+        delivery_date: "",
+        status: "draft",
+        notes: "",
+        work_description: "",
+        bom_id: "",
+        assigned_technician: "",
+        priority: "medium",
+        planned_start_date: "",
+        planned_end_date: "",
+        location: "",
+        equipment_needed: ""
+      });
+      await loadOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare l'ordine: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from("sales_orders")
+        .delete()
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ordine eliminato con successo",
+      });
+
+      await loadOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare l'ordine: " + error.message,
         variant: "destructive",
       });
     }
@@ -687,6 +796,7 @@ export default function OrdersPage() {
                 <TableHead>Consegna</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>Note</TableHead>
+                <TableHead className="w-[50px]">Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -742,11 +852,48 @@ export default function OrdersPage() {
                       }
                     </span>
                   </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditOrder(order)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Modifica
+                        </DropdownMenuItem>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Elimina
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Sei sicuro di voler eliminare l'ordine {order.number}? Questa azione non può essere annullata.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annulla</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                                Elimina
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessun ordine trovato" : "Nessun ordine presente"}
                     </div>
@@ -757,6 +904,109 @@ export default function OrdersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit Order Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifica Ordine {editingOrder?.number}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_customer_id">Cliente *</Label>
+                <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(customer => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="edit_order_type">Tipo Ordine *</Label>
+                <Select value={newOrder.order_type} onValueChange={(value) => setNewOrder({...newOrder, order_type: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona tipo ordine" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orderTypes.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_order_date">Data Ordine</Label>
+                <Input
+                  id="edit_order_date"
+                  type="date"
+                  value={newOrder.order_date}
+                  onChange={(e) => setNewOrder({...newOrder, order_date: e.target.value})}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="edit_delivery_date">Data Consegna</Label>
+                <Input
+                  id="edit_delivery_date"
+                  type="date"
+                  value={newOrder.delivery_date}
+                  onChange={(e) => setNewOrder({...newOrder, delivery_date: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit_status">Stato</Label>
+              <Select value={newOrder.status} onValueChange={(value) => setNewOrder({...newOrder, status: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderStatuses.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="edit_notes">Note</Label>
+              <Textarea
+                id="edit_notes"
+                value={newOrder.notes}
+                onChange={(e) => setNewOrder({...newOrder, notes: e.target.value})}
+                placeholder="Note aggiuntive..."
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleUpdateOrder}>
+                Salva Modifiche
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
