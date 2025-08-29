@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2, Wrench, Factory, Package, Component } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2, Wrench, Factory, Package, Component, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,10 +35,27 @@ interface ParentBOM {
   level: number;
 }
 
+interface BOMInclusion {
+  id: string;
+  parent_bom_id: string;
+  included_bom_id: string;
+  quantity: number;
+  notes?: string;
+  included_bom: BOM;
+}
+
+interface IncludableBOM {
+  id: string;
+  name: string;
+  version: string;
+  selected: boolean;
+  quantity: number;
+}
+
 const levelLabels = {
-  0: "Machinery Model",
-  1: "Parent Group", 
-  2: "Child Element"
+  0: "Machinery Models",
+  1: "Parent Groups", 
+  2: "Child Elements"
 };
 
 const levelIcons = {
@@ -53,6 +72,9 @@ export default function BomPage() {
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<number>(0);
   const [parentBoms, setParentBoms] = useState<ParentBOM[]>([]);
+  const [activeTab, setActiveTab] = useState("0");
+  const [includableBoms, setIncludableBoms] = useState<IncludableBOM[]>([]);
+  const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -74,6 +96,7 @@ export default function BomPage() {
       machinery_model: ""
     });
     setSelectedLevel(0);
+    setIncludableBoms([]);
   };
 
   useEffect(() => {
@@ -83,6 +106,9 @@ export default function BomPage() {
   useEffect(() => {
     if (selectedLevel > 0) {
       fetchParentBoms();
+      fetchIncludableBoms();
+    } else {
+      setIncludableBoms([]);
     }
   }, [selectedLevel]);
 
@@ -92,7 +118,14 @@ export default function BomPage() {
         .from('boms')
         .select(`
           *,
-          bom_items(count)
+          bom_items(count),
+          bom_inclusions!parent_bom_id(
+            id,
+            included_bom_id,
+            quantity,
+            notes,
+            included_bom:boms!included_bom_id(*)
+          )
         `)
         .order('level', { ascending: true })
         .order('updated_at', { ascending: false });
@@ -101,7 +134,8 @@ export default function BomPage() {
 
       const bomsWithCount = data?.map(bom => ({
         ...bom,
-        component_count: Array.isArray(bom.bom_items) ? bom.bom_items.length : 0
+        component_count: Array.isArray(bom.bom_items) ? bom.bom_items.length : 0,
+        inclusions: bom.bom_inclusions || []
       })) || [];
 
       setBoms(bomsWithCount);
@@ -136,6 +170,33 @@ export default function BomPage() {
     }
   };
 
+  const fetchIncludableBoms = async () => {
+    try {
+      const targetLevel = selectedLevel - 1;
+      const { data, error } = await supabase
+        .from('boms')
+        .select('id, name, version')
+        .eq('level', targetLevel)
+        .order('name');
+
+      if (error) throw error;
+      
+      const includableBoms = data?.map(bom => ({
+        ...bom,
+        selected: false,
+        quantity: 1
+      })) || [];
+      
+      setIncludableBoms(includableBoms);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -146,6 +207,8 @@ export default function BomPage() {
         machinery_model: selectedLevel === 0 ? formData.machinery_model : null
       };
 
+      let bomId: string;
+
       if (selectedBom) {
         // Update
         const { error } = await supabase
@@ -154,6 +217,7 @@ export default function BomPage() {
           .eq('id', selectedBom.id);
 
         if (error) throw error;
+        bomId = selectedBom.id;
 
         toast({
           title: "Success",
@@ -161,16 +225,47 @@ export default function BomPage() {
         });
       } else {
         // Create
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('boms')
-          .insert([submitData]);
+          .insert([submitData])
+          .select()
+          .single();
 
         if (error) throw error;
+        bomId = data.id;
 
         toast({
           title: "Success",
           description: "BOM created successfully",
         });
+      }
+
+      // Handle BOM inclusions
+      if (selectedLevel > 0) {
+        // Delete existing inclusions if updating
+        if (selectedBom) {
+          await supabase
+            .from('bom_inclusions')
+            .delete()
+            .eq('parent_bom_id', bomId);
+        }
+
+        // Insert new inclusions
+        const selectedInclusions = includableBoms
+          .filter(bom => bom.selected)
+          .map(bom => ({
+            parent_bom_id: bomId,
+            included_bom_id: bom.id,
+            quantity: bom.quantity
+          }));
+
+        if (selectedInclusions.length > 0) {
+          const { error: inclusionError } = await supabase
+            .from('bom_inclusions')
+            .insert(selectedInclusions);
+
+          if (inclusionError) throw inclusionError;
+        }
       }
 
       setIsDialogOpen(false);
@@ -186,7 +281,7 @@ export default function BomPage() {
     }
   };
 
-  const handleEdit = (bom: BOM) => {
+  const handleEdit = async (bom: BOM) => {
     setSelectedBom(bom);
     setSelectedLevel(bom.level);
     setFormData({
@@ -197,11 +292,55 @@ export default function BomPage() {
       parent_id: bom.parent_id || "",
       machinery_model: bom.machinery_model || ""
     });
+
+    // Fetch existing inclusions for this BOM
+    if (bom.level > 0) {
+      try {
+        const { data: inclusions, error } = await supabase
+          .from('bom_inclusions')
+          .select(`
+            included_bom_id,
+            quantity,
+            included_bom:boms!included_bom_id(id, name, version)
+          `)
+          .eq('parent_bom_id', bom.id);
+
+        if (error) throw error;
+
+        // Fetch all available BOMs for the lower level
+        const targetLevel = bom.level - 1;
+        const { data: availableBoms, error: bomError } = await supabase
+          .from('boms')
+          .select('id, name, version')
+          .eq('level', targetLevel)
+          .order('name');
+
+        if (bomError) throw bomError;
+
+        const includableBoms = availableBoms?.map(availableBom => {
+          const existing = inclusions?.find(inc => inc.included_bom_id === availableBom.id);
+          return {
+            ...availableBom,
+            selected: !!existing,
+            quantity: existing?.quantity || 1
+          };
+        }) || [];
+
+        setIncludableBoms(includableBoms);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    }
+
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this BOM? This will also delete all child BOMs.")) return;
+    if (!confirm("Are you sure you want to delete this BOM? This will also delete all child BOMs and inclusions.")) return;
 
     try {
       const { error } = await supabase
@@ -223,6 +362,22 @@ export default function BomPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleInclusionToggle = (bomId: string, checked: boolean) => {
+    setIncludableBoms(prev => 
+      prev.map(bom => 
+        bom.id === bomId ? { ...bom, selected: checked } : bom
+      )
+    );
+  };
+
+  const handleQuantityChange = (bomId: string, quantity: number) => {
+    setIncludableBoms(prev => 
+      prev.map(bom => 
+        bom.id === bomId ? { ...bom, quantity: Math.max(1, quantity) } : bom
+      )
+    );
   };
 
   const filteredBoms = boms.filter(bom =>
@@ -278,7 +433,7 @@ export default function BomPage() {
               New BOM
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{selectedBom ? "Edit BOM" : "Create New BOM"}</DialogTitle>
               <DialogDescription>
@@ -367,6 +522,38 @@ export default function BomPage() {
                   placeholder="Optional notes about this BOM"
                 />
               </div>
+
+              {selectedLevel > 0 && includableBoms.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Include BOMs from Level {selectedLevel - 1}</Label>
+                  <div className="border rounded-md p-4 max-h-40 overflow-y-auto space-y-2">
+                    {includableBoms.map((bom) => (
+                      <div key={bom.id} className="flex items-center justify-between space-x-2">
+                        <div className="flex items-center space-x-2 flex-1">
+                          <Checkbox
+                            checked={bom.selected}
+                            onCheckedChange={(checked) => handleInclusionToggle(bom.id, checked as boolean)}
+                          />
+                          <span className="text-sm">{bom.name} ({bom.version})</span>
+                        </div>
+                        {bom.selected && (
+                          <div className="flex items-center space-x-2">
+                            <Label className="text-xs">Qty:</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={bom.quantity}
+                              onChange={(e) => handleQuantityChange(bom.id, parseInt(e.target.value) || 1)}
+                              className="w-16 text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
@@ -432,105 +619,121 @@ export default function BomPage() {
         </CardContent>
       </Card>
 
-      {/* Hierarchical BOMs Table */}
+      {/* BOMs by Level - Tabs */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>BOMs ({filteredBoms.length})</CardTitle>
-            <Badge variant="secondary">
-              Total Components: {filteredBoms.reduce((sum, bom) => sum + bom.component_count, 0)}
-            </Badge>
-          </div>
+          <CardTitle className="flex items-center space-x-2">
+            <Layers className="h-5 w-5" />
+            <span>BOMs by Level</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Level</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Machinery Model</TableHead>
-                  <TableHead>Components</TableHead>
-                  <TableHead>Last Modified</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      Loading BOMs...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredBoms.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No BOMs found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredBoms.map((bom) => {
-                    const Icon = levelIcons[bom.level as keyof typeof levelIcons];
-                    return (
-                      <TableRow key={bom.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Icon className="h-4 w-4" />
-                            <Badge variant={getLevelBadgeVariant(bom.level)}>
-                              L{bom.level}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div style={{ paddingLeft: `${bom.level * 20}px` }}>
-                            {bom.name}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{bom.version}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {bom.machinery_model ? (
-                            <Badge variant="default">{bom.machinery_model}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {bom.component_count} items
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(bom.updated_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(bom)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Wrench className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(bom.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="0" className="flex items-center space-x-2">
+                <Factory className="h-4 w-4" />
+                <span>Level 0</span>
+                <Badge variant="outline">{groupedBoms[0]?.length || 0}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="1" className="flex items-center space-x-2">
+                <Package className="h-4 w-4" />
+                <span>Level 1</span>
+                <Badge variant="outline">{groupedBoms[1]?.length || 0}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="2" className="flex items-center space-x-2">
+                <Component className="h-4 w-4" />
+                <span>Level 2</span>
+                <Badge variant="outline">{groupedBoms[2]?.length || 0}</Badge>
+              </TabsTrigger>
+            </TabsList>
+            
+            {[0, 1, 2].map((level) => (
+              <TabsContent key={level} value={level.toString()}>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Version</TableHead>
+                        {level === 0 && <TableHead>Machinery Model</TableHead>}
+                        {level > 0 && <TableHead>Includes</TableHead>}
+                        <TableHead>Components</TableHead>
+                        <TableHead>Last Modified</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={level === 0 ? 6 : 6} className="text-center py-8">
+                            Loading BOMs...
+                          </TableCell>
+                        </TableRow>
+                      ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={level === 0 ? 6 : 6} className="text-center py-8">
+                            No Level {level} BOMs found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        groupedBoms[level].map((bom) => (
+                          <TableRow key={bom.id}>
+                            <TableCell className="font-medium">{bom.name}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{bom.version}</Badge>
+                            </TableCell>
+                            {level === 0 && (
+                              <TableCell>
+                                {bom.machinery_model ? (
+                                  <Badge variant="default">{bom.machinery_model}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            )}
+                            {level > 0 && (
+                              <TableCell>
+                                <Badge variant="secondary">
+                                  {(bom as any).inclusions?.length || 0} included
+                                </Badge>
+                              </TableCell>
+                            )}
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {bom.component_count} items
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(bom.updated_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end space-x-2">
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(bom)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <Wrench className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDelete(bom.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
         </CardContent>
       </Card>
     </div>

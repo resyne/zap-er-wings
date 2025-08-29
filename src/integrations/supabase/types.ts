@@ -47,6 +47,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bom_inclusions: {
+        Row: {
+          created_at: string
+          id: string
+          included_bom_id: string
+          notes: string | null
+          parent_bom_id: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          included_bom_id: string
+          notes?: string | null
+          parent_bom_id: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          included_bom_id?: string
+          notes?: string | null
+          parent_bom_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_inclusions_included_bom_id_fkey"
+            columns: ["included_bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_inclusions_parent_bom_id_fkey"
+            columns: ["parent_bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bom_items: {
         Row: {
           bom_id: string
