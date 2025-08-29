@@ -1760,54 +1760,63 @@ export type Database = {
           contact_id: string | null
           created_at: string
           customer_signature: string
-          description: string
+          description: string | null
           end_time: string | null
           id: string
           intervention_date: string
           intervention_type: string
           materials_used: string | null
           notes: string | null
+          production_work_order_id: string | null
           start_time: string | null
           status: string
-          technician_name: string
+          technician_id: string | null
+          technician_name: string | null
           technician_signature: string
           updated_at: string
+          work_order_id: string | null
           work_performed: string | null
         }
         Insert: {
           contact_id?: string | null
           created_at?: string
           customer_signature: string
-          description: string
+          description?: string | null
           end_time?: string | null
           id?: string
           intervention_date: string
           intervention_type: string
           materials_used?: string | null
           notes?: string | null
+          production_work_order_id?: string | null
           start_time?: string | null
           status?: string
-          technician_name: string
+          technician_id?: string | null
+          technician_name?: string | null
           technician_signature: string
           updated_at?: string
+          work_order_id?: string | null
           work_performed?: string | null
         }
         Update: {
           contact_id?: string | null
           created_at?: string
           customer_signature?: string
-          description?: string
+          description?: string | null
           end_time?: string | null
           id?: string
           intervention_date?: string
           intervention_type?: string
           materials_used?: string | null
           notes?: string | null
+          production_work_order_id?: string | null
           start_time?: string | null
           status?: string
-          technician_name?: string
+          technician_id?: string | null
+          technician_name?: string | null
           technician_signature?: string
           updated_at?: string
+          work_order_id?: string | null
           work_performed?: string | null
         }
         Relationships: [
@@ -1816,6 +1825,27 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reports_production_work_order_id_fkey"
+            columns: ["production_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reports_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reports_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_work_orders"
             referencedColumns: ["id"]
           },
         ]

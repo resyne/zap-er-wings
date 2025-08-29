@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList } from "lucide-react";
 import { CreateContactDialog } from "@/components/support/CreateContactDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 
@@ -23,9 +23,31 @@ interface Contact {
   address?: string;
 }
 
+interface Technician {
+  id: string;
+  first_name: string;
+  last_name: string;
+  employee_code: string;
+}
+
+interface WorkOrder {
+  id: string;
+  number: string;
+  title: string;
+  description?: string;
+  customer_id?: string;
+  contact_id?: string;
+  location?: string;
+  type: 'service' | 'production';
+}
+
 export default function ServiceReportsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showCreateContact, setShowCreateContact] = useState(false);
   const [showSignatures, setShowSignatures] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,7 +57,6 @@ export default function ServiceReportsPage() {
     work_performed: '',
     materials_used: '',
     notes: '',
-    technician_name: '',
     intervention_date: new Date().toISOString().split('T')[0],
     start_time: '',
     end_time: ''
@@ -45,23 +66,54 @@ export default function ServiceReportsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadContacts();
+    loadInitialData();
   }, []);
 
-  const loadContacts = async () => {
+  const loadInitialData = async () => {
     try {
-      const { data, error } = await supabase
+      // Load contacts
+      const { data: contactsData, error: contactsError } = await supabase
         .from('crm_contacts')
         .select('id, first_name, last_name, email, phone, company_name, address')
         .order('first_name');
 
-      if (error) throw error;
-      setContacts(data || []);
+      if (contactsError) throw contactsError;
+      setContacts(contactsData || []);
+
+      // Load technicians
+      const { data: techniciansData, error: techniciansError } = await supabase
+        .from('technicians')
+        .select('id, first_name, last_name, employee_code')
+        .eq('active', true)
+        .order('first_name');
+
+      if (techniciansError) throw techniciansError;
+      setTechnicians(techniciansData || []);
+
+      // Load work orders (both service and production)
+      const [serviceOrdersRes, productionOrdersRes] = await Promise.all([
+        supabase
+          .from('service_work_orders')
+          .select('id, number, title, description, customer_id, contact_id, location')
+          .in('status', ['planned', 'in_progress']),
+        supabase
+          .from('work_orders')
+          .select('id, number, title, description, customer_id, location')
+          .in('status', ['planned', 'in_progress'])
+      ]);
+
+      if (serviceOrdersRes.error) throw serviceOrdersRes.error;
+      if (productionOrdersRes.error) throw productionOrdersRes.error;
+
+      const serviceOrders: WorkOrder[] = (serviceOrdersRes.data || []).map(wo => ({ ...wo, type: 'service' as const }));
+      const productionOrders: WorkOrder[] = (productionOrdersRes.data || []).map(wo => ({ ...wo, type: 'production' as const }));
+      
+      setWorkOrders([...serviceOrders, ...productionOrders]);
     } catch (error) {
-      console.error('Error loading contacts:', error);
+      console.error('Error loading data:', error);
       toast({
         title: "Errore",
-        description: "Errore nel caricamento dei contatti",
+        description: "Errore nel caricamento dei dati",
         variant: "destructive",
       });
     }
@@ -76,6 +128,33 @@ export default function ServiceReportsPage() {
     setSelectedContact(contact || null);
   };
 
+  const handleTechnicianSelect = (technicianId: string) => {
+    const technician = technicians.find(t => t.id === technicianId);
+    setSelectedTechnician(technician || null);
+  };
+
+  const handleWorkOrderSelect = (workOrderId: string) => {
+    const workOrder = workOrders.find(wo => wo.id === workOrderId);
+    setSelectedWorkOrder(workOrder || null);
+    
+    // Auto-fill fields with work order data
+    if (workOrder) {
+      setFormData(prev => ({
+        ...prev,
+        work_performed: workOrder.description || prev.work_performed,
+        notes: workOrder.title || prev.notes
+      }));
+
+      // Auto-select contact if available
+      if (workOrder.contact_id) {
+        const contact = contacts.find(c => c.id === workOrder.contact_id);
+        if (contact) {
+          setSelectedContact(contact);
+        }
+      }
+    }
+  };
+
   const handleContactCreated = (newContact: Contact) => {
     setContacts(prev => [...prev, newContact]);
     setSelectedContact(newContact);
@@ -83,10 +162,10 @@ export default function ServiceReportsPage() {
   };
 
   const generateReport = () => {
-    if (!selectedContact || !formData.intervention_type || !formData.description) {
+    if (!selectedContact || !formData.intervention_type || !selectedTechnician) {
       toast({
         title: "Campi obbligatori mancanti",
-        description: "Compila tutti i campi obbligatori prima di generare il rapporto",
+        description: "Seleziona almeno cliente, tipo intervento e tecnico",
         variant: "destructive",
       });
       return;
@@ -110,12 +189,15 @@ export default function ServiceReportsPage() {
         .from('service_reports')
         .insert({
           contact_id: selectedContact?.id,
+          technician_id: selectedTechnician?.id,
+          work_order_id: selectedWorkOrder?.type === 'service' ? selectedWorkOrder.id : null,
+          production_work_order_id: selectedWorkOrder?.type === 'production' ? selectedWorkOrder.id : null,
           intervention_type: formData.intervention_type,
-          description: formData.description,
+          description: formData.description || null,
           work_performed: formData.work_performed,
           materials_used: formData.materials_used,
           notes: formData.notes,
-          technician_name: formData.technician_name,
+          technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : '',
           intervention_date: formData.intervention_date,
           start_time: formData.start_time,
           end_time: formData.end_time,
@@ -138,12 +220,13 @@ export default function ServiceReportsPage() {
         work_performed: '',
         materials_used: '',
         notes: '',
-        technician_name: '',
         intervention_date: new Date().toISOString().split('T')[0],
         start_time: '',
         end_time: ''
       });
       setSelectedContact(null);
+      setSelectedTechnician(null);
+      setSelectedWorkOrder(null);
       setCustomerSignature('');
       setTechnicianSignature('');
       setShowSignatures(false);
@@ -170,12 +253,49 @@ export default function ServiceReportsPage() {
 
       {!showSignatures ? (
         <div className="space-y-6">
+          {/* Ordine di Lavoro (Optional) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5" />
+                Ordine di Lavoro (Opzionale)
+              </CardTitle>
+              <CardDescription>
+                Collega il rapporto a un ordine di lavoro esistente per automaticamente inserire i dati
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Select onValueChange={handleWorkOrderSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un ordine di lavoro..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {workOrders.map((workOrder) => (
+                    <SelectItem key={workOrder.id} value={workOrder.id}>
+                      {workOrder.number} - {workOrder.title} ({workOrder.type === 'service' ? 'OdL' : 'OdP'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedWorkOrder && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Ordine selezionato:</h4>
+                  <p><strong>{selectedWorkOrder.number}</strong> - {selectedWorkOrder.title}</p>
+                  <p>Tipo: {selectedWorkOrder.type === 'service' ? 'Ordine di Lavoro (OdL)' : 'Ordine di Produzione (OdP)'}</p>
+                  {selectedWorkOrder.description && <p>Descrizione: {selectedWorkOrder.description}</p>}
+                  {selectedWorkOrder.location && <p>Località: {selectedWorkOrder.location}</p>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Selezione Cliente */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5" />
-                Cliente
+                Cliente *
               </CardTitle>
               <CardDescription>
                 Seleziona un cliente esistente o creane uno nuovo
@@ -183,7 +303,7 @@ export default function ServiceReportsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
-                <Select onValueChange={handleContactSelect}>
+                <Select onValueChange={handleContactSelect} value={selectedContact?.id || ""}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Seleziona un cliente..." />
                   </SelectTrigger>
@@ -239,13 +359,19 @@ export default function ServiceReportsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="technician_name">Nome Tecnico *</Label>
-                  <Input
-                    id="technician_name"
-                    value={formData.technician_name}
-                    onChange={(e) => handleInputChange('technician_name', e.target.value)}
-                    placeholder="Nome del tecnico"
-                  />
+                  <Label htmlFor="technician">Tecnico Operatore *</Label>
+                  <Select onValueChange={handleTechnicianSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona un tecnico..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {technicians.map((technician) => (
+                        <SelectItem key={technician.id} value={technician.id}>
+                          {technician.first_name} {technician.last_name} ({technician.employee_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -288,12 +414,12 @@ export default function ServiceReportsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Descrizione Problema *</Label>
+                <Label htmlFor="description">Descrizione Problema</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Descrivi il problema riscontrato..."
+                  placeholder="Descrivi il problema riscontrato (opzionale)..."
                   rows={3}
                 />
               </div>
