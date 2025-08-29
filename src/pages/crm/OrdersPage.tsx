@@ -141,6 +141,19 @@ export default function OrdersPage() {
     return Promise.all(uploadPromises);
   };
 
+  // Fast buttons function for setting planned dates
+  const setPlannedDuration = (hours: number) => {
+    const now = new Date();
+    const startDate = now.toISOString().split('T')[0]; // Format for date input (YYYY-MM-DD)
+    const endDate = new Date(now.getTime() + (hours * 60 * 60 * 1000)).toISOString().split('T')[0];
+    
+    setNewOrder(prev => ({
+      ...prev,
+      planned_start_date: startDate,
+      planned_end_date: endDate
+    }));
+  };
+
   const createProductionWorkOrder = async (orderId: string, orderData: any) => {
     const productionData = {
       number: '', // Auto-generated
@@ -670,6 +683,61 @@ export default function OrdersPage() {
                     onChange={(e) => setNewOrder({...newOrder, planned_end_date: e.target.value})}
                   />
                 </div>
+              </div>
+
+              {/* Fast Duration Buttons */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Durata Rapida</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24)}
+                    className="text-xs"
+                  >
+                    24h
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(48)}
+                    className="text-xs"
+                  >
+                    48h
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24 * 7)}
+                    className="text-xs"
+                  >
+                    7gg
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24 * 15)}
+                    className="text-xs"
+                  >
+                    15gg
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPlannedDuration(24 * 30)}
+                    className="text-xs"
+                  >
+                    30gg
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Clicca per impostare automaticamente inizio (oggi) e fine pianificata
+                </p>
               </div>
 
               {/* Service Work Order specific fields */}
