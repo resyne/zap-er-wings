@@ -30,6 +30,7 @@ interface ServiceWorkOrder {
   created_at: string;
   updated_at: string;
   notes?: string;
+  production_work_order_id?: string;
   customers?: {
     name: string;
     code: string;
@@ -44,6 +45,11 @@ interface ServiceWorkOrder {
     first_name: string;
     last_name: string;
     employee_code: string;
+  };
+  production_work_order?: {
+    id: string;
+    number: string;
+    status: string;
   };
 }
 
@@ -115,9 +121,12 @@ export default function WorkOrdersServicePage() {
 
       if (error) throw error;
 
-      // Manually join technician data
-      const workOrdersWithTechnicians = await Promise.all(
-        (data || []).map(async (wo) => {
+      // Manually join technician and production work order data
+      const workOrdersWithRelations = await Promise.all(
+        (data || []).map(async (wo: any) => {
+          let result: any = { ...wo };
+          
+          // Load technician data
           if (wo.assigned_to) {
             const { data: techData } = await supabase
               .from('technicians')
@@ -125,13 +134,25 @@ export default function WorkOrdersServicePage() {
               .eq('id', wo.assigned_to)
               .single();
             
-            return { ...wo, technician: techData };
+            if (techData) result.technician = techData;
           }
-          return wo;
+          
+          // Load production work order data
+          if (wo.production_work_order_id) {
+            const { data: prodData } = await supabase
+              .from('work_orders')
+              .select('id, number, status')
+              .eq('id', wo.production_work_order_id)
+              .single();
+            
+            if (prodData) result.production_work_order = prodData;
+          }
+          
+          return result;
         })
       );
 
-      setServiceWorkOrders(workOrdersWithTechnicians);
+      setServiceWorkOrders(workOrdersWithRelations);
     } catch (error) {
       console.error('Error loading service work orders:', error);
       toast({
@@ -541,13 +562,26 @@ export default function WorkOrdersServicePage() {
                 filteredWorkOrders.map((workOrder: any) => (
                   <TableRow key={workOrder.id}>
                     <TableCell className="font-mono text-sm">
-                      <div className="flex items-center gap-2">
-                        {workOrder.number}
-                        {workOrder.work_orders && workOrder.work_orders.length > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Factory className="w-3 h-3 mr-1" />
-                            Da Produzione
-                          </Badge>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          {workOrder.number}
+                          {workOrder.production_work_order && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Factory className="w-3 h-3 mr-1" />
+                              Da Produzione
+                            </Badge>
+                          )}
+                        </div>
+                        {workOrder.production_work_order && (
+                          <div className="text-xs text-muted-foreground">
+                            OdP: {workOrder.production_work_order.number} 
+                            <Badge 
+                              variant="outline" 
+                              className="ml-1 text-xs"
+                            >
+                              {workOrder.production_work_order.status}
+                            </Badge>
+                          </div>
                         )}
                       </div>
                     </TableCell>
