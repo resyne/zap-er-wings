@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Calendar, Factory, Wrench, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
 
 interface WorkOrder {
@@ -16,6 +16,9 @@ interface WorkOrder {
   status: string;
   type: 'production' | 'service';
   scheduled_date?: string;
+  actual_start_date?: string;
+  actual_end_date?: string;
+  estimated_hours?: number;
   location?: string;
   customer?: {
     name: string;
@@ -71,6 +74,7 @@ export default function CalendarPage() {
           title,
           status,
           scheduled_date,
+          estimated_hours,
           location,
           customers (
             name,
@@ -92,6 +96,9 @@ export default function CalendarPage() {
           title,
           status,
           scheduled_date,
+          actual_start_date,
+          actual_end_date,
+          estimated_hours,
           location,
           customers (
             name,
@@ -126,7 +133,7 @@ export default function CalendarPage() {
 
       // Combina tutti gli ordini
       const allOrders: WorkOrder[] = [
-        ...(productionOrders || []).map(order => ({ ...order, type: 'production' as const })),
+        ...(productionOrders || []).map((order: any) => ({ ...order, type: 'production' as const })),
         ...serviceOrdersWithTechnicians
       ];
 
@@ -147,6 +154,15 @@ export default function CalendarPage() {
     return workOrders.filter(order => {
       if (!order.scheduled_date) return false;
       const orderDate = parseISO(order.scheduled_date);
+      
+      // Per ordini di lavoro, verifica se il giorno rientra nel periodo di lavoro
+      if (order.type === 'service' && order.actual_start_date && order.actual_end_date) {
+        const startDate = parseISO(order.actual_start_date);
+        const endDate = parseISO(order.actual_end_date);
+        return day >= startDate && day <= endDate;
+      }
+      
+      // Per ordini di produzione o ordini di lavoro senza date multiple, usa la data pianificata
       return isSameDay(orderDate, day);
     });
   };
@@ -213,35 +229,67 @@ export default function CalendarPage() {
                     Nessun ordine pianificato
                   </p>
                 ) : (
-                  dayOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setShowDetailsDialog(true);
-                      }}
-                    >
-                      <div className="space-y-2">
-                        <div className="font-medium text-sm leading-tight">
-                          {order.number}
-                        </div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">
-                          {order.title}
-                        </div>
-                        {order.customer && (
-                          <div className="text-xs text-muted-foreground">
-                            {order.customer.name}
+                  dayOrders.map((order) => {
+                    // Calcola le informazioni temporali
+                    const getDurationInfo = () => {
+                      if (order.type === 'service') {
+                        if (order.actual_start_date && order.actual_end_date) {
+                          const start = parseISO(order.actual_start_date);
+                          const end = parseISO(order.actual_end_date);
+                          const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                          return `📅 ${diffDays} giorni`;
+                        } else if (order.estimated_hours) {
+                          return `⏱️ ${order.estimated_hours}h stimato`;
+                        }
+                      } else if (order.type === 'production' && order.estimated_hours) {
+                        return `⚙️ ${order.estimated_hours}h lavorazione`;
+                      }
+                      return null;
+                    };
+
+                    const durationInfo = getDurationInfo();
+                    
+                    return (
+                      <div
+                        key={order.id}
+                        className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${
+                          order.type === 'service' && order.actual_start_date && order.actual_end_date 
+                            ? 'border-l-4 border-l-orange-400' 
+                            : order.type === 'production' 
+                            ? 'border-l-4 border-l-blue-400'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setShowDetailsDialog(true);
+                        }}
+                      >
+                        <div className="space-y-2">
+                          <div className="font-medium text-sm leading-tight">
+                            {order.number}
                           </div>
-                        )}
-                        {order.location && (
-                          <div className="text-xs text-muted-foreground bg-gray-50 px-2 py-1 rounded">
-                            📍 {order.location}
+                          <div className="text-xs text-muted-foreground line-clamp-2">
+                            {order.title}
                           </div>
-                        )}
+                          {order.customer && (
+                            <div className="text-xs text-muted-foreground">
+                              {order.customer.name}
+                            </div>
+                          )}
+                          {durationInfo && (
+                            <div className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
+                              {durationInfo}
+                            </div>
+                          )}
+                          {order.location && (
+                            <div className="text-xs text-muted-foreground bg-gray-50 px-2 py-1 rounded">
+                              📍 {order.location}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
