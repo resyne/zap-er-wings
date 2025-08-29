@@ -287,6 +287,7 @@ export type Database = {
           phone: string | null
           piva: string | null
           sdi_code: string | null
+          shipping_address: string | null
           synced_at: string | null
           updated_at: string
         }
@@ -307,6 +308,7 @@ export type Database = {
           phone?: string | null
           piva?: string | null
           sdi_code?: string | null
+          shipping_address?: string | null
           synced_at?: string | null
           updated_at?: string
         }
@@ -327,6 +329,7 @@ export type Database = {
           phone?: string | null
           piva?: string | null
           sdi_code?: string | null
+          shipping_address?: string | null
           synced_at?: string | null
           updated_at?: string
         }
