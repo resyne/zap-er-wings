@@ -65,8 +65,8 @@ export default function StockPage() {
   const form = useForm<z.infer<typeof purchaseOrderSchema>>({
     defaultValues: {
       quantity: 1,
-      deliveryTimeframe: "",
-      priority: "",
+      deliveryTimeframe: "7",
+      priority: "medium",
       notes: "",
     },
   });
@@ -132,7 +132,7 @@ export default function StockPage() {
     setSelectedMaterial(material);
     form.reset({
       quantity: material.minimum_stock,
-      deliveryTimeframe: "",
+      deliveryTimeframe: "7",
       priority: "medium",
       notes: `Riordino per ${material.name}`,
     });

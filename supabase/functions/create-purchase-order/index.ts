@@ -122,12 +122,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Calculate expected delivery date based on timeframe
     const currentDate = new Date();
-    const deliveryDays = parseInt(deliveryTimeframe);
+    const deliveryDays = deliveryTimeframe && deliveryTimeframe.trim() !== '' ? parseInt(deliveryTimeframe) : 7; // Default to 7 days if empty
     const expectedDeliveryDate = new Date(currentDate);
+    
+    if (isNaN(deliveryDays)) {
+      console.error("Invalid delivery timeframe provided:", deliveryTimeframe);
+      throw new Error("Invalid delivery timeframe");
+    }
+    
     expectedDeliveryDate.setDate(currentDate.getDate() + deliveryDays);
     
     console.log("Date calculation:", {
       currentDate: currentDate.toISOString(),
+      deliveryTimeframe,
       deliveryDays,
       expectedDeliveryDate: expectedDeliveryDate.toISOString(),
       formattedDate: expectedDeliveryDate.toISOString().split('T')[0]
