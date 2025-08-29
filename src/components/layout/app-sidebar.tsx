@@ -62,7 +62,6 @@ const navigationGroups: NavGroup[] = [
     title: "Dashboard",
     items: [
       { title: "Panoramica", url: "/dashboard", icon: LayoutDashboard },
-      { title: "Gestione Tecnici", url: "/dashboard/technicians", icon: Users },
     ]
   },
   {
@@ -87,6 +86,7 @@ const navigationGroups: NavGroup[] = [
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support", icon: LayoutDashboard },
+      { title: "Gestione Tecnici", url: "/support/technicians", icon: Users },
       { title: "Ordini di Lavoro (OdL)", url: "/support/work-orders", icon: Wrench },
       { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
     ]
