@@ -7,6 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { PDFPreview } from "@/components/ui/pdf-preview";
 
 const categories = [
   "Braceria", "Pizzeria", "Panificio", "Tostatura Caffe", 
@@ -36,6 +37,17 @@ export default function BlastChillersPage() {
   const [documents, setDocuments] = useState<TechnicalDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+  const [pdfPreview, setPdfPreview] = useState<{
+    open: boolean;
+    fileName: string;
+    fileUrl: string;
+    document: TechnicalDocument | null;
+  }>({
+    open: false,
+    fileName: "",
+    fileUrl: "",
+    document: null,
+  });
 
   // Load documents from Supabase Storage on component mount
   useEffect(() => {
@@ -194,6 +206,33 @@ export default function BlastChillersPage() {
     }
   };
 
+  const handleDocumentClick = async (document: TechnicalDocument) => {
+    // For PDF files, show preview first
+    if (document.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const { data, error } = await supabase.storage
+          .from('company-documents')
+          .download(document.storage_path!);
+
+        if (error) throw error;
+
+        const url = window.URL.createObjectURL(data);
+        setPdfPreview({
+          open: true,
+          fileName: document.name,
+          fileUrl: url,
+          document: document,
+        });
+      } catch (error: any) {
+        console.error('Error loading PDF:', error);
+        toast.error("Errore durante il caricamento del PDF: " + error.message);
+      }
+    } else {
+      // For non-PDF files, download directly
+      downloadDocument(document);
+    }
+  };
+
   const downloadDocument = async (document: TechnicalDocument) => {
     if (!document.storage_path) {
       toast.error("Percorso file non trovato");
@@ -226,6 +265,18 @@ export default function BlastChillersPage() {
       console.error('Error downloading document:', error);
       toast.error("Errore durante il download");
     }
+  };
+
+  const handleClosePdfPreview = () => {
+    if (pdfPreview.fileUrl) {
+      window.URL.revokeObjectURL(pdfPreview.fileUrl);
+    }
+    setPdfPreview({
+      open: false,
+      fileName: "",
+      fileUrl: "",
+      document: null,
+    });
   };
 
   const filteredDocuments = documents.filter(doc => 
@@ -369,8 +420,9 @@ export default function BlastChillersPage() {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={() => downloadDocument(doc)}
+                      onClick={() => handleDocumentClick(doc)}
                       disabled={loading}
+                      title={doc.name.toLowerCase().endsWith('.pdf') ? 'Anteprima PDF' : 'Scarica file'}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
@@ -389,6 +441,19 @@ export default function BlastChillersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* PDF Preview Dialog */}
+      <PDFPreview
+        open={pdfPreview.open}
+        onOpenChange={handleClosePdfPreview}
+        fileName={pdfPreview.fileName}
+        fileUrl={pdfPreview.fileUrl}
+        onDownload={() => {
+          if (pdfPreview.document) {
+            downloadDocument(pdfPreview.document);
+          }
+        }}
+      />
     </div>
   );
 }
