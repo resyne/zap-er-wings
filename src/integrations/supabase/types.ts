@@ -1397,6 +1397,56 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_order_confirmations: {
+        Row: {
+          confirmation_token: string
+          confirmed: boolean | null
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          purchase_order_id: string
+          supplier_delivery_date: string | null
+          supplier_email: string
+          supplier_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          confirmation_token: string
+          confirmed?: boolean | null
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          purchase_order_id: string
+          supplier_delivery_date?: string | null
+          supplier_email: string
+          supplier_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confirmation_token?: string
+          confirmed?: boolean | null
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          purchase_order_id?: string
+          supplier_delivery_date?: string | null
+          supplier_email?: string
+          supplier_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_confirmations_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_order_items: {
         Row: {
           created_at: string
@@ -1452,11 +1502,13 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          delivery_timeframe_days: number | null
           expected_delivery_date: string | null
           id: string
           notes: string | null
           number: string
           order_date: string
+          priority: string | null
           status: string
           subtotal: number | null
           supplier_id: string | null
@@ -1467,11 +1519,13 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          delivery_timeframe_days?: number | null
           expected_delivery_date?: string | null
           id?: string
           notes?: string | null
           number: string
           order_date?: string
+          priority?: string | null
           status?: string
           subtotal?: number | null
           supplier_id?: string | null
@@ -1482,11 +1536,13 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          delivery_timeframe_days?: number | null
           expected_delivery_date?: string | null
           id?: string
           notes?: string | null
           number?: string
           order_date?: string
+          priority?: string | null
           status?: string
           subtotal?: number | null
           supplier_id?: string | null

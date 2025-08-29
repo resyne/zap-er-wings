@@ -124,6 +124,8 @@ const handler = async (req: Request): Promise<Response> => {
         supplier_id: supplierId,
         status: 'pending',
         expected_delivery_date: expectedDeliveryDate.toISOString().split('T')[0],
+        priority: priority,
+        delivery_timeframe_days: deliveryDays,
         subtotal: totalPrice,
         tax_amount: totalPrice * 0.22, // 22% VAT
         total_amount: totalPrice * 1.22,
@@ -161,11 +163,35 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Order item created:", orderItem);
 
+    // Create confirmation token for supplier
+    const confirmationToken = crypto.randomUUID();
+    
+    const { data: confirmation, error: confirmationError } = await supabase
+      .from('purchase_order_confirmations')
+      .insert({
+        purchase_order_id: purchaseOrder.id,
+        supplier_email: supplier.email || '',
+        confirmation_token: confirmationToken
+      })
+      .select()
+      .single();
+
+    if (confirmationError) {
+      console.error("Error creating confirmation:", confirmationError);
+      // Continue even if confirmation creation fails
+    }
+
+    console.log("Confirmation token created:", confirmation);
+
     // Send email to supplier if email is available
     if (supplier.email) {
       const deliveryDateText = expectedDeliveryDate 
         ? new Date(expectedDeliveryDate).toLocaleDateString('it-IT')
         : "Da concordare";
+
+      const confirmationUrl = confirmation 
+        ? `${Deno.env.get('SUPABASE_URL')}/functions/v1/confirm-purchase-order?token=${confirmationToken}`
+        : null;
 
       const emailHtml = `
         <html>
@@ -177,7 +203,8 @@ const handler = async (req: Request): Promise<Response> => {
               <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Dettagli Ordine</h3>
                 <p><strong>Data Ordine:</strong> ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}</p>
-                <p><strong>Data Consegna Richiesta:</strong> ${deliveryDateText}</p>
+                <p><strong>Data Consegna Richiesta:</strong> ${deliveryDateText} (${deliveryDays} giorni)</p>
+                <p><strong>Priorità:</strong> ${priority.toUpperCase()}</p>
                 <p><strong>Fornitore:</strong> ${supplier.name}</p>
               </div>
 
@@ -189,8 +216,8 @@ const handler = async (req: Request): Promise<Response> => {
                       <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Codice</th>
                       <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Descrizione</th>
                       <th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Quantità</th>
-                      <th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Prezzo Unit.</th>
-                      <th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Totale</th>
+                      <th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Prezzo Unit. Est.</th>
+                      <th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Totale Est.</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -210,25 +237,56 @@ const handler = async (req: Request): Promise<Response> => {
 
               <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <div style="text-align: right;">
-                  <p style="margin: 5px 0;"><strong>Subtotale: €${purchaseOrder.subtotal.toFixed(2)}</strong></p>
+                  <p style="margin: 5px 0;"><strong>Subtotale Est.: €${purchaseOrder.subtotal.toFixed(2)}</strong></p>
                   <p style="margin: 5px 0;">IVA (22%): €${purchaseOrder.tax_amount.toFixed(2)}</p>
                   <h3 style="margin: 10px 0; color: #333; border-top: 2px solid #e9ecef; padding-top: 10px;">
-                    Totale: €${purchaseOrder.total_amount.toFixed(2)}
+                    Totale Est.: €${purchaseOrder.total_amount.toFixed(2)}
                   </h3>
+                  <small style="color: #666;">*Prezzi indicativi soggetti a conferma</small>
                 </div>
               </div>
 
               ${notes ? `
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Note</h3>
+                  <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Note e Richieste</h3>
                   <p>${notes}</p>
+                </div>
+              ` : ''}
+
+              <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                <h3 style="color: #856404; margin-top: 0;">Richiesta di Conferma</h3>
+                <p style="color: #856404; margin: 10px 0;">
+                  Vi chiediamo cortesemente di:
+                </p>
+                <ul style="color: #856404; margin: 10px 0; padding-left: 20px;">
+                  <li>Confermare la disponibilità dei materiali richiesti</li>
+                  <li>Confermare i tempi di produzione/consegna o comunicare eventuali tempistiche diverse</li>
+                  <li>Confermare i prezzi o comunicare le quotazioni aggiornate</li>
+                  <li>Comunicare eventuali note o richieste particolari</li>
+                </ul>
+              </div>
+
+              ${confirmationUrl ? `
+                <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border-left: 4px solid #28a745;">
+                  <h3 style="color: #155724; margin-top: 0;">Conferma Ricezione Ordine</h3>
+                  <p style="color: #155724; margin: 15px 0;">
+                    Cliccare sul link seguente per confermare la ricezione di questo ordine:
+                  </p>
+                  <a href="${confirmationUrl}" 
+                     style="display: inline-block; background-color: #28a745; color: white; padding: 12px 24px; 
+                            text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px 0;">
+                    CONFERMA RICEZIONE ORDINE
+                  </a>
+                  <p style="color: #155724; font-size: 12px; margin: 10px 0;">
+                    Questo link è valido per 30 giorni dalla data di invio.
+                  </p>
                 </div>
               ` : ''}
 
               <div style="background-color: #e9ecef; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
                 <p style="margin: 0; color: #666; font-size: 14px;">
-                  Questo ordine è stato generato automaticamente dal sistema di gestione magazzino.<br>
-                  Per conferma e dettagli di consegna, contattate il nostro ufficio acquisti.
+                  Questo ordine è stato generato automaticamente dal sistema ERP.<br>
+                  Per qualsiasi domanda o chiarimento, contattate il nostro ufficio acquisti.
                 </p>
               </div>
             </div>
@@ -240,7 +298,7 @@ const handler = async (req: Request): Promise<Response> => {
         const emailResult = await resend.emails.send({
           from: "Sistema ERP <noreply@abbattitorizapper.it>",
           to: [supplier.email],
-          subject: `Ordine di Acquisto N° ${purchaseOrder.number} - ${supplier.name}`,
+          subject: `🔔 Ordine di Acquisto N° ${purchaseOrder.number} - Conferma Richiesta`,
           html: emailHtml,
         });
 
