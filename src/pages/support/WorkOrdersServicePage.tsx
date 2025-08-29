@@ -12,19 +12,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Calendar, User, Wrench, Eye, Edit } from "lucide-react";
 
-interface WorkOrder {
+interface ServiceWorkOrder {
   id: string;
   number: string;
   title: string;
   description?: string;
   status: string;
   customer_id?: string;
+  contact_id?: string;
+  priority?: string;
+  scheduled_date?: string;
+  estimated_hours?: number;
+  location?: string;
+  equipment_needed?: string;
   created_at: string;
   updated_at: string;
   notes?: string;
   customers?: {
     name: string;
     code: string;
+  };
+  crm_contacts?: {
+    first_name: string;
+    last_name: string;
+    company_name?: string;
   };
 }
 
@@ -43,49 +54,76 @@ const statusLabels = {
 };
 
 export default function WorkOrdersServicePage() {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [serviceWorkOrders, setServiceWorkOrders] = useState<ServiceWorkOrder[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<ServiceWorkOrder | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     customer_id: "",
+    contact_id: "",
+    priority: "medium",
+    scheduled_date: "",
+    estimated_hours: "",
+    location: "",
+    equipment_needed: "",
     notes: ""
   });
   const { toast } = useToast();
 
   useEffect(() => {
-    loadWorkOrders();
+    loadServiceWorkOrders();
     loadCustomers();
+    loadContacts();
   }, []);
 
-  const loadWorkOrders = async () => {
+  const loadServiceWorkOrders = async () => {
     try {
       const { data, error } = await supabase
-        .from('work_orders')
+        .from('service_work_orders')
         .select(`
           *,
           customers (
             name,
             code
+          ),
+          crm_contacts (
+            first_name,
+            last_name,
+            company_name
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setWorkOrders(data || []);
+      setServiceWorkOrders(data || []);
     } catch (error) {
-      console.error('Error loading work orders:', error);
+      console.error('Error loading service work orders:', error);
       toast({
         title: "Errore",
         description: "Errore nel caricamento degli ordini di lavoro",
         variant: "destructive",
       });
+    }
+  };
+
+  const loadContacts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, company_name, email, phone')
+        .order('first_name');
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
     }
   };
 
@@ -120,19 +158,30 @@ export default function WorkOrdersServicePage() {
 
     setLoading(true);
     try {
-      // Generate work order number
-      const woNumber = `WO-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-      
+      const insertData: any = {
+        title: formData.title,
+        description: formData.description || null,
+        customer_id: formData.customer_id || null,
+        contact_id: formData.contact_id || null,
+        priority: formData.priority,
+        scheduled_date: formData.scheduled_date || null,
+        estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
+        location: formData.location || null,
+        equipment_needed: formData.equipment_needed || null,
+        notes: formData.notes || null,
+        status: 'planned'
+      };
+
+      // Remove empty string values, replace with null
+      Object.keys(insertData).forEach(key => {
+        if (insertData[key] === '') {
+          insertData[key] = null;
+        }
+      });
+
       const { error } = await supabase
-        .from('work_orders')
-        .insert({
-          number: woNumber,
-          title: formData.title,
-          description: formData.description,
-          customer_id: formData.customer_id || null,
-          notes: formData.notes,
-          status: 'planned' as const
-        });
+        .from('service_work_orders')
+        .insert(insertData);
 
       if (error) throw error;
 
@@ -145,10 +194,16 @@ export default function WorkOrdersServicePage() {
         title: "",
         description: "",
         customer_id: "",
+        contact_id: "",
+        priority: "medium",
+        scheduled_date: "",
+        estimated_hours: "",
+        location: "",
+        equipment_needed: "",
         notes: ""
       });
       setShowCreateDialog(false);
-      loadWorkOrders();
+      loadServiceWorkOrders();
     } catch (error) {
       console.error('Error creating work order:', error);
       toast({
@@ -164,7 +219,7 @@ export default function WorkOrdersServicePage() {
   const updateWorkOrderStatus = async (workOrderId: string, newStatus: 'planned' | 'in_progress' | 'testing' | 'closed') => {
     try {
       const { error } = await supabase
-        .from('work_orders')
+        .from('service_work_orders')
         .update({ status: newStatus })
         .eq('id', workOrderId);
 
@@ -175,7 +230,7 @@ export default function WorkOrdersServicePage() {
         description: "Lo stato dell'ordine di lavoro è stato aggiornato",
       });
 
-      loadWorkOrders();
+      loadServiceWorkOrders();
     } catch (error) {
       console.error('Error updating status:', error);
       toast({
@@ -186,10 +241,12 @@ export default function WorkOrdersServicePage() {
     }
   };
 
-  const filteredWorkOrders = workOrders.filter(wo => {
+  const filteredWorkOrders = serviceWorkOrders.filter(wo => {
     const matchesSearch = wo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          wo.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         wo.customers?.name.toLowerCase().includes(searchTerm.toLowerCase());
+                         wo.customers?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (wo.crm_contacts && 
+                          `${wo.crm_contacts.first_name} ${wo.crm_contacts.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === "all" || wo.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -197,9 +254,9 @@ export default function WorkOrdersServicePage() {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Ordini di Lavoro</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Ordini di Lavoro (OdL)</h1>
         <p className="text-muted-foreground">
-          Pianifica e monitora gli ordini di lavoro delle commesse
+          Pianifica e monitora gli ordini di lavoro per l'assistenza tecnica
         </p>
       </div>
 
@@ -266,6 +323,79 @@ export default function WorkOrdersServicePage() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="contact">Contatto</Label>
+                <Select onValueChange={(value) => handleInputChange('contact_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un contatto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contacts.map((contact) => (
+                      <SelectItem key={contact.id} value={contact.id}>
+                        {contact.first_name} {contact.last_name}
+                        {contact.company_name && ` - ${contact.company_name}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priorità</Label>
+                  <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona priorità" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Bassa</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimated_hours">Ore Stimate</Label>
+                  <Input
+                    id="estimated_hours"
+                    type="number"
+                    step="0.5"
+                    value={formData.estimated_hours}
+                    onChange={(e) => handleInputChange('estimated_hours', e.target.value)}
+                    placeholder="8.0"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_date">Data Programmata</Label>
+                  <Input
+                    id="scheduled_date"
+                    type="datetime-local"
+                    value={formData.scheduled_date}
+                    onChange={(e) => handleInputChange('scheduled_date', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location">Ubicazione</Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder="Indirizzo o ubicazione dell'intervento"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="equipment_needed">Attrezzatura Necessaria</Label>
+                <Textarea
+                  id="equipment_needed"
+                  value={formData.equipment_needed}
+                  onChange={(e) => handleInputChange('equipment_needed', e.target.value)}
+                  placeholder="Strumenti e attrezzature necessarie..."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="description">Descrizione</Label>
                 <Textarea
                   id="description"
@@ -312,16 +442,17 @@ export default function WorkOrdersServicePage() {
               <TableRow>
                 <TableHead>Numero</TableHead>
                 <TableHead>Titolo</TableHead>
-                <TableHead>Cliente</TableHead>
+                <TableHead>Cliente/Contatto</TableHead>
+                <TableHead>Priorità</TableHead>
                 <TableHead>Stato</TableHead>
-                <TableHead>Data Creazione</TableHead>
+                <TableHead>Data Programmata</TableHead>
                 <TableHead>Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredWorkOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     Nessun ordine di lavoro trovato
                   </TableCell>
                 </TableRow>
@@ -335,7 +466,24 @@ export default function WorkOrdersServicePage() {
                       {workOrder.title}
                     </TableCell>
                     <TableCell>
-                      {workOrder.customers ? `${workOrder.customers.name} (${workOrder.customers.code})` : "—"}
+                      <div>
+                        {workOrder.customers ? `${workOrder.customers.name} (${workOrder.customers.code})` : "—"}
+                        {workOrder.crm_contacts && (
+                          <div className="text-sm text-muted-foreground">
+                            {workOrder.crm_contacts.first_name} {workOrder.crm_contacts.last_name}
+                            {workOrder.crm_contacts.company_name && ` - ${workOrder.crm_contacts.company_name}`}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={workOrder.priority === 'urgent' ? 'destructive' : 
+                                   workOrder.priority === 'high' ? 'default' :
+                                   workOrder.priority === 'medium' ? 'secondary' : 'outline'}>
+                        {workOrder.priority === 'urgent' ? 'Urgente' :
+                         workOrder.priority === 'high' ? 'Alta' :
+                         workOrder.priority === 'medium' ? 'Media' : 'Bassa'}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Select
@@ -358,7 +506,10 @@ export default function WorkOrdersServicePage() {
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Calendar className="w-3 h-3" />
-                        {new Date(workOrder.created_at).toLocaleDateString('it-IT')}
+                        {workOrder.scheduled_date ? 
+                          new Date(workOrder.scheduled_date).toLocaleDateString('it-IT') + ' ' +
+                          new Date(workOrder.scheduled_date).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+                          : 'Non programmata'}
                       </div>
                     </TableCell>
                     <TableCell>

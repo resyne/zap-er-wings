@@ -1817,6 +1817,90 @@ export type Database = {
           },
         ]
       }
+      service_work_orders: {
+        Row: {
+          actual_end_date: string | null
+          actual_hours: number | null
+          actual_start_date: string | null
+          assigned_to: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          description: string | null
+          equipment_needed: string | null
+          estimated_hours: number | null
+          id: string
+          location: string | null
+          notes: string | null
+          number: string
+          priority: string | null
+          scheduled_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actual_end_date?: string | null
+          actual_hours?: number | null
+          actual_start_date?: string | null
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string | null
+          equipment_needed?: string | null
+          estimated_hours?: number | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          number: string
+          priority?: string | null
+          scheduled_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actual_end_date?: string | null
+          actual_hours?: number | null
+          actual_start_date?: string | null
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string | null
+          equipment_needed?: string | null
+          estimated_hours?: number | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          number?: string
+          priority?: string | null
+          scheduled_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_work_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_work_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -2014,11 +2098,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_production_work_order_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_quote_code: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
       generate_sales_order_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_service_work_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

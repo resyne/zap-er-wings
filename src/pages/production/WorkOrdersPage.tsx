@@ -203,7 +203,7 @@ export default function WorkOrdersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ordini di Produzione</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Ordini di Produzione (OdP)</h1>
           <p className="text-muted-foreground">
             Pianifica e monitora gli ordini di produzione durante il loro ciclo di vita
           </p>
@@ -230,7 +230,7 @@ export default function WorkOrdersPage() {
                     id="number"
                     value={formData.number}
                     onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
-                    placeholder="OP-2024-001"
+                    placeholder="OdP-2024-001"
                     required
                   />
                 </div>
