@@ -91,8 +91,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          level: number
+          machinery_model: string | null
           name: string
           notes: string | null
+          parent_id: string | null
           updated_at: string
           version: string
         }
@@ -100,8 +103,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          level?: number
+          machinery_model?: string | null
           name: string
           notes?: string | null
+          parent_id?: string | null
           updated_at?: string
           version: string
         }
@@ -109,12 +115,23 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          level?: number
+          machinery_model?: string | null
           name?: string
           notes?: string | null
+          parent_id?: string | null
           updated_at?: string
           version?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "boms_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {
