@@ -79,6 +79,7 @@ export default function WorkOrdersServicePage() {
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<ServiceWorkOrder | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -283,6 +284,65 @@ export default function WorkOrdersServicePage() {
       toast({
         title: "Errore",
         description: "Errore nella creazione dell'ordine di lavoro",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditWorkOrder = async () => {
+    if (!selectedWorkOrder || !formData.title.trim()) {
+      toast({
+        title: "Errore",
+        description: "Il titolo è obbligatorio",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const updateData: any = {
+        title: formData.title,
+        description: formData.description || null,
+        customer_id: formData.customer_id || null,
+        contact_id: formData.contact_id || null,
+        assigned_to: formData.assigned_to || null,
+        priority: formData.priority,
+        scheduled_date: formData.scheduled_date || null,
+        estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
+        location: formData.location || null,
+        equipment_needed: formData.equipment_needed || null,
+        notes: formData.notes || null
+      };
+
+      // Remove empty string values, replace with null
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === '') {
+          updateData[key] = null;
+        }
+      });
+
+      const { error } = await supabase
+        .from('service_work_orders')
+        .update(updateData)
+        .eq('id', selectedWorkOrder.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ordine di lavoro aggiornato con successo",
+      });
+
+      setShowEditDialog(false);
+      loadServiceWorkOrders();
+    } catch (error) {
+      console.error('Error updating work order:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiornamento dell'ordine di lavoro",
         variant: "destructive",
       });
     } finally {
@@ -668,23 +728,34 @@ export default function WorkOrdersServicePage() {
                              setSelectedWorkOrder(workOrder);
                              setShowDetailsDialog(true);
                            }}
+                           title="Visualizza dettagli"
                          >
                            <Eye className="w-4 h-4" />
                          </Button>
-                         <Select
-                           value={workOrder.status}
-                           onValueChange={(value) => updateWorkOrderStatus(workOrder.id, value as 'planned' | 'in_progress' | 'testing' | 'closed')}
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => {
+                             setSelectedWorkOrder(workOrder);
+                             setFormData({
+                               title: workOrder.title,
+                               description: workOrder.description || "",
+                               customer_id: workOrder.customer_id || "",
+                               contact_id: workOrder.contact_id || "",
+                               assigned_to: workOrder.assigned_to || "",
+                               priority: workOrder.priority || "medium",
+                               scheduled_date: workOrder.scheduled_date || "",
+                               estimated_hours: workOrder.estimated_hours?.toString() || "",
+                               location: workOrder.location || "",
+                               equipment_needed: workOrder.equipment_needed || "",
+                               notes: workOrder.notes || ""
+                             });
+                             setShowEditDialog(true);
+                           }}
+                           title="Modifica ordine di lavoro"
                          >
-                           <SelectTrigger className="w-8 h-8 p-0">
-                             <Edit className="w-3 h-3" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="planned">Pianificato</SelectItem>
-                             <SelectItem value="in_progress">In Corso</SelectItem>
-                             <SelectItem value="testing">Test</SelectItem>
-                             <SelectItem value="closed">Chiuso</SelectItem>
-                           </SelectContent>
-                         </Select>
+                           <Edit className="w-4 h-4" />
+                         </Button>
                        </div>
                      </TableCell>
                   </TableRow>
@@ -748,6 +819,163 @@ export default function WorkOrdersServicePage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Modifica */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifica Ordine di Lavoro</DialogTitle>
+            <DialogDescription>
+              {selectedWorkOrder?.number} - Modifica i dettagli dell'ordine di lavoro
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_title">Titolo *</Label>
+              <Input
+                id="edit_title"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder="Titolo dell'ordine di lavoro"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_customer">Cliente</Label>
+                <Select value={formData.customer_id} onValueChange={(value) => handleInputChange('customer_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un cliente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_contact">Contatto</Label>
+                <Select value={formData.contact_id} onValueChange={(value) => handleInputChange('contact_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un contatto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contacts.map((contact) => (
+                      <SelectItem key={contact.id} value={contact.id}>
+                        {contact.first_name} {contact.last_name}
+                        {contact.company_name && ` - ${contact.company_name}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit_assigned_to">Assegnato a</Label>
+              <Select value={formData.assigned_to} onValueChange={(value) => handleInputChange('assigned_to', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona tecnico..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {technicians.map((technician) => (
+                    <SelectItem key={technician.id} value={technician.id}>
+                      {technician.first_name} {technician.last_name} ({technician.employee_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_priority">Priorità</Label>
+                <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona priorità" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Bassa</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_estimated_hours">Ore Stimate</Label>
+                <Input
+                  id="edit_estimated_hours"
+                  type="number"
+                  step="0.5"
+                  value={formData.estimated_hours}
+                  onChange={(e) => handleInputChange('estimated_hours', e.target.value)}
+                  placeholder="8.0"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_scheduled_date">Data Programmata Intervento</Label>
+                <Input
+                  id="edit_scheduled_date"
+                  type="datetime-local"
+                  value={formData.scheduled_date}
+                  onChange={(e) => handleInputChange('scheduled_date', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_location">Ubicazione</Label>
+                <Input
+                  id="edit_location"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  placeholder="Indirizzo o ubicazione dell'intervento"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_equipment_needed">Attrezzatura Necessaria</Label>
+              <Textarea
+                id="edit_equipment_needed"
+                value={formData.equipment_needed}
+                onChange={(e) => handleInputChange('equipment_needed', e.target.value)}
+                placeholder="Strumenti e attrezzature necessarie..."
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_description">Descrizione</Label>
+              <Textarea
+                id="edit_description"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Descrizione del lavoro da eseguire..."
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_notes">Note</Label>
+              <Textarea
+                id="edit_notes"
+                value={formData.notes}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
+                placeholder="Note aggiuntive..."
+                rows={2}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleEditWorkOrder} disabled={loading}>
+                {loading ? "Salvando..." : "Salva Modifiche"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
