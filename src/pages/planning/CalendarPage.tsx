@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Calendar, Factory, Wrench, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Factory, Wrench, Eye, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
@@ -177,6 +177,49 @@ export default function CalendarPage() {
     setCurrentWeek(new Date());
   };
 
+  const deleteAllTestData = async () => {
+    if (!confirm("Sei sicuro di voler eliminare tutti i dati di test? Questa operazione non può essere annullata.")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Elimina tutti gli ordini di produzione che sembrano dati di test
+      const { error: prodError } = await supabase
+        .from('work_orders')
+        .delete()
+        .or('title.ilike.%test%,title.ilike.%produzione%,title.ilike.%assemblaggio%,title.ilike.%controllo%,title.ilike.%blast chiller%');
+      
+      if (prodError) throw prodError;
+
+      // Elimina tutti gli ordini di servizio che sembrano dati di test
+      const { error: serviceError } = await supabase
+        .from('service_work_orders')
+        .delete()
+        .or('title.ilike.%test%,title.ilike.%manutenzione%,title.ilike.%riparazione%,title.ilike.%controllo%,title.ilike.%installazione%');
+      
+      if (serviceError) throw serviceError;
+
+      toast({
+        title: "Successo",
+        description: "Tutti i dati di test sono stati eliminati",
+      });
+
+      // Ricarica i dati
+      loadWorkOrders();
+    } catch (error) {
+      console.error('Error deleting test data:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione dei dati di test",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
@@ -199,10 +242,20 @@ export default function CalendarPage() {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        <Button onClick={goToToday}>
-          <Calendar className="w-4 h-4 mr-2" />
-          Oggi
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={goToToday}>
+            <Calendar className="w-4 h-4 mr-2" />
+            Oggi
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={deleteAllTestData}
+            disabled={loading}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Elimina Dati Test
+          </Button>
+        </div>
       </div>
 
       {/* Grid calendario settimanale */}
