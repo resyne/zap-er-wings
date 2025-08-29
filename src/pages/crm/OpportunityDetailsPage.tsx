@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Upload, FileText, Image, Calendar, Clock, User, Plus, CheckCircle, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { PDFPreview } from "@/components/ui/pdf-preview";
 
 interface Opportunity {
   id: string;
@@ -60,6 +61,17 @@ export function OpportunityDetailsPage() {
   const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{
+    open: boolean;
+    fileName: string;
+    fileUrl: string;
+    file: OpportunityFile | null;
+  }>({
+    open: false,
+    fileName: "",
+    fileUrl: "",
+    file: null,
+  });
   
   const [newActivity, setNewActivity] = useState({
     title: "",
@@ -241,6 +253,36 @@ export function OpportunityDetailsPage() {
     }
   };
 
+  const handleFileClick = async (file: OpportunityFile) => {
+    // For PDF files, show preview first
+    if (file.file_type === 'application/pdf') {
+      try {
+        const { data, error } = await supabase.storage
+          .from('opportunity-files')
+          .download(file.file_path);
+
+        if (error) throw error;
+
+        const url = window.URL.createObjectURL(data);
+        setPdfPreview({
+          open: true,
+          fileName: file.file_name,
+          fileUrl: url,
+          file: file,
+        });
+      } catch (error: any) {
+        toast({
+          title: "Errore",
+          description: "Errore durante il caricamento del PDF: " + error.message,
+          variant: "destructive",
+        });
+      }
+    } else {
+      // For non-PDF files, download directly
+      downloadFile(file);
+    }
+  };
+
   const downloadFile = async (file: OpportunityFile) => {
     try {
       const { data, error } = await supabase.storage
@@ -264,6 +306,18 @@ export function OpportunityDetailsPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleClosePdfPreview = () => {
+    if (pdfPreview.fileUrl) {
+      window.URL.revokeObjectURL(pdfPreview.fileUrl);
+    }
+    setPdfPreview({
+      open: false,
+      fileName: "",
+      fileUrl: "",
+      file: null,
+    });
   };
 
   const deleteFile = async (file: OpportunityFile) => {
@@ -460,7 +514,8 @@ export function OpportunityDetailsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => downloadFile(file)}
+                          onClick={() => handleFileClick(file)}
+                          title={file.file_type === 'application/pdf' ? 'Anteprima PDF' : 'Scarica file'}
                         >
                           <Download className="w-4 h-4" />
                         </Button>
@@ -622,6 +677,19 @@ export function OpportunityDetailsPage() {
           </Card>
         </div>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <PDFPreview
+        open={pdfPreview.open}
+        onOpenChange={handleClosePdfPreview}
+        fileName={pdfPreview.fileName}
+        fileUrl={pdfPreview.fileUrl}
+        onDownload={() => {
+          if (pdfPreview.file) {
+            downloadFile(pdfPreview.file);
+          }
+        }}
+      />
     </div>
   );
 }
