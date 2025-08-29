@@ -84,7 +84,6 @@ export default function WorkOrdersServicePage() {
     title: "",
     description: "",
     customer_id: "",
-    contact_id: "",
     assigned_to: "",
     priority: "medium",
     scheduled_date: "",
@@ -235,7 +234,6 @@ export default function WorkOrdersServicePage() {
         title: formData.title,
         description: formData.description || null,
         customer_id: formData.customer_id || null,
-        contact_id: formData.contact_id || null,
         assigned_to: formData.assigned_to || null,
         priority: formData.priority,
         scheduled_date: formData.scheduled_date || null,
@@ -268,7 +266,6 @@ export default function WorkOrdersServicePage() {
         title: "",
         description: "",
         customer_id: "",
-        contact_id: "",
         assigned_to: "",
         priority: "medium",
         scheduled_date: "",
@@ -307,7 +304,6 @@ export default function WorkOrdersServicePage() {
         title: formData.title,
         description: formData.description || null,
         customer_id: formData.customer_id || null,
-        contact_id: formData.contact_id || null,
         assigned_to: formData.assigned_to || null,
         priority: formData.priority,
         scheduled_date: formData.scheduled_date || null,
@@ -441,46 +437,28 @@ export default function WorkOrdersServicePage() {
                   placeholder="Titolo dell'ordine di lavoro"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customer">Cliente</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.customer_id} onValueChange={(value) => handleInputChange('customer_id', value)}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleziona un cliente..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} ({customer.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowCreateCustomer(true)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contact">Contatto</Label>
-                  <Select value={formData.contact_id} onValueChange={(value) => handleInputChange('contact_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona un contatto..." />
+              <div className="space-y-2">
+                <Label htmlFor="customer">Cliente</Label>
+                <div className="flex gap-2">
+                  <Select value={formData.customer_id} onValueChange={(value) => handleInputChange('customer_id', value)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona un cliente..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {contacts.map((contact) => (
-                        <SelectItem key={contact.id} value={contact.id}>
-                          {contact.first_name} {contact.last_name}
-                          {contact.company_name && ` - ${contact.company_name}`}
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.code})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateCustomer(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
               
@@ -741,7 +719,6 @@ export default function WorkOrdersServicePage() {
                                title: workOrder.title,
                                description: workOrder.description || "",
                                customer_id: workOrder.customer_id || "",
-                               contact_id: workOrder.contact_id || "",
                                assigned_to: workOrder.assigned_to || "",
                                priority: workOrder.priority || "medium",
                                scheduled_date: workOrder.scheduled_date || "",
@@ -841,38 +818,20 @@ export default function WorkOrdersServicePage() {
                 placeholder="Titolo dell'ordine di lavoro"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_customer">Cliente</Label>
-                <Select value={formData.customer_id} onValueChange={(value) => handleInputChange('customer_id', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona un cliente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_contact">Contatto</Label>
-                <Select value={formData.contact_id} onValueChange={(value) => handleInputChange('contact_id', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona un contatto..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id}>
-                        {contact.first_name} {contact.last_name}
-                        {contact.company_name && ` - ${contact.company_name}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_customer">Cliente</Label>
+              <Select value={formData.customer_id} onValueChange={(value) => handleInputChange('customer_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name} ({customer.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2">
