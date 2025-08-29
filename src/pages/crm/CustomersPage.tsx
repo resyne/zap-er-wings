@@ -6,12 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Mail, Phone, MapPin } from "lucide-react";
+import { Search, Building2, Mail, Phone, MapPin, Plus, Edit } from "lucide-react";
+import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
+import { EditCustomerDialog } from "@/components/crm/EditCustomerDialog";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +59,10 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold">Clienti</h1>
           <p className="text-muted-foreground">Gestisci i tuoi clienti e le loro informazioni</p>
         </div>
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Nuovo Cliente
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -106,7 +115,9 @@ export default function CustomersPage() {
                 <TableHead>Contatto</TableHead>
                 <TableHead>Località</TableHead>
                 <TableHead>Credito</TableHead>
+                <TableHead>Condizioni</TableHead>
                 <TableHead>Stato</TableHead>
+                <TableHead>Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -155,9 +166,28 @@ export default function CustomersPage() {
                     )}
                   </TableCell>
                   <TableCell>
+                    {customer.payment_terms && (
+                      <span className="text-sm text-muted-foreground">
+                        {customer.payment_terms} giorni
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Badge variant={customer.active ? "default" : "secondary"}>
                       {customer.active ? "Attivo" : "Inattivo"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setEditDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -165,6 +195,32 @@ export default function CustomersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <CreateCustomerDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCustomerCreated={() => {
+          loadCustomers();
+          toast({
+            title: "Successo",
+            description: "Cliente creato con successo",
+          });
+        }}
+      />
+
+      <EditCustomerDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        customer={selectedCustomer}
+        onCustomerUpdated={() => {
+          loadCustomers();
+          setSelectedCustomer(null);
+          toast({
+            title: "Successo",
+            description: "Cliente aggiornato con successo",
+          });
+        }}
+      />
     </div>
   );
 }

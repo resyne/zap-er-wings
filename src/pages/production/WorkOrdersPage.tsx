@@ -112,8 +112,9 @@ export default function WorkOrdersPage() {
   const fetchCustomers = async () => {
     try {
       const { data, error } = await supabase
-        .from('companies')
+        .from('customers')
         .select('id, name, code')
+        .eq('active', true)
         .order('name');
 
       if (error) throw error;
