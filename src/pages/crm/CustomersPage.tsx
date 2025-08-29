@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Mail, Phone, MapPin, Plus, Edit } from "lucide-react";
+import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { EditCustomerDialog } from "@/components/crm/EditCustomerDialog";
+import { CustomerEmailComposer } from "@/components/crm/CustomerEmailComposer";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -16,6 +17,7 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { toast } = useToast();
 
@@ -59,10 +61,20 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold">Clienti</h1>
           <p className="text-muted-foreground">Gestisci i tuoi clienti e le loro informazioni</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuovo Cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setEmailComposerOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Send className="w-4 h-4" />
+            Invia Email
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuovo Cliente
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -213,6 +225,14 @@ export default function CustomersPage() {
           });
         }}
       />
+
+      {emailComposerOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <CustomerEmailComposer 
+            onClose={() => setEmailComposerOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
