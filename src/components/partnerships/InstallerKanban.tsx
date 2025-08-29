@@ -334,7 +334,7 @@ export const InstallerKanban = () => {
                     </CardContent>
                   </Card>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Aggiungi Nuovo Installatore</DialogTitle>
                   </DialogHeader>
@@ -382,7 +382,7 @@ export const InstallerKanban = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Installer</DialogTitle>
           </DialogHeader>

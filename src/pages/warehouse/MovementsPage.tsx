@@ -164,7 +164,7 @@ export default function MovementsPage() {
               Nuovo Movimento
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nuovo Movimento Stock</DialogTitle>
               <DialogDescription>

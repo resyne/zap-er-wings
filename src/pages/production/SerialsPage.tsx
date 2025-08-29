@@ -246,7 +246,7 @@ export default function SerialsPage() {
                 Bulk Generate
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Bulk Generate Serials</DialogTitle>
                 <DialogDescription>
@@ -311,7 +311,7 @@ export default function SerialsPage() {
                 New Serial
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{selectedSerial ? "Edit Serial" : "Create New Serial"}</DialogTitle>
                 <DialogDescription>

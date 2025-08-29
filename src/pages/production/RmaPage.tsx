@@ -247,7 +247,7 @@ export default function RmaPage() {
               New RMA
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{selectedRma ? "Edit RMA" : "Create New RMA"}</DialogTitle>
               <DialogDescription>

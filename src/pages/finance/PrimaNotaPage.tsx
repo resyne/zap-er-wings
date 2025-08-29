@@ -761,7 +761,7 @@ export default function PrimaNotaPage() {
                   Nuovo Movimento
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Registra Nuovo Movimento</DialogTitle>
                   <DialogDescription>
@@ -976,7 +976,7 @@ export default function PrimaNotaPage() {
 
             {/* Dialog per Modifica Movimento */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Modifica Movimento</DialogTitle>
                   <DialogDescription>
@@ -1385,7 +1385,7 @@ export default function PrimaNotaPage() {
                   Nuovo Abbonamento
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Aggiungi Abbonamento Ricorrente</DialogTitle>
                   <DialogDescription>
@@ -1502,7 +1502,7 @@ export default function PrimaNotaPage() {
 
             {/* Dialog per Modifica Abbonamento */}
             <Dialog open={isEditAbbonamentoDialogOpen} onOpenChange={setIsEditAbbonamentoDialogOpen}>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Modifica Abbonamento</DialogTitle>
                   <DialogDescription>

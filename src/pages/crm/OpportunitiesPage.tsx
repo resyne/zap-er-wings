@@ -233,7 +233,7 @@ export default function OpportunitiesPage() {
                 Nuova Opportunità
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crea Nuova Opportunità</DialogTitle>
               </DialogHeader>

@@ -193,7 +193,7 @@ export default function DealsPage() {
                 Nuovo Deal
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crea Nuovo Deal</DialogTitle>
               </DialogHeader>

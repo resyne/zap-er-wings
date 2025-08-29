@@ -317,7 +317,7 @@ export default function StockPage() {
 
         {/* Purchase Order Dialog */}
         <Dialog open={isPurchaseOrderDialogOpen} onOpenChange={setIsPurchaseOrderDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Crea Ordine di Acquisto</DialogTitle>
               <DialogDescription>

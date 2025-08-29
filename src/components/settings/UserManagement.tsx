@@ -333,7 +333,7 @@ export function UserManagement() {
                     Aggiungi Utente
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Crea Nuovo Utente</DialogTitle>
                     <DialogDescription>

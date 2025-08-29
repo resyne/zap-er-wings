@@ -275,7 +275,7 @@ const SuppliersPage = () => {
               Nuovo Fornitore
             </Button>
           </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Aggiungi Nuovo Fornitore</DialogTitle>
               <DialogDescription>
@@ -415,7 +415,7 @@ const SuppliersPage = () => {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Modifica Fornitore</DialogTitle>
               <DialogDescription>

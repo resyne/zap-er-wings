@@ -185,7 +185,7 @@ export const MaterialsManager = ({ partnerId, partnerName }: MaterialsManagerPro
               <Plus className="h-3 w-3" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Aggiungi Materiale per {partnerName}</DialogTitle>
             </DialogHeader>

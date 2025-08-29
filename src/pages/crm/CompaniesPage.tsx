@@ -140,7 +140,7 @@ export default function CompaniesPage() {
                 Nuova Azienda
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crea Nuova Azienda</DialogTitle>
               </DialogHeader>
