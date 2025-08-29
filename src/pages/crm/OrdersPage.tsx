@@ -7,26 +7,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, ShoppingCart, Calendar, DollarSign, Package } from "lucide-react";
+import { Plus, Search, Calendar, Package, FileImage, Upload, X } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
 
 interface Order {
   id: string;
   number: string;
   customer_id?: string;
-  quote_id?: string;
   order_date?: string;
   delivery_date?: string;
-  subtotal?: number;
-  tax_amount?: number;
-  total_amount?: number;
   status?: string;
   notes?: string;
+  order_type?: string;
   created_at: string;
+  customers?: {
+    name: string;
+    code: string;
+  };
 }
 
 const orderStatuses = ["draft", "confirmed", "in_production", "shipped", "delivered", "cancelled"];
+const orderTypes = [
+  { value: "odl", label: "Ordine di Lavoro (OdL)" },
+  { value: "odp", label: "Ordine di Produzione (OdP)" },
+  { value: "odpel", label: "Ordine Produzione e Installazione (OdPeL)" }
+];
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -34,30 +42,42 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [quotes, setQuotes] = useState<any[]>([]);
+  const [boms, setBoms] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
-    quote_id: "",
+    order_type: "",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
-    subtotal: "",
-    tax_amount: "",
-    total_amount: "",
     status: "draft",
     notes: "",
+    work_description: "",
+    bom_id: "",
+    assigned_technician: "",
+    priority: "medium",
+    planned_start_date: "",
+    planned_end_date: "",
+    location: "",
+    equipment_needed: ""
   });
+  
   const { toast } = useToast();
 
   useEffect(() => {
     loadOrders();
-    loadCustomersAndQuotes();
+    loadRelatedData();
   }, []);
 
   const loadOrders = async () => {
     try {
       const { data, error } = await supabase
         .from("sales_orders")
-        .select("*")
+        .select(`
+          *,
+          customers(name, code)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -73,61 +93,201 @@ export default function OrdersPage() {
     }
   };
 
-  const loadCustomersAndQuotes = async () => {
+  const loadRelatedData = async () => {
     try {
-      const [customersResponse, quotesResponse] = await Promise.all([
+      const [customersRes, bomsRes, techniciansRes] = await Promise.all([
         supabase.from("customers").select("id, name, code").eq("active", true),
-        supabase.from("quotes").select("id, number").eq("status", "approved")
+        supabase.from("boms").select("id, name, version, level").order("name"),
+        supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true)
       ]);
 
-      if (customersResponse.error) throw customersResponse.error;
-      if (quotesResponse.error) throw quotesResponse.error;
+      if (customersRes.error) throw customersRes.error;
+      if (bomsRes.error) throw bomsRes.error;
+      if (techniciansRes.error) throw techniciansRes.error;
 
-      setCustomers(customersResponse.data || []);
-      setQuotes(quotesResponse.data || []);
+      setCustomers(customersRes.data || []);
+      setBoms(bomsRes.data || []);
+      setTechnicians(techniciansRes.data || []);
     } catch (error: any) {
-      console.error("Error loading customers/quotes:", error);
+      console.error("Error loading related data:", error);
     }
   };
 
+  const uploadOrderPhotos = async (orderId: string) => {
+    if (uploadedFiles.length === 0) return [];
+
+    const uploadPromises = uploadedFiles.map(async (file) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${orderId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('opportunity-files')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+      
+      return fileName;
+    });
+
+    return Promise.all(uploadPromises);
+  };
+
+  const createProductionWorkOrder = async (orderId: string, orderData: any) => {
+    const productionData = {
+      number: '', // Auto-generated
+      title: `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
+      status: 'planned' as const,
+      bom_id: newOrder.bom_id || null,
+      customer_id: newOrder.customer_id,
+      assigned_to: newOrder.assigned_technician || null,
+      priority: newOrder.priority,
+      planned_start_date: newOrder.planned_start_date || null,
+      planned_end_date: newOrder.planned_end_date || null,
+      notes: newOrder.notes,
+      includes_installation: newOrder.order_type === 'odpel'
+    };
+
+    const { data: productionWO, error } = await supabase
+      .from('work_orders')
+      .insert([productionData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return productionWO;
+  };
+
+  const createServiceWorkOrder = async (orderId: string, orderData: any, productionWOId?: string) => {
+    const serviceData = {
+      number: '', // Auto-generated
+      title: `Installazione per ordine ${orderData.customers?.name || 'Cliente'}`,
+      description: newOrder.work_description || newOrder.notes,
+      status: 'planned' as const,
+      customer_id: newOrder.customer_id,
+      assigned_to: newOrder.assigned_technician || null,
+      priority: newOrder.priority,
+      scheduled_date: newOrder.planned_start_date ? new Date(newOrder.planned_start_date).toISOString() : null,
+      location: newOrder.location || null,
+      equipment_needed: newOrder.equipment_needed || null,
+      notes: newOrder.notes,
+      production_work_order_id: productionWOId || null
+    };
+
+    const { data: serviceWO, error } = await supabase
+      .from('service_work_orders')
+      .insert([serviceData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return serviceWO;
+  };
+
   const handleCreateOrder = async () => {
+    if (!newOrder.customer_id || !newOrder.order_type) {
+      toast({
+        title: "Errore",
+        description: "Cliente e tipo ordine sono obbligatori",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if ((newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && !newOrder.bom_id) {
+      toast({
+        title: "Errore",
+        description: "Per ordini di produzione è necessario selezionare una BOM",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newOrder.order_type === 'odl' && !newOrder.work_description) {
+      toast({
+        title: "Errore",
+        description: "Per ordini di lavoro è necessario descrivere il lavoro da fare",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      // Create main sales order
       const orderData = {
-        number: "", // Sarà sovrascritto dal trigger
-        customer_id: newOrder.customer_id || null,
-        quote_id: newOrder.quote_id || null,
+        number: "", // Auto-generated
+        customer_id: newOrder.customer_id,
         order_date: newOrder.order_date || null,
         delivery_date: newOrder.delivery_date || null,
-        subtotal: newOrder.subtotal ? parseFloat(newOrder.subtotal) : null,
-        tax_amount: newOrder.tax_amount ? parseFloat(newOrder.tax_amount) : null,
-        total_amount: newOrder.total_amount ? parseFloat(newOrder.total_amount) : null,
         status: newOrder.status,
         notes: newOrder.notes || null,
+        order_type: newOrder.order_type
       };
 
-      const { error } = await supabase
+      const { data: salesOrder, error: salesError } = await supabase
         .from("sales_orders")
-        .insert([orderData]);
+        .insert([orderData])
+        .select(`*, customers(name, code)`)
+        .single();
 
-      if (error) throw error;
+      if (salesError) throw salesError;
+
+      // Upload photos if any
+      let photoFiles: string[] = [];
+      if (uploadedFiles.length > 0) {
+        photoFiles = await uploadOrderPhotos(salesOrder.id);
+      }
+
+      let productionWO = null;
+      let serviceWO = null;
+
+      // Create work orders based on type
+      switch (newOrder.order_type) {
+        case 'odp':
+          productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
+          break;
+        
+        case 'odl':
+          serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder);
+          break;
+        
+        case 'odpel':
+          productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
+          serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO.id);
+          break;
+      }
+
+      let successMessage = "Ordine creato con successo";
+      if (productionWO && serviceWO) {
+        successMessage += ` - Ordine di Produzione: ${productionWO.number}, Ordine di Lavoro: ${serviceWO.number}`;
+      } else if (productionWO) {
+        successMessage += ` - Ordine di Produzione: ${productionWO.number}`;
+      } else if (serviceWO) {
+        successMessage += ` - Ordine di Lavoro: ${serviceWO.number}`;
+      }
 
       toast({
-        title: "Ordine creato",
-        description: "L'ordine è stato creato con successo",
+        title: "Successo",
+        description: successMessage,
       });
 
       setIsDialogOpen(false);
       setNewOrder({
         customer_id: "",
-        quote_id: "",
+        order_type: "",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
-        subtotal: "",
-        tax_amount: "",
-        total_amount: "",
         status: "draft",
         notes: "",
+        work_description: "",
+        bom_id: "",
+        assigned_technician: "",
+        priority: "medium",
+        planned_start_date: "",
+        planned_end_date: "",
+        location: "",
+        equipment_needed: ""
       });
+      setUploadedFiles([]);
       await loadOrders();
     } catch (error: any) {
       toast({
@@ -153,16 +313,39 @@ export default function OrdersPage() {
     }
   };
 
+  const getOrderTypeColor = (orderType?: string) => {
+    switch (orderType) {
+      case "odl":
+        return "bg-blue-100 text-blue-800";
+      case "odp":
+        return "bg-green-100 text-green-800";
+      case "odpel":
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getOrderTypeLabel = (orderType?: string) => {
+    const type = orderTypes.find(t => t.value === orderType);
+    return type ? type.label : orderType?.toUpperCase();
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const filteredOrders = orders.filter(order =>
-    `${order.number} ${order.notes || ""}`
+    `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  const totalValue = filteredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+  const totalOrders = filteredOrders.length;
   const deliveredOrders = filteredOrders.filter(order => order.status === "delivered");
-  const deliveredValue = deliveredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
   const shippedOrders = filteredOrders.filter(order => order.status === "shipped");
+  const odlOrders = filteredOrders.filter(order => order.order_type === "odl");
+  const odpOrders = filteredOrders.filter(order => order.order_type === "odp");
 
   if (loading) {
     return (
@@ -179,7 +362,7 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Ordini</h1>
-          <p className="text-muted-foreground">Gestisci gli ordini di vendita e la produzione</p>
+          <p className="text-muted-foreground">Gestisci gli ordini e la creazione automatica di OdL/OdP</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -188,118 +371,218 @@ export default function OrdersPage() {
               Nuovo Ordine
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Crea Nuovo Ordine</DialogTitle>
-              <p className="text-sm text-muted-foreground">Il numero ordine sarà generato automaticamente</p>
+              <p className="text-sm text-muted-foreground">
+                Seleziona il tipo di ordine per creare automaticamente OdL, OdP o entrambi
+              </p>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customer_id">Cliente</Label>
-                <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            
+            <div className="space-y-6">
+              {/* Basic Order Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customer_id">Cliente *</Label>
+                  <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(customer => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="order_type">Tipo Ordine *</Label>
+                  <Select value={newOrder.order_type} onValueChange={(value) => setNewOrder({...newOrder, order_type: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tipo ordine" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orderTypes.map(type => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="quote_id">Preventivo Collegato</Label>
-                <Select value={newOrder.quote_id} onValueChange={(value) => setNewOrder({...newOrder, quote_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona preventivo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {quotes.map(quote => (
-                      <SelectItem key={quote.id} value={quote.id}>
-                        {quote.number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              {/* Conditional fields based on order type */}
+              {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
+                <div>
+                  <Label htmlFor="bom_id">BOM (Distinta Base) *</Label>
+                  <Select value={newOrder.bom_id} onValueChange={(value) => setNewOrder({...newOrder, bom_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona BOM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {boms.map(bom => (
+                        <SelectItem key={bom.id} value={bom.id}>
+                          {bom.name} (v{bom.version}) - Livello {bom.level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {(newOrder.order_type === 'odl' || newOrder.order_type === 'odpel') && (
+                <div>
+                  <Label htmlFor="work_description">Descrizione Lavoro {newOrder.order_type === 'odl' ? '*' : ''}</Label>
+                  <Textarea
+                    id="work_description"
+                    value={newOrder.work_description}
+                    onChange={(e) => setNewOrder({...newOrder, work_description: e.target.value})}
+                    placeholder="Descrivi il lavoro da eseguire..."
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              {/* Work Order Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="assigned_technician">Tecnico Assegnato</Label>
+                  <Select value={newOrder.assigned_technician} onValueChange={(value) => setNewOrder({...newOrder, assigned_technician: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tecnico" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {technicians.map(tech => (
+                        <SelectItem key={tech.id} value={tech.id}>
+                          {tech.first_name} {tech.last_name} ({tech.employee_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="priority">Priorità</Label>
+                  <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({...newOrder, priority: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Bassa</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="status">Stato</Label>
-                <Select value={newOrder.status} onValueChange={(value) => setNewOrder({...newOrder, status: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {orderStatuses.map(status => (
-                      <SelectItem key={status} value={status}>
-                        {status.toUpperCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              {/* Dates */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="order_date">Data Ordine</Label>
+                  <Input
+                    id="order_date"
+                    type="date"
+                    value={newOrder.order_date}
+                    onChange={(e) => setNewOrder({...newOrder, order_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="planned_start_date">Inizio Pianificato</Label>
+                  <Input
+                    id="planned_start_date"
+                    type="date"
+                    value={newOrder.planned_start_date}
+                    onChange={(e) => setNewOrder({...newOrder, planned_start_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="planned_end_date">Fine Pianificata</Label>
+                  <Input
+                    id="planned_end_date"
+                    type="date"
+                    value={newOrder.planned_end_date}
+                    onChange={(e) => setNewOrder({...newOrder, planned_end_date: e.target.value})}
+                  />
+                </div>
               </div>
+
+              {/* Service Work Order specific fields */}
+              {(newOrder.order_type === 'odl' || newOrder.order_type === 'odpel') && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="location">Ubicazione</Label>
+                    <Input
+                      id="location"
+                      value={newOrder.location}
+                      onChange={(e) => setNewOrder({...newOrder, location: e.target.value})}
+                      placeholder="Indirizzo del lavoro..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="equipment_needed">Attrezzature Necessarie</Label>
+                    <Input
+                      id="equipment_needed"
+                      value={newOrder.equipment_needed}
+                      onChange={(e) => setNewOrder({...newOrder, equipment_needed: e.target.value})}
+                      placeholder="Attrezzature specifiche..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Photo Upload */}
               <div>
-                <Label htmlFor="order_date">Data Ordine</Label>
-                <Input
-                  id="order_date"
-                  type="date"
-                  value={newOrder.order_date}
-                  onChange={(e) => setNewOrder({...newOrder, order_date: e.target.value})}
-                />
+                <Label>Foto Ordine</Label>
+                <div className="mt-2">
+                  <FileUpload
+                    value={uploadedFiles}
+                    onChange={setUploadedFiles}
+                    acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp', 'image/gif']}
+                    maxFiles={10}
+                  />
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="relative border rounded-lg p-2">
+                          <div className="flex items-center gap-2">
+                            <FileImage className="w-4 h-4" />
+                            <span className="text-sm truncate">{file.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(index)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Notes */}
               <div>
-                <Label htmlFor="delivery_date">Data Consegna</Label>
-                <Input
-                  id="delivery_date"
-                  type="date"
-                  value={newOrder.delivery_date}
-                  onChange={(e) => setNewOrder({...newOrder, delivery_date: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="subtotal">Subtotale (€)</Label>
-                <Input
-                  id="subtotal"
-                  type="number"
-                  step="0.01"
-                  value={newOrder.subtotal}
-                  onChange={(e) => setNewOrder({...newOrder, subtotal: e.target.value})}
-                  placeholder="1000.00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="tax_amount">IVA (€)</Label>
-                <Input
-                  id="tax_amount"
-                  type="number"
-                  step="0.01"
-                  value={newOrder.tax_amount}
-                  onChange={(e) => setNewOrder({...newOrder, tax_amount: e.target.value})}
-                  placeholder="220.00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="total_amount">Totale (€)</Label>
-                <Input
-                  id="total_amount"
-                  type="number"
-                  step="0.01"
-                  value={newOrder.total_amount}
-                  onChange={(e) => setNewOrder({...newOrder, total_amount: e.target.value})}
-                  placeholder="1220.00"
-                />
-              </div>
-              <div className="col-span-2">
                 <Label htmlFor="notes">Note</Label>
-                <Input
+                <Textarea
                   id="notes"
                   value={newOrder.notes}
                   onChange={(e) => setNewOrder({...newOrder, notes: e.target.value})}
                   placeholder="Note aggiuntive..."
+                  rows={2}
                 />
               </div>
             </div>
+
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Annulla
@@ -313,55 +596,59 @@ export default function OrdersPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valore Totale</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">€{totalValue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {filteredOrders.length} ordini totali
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Consegnati</CardTitle>
+            <CardTitle className="text-sm font-medium">Totali</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{deliveredValue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {deliveredOrders.length} ordini consegnati
-            </p>
+            <div className="text-2xl font-bold">{totalOrders}</div>
+            <p className="text-xs text-muted-foreground">ordini totali</p>
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Spedizione</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{shippedOrders.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Ordini in corso di spedizione
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tasso Consegna</CardTitle>
+            <CardTitle className="text-sm font-medium">OdL</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredOrders.length > 0 ? Math.round((deliveredOrders.length / filteredOrders.length) * 100) : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Ordini consegnati vs totali
-            </p>
+            <div className="text-2xl font-bold">{odlOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini di lavoro</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">OdP</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{odpOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini di produzione</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Consegnati</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{deliveredOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini consegnati</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Spedizione</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{shippedOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini spediti</p>
           </CardContent>
         </Card>
       </div>
@@ -386,12 +673,12 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Numero</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Data Ordine</TableHead>
                 <TableHead>Consegna</TableHead>
-                <TableHead>Subtotale</TableHead>
-                <TableHead>IVA</TableHead>
-                <TableHead>Totale</TableHead>
                 <TableHead>Stato</TableHead>
+                <TableHead>Note</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -399,9 +686,24 @@ export default function OrdersPage() {
                 <TableRow key={order.id}>
                   <TableCell>
                     <div className="flex items-center">
-                      <ShoppingCart className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <Package className="w-4 h-4 mr-2 text-muted-foreground" />
                       <span className="font-medium">{order.number}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {order.customers && (
+                      <div>
+                        <div className="font-medium">{order.customers.name}</div>
+                        <div className="text-sm text-muted-foreground">{order.customers.code}</div>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {order.order_type && (
+                      <Badge className={getOrderTypeColor(order.order_type)}>
+                        {getOrderTypeLabel(order.order_type)}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {order.order_date && (
@@ -418,26 +720,19 @@ export default function OrdersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {order.subtotal && (
-                      <span className="text-sm">€{order.subtotal.toLocaleString()}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {order.tax_amount && (
-                      <span className="text-sm">€{order.tax_amount.toLocaleString()}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {order.total_amount && (
-                      <span className="font-medium">€{order.total_amount.toLocaleString()}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
                     {order.status && (
                       <Badge variant={getStatusColor(order.status)}>
                         {order.status.toUpperCase()}
                       </Badge>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {order.notes && order.notes.length > 50 
+                        ? `${order.notes.substring(0, 50)}...`
+                        : order.notes
+                      }
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
