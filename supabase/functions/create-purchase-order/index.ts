@@ -14,6 +14,7 @@ interface CreatePurchaseOrderRequest {
   deliveryTimeframe: string;
   priority: string;
   notes?: string;
+  additionalEmailNotes?: string;
 }
 
 interface Material {
@@ -77,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const requestData: CreatePurchaseOrderRequest = await req.json();
-    const { materialId, quantity, supplierId, deliveryTimeframe, priority, notes } = requestData;
+    const { materialId, quantity, supplierId, deliveryTimeframe, priority, notes, additionalEmailNotes } = requestData;
 
     console.log("Creating purchase order with data:", requestData);
 
@@ -250,6 +251,13 @@ const handler = async (req: Request): Promise<Response> => {
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Note e Richieste</h3>
                   <p>${notes}</p>
+                </div>
+              ` : ''}
+
+              ${additionalEmailNotes ? `
+                <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
+                  <h3 style="color: #004085; border-bottom: 2px solid #b3d7ff; padding-bottom: 10px; margin-top: 0;">Comunicazioni Aggiuntive</h3>
+                  <p style="color: #004085; margin: 10px 0;">${additionalEmailNotes}</p>
                 </div>
               ` : ''}
 

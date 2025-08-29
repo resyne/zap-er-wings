@@ -55,7 +55,10 @@ export default function StockPage() {
   const [selectedType, setSelectedType] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPurchaseOrderDialogOpen, setIsPurchaseOrderDialogOpen] = useState(false);
+  const [isEmailPreviewOpen, setIsEmailPreviewOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [emailPreviewData, setEmailPreviewData] = useState<any>(null);
+  const [additionalEmailNotes, setAdditionalEmailNotes] = useState("");
   const [creatingOrder, setCreatingOrder] = useState(false);
   const { toast } = useToast();
 
@@ -139,17 +142,49 @@ export default function StockPage() {
   const onSubmitPurchaseOrder = async (values: z.infer<typeof purchaseOrderSchema>) => {
     if (!selectedMaterial || !selectedMaterial.supplier_id) return;
 
+    // Prepare email preview data
+    const supplier = suppliers.find(s => s.id === selectedMaterial.supplier_id);
+    const deliveryDays = parseInt(values.deliveryTimeframe);
+    const currentDate = new Date();
+    const expectedDeliveryDate = new Date(currentDate);
+    expectedDeliveryDate.setDate(currentDate.getDate() + deliveryDays);
+    
+    const estimatedUnitPrice = selectedMaterial.cost || 0;
+    const totalPrice = values.quantity * estimatedUnitPrice;
+
+    setEmailPreviewData({
+      material: selectedMaterial,
+      supplier: supplier,
+      formValues: values,
+      deliveryDays,
+      expectedDeliveryDate,
+      estimatedUnitPrice,
+      totalPrice,
+      subtotal: totalPrice,
+      taxAmount: totalPrice * 0.22,
+      totalAmount: totalPrice * 1.22
+    });
+
+    setAdditionalEmailNotes("");
+    setIsPurchaseOrderDialogOpen(false);
+    setIsEmailPreviewOpen(true);
+  };
+
+  const confirmAndCreateOrder = async () => {
+    if (!selectedMaterial || !emailPreviewData) return;
+
     setCreatingOrder(true);
 
     try {
       const { error } = await supabase.functions.invoke('create-purchase-order', {
         body: {
           materialId: selectedMaterial.id,
-          quantity: values.quantity,
+          quantity: emailPreviewData.formValues.quantity,
           supplierId: selectedMaterial.supplier_id,
-          deliveryTimeframe: values.deliveryTimeframe,
-          priority: values.priority,
-          notes: values.notes,
+          deliveryTimeframe: emailPreviewData.formValues.deliveryTimeframe,
+          priority: emailPreviewData.formValues.priority,
+          notes: emailPreviewData.formValues.notes,
+          additionalEmailNotes: additionalEmailNotes,
         },
       });
 
@@ -159,12 +194,14 @@ export default function StockPage() {
       }
 
       toast({
-        title: "Ordine creato",
-        description: "L'ordine di acquisto è stato creato e inviato al fornitore",
+        title: "Ordine creato e inviato",
+        description: "L'ordine di acquisto è stato creato e l'email è stata inviata al fornitore",
       });
 
-      setIsPurchaseOrderDialogOpen(false);
+      setIsEmailPreviewOpen(false);
       setSelectedMaterial(null);
+      setEmailPreviewData(null);
+      setAdditionalEmailNotes("");
       form.reset();
     } catch (error: any) {
       console.error('Error creating purchase order:', error);
@@ -394,12 +431,137 @@ export default function StockPage() {
                     >
                       Annulla
                     </Button>
-                    <Button type="submit" disabled={creatingOrder}>
-                      {creatingOrder ? "Creazione..." : "Crea Ordine"}
+                    <Button type="submit">
+                      Anteprima Email
                     </Button>
                   </div>
                 </form>
               </Form>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Email Preview Dialog */}
+        <Dialog open={isEmailPreviewOpen} onOpenChange={setIsEmailPreviewOpen}>
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Anteprima Email al Fornitore</DialogTitle>
+              <DialogDescription>
+                Verifica il contenuto dell'email prima dell'invio e aggiungi eventuali note aggiuntive
+              </DialogDescription>
+            </DialogHeader>
+            {emailPreviewData && (
+              <div className="space-y-4">
+                <div className="bg-muted p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Destinatario</h4>
+                  <p className="text-sm">
+                    <strong>{emailPreviewData.supplier?.name}</strong> - {emailPreviewData.supplier?.email || "Email non disponibile"}
+                  </p>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-white">
+                  <div className="mb-4 text-center border-b pb-4">
+                    <h1 className="text-2xl font-bold text-gray-800">Ordine di Acquisto</h1>
+                    <h2 className="text-lg text-gray-600">N° PO-{new Date().getFullYear()}-XXXX</h2>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <h3 className="font-semibold mb-2 border-b border-gray-300 pb-2">Dettagli Ordine</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <p><strong>Data Ordine:</strong> {new Date().toLocaleDateString('it-IT')}</p>
+                      <p><strong>Data Consegna Richiesta:</strong> {emailPreviewData.expectedDeliveryDate.toLocaleDateString('it-IT')} ({emailPreviewData.deliveryDays} giorni)</p>
+                      <p><strong>Priorità:</strong> {emailPreviewData.formValues.priority.toUpperCase()}</p>
+                      <p><strong>Fornitore:</strong> {emailPreviewData.supplier?.name}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <h3 className="font-semibold mb-2 border-b border-gray-300 pb-2">Articoli Ordinati</h3>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="text-left p-2 border">Codice</th>
+                          <th className="text-left p-2 border">Descrizione</th>
+                          <th className="text-center p-2 border">Quantità</th>
+                          <th className="text-right p-2 border">Prezzo Unit. Est.</th>
+                          <th className="text-right p-2 border">Totale Est.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2 border">{emailPreviewData.material.code}</td>
+                          <td className="p-2 border">
+                            <strong>{emailPreviewData.material.name}</strong><br />
+                            <small className="text-gray-600">{emailPreviewData.material.description || ''}</small>
+                          </td>
+                          <td className="text-center p-2 border">{emailPreviewData.formValues.quantity} {emailPreviewData.material.unit}</td>
+                          <td className="text-right p-2 border">€{emailPreviewData.estimatedUnitPrice.toFixed(2)}</td>
+                          <td className="text-right p-2 border"><strong>€{emailPreviewData.totalPrice.toFixed(2)}</strong></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div className="text-right text-sm">
+                      <p><strong>Subtotale Est.: €{emailPreviewData.subtotal.toFixed(2)}</strong></p>
+                      <p>IVA (22%): €{emailPreviewData.taxAmount.toFixed(2)}</p>
+                      <h3 className="text-lg font-bold border-t border-gray-300 pt-2 mt-2">
+                        Totale Est.: €{emailPreviewData.totalAmount.toFixed(2)}
+                      </h3>
+                      <small className="text-gray-600">*Prezzi indicativi soggetti a conferma</small>
+                    </div>
+                  </div>
+
+                  {emailPreviewData.formValues.notes && (
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                      <h3 className="font-semibold mb-2 border-b border-gray-300 pb-2">Note e Richieste</h3>
+                      <p className="text-sm">{emailPreviewData.formValues.notes}</p>
+                    </div>
+                  )}
+
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <h3 className="font-semibold text-yellow-800 mb-2">Richiesta di Conferma</h3>
+                    <ul className="text-sm text-yellow-700 space-y-1">
+                      <li>• Confermare la disponibilità dei materiali richiesti</li>
+                      <li>• Confermare i tempi di produzione/consegna o comunicare eventuali tempistiche diverse</li>
+                      <li>• Confermare i prezzi o comunicare le quotazioni aggiornate</li>
+                      <li>• Comunicare eventuali note o richieste particolari</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="additionalNotes">Note aggiuntive per il fornitore (opzionale)</Label>
+                    <Input
+                      id="additionalNotes"
+                      value={additionalEmailNotes}
+                      onChange={(e) => setAdditionalEmailNotes(e.target.value)}
+                      placeholder="Aggiungi eventuali note aggiuntive che verranno incluse nell'email..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEmailPreviewOpen(false);
+                      setIsPurchaseOrderDialogOpen(true);
+                    }}
+                  >
+                    Modifica Ordine
+                  </Button>
+                  <Button
+                    onClick={confirmAndCreateOrder}
+                    disabled={creatingOrder}
+                  >
+                    {creatingOrder ? "Invio in corso..." : "Conferma e Invia Email"}
+                  </Button>
+                </div>
+              </div>
             )}
           </DialogContent>
         </Dialog>
