@@ -86,7 +86,6 @@ const navigationGroups: NavGroup[] = [
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support", icon: LayoutDashboard },
-      { title: "Gestione Tecnici", url: "/support/technicians", icon: Users },
       { title: "Ordini di Lavoro (OdL)", url: "/support/work-orders", icon: Wrench },
       { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
     ]
@@ -136,6 +135,7 @@ const navigationGroups: NavGroup[] = [
     title: "Risorse Umane",
     items: [
       { title: "Personale", url: "/hr/people", icon: Users },
+      { title: "Tecnici", url: "/hr/technicians", icon: Wrench },
       { title: "Timesheet", url: "/hr/timesheets", icon: Clock },
       { title: "Rimborsi", url: "/hr/expenses", icon: DollarSign },
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },

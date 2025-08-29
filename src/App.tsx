@@ -9,7 +9,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/app-layout";
 import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import TechniciansPage from "./pages/dashboard/TechniciansPage";
+import PeoplePage from "./pages/hr/PeoplePage";
+import TechniciansPage from "./pages/hr/TechniciansPage";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 import BomPage from "./pages/production/BomPage";
@@ -70,7 +71,8 @@ const App = () => (
               }>
                 <Route index element={<DashboardPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="support/technicians" element={<TechniciansPage />} />
+                <Route path="hr/people" element={<PeoplePage />} />
+                <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="mfg/bom" element={<BomPage />} />
                 <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
                 <Route path="mfg/executions" element={<ExecutionsPage />} />
