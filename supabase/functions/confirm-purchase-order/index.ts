@@ -105,191 +105,185 @@ const handler = async (req: Request): Promise<Response> => {
       const purchaseOrder = confirmation.purchase_orders;
       const items = purchaseOrder.purchase_order_items || [];
 
-      const confirmationForm = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <title>Conferma Ordine di Acquisto</title>
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                max-width: 800px; 
-                margin: 20px auto; 
-                padding: 20px; 
-                background-color: #f8f9fa;
-              }
-              .container { 
-                background-color: white; 
-                padding: 30px; 
-                border-radius: 8px; 
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-              }
-              .header { 
-                text-align: center; 
-                border-bottom: 2px solid #e9ecef; 
-                padding-bottom: 20px; 
-                margin-bottom: 30px;
-              }
-              .order-details { 
-                background-color: #f8f9fa; 
-                padding: 20px; 
-                border-radius: 5px; 
-                margin-bottom: 20px;
-              }
-              .items-table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin-bottom: 20px;
-              }
-              .items-table th, .items-table td { 
-                padding: 12px; 
-                text-align: left; 
-                border-bottom: 1px solid #dee2e6;
-              }
-              .items-table th { 
-                background-color: #f8f9fa; 
-                font-weight: bold;
-              }
-              .form-group { 
-                margin-bottom: 20px;
-              }
-              .form-group label { 
-                display: block; 
-                margin-bottom: 5px; 
-                font-weight: bold;
-              }
-              .form-group input, .form-group textarea, .form-group select { 
-                width: 100%; 
-                padding: 10px; 
-                border: 1px solid #ddd; 
-                border-radius: 4px; 
-                font-size: 14px;
-              }
-              .form-group textarea { 
-                height: 100px; 
-                resize: vertical;
-              }
-              .btn { 
-                background-color: #28a745; 
-                color: white; 
-                padding: 12px 30px; 
-                border: none; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                font-size: 16px;
-                margin-right: 10px;
-              }
-              .btn:hover { 
-                background-color: #218838;
-              }
-              .btn-secondary { 
-                background-color: #6c757d;
-              }
-              .btn-secondary:hover { 
-                background-color: #5a6268;
-              }
-              .alert { 
-                padding: 15px; 
-                border-radius: 5px; 
-                margin-bottom: 20px;
-              }
-              .alert-warning { 
-                background-color: #fff3cd; 
-                border: 1px solid #ffeaa7; 
-                color: #856404;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Conferma Ricezione Ordine di Acquisto</h1>
-                <h2>N° ${purchaseOrder.number}</h2>
-              </div>
+      const confirmationForm = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Conferma Ordine di Acquisto</title>
+<style>
+body { 
+  font-family: Arial, sans-serif; 
+  max-width: 800px; 
+  margin: 20px auto; 
+  padding: 20px; 
+  background-color: #f8f9fa;
+}
+.container { 
+  background-color: white; 
+  padding: 30px; 
+  border-radius: 8px; 
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.header { 
+  text-align: center; 
+  border-bottom: 2px solid #e9ecef; 
+  padding-bottom: 20px; 
+  margin-bottom: 30px;
+}
+.order-details { 
+  background-color: #f8f9fa; 
+  padding: 20px; 
+  border-radius: 5px; 
+  margin-bottom: 20px;
+}
+.items-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  margin-bottom: 20px;
+}
+.items-table th, .items-table td { 
+  padding: 12px; 
+  text-align: left; 
+  border-bottom: 1px solid #dee2e6;
+}
+.items-table th { 
+  background-color: #f8f9fa; 
+  font-weight: bold;
+}
+.form-group { 
+  margin-bottom: 20px;
+}
+.form-group label { 
+  display: block; 
+  margin-bottom: 5px; 
+  font-weight: bold;
+}
+.form-group input, .form-group textarea, .form-group select { 
+  width: 100%; 
+  padding: 10px; 
+  border: 1px solid #ddd; 
+  border-radius: 4px; 
+  font-size: 14px;
+}
+.form-group textarea { 
+  height: 100px; 
+  resize: vertical;
+}
+.btn { 
+  background-color: #28a745; 
+  color: white; 
+  padding: 12px 30px; 
+  border: none; 
+  border-radius: 5px; 
+  cursor: pointer; 
+  font-size: 16px;
+  margin-right: 10px;
+}
+.btn:hover { 
+  background-color: #218838;
+}
+.btn-secondary { 
+  background-color: #6c757d;
+}
+.btn-secondary:hover { 
+  background-color: #5a6268;
+}
+.alert { 
+  padding: 15px; 
+  border-radius: 5px; 
+  margin-bottom: 20px;
+}
+.alert-warning { 
+  background-color: #fff3cd; 
+  border: 1px solid #ffeaa7; 
+  color: #856404;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>Conferma Ricezione Ordine di Acquisto</h1>
+<h2>N° ${purchaseOrder.number}</h2>
+</div>
 
-              <div class="order-details">
-                <h3>Dettagli Ordine</h3>
-                <p><strong>Fornitore:</strong> ${purchaseOrder.suppliers.name}</p>
-                <p><strong>Data Ordine:</strong> ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}</p>
-                <p><strong>Data Consegna Richiesta:</strong> ${new Date(purchaseOrder.expected_delivery_date).toLocaleDateString('it-IT')}</p>
-                <p><strong>Priorità:</strong> ${purchaseOrder.priority?.toUpperCase() || 'MEDIA'}</p>
-                <p><strong>Note:</strong> ${purchaseOrder.notes || 'Nessuna nota'}</p>
-              </div>
+<div class="order-details">
+<h3>Dettagli Ordine</h3>
+<p><strong>Fornitore:</strong> ${purchaseOrder.suppliers.name}</p>
+<p><strong>Data Ordine:</strong> ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}</p>
+<p><strong>Data Consegna Richiesta:</strong> ${new Date(purchaseOrder.expected_delivery_date).toLocaleDateString('it-IT')}</p>
+<p><strong>Priorità:</strong> ${purchaseOrder.priority?.toUpperCase() || 'MEDIA'}</p>
+<p><strong>Note:</strong> ${purchaseOrder.notes || 'Nessuna nota'}</p>
+</div>
 
-              <h3>Articoli Ordinati</h3>
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th>Codice</th>
-                    <th>Descrizione</th>
-                    <th>Quantità</th>
-                    <th>Prezzo Unit. Est.</th>
-                    <th>Totale Est.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${items.map(item => `
-                    <tr>
-                      <td>${item.materials.code}</td>
-                      <td>
-                        <strong>${item.materials.name}</strong><br>
-                        <small>${item.materials.description || ''}</small>
-                      </td>
-                      <td>${item.quantity} ${item.materials.unit}</td>
-                      <td>€${item.unit_price.toFixed(2)}</td>
-                      <td><strong>€${item.total_price.toFixed(2)}</strong></td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
+<h3>Articoli Ordinati</h3>
+<table class="items-table">
+<thead>
+<tr>
+<th>Codice</th>
+<th>Descrizione</th>
+<th>Quantità</th>
+<th>Prezzo Unit. Est.</th>
+<th>Totale Est.</th>
+</tr>
+</thead>
+<tbody>
+${items.map(item => `<tr>
+<td>${item.materials.code}</td>
+<td>
+<strong>${item.materials.name}</strong><br>
+<small>${item.materials.description || ''}</small>
+</td>
+<td>${item.quantity} ${item.materials.unit}</td>
+<td>€${item.unit_price.toFixed(2)}</td>
+<td><strong>€${item.total_price.toFixed(2)}</strong></td>
+</tr>`).join('')}
+</tbody>
+</table>
 
-              <div class="alert alert-warning">
-                <h4>Richiesta di Conferma</h4>
-                <p>Vi chiediamo di confermare la ricezione di questo ordine e di fornire le seguenti informazioni:</p>
-                <ul>
-                  <li>Disponibilità dei materiali richiesti</li>
-                  <li>Tempi di produzione/consegna effettivi</li>
-                  <li>Prezzi aggiornati se diversi da quelli indicati</li>
-                  <li>Eventuali note o comunicazioni</li>
-                </ul>
-              </div>
+<div class="alert alert-warning">
+<h4>Richiesta di Conferma</h4>
+<p>Vi chiediamo di confermare la ricezione di questo ordine e di fornire le seguenti informazioni:</p>
+<ul>
+<li>Disponibilità dei materiali richiesti</li>
+<li>Tempi di produzione/consegna effettivi</li>
+<li>Prezzi aggiornati se diversi da quelli indicati</li>
+<li>Eventuali note o comunicazioni</li>
+</ul>
+</div>
 
-              <form id="confirmationForm" method="POST">
-                <input type="hidden" name="token" value="${token}">
-                
-                <div class="form-group">
-                  <label for="deliveryDate">Data di Consegna Confermata*</label>
-                  <input type="date" id="deliveryDate" name="deliveryDate" required 
-                         min="${new Date().toISOString().split('T')[0]}">
-                </div>
+<form id="confirmationForm" method="POST">
+<input type="hidden" name="token" value="${token}">
 
-                <div class="form-group">
-                  <label for="supplierNotes">Note e Comunicazioni</label>
-                  <textarea id="supplierNotes" name="supplierNotes" 
-                           placeholder="Inserire eventuali note sui prezzi, disponibilità, tempi di consegna o altre comunicazioni..."></textarea>
-                </div>
+<div class="form-group">
+<label for="deliveryDate">Data di Consegna Confermata*</label>
+<input type="date" id="deliveryDate" name="deliveryDate" required min="${new Date().toISOString().split('T')[0]}">
+</div>
 
-                <div style="text-align: center; margin-top: 30px;">
-                  <button type="submit" class="btn">Conferma Ricezione Ordine</button>
-                  <button type="button" class="btn btn-secondary" onclick="window.close()">Annulla</button>
-                </div>
-              </form>
-            </div>
+<div class="form-group">
+<label for="supplierNotes">Note e Comunicazioni</label>
+<textarea id="supplierNotes" name="supplierNotes" placeholder="Inserire eventuali note sui prezzi, disponibilità, tempi di consegna o altre comunicazioni..."></textarea>
+</div>
 
-            <script>
-              document.getElementById('confirmationForm').addEventListener('submit', function(e) {
-                if (confirm('Confermare la ricezione di questo ordine? Questa azione non può essere annullata.')) {
-                  document.querySelector('button[type="submit"]').disabled = true;
-                  document.querySelector('button[type="submit"]').textContent = 'Confermando...';
-                } else {
-                  e.preventDefault();
-                }
-              });
-            </script>
-          </body>
-        </html>
-      `;
+<div style="text-align: center; margin-top: 30px;">
+<button type="submit" class="btn">Conferma Ricezione Ordine</button>
+<button type="button" class="btn btn-secondary" onclick="window.close()">Annulla</button>
+</div>
+</form>
+</div>
+
+<script>
+document.getElementById('confirmationForm').addEventListener('submit', function(e) {
+if (confirm('Confermare la ricezione di questo ordine? Questa azione non può essere annullata.')) {
+document.querySelector('button[type="submit"]').disabled = true;
+document.querySelector('button[type="submit"]').textContent = 'Confermando...';
+} else {
+e.preventDefault();
+}
+});
+</script>
+</body>
+</html>`;
 
       return new Response(confirmationForm, { 
         status: 200, 
