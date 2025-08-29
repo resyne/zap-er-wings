@@ -86,6 +86,7 @@ const navigationGroups: NavGroup[] = [
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support", icon: LayoutDashboard },
+      { title: "Ordini di Lavoro", url: "/support/work-orders", icon: Wrench },
       { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
     ]
   },

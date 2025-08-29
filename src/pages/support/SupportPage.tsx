@@ -6,6 +6,13 @@ import { Link } from "react-router-dom";
 export default function SupportPage() {
   const supportSections = [
     {
+      title: "Ordini di Lavoro",
+      description: "Pianifica e monitora gli ordini di lavoro delle commesse",
+      icon: Wrench,
+      href: "/support/work-orders",
+      color: "text-orange-600"
+    },
+    {
       title: "Rapporti di Intervento",
       description: "Crea e gestisci rapporti di intervento tecnico con firme digitali",
       icon: FileText,

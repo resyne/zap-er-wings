@@ -47,6 +47,7 @@ import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
+import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +104,7 @@ const App = () => (
                 <Route path="docs/price-lists" element={<PriceListsPage />} />
                 <Route path="support" element={<SupportPage />} />
                 <Route path="support/service-reports" element={<ServiceReportsPage />} />
+                <Route path="support/work-orders" element={<WorkOrdersServicePage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
