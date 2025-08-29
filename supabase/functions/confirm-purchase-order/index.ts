@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -124,6 +125,36 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`Purchase order ${confirmation.purchase_orders?.number} confirmed by supplier`);
+
+    // Send notification email to procurement department
+    try {
+      const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+      
+      const emailResult = await resend.emails.send({
+        from: "Sistema Ordini <noreply@abbattitorizapper.it>",
+        to: ["acquisti@abbattitorizapper.it"],
+        subject: `Ordine di Acquisto ${confirmation.purchase_orders?.number} confermato dal fornitore`,
+        html: `
+          <h2>Conferma Ordine di Acquisto</h2>
+          <p>L'ordine di acquisto <strong>${confirmation.purchase_orders?.number}</strong> è stato confermato dal fornitore.</p>
+          
+          <h3>Dettagli della conferma:</h3>
+          <ul>
+            <li><strong>Email fornitore:</strong> ${confirmation.supplier_email}</li>
+            <li><strong>Data di consegna prevista:</strong> ${new Date(deliveryDate).toLocaleDateString('it-IT')}</li>
+            <li><strong>Data conferma:</strong> ${new Date().toLocaleDateString('it-IT')} alle ${new Date().toLocaleTimeString('it-IT')}</li>
+            ${supplierNotes ? `<li><strong>Note del fornitore:</strong> ${supplierNotes}</li>` : ''}
+          </ul>
+          
+          <p>L'ordine è ora confermato e in attesa di consegna.</p>
+        `,
+      });
+
+      console.log("Notification email sent successfully:", emailResult);
+    } catch (emailError) {
+      console.error("Error sending notification email:", emailError);
+      // Don't fail the request if email fails
+    }
 
     return new Response(
       JSON.stringify({ 
