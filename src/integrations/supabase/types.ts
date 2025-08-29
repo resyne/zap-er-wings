@@ -2420,6 +2420,7 @@ export type Database = {
       }
       work_orders: {
         Row: {
+          accessori_ids: string[] | null
           actual_end_date: string | null
           actual_start_date: string | null
           assigned_to: string | null
@@ -2443,6 +2444,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          accessori_ids?: string[] | null
           actual_end_date?: string | null
           actual_start_date?: string | null
           assigned_to?: string | null
@@ -2466,6 +2468,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          accessori_ids?: string[] | null
           actual_end_date?: string | null
           actual_start_date?: string | null
           assigned_to?: string | null
