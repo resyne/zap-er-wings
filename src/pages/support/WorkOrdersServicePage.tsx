@@ -21,6 +21,7 @@ interface ServiceWorkOrder {
   status: string;
   customer_id?: string;
   contact_id?: string;
+  assigned_to?: string;
   priority?: string;
   scheduled_date?: string;
   estimated_hours?: number;
@@ -37,6 +38,12 @@ interface ServiceWorkOrder {
     first_name: string;
     last_name: string;
     company_name?: string;
+  };
+  technician?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    employee_code: string;
   };
 }
 
@@ -102,22 +109,29 @@ export default function WorkOrdersServicePage() {
             first_name,
             last_name,
             company_name
-          ),
-          technicians (
-            first_name,
-            last_name,
-            employee_code
-          ),
-          work_orders!production_work_order_id (
-            id,
-            number,
-            title
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setServiceWorkOrders(data || []);
+
+      // Manually join technician data
+      const workOrdersWithTechnicians = await Promise.all(
+        (data || []).map(async (wo) => {
+          if (wo.assigned_to) {
+            const { data: techData } = await supabase
+              .from('technicians')
+              .select('id, first_name, last_name, employee_code')
+              .eq('id', wo.assigned_to)
+              .single();
+            
+            return { ...wo, technician: techData };
+          }
+          return wo;
+        })
+      );
+
+      setServiceWorkOrders(workOrdersWithTechnicians);
     } catch (error) {
       console.error('Error loading service work orders:', error);
       toast({
@@ -552,10 +566,10 @@ export default function WorkOrdersServicePage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {workOrder.technicians ? (
+                      {workOrder.technician ? (
                         <div>
-                          <div className="font-medium">{workOrder.technicians.first_name} {workOrder.technicians.last_name}</div>
-                          <div className="text-sm text-muted-foreground">({workOrder.technicians.employee_code})</div>
+                          <div className="font-medium">{workOrder.technician.first_name} {workOrder.technician.last_name}</div>
+                          <div className="text-sm text-muted-foreground">({workOrder.technician.employee_code})</div>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>
