@@ -2493,6 +2493,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "work_orders_assigned_to_technician_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "work_orders_bom_id_fkey"
             columns: ["bom_id"]
             isOneToOne: false
