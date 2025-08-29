@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Play, TestTube, CheckCircle, Wrench } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Play, TestTube, CheckCircle, Wrench, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -364,6 +364,33 @@ export default function WorkOrdersPage() {
       toast({
         title: "Successo",
         description: `Stato ordine di produzione aggiornato a ${newStatus}`,
+      });
+      fetchWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (woId: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo ordine di produzione?")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('work_orders')
+        .delete()
+        .eq('id', woId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ordine di produzione eliminato con successo",
       });
       fetchWorkOrders();
     } catch (error: any) {
@@ -891,6 +918,9 @@ export default function WorkOrdersPage() {
                           )}
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
                             <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(wo.id)}>
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
