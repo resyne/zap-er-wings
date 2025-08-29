@@ -65,19 +65,31 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
+    console.log("=== CREATE PURCHASE ORDER START ===");
+    
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.error("Missing authorization header");
       throw new Error("Missing authorization header");
     }
 
     const token = authHeader.replace("Bearer ", "");
+    console.log("Token extracted, length:", token.length);
+    
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    console.log("User auth result:", { userData: !!userData.user, error: userError });
     
     if (userError || !userData.user) {
+      console.error("Authentication error:", userError);
       throw new Error("Invalid authentication token");
     }
 
+    console.log("About to parse request body...");
     const requestData: CreatePurchaseOrderRequest = await req.json();
+    console.log("Request data parsed successfully:", requestData);
+    
     const { materialId, quantity, supplierId, deliveryTimeframe, priority, notes, additionalEmailNotes } = requestData;
 
     console.log("Creating purchase order with data:", requestData);
