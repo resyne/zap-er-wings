@@ -71,13 +71,15 @@ interface Material {
 const levelLabels = {
   0: "Machinery Models",
   1: "Parent Groups", 
-  2: "Child Elements"
+  2: "Child Elements",
+  3: "Accessori"
 };
 
 const levelIcons = {
   0: Factory,
   1: Package,
-  2: Component
+  2: Component,
+  3: Package2
 };
 
 export default function BomPage() {
@@ -127,7 +129,7 @@ export default function BomPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedLevel > 0) {
+    if (selectedLevel > 0 && selectedLevel < 3) {
       fetchParentBoms();
       fetchIncludableBoms();
     } else {
@@ -331,8 +333,8 @@ export default function BomPage() {
         });
       }
 
-      // Handle BOM inclusions
-      if (selectedLevel > 0) {
+      // Handle BOM inclusions (not for Accessori level)
+      if (selectedLevel > 0 && selectedLevel < 3) {
         // Delete existing inclusions if updating
         if (selectedBom) {
           await supabase
@@ -385,8 +387,8 @@ export default function BomPage() {
       material_id: bom.material_id || ""
     });
 
-    // Fetch existing inclusions for this BOM
-    if (bom.level > 0) {
+    // Fetch existing inclusions for this BOM (not for Accessori)
+    if (bom.level > 0 && bom.level < 3) {
       try {
         const { data: inclusions, error } = await supabase
           .from('bom_inclusions')
@@ -489,6 +491,7 @@ export default function BomPage() {
       case 0: return "default";
       case 1: return "secondary";
       case 2: return "outline";
+      case 3: return "destructive";
       default: return "outline";
     }
   };
@@ -547,11 +550,12 @@ export default function BomPage() {
                     <SelectItem value="0">Level 0 - Machinery Model</SelectItem>
                     <SelectItem value="1">Level 1 - Parent Group</SelectItem>
                     <SelectItem value="2">Level 2 - Child Element</SelectItem>
+                    <SelectItem value="3">Level 3 - Accessori</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {selectedLevel > 0 && (
+              {selectedLevel > 0 && selectedLevel < 3 && (
                 <div className="space-y-2">
                   <Label htmlFor="parent_id">Parent BOM *</Label>
                   <Select 
@@ -636,7 +640,7 @@ export default function BomPage() {
                 />
               </div>
 
-              {selectedLevel > 0 && includableBoms.length > 0 && (
+              {selectedLevel > 0 && selectedLevel < 3 && includableBoms.length > 0 && (
                 <div className="space-y-2">
                   <Label>Include BOMs from Level {selectedLevel - 1}</Label>
                   <div className="border rounded-md p-4 max-h-40 overflow-y-auto space-y-2">
@@ -827,8 +831,8 @@ export default function BomPage() {
       </Dialog>
 
       {/* Level Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[0, 1, 2].map((level) => {
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((level) => {
           const Icon = levelIcons[level as keyof typeof levelIcons];
           const count = groupedBoms[level]?.length || 0;
           return (
@@ -888,7 +892,7 @@ export default function BomPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="0" className="flex items-center space-x-2">
                 <Factory className="h-4 w-4" />
                 <span>Level 0</span>
@@ -904,9 +908,14 @@ export default function BomPage() {
                 <span>Level 2</span>
                 <Badge variant="outline">{groupedBoms[2]?.length || 0}</Badge>
               </TabsTrigger>
+              <TabsTrigger value="3" className="flex items-center space-x-2">
+                <Package2 className="h-4 w-4" />
+                <span>Accessori</span>
+                <Badge variant="outline">{groupedBoms[3]?.length || 0}</Badge>
+              </TabsTrigger>
             </TabsList>
             
-            {[0, 1, 2].map((level) => (
+            {[0, 1, 2, 3].map((level) => (
               <TabsContent key={level} value={level.toString()}>
                 <div className="rounded-md border">
                   <Table>

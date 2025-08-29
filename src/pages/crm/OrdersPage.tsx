@@ -47,6 +47,7 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
+  const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   
@@ -59,6 +60,7 @@ export default function OrdersPage() {
     notes: "",
     work_description: "",
     bom_id: "",
+    accessori_ids: [], // Array of selected accessori IDs
     assigned_technician: "",
     priority: "medium",
     planned_start_date: "",
@@ -99,18 +101,21 @@ export default function OrdersPage() {
 
   const loadRelatedData = async () => {
     try {
-      const [customersRes, bomsRes, techniciansRes] = await Promise.all([
+      const [customersRes, bomsRes, accessoriRes, techniciansRes] = await Promise.all([
         supabase.from("customers").select("id, name, code").eq("active", true),
-        supabase.from("boms").select("id, name, version, level").order("name"),
+        supabase.from("boms").select("id, name, version, level").in("level", [0, 1, 2]).order("name"),
+        supabase.from("boms").select("id, name, version, level").eq("level", 3).order("name"),
         supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true)
       ]);
 
       if (customersRes.error) throw customersRes.error;
       if (bomsRes.error) throw bomsRes.error;
+      if (accessoriRes.error) throw accessoriRes.error;
       if (techniciansRes.error) throw techniciansRes.error;
 
       setCustomers(customersRes.data || []);
       setBoms(bomsRes.data || []);
+      setAccessori(accessoriRes.data || []);
       setTechnicians(techniciansRes.data || []);
     } catch (error: any) {
       console.error("Error loading related data:", error);
@@ -292,6 +297,7 @@ export default function OrdersPage() {
         notes: "",
         work_description: "",
         bom_id: "",
+        accessori_ids: [],
         assigned_technician: "",
         priority: "medium",
         planned_start_date: "",
@@ -321,6 +327,7 @@ export default function OrdersPage() {
       notes: order.notes || "",
       work_description: "",
       bom_id: "",
+      accessori_ids: [],
       assigned_technician: "",
       priority: "medium",
       planned_start_date: "",
@@ -374,6 +381,7 @@ export default function OrdersPage() {
         notes: "",
         work_description: "",
         bom_id: "",
+        accessori_ids: [],
         assigned_technician: "",
         priority: "medium",
         planned_start_date: "",
@@ -550,6 +558,41 @@ export default function OrdersPage() {
                   </Select>
                 </div>
               )}
+
+              {/* Accessori selection - Always available */}
+              <div>
+                <Label htmlFor="accessori">Accessori (Opzionali)</Label>
+                <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
+                  {accessori.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nessun accessorio disponibile</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {accessori.map(accessorio => (
+                        <div key={accessorio.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`accessorio-${accessorio.id}`}
+                            checked={newOrder.accessori_ids.includes(accessorio.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setNewOrder(prev => ({
+                                ...prev,
+                                accessori_ids: isChecked 
+                                  ? [...prev.accessori_ids, accessorio.id]
+                                  : prev.accessori_ids.filter(id => id !== accessorio.id)
+                              }));
+                            }}
+                            className="rounded"
+                          />
+                          <label htmlFor={`accessorio-${accessorio.id}`} className="text-sm">
+                            {accessorio.name} (v{accessorio.version})
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {(newOrder.order_type === 'odl' || newOrder.order_type === 'odpel') && (
                 <div>
