@@ -128,7 +128,9 @@ export default function WorkOrdersPage() {
     try {
       const { data, error } = await supabase
         .from('boms')
-        .select('id, name, version')
+        .select('id, name, version, level')
+        .in('level', [0, 3]) // Solo livello 0 (macchine complete) e livello 3 (accessori)
+        .order('level')
         .order('name');
 
       if (error) throw error;
@@ -443,13 +445,35 @@ export default function WorkOrdersPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona Distinta Base" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {boms.map((bom) => (
-                        <SelectItem key={bom.id} value={bom.id}>
-                          {bom.name} ({bom.version})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       {/* Sezione Macchine Complete (Livello 0) */}
+                       {boms.filter(bom => bom.level === 0).length > 0 && (
+                         <>
+                           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                             🏭 Macchine Complete
+                           </div>
+                           {boms.filter(bom => bom.level === 0).map((bom) => (
+                             <SelectItem key={bom.id} value={bom.id}>
+                               {bom.name} ({bom.version})
+                             </SelectItem>
+                           ))}
+                         </>
+                       )}
+                       
+                       {/* Sezione Accessori (Livello 3) */}
+                       {boms.filter(bom => bom.level === 3).length > 0 && (
+                         <>
+                           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                             🔧 Accessori
+                           </div>
+                           {boms.filter(bom => bom.level === 3).map((bom) => (
+                             <SelectItem key={bom.id} value={bom.id}>
+                               {bom.name} ({bom.version})
+                             </SelectItem>
+                           ))}
+                         </>
+                       )}
+                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
