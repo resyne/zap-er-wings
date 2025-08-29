@@ -125,6 +125,13 @@ const handler = async (req: Request): Promise<Response> => {
     const deliveryDays = parseInt(deliveryTimeframe);
     const expectedDeliveryDate = new Date(currentDate);
     expectedDeliveryDate.setDate(currentDate.getDate() + deliveryDays);
+    
+    console.log("Date calculation:", {
+      currentDate: currentDate.toISOString(),
+      deliveryDays,
+      expectedDeliveryDate: expectedDeliveryDate.toISOString(),
+      formattedDate: expectedDeliveryDate.toISOString().split('T')[0]
+    });
 
     // Calculate pricing (use material cost as placeholder)
     const estimatedUnitPrice = material.cost || 0;
@@ -241,23 +248,28 @@ const handler = async (req: Request): Promise<Response> => {
                         <small style="color: #666;">${material.description || ''}</small>
                       </td>
                       <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${quantity} ${material.unit}</td>
-                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">€${estimatedUnitPrice.toFixed(2)}</td>
-                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;"><strong>€${totalPrice.toFixed(2)}</strong></td>
+                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">
+                        <span style="font-size: 10px; color: #999;">Rif. interno: €${estimatedUnitPrice.toFixed(2)}</span><br>
+                        <span style="color: #666;">Da quotare</span>
+                      </td>
+                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">
+                        <span style="font-size: 10px; color: #999;">Rif. interno: €${totalPrice.toFixed(2)}</span><br>
+                        <strong style="color: #666;">Da quotare</strong>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <div style="text-align: right;">
-                  <p style="margin: 5px 0;"><strong>Subtotale Est.: €${purchaseOrder.subtotal.toFixed(2)}</strong></p>
-                  <p style="margin: 5px 0;">IVA (22%): €${purchaseOrder.tax_amount.toFixed(2)}</p>
-                  <h3 style="margin: 10px 0; color: #333; border-top: 2px solid #e9ecef; padding-top: 10px;">
-                    Totale Est.: €${purchaseOrder.total_amount.toFixed(2)}
-                  </h3>
-                  <small style="color: #666;">*Prezzi indicativi soggetti a conferma</small>
-                </div>
-              </div>
+               <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6c757d;">
+                 <h4 style="color: #495057; margin-top: 0; font-size: 14px;">Informazioni Interne</h4>
+                 <p style="color: #6c757d; font-size: 12px; margin: 5px 0;">
+                   Riferimento costo interno: €${totalPrice.toFixed(2)} (IVA esclusa)
+                 </p>
+                 <p style="color: #6c757d; font-size: 11px; margin: 0;">
+                   <em>Questi dati sono per uso interno e non costituiscono un'offerta vincolante</em>
+                 </p>
+               </div>
 
               ${notes ? `
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -287,18 +299,26 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
 
               ${confirmationUrl ? `
-                <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border-left: 4px solid #28a745;">
-                  <h3 style="color: #155724; margin-top: 0;">Conferma Ricezione Ordine</h3>
-                  <p style="color: #155724; margin: 15px 0;">
-                    Cliccare sul link seguente per confermare la ricezione di questo ordine:
+                <div style="background-color: #d4edda; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #28a745;">
+                  <h2 style="color: #155724; margin-top: 0; font-size: 20px;">🎯 CONFERMA ORDINE RICHIESTA</h2>
+                  <p style="color: #155724; margin: 15px 0; font-size: 16px; font-weight: bold;">
+                    IMPORTANTE: Confermate la ricezione di questo ordine e comunicate la vostra data di consegna
                   </p>
+                  <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <p style="color: #333; margin: 10px 0; font-size: 14px;">
+                      • Cliccate sul bottone per confermare la ricezione<br>
+                      • Indicate la vostra data di consegna<br>  
+                      • Aggiungete eventuali note sui prezzi o specifiche
+                    </p>
+                  </div>
                   <a href="${confirmationUrl}" 
-                     style="display: inline-block; background-color: #28a745; color: white; padding: 12px 24px; 
-                            text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px 0;">
-                    CONFERMA RICEZIONE ORDINE
+                     style="display: inline-block; background-color: #28a745; color: white; padding: 15px 35px; 
+                            text-decoration: none; border-radius: 8px; font-weight: bold; margin: 15px 0; 
+                            font-size: 16px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                    ✅ CONFERMA RICEZIONE E CONSEGNA
                   </a>
                   <p style="color: #155724; font-size: 12px; margin: 10px 0;">
-                    Questo link è valido per 30 giorni dalla data di invio.
+                    Link valido per 30 giorni. Una volta confermato, l'ordine passerà automaticamente allo stato "Confermato".
                   </p>
                 </div>
               ` : ''}

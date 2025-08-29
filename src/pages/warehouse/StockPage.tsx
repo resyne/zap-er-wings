@@ -480,37 +480,42 @@ export default function StockPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-100">
-                          <th className="text-left p-2 border">Codice</th>
-                          <th className="text-left p-2 border">Descrizione</th>
-                          <th className="text-center p-2 border">Quantità</th>
-                          <th className="text-right p-2 border">Prezzo Unit. Est.</th>
-                          <th className="text-right p-2 border">Totale Est.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="p-2 border">{emailPreviewData.material.code}</td>
-                          <td className="p-2 border">
-                            <strong>{emailPreviewData.material.name}</strong><br />
-                            <small className="text-gray-600">{emailPreviewData.material.description || ''}</small>
-                          </td>
-                          <td className="text-center p-2 border">{emailPreviewData.formValues.quantity} {emailPreviewData.material.unit}</td>
-                          <td className="text-right p-2 border">€{emailPreviewData.estimatedUnitPrice.toFixed(2)}</td>
-                          <td className="text-right p-2 border"><strong>€{emailPreviewData.totalPrice.toFixed(2)}</strong></td>
+                      <th className="text-left p-2 border">Codice</th>
+                      <th className="text-left p-2 border">Descrizione</th>
+                      <th className="text-center p-2 border">Quantità</th>
+                      <th className="text-right p-2 border">Prezzo Unit.</th>
+                      <th className="text-right p-2 border">Totale</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="p-2 border">{emailPreviewData.material.code}</td>
+                      <td className="p-2 border">
+                        <strong>{emailPreviewData.material.name}</strong><br />
+                        <small className="text-gray-600">{emailPreviewData.material.description || ''}</small>
+                      </td>
+                      <td className="text-center p-2 border">{emailPreviewData.formValues.quantity} {emailPreviewData.material.unit}</td>
+                      <td className="text-right p-2 border">
+                        <small className="text-xs text-gray-400">Rif. interno: €{emailPreviewData.estimatedUnitPrice.toFixed(2)}</small><br />
+                        <span className="text-gray-600">Da quotare</span>
+                      </td>
+                      <td className="text-right p-2 border">
+                        <small className="text-xs text-gray-400">Rif. interno: €{emailPreviewData.totalPrice.toFixed(2)}</small><br />
+                        <strong className="text-gray-600">Da quotare</strong>
+                      </td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
 
-                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <div className="text-right text-sm">
-                      <p><strong>Subtotale Est.: €{emailPreviewData.subtotal.toFixed(2)}</strong></p>
-                      <p>IVA (22%): €{emailPreviewData.taxAmount.toFixed(2)}</p>
-                      <h3 className="text-lg font-bold border-t border-gray-300 pt-2 mt-2">
-                        Totale Est.: €{emailPreviewData.totalAmount.toFixed(2)}
-                      </h3>
-                      <small className="text-gray-600">*Prezzi indicativi soggetti a conferma</small>
-                    </div>
+                  <div className="bg-gray-100 p-3 rounded-lg mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Informazioni Interne</h4>
+                    <p className="text-xs text-gray-600">
+                      Riferimento costo interno: €{emailPreviewData.totalPrice.toFixed(2)} (IVA esclusa)
+                    </p>
+                    <p className="text-xs text-gray-500 italic">
+                      Questi dati sono per uso interno e non costituiscono un'offerta vincolante
+                    </p>
                   </div>
 
                   {emailPreviewData.formValues.notes && (
