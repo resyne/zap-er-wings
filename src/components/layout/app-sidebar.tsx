@@ -85,12 +85,8 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Assistenza Tecnica",
     items: [
-      { title: "Programmazione", url: "/service/schedule", icon: CalendarDays },
-      { title: "Ordini di Lavoro", url: "/service/wo", icon: Wrench },
-      { title: "Checklist", url: "/service/checklists", icon: ClipboardCheck },
-      { title: "Report", url: "/service/reports", icon: FileText },
-      { title: "Ticket", url: "/service/tickets", icon: Users },
-      { title: "Contratti", url: "/service/contracts", icon: FileText },
+      { title: "Dashboard", url: "/support", icon: LayoutDashboard },
+      { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
     ]
   },
   {

@@ -45,6 +45,8 @@ import CompliancePage from "./pages/documentation/CompliancePage";
 import ManualsPage from "./pages/documentation/ManualsPage";
 import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
+import SupportPage from "./pages/support/SupportPage";
+import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +101,8 @@ const App = () => (
                 <Route path="docs/compliance" element={<CompliancePage />} />
                 <Route path="docs/manuals" element={<ManualsPage />} />
                 <Route path="docs/price-lists" element={<PriceListsPage />} />
+                <Route path="support" element={<SupportPage />} />
+                <Route path="support/service-reports" element={<ServiceReportsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
