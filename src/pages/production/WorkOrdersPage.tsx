@@ -207,7 +207,7 @@ export default function WorkOrdersPage() {
             bom_id: formData.bom_id || null,
             accessori_ids: formData.accessori_ids,
             customer_id: formData.customer_id || null,
-            assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' ? formData.assigned_to : null,
+            assigned_to: (formData.assigned_to && formData.assigned_to.trim() !== '' && formData.assigned_to !== 'none') ? formData.assigned_to : null,
             priority: formData.priority,
             planned_start_date: formData.planned_start_date || null,
             planned_end_date: formData.planned_end_date || null,
@@ -231,7 +231,7 @@ export default function WorkOrdersPage() {
             bom_id: formData.bom_id || null,
             accessori_ids: formData.accessori_ids,
             customer_id: formData.customer_id || null,
-            assigned_to: formData.assigned_to && formData.assigned_to.trim() !== '' ? formData.assigned_to : null,
+            assigned_to: (formData.assigned_to && formData.assigned_to.trim() !== '' && formData.assigned_to !== 'none') ? formData.assigned_to : null,
             priority: formData.priority,
             planned_start_date: formData.planned_start_date || null,
             planned_end_date: formData.planned_end_date || null,
@@ -565,11 +565,12 @@ export default function WorkOrdersPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="assigned_to">Assegnato a</Label>
-                <Select value={formData.assigned_to} onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
+                <Select value={formData.assigned_to} onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value === 'none' ? '' : value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona tecnico" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {technicians.map((technician) => (
                       <SelectItem key={technician.id} value={technician.id}>
                         {technician.first_name} {technician.last_name} ({technician.employee_code})
