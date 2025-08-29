@@ -135,6 +135,7 @@ export type Database = {
           id: string
           level: number
           machinery_model: string | null
+          material_id: string | null
           name: string
           notes: string | null
           parent_id: string | null
@@ -147,6 +148,7 @@ export type Database = {
           id?: string
           level?: number
           machinery_model?: string | null
+          material_id?: string | null
           name: string
           notes?: string | null
           parent_id?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           id?: string
           level?: number
           machinery_model?: string | null
+          material_id?: string | null
           name?: string
           notes?: string | null
           parent_id?: string | null
@@ -166,6 +169,13 @@ export type Database = {
           version?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "boms_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "boms_parent_id_fkey"
             columns: ["parent_id"]
