@@ -2436,6 +2436,7 @@ export type Database = {
           customer_id: string | null
           description: string | null
           id: string
+          includes_installation: boolean | null
           location: string | null
           notes: string | null
           number: string
@@ -2458,6 +2459,7 @@ export type Database = {
           customer_id?: string | null
           description?: string | null
           id?: string
+          includes_installation?: boolean | null
           location?: string | null
           notes?: string | null
           number: string
@@ -2480,6 +2482,7 @@ export type Database = {
           customer_id?: string | null
           description?: string | null
           id?: string
+          includes_installation?: boolean | null
           location?: string | null
           notes?: string | null
           number?: string
@@ -2514,6 +2517,10 @@ export type Database = {
     }
     Functions: {
       generate_material_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_production_installation_work_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
