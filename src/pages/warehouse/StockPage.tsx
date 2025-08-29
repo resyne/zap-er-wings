@@ -483,8 +483,6 @@ export default function StockPage() {
                       <th className="text-left p-2 border">Codice</th>
                       <th className="text-left p-2 border">Descrizione</th>
                       <th className="text-center p-2 border">Quantità</th>
-                      <th className="text-right p-2 border">Prezzo Unit.</th>
-                      <th className="text-right p-2 border">Totale</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -495,17 +493,9 @@ export default function StockPage() {
                         <small className="text-gray-600">{emailPreviewData.material.description || ''}</small>
                       </td>
                       <td className="text-center p-2 border">{emailPreviewData.formValues.quantity} {emailPreviewData.material.unit}</td>
-                      <td className="text-right p-2 border">
-                        <small className="text-xs text-gray-400">Rif. interno: €{emailPreviewData.estimatedUnitPrice.toFixed(2)}</small><br />
-                        <span className="text-gray-600">Da quotare</span>
-                      </td>
-                      <td className="text-right p-2 border">
-                        <small className="text-xs text-gray-400">Rif. interno: €{emailPreviewData.totalPrice.toFixed(2)}</small><br />
-                        <strong className="text-gray-600">Da quotare</strong>
-                      </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    </tr>
+                  </tbody>
+                </table>
                   </div>
 
                   <div className="bg-gray-100 p-3 rounded-lg mb-4">

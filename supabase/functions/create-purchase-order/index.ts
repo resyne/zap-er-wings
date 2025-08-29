@@ -236,8 +236,6 @@ const handler = async (req: Request): Promise<Response> => {
                       <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Codice</th>
                       <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Descrizione</th>
                       <th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Quantità</th>
-                      <th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Prezzo Unit. Est.</th>
-                      <th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Totale Est.</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -248,28 +246,11 @@ const handler = async (req: Request): Promise<Response> => {
                         <small style="color: #666;">${material.description || ''}</small>
                       </td>
                       <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${quantity} ${material.unit}</td>
-                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">
-                        <span style="font-size: 10px; color: #999;">Rif. interno: €${estimatedUnitPrice.toFixed(2)}</span><br>
-                        <span style="color: #666;">Da quotare</span>
-                      </td>
-                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">
-                        <span style="font-size: 10px; color: #999;">Rif. interno: €${totalPrice.toFixed(2)}</span><br>
-                        <strong style="color: #666;">Da quotare</strong>
-                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-               <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6c757d;">
-                 <h4 style="color: #495057; margin-top: 0; font-size: 14px;">Informazioni Interne</h4>
-                 <p style="color: #6c757d; font-size: 12px; margin: 5px 0;">
-                   Riferimento costo interno: €${totalPrice.toFixed(2)} (IVA esclusa)
-                 </p>
-                 <p style="color: #6c757d; font-size: 11px; margin: 0;">
-                   <em>Questi dati sono per uso interno e non costituiscono un'offerta vincolante</em>
-                 </p>
-               </div>
 
               ${notes ? `
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
