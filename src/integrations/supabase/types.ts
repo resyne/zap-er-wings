@@ -1868,6 +1868,7 @@ export type Database = {
           notes: string | null
           number: string
           priority: string | null
+          production_work_order_id: string | null
           scheduled_date: string | null
           status: string
           title: string
@@ -1890,6 +1891,7 @@ export type Database = {
           notes?: string | null
           number: string
           priority?: string | null
+          production_work_order_id?: string | null
           scheduled_date?: string | null
           status?: string
           title: string
@@ -1912,6 +1914,7 @@ export type Database = {
           notes?: string | null
           number?: string
           priority?: string | null
+          production_work_order_id?: string | null
           scheduled_date?: string | null
           status?: string
           title?: string
@@ -1930,6 +1933,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_work_orders_production_work_order_id_fkey"
+            columns: ["production_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
         ]

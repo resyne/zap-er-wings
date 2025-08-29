@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Play, TestTube, CheckCircle } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Play, TestTube, CheckCircle, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -45,7 +46,10 @@ export default function WorkOrdersPage() {
     bom_id: "",
     planned_start_date: "",
     planned_end_date: "",
-    notes: ""
+    notes: "",
+    createServiceOrder: false,
+    serviceOrderTitle: "",
+    serviceOrderNotes: ""
   });
 
   useEffect(() => {
@@ -106,21 +110,72 @@ export default function WorkOrdersPage() {
           description: "Ordine di produzione aggiornato con successo",
         });
       } else {
-        const { error } = await supabase
+        // Create production work order
+        const { data: productionWO, error: productionError } = await supabase
           .from('work_orders')
-          .insert([{ ...formData, status: 'planned' }]);
+          .insert([{ 
+            number: formData.number,
+            title: formData.title,
+            bom_id: formData.bom_id,
+            planned_start_date: formData.planned_start_date,
+            planned_end_date: formData.planned_end_date,
+            notes: formData.notes,
+            status: 'planned' 
+          }])
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (productionError) throw productionError;
 
-        toast({
-          title: "Successo",
-          description: "Ordine di produzione creato con successo",
-        });
+        // Create service work order if requested
+        if (formData.createServiceOrder && productionWO) {
+          const serviceOrderNumber = `OdL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0')}`;
+          
+          const { error: serviceError } = await supabase
+            .from('service_work_orders')
+            .insert([{
+              number: serviceOrderNumber,
+              title: formData.serviceOrderTitle || `OdL collegato a ${formData.title}`,
+              description: formData.serviceOrderNotes || `Ordine di lavoro collegato all'ordine di produzione ${formData.number}`,
+              production_work_order_id: productionWO.id,
+              status: 'planned',
+              notes: formData.serviceOrderNotes
+            }]);
+
+          if (serviceError) {
+            console.error('Errore creazione OdL:', serviceError);
+            toast({
+              title: "Attenzione",
+              description: `Ordine di produzione creato ma errore nella creazione dell'OdL collegato: ${serviceError.message}`,
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Successo",
+              description: `Ordine di produzione e OdL collegato creati con successo`,
+            });
+          }
+        } else {
+          toast({
+            title: "Successo",
+            description: "Ordine di produzione creato con successo",
+          });
+        }
       }
 
       setIsDialogOpen(false);
       setSelectedWO(null);
-      setFormData({ number: "", title: "", bom_id: "", planned_start_date: "", planned_end_date: "", notes: "" });
+      setFormData({ 
+        number: "", 
+        title: "", 
+        bom_id: "", 
+        planned_start_date: "", 
+        planned_end_date: "", 
+        notes: "",
+        createServiceOrder: false,
+        serviceOrderTitle: "",
+        serviceOrderNotes: ""
+      });
       fetchWorkOrders();
     } catch (error: any) {
       toast({
@@ -210,7 +265,20 @@ export default function WorkOrdersPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setSelectedWO(null); setFormData({ number: "", title: "", bom_id: "", planned_start_date: "", planned_end_date: "", notes: "" }); }}>
+            <Button onClick={() => { 
+              setSelectedWO(null); 
+              setFormData({ 
+                number: "", 
+                title: "", 
+                bom_id: "", 
+                planned_start_date: "", 
+                planned_end_date: "", 
+                notes: "",
+                createServiceOrder: false,
+                serviceOrderTitle: "",
+                serviceOrderNotes: ""
+              }); 
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Nuovo Ordine di Produzione
             </Button>
@@ -289,6 +357,47 @@ export default function WorkOrdersPage() {
                   placeholder="Note opzionali"
                 />
               </div>
+
+              {/* Option to create service work order */}
+              {!selectedWO && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="createServiceOrder"
+                      checked={formData.createServiceOrder}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, createServiceOrder: checked as boolean }))}
+                    />
+                    <Label htmlFor="createServiceOrder" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2">
+                      <Wrench className="h-4 w-4" />
+                      Crea anche un Ordine di Lavoro (OdL) collegato
+                    </Label>
+                  </div>
+                  
+                  {formData.createServiceOrder && (
+                    <div className="space-y-4 ml-6 p-4 bg-muted rounded-lg">
+                      <div className="space-y-2">
+                        <Label htmlFor="serviceOrderTitle">Titolo OdL</Label>
+                        <Input
+                          id="serviceOrderTitle"
+                          value={formData.serviceOrderTitle}
+                          onChange={(e) => setFormData(prev => ({ ...prev, serviceOrderTitle: e.target.value }))}
+                          placeholder={`OdL collegato a ${formData.title || 'questo OdP'}`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="serviceOrderNotes">Note OdL</Label>
+                        <Textarea
+                          id="serviceOrderNotes"
+                          value={formData.serviceOrderNotes}
+                          onChange={(e) => setFormData(prev => ({ ...prev, serviceOrderNotes: e.target.value }))}
+                          placeholder="Descrizione del lavoro di installazione/assistenza"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annulla
