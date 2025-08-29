@@ -293,7 +293,9 @@ const handler = async (req: Request): Promise<Response> => {
 
       return new Response(confirmationForm, { 
         status: 200, 
-        headers: { "Content-Type": "text/html; charset=utf-8", ...corsHeaders }
+        headers: { 
+          "Content-Type": "text/html; charset=utf-8"
+        }
       });
     }
 
