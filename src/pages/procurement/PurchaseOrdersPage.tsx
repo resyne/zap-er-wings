@@ -1,77 +1,98 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ShoppingCart, Calendar, TrendingUp, Package, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, ShoppingCart, Calendar, TrendingUp, Package, Eye, Edit, Trash2, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PurchaseOrder {
   id: string;
   number: string;
-  supplier: string;
-  orderDate: string;
-  deliveryDate: string;
-  status: "draft" | "sent" | "confirmed" | "partial" | "delivered" | "cancelled";
-  totalItems: number;
-  totalAmount: number;
+  supplier_id: string;
+  supplier_name?: string;
+  order_date: string;
+  expected_delivery_date: string | null;
+  status: "draft" | "pending" | "confirmed" | "partial" | "delivered" | "cancelled";
+  total_amount: number;
+  notes?: string;
+  created_at: string;
+}
+
+interface PurchaseOrderItem {
+  id: string;
+  material_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
 }
 
 const PurchaseOrdersPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const purchaseOrders: PurchaseOrder[] = [
-    {
-      id: "1",
-      number: "PO-2024-001",
-      supplier: "Acme Corporation",
-      orderDate: "2024-01-15",
-      deliveryDate: "2024-02-15",
-      status: "confirmed",
-      totalItems: 25,
-      totalAmount: 45000
-    },
-    {
-      id: "2",
-      number: "PO-2024-002",
-      supplier: "Tech Solutions Ltd",
-      orderDate: "2024-01-20",
-      deliveryDate: "2024-02-20",
-      status: "partial",
-      totalItems: 12,
-      totalAmount: 28500
-    },
-    {
-      id: "3",
-      number: "PO-2024-003",
-      supplier: "Global Supplies Inc",
-      orderDate: "2024-01-25",
-      deliveryDate: "2024-02-25",
-      status: "sent",
-      totalItems: 8,
-      totalAmount: 15200
-    },
-    {
-      id: "4",
-      number: "PO-2024-004",
-      supplier: "Industrial Parts Co",
-      orderDate: "2024-01-30",
-      deliveryDate: "2024-03-01",
-      status: "delivered",
-      totalItems: 18,
-      totalAmount: 32100
+  useEffect(() => {
+    fetchPurchaseOrders();
+  }, []);
+
+  const fetchPurchaseOrders = async () => {
+    try {
+      // Fetch purchase orders with supplier data
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          suppliers!purchase_orders_supplier_id_fkey(name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (ordersError) {
+        console.error('Error fetching purchase orders:', ordersError);
+        toast({
+          title: "Errore",
+          description: "Errore nel caricamento degli ordini di acquisto",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Transform data to match interface
+      const transformedOrders: PurchaseOrder[] = (ordersData || []).map(order => ({
+        id: order.id,
+        number: order.number,
+        supplier_id: order.supplier_id,
+        supplier_name: order.suppliers?.name || 'Fornitore sconosciuto',
+        order_date: order.order_date,
+        expected_delivery_date: order.expected_delivery_date,
+        status: order.status as PurchaseOrder['status'],
+        total_amount: order.total_amount || 0,
+        notes: order.notes,
+        created_at: order.created_at
+      }));
+
+      setPurchaseOrders(transformedOrders);
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento degli ordini di acquisto",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const getStatusVariant = (status: PurchaseOrder['status']) => {
     switch (status) {
       case "draft": return "secondary";
-      case "sent": return "outline";
+      case "pending": return "outline";
       case "confirmed": return "default";
       case "partial": return "destructive";
       case "delivered": return "default";
@@ -83,7 +104,7 @@ const PurchaseOrdersPage = () => {
   const getStatusLabel = (status: PurchaseOrder['status']) => {
     switch (status) {
       case "draft": return "Bozza";
-      case "sent": return "Inviato";
+      case "pending": return "In Attesa";
       case "confirmed": return "Confermato";
       case "partial": return "Parziale";
       case "delivered": return "Consegnato";
@@ -94,7 +115,7 @@ const PurchaseOrdersPage = () => {
 
   const filteredOrders = purchaseOrders.filter(order =>
     order.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.supplier_name && order.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleCreateOrder = () => {
@@ -212,7 +233,7 @@ const PurchaseOrdersPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              €{purchaseOrders.reduce((acc, o) => acc + o.totalAmount, 0).toLocaleString()}
+              €{purchaseOrders.reduce((acc, o) => acc + o.total_amount, 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               Ordini attivi
@@ -252,46 +273,72 @@ const PurchaseOrdersPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.number}</TableCell>
-                  <TableCell>{order.supplier}</TableCell>
-                  <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{new Date(order.deliveryDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{order.totalItems}</TableCell>
-                  <TableCell>€{order.totalAmount.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(order.status)}>
-                      {getStatusLabel(order.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewOrder(order)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditOrder(order)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteOrder(order)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center">
+                    Caricamento...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredOrders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center">
+                    Nessun ordine trovato
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.number}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {order.supplier_name}
+                      </div>
+                    </TableCell>
+                    <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {order.expected_delivery_date 
+                        ? new Date(order.expected_delivery_date).toLocaleDateString()
+                        : "Non specificata"
+                      }
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">Da calcolare</span>
+                    </TableCell>
+                    <TableCell>€{order.total_amount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(order.status)}>
+                        {getStatusLabel(order.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewOrder(order)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditOrder(order)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteOrder(order)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
