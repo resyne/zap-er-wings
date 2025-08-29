@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/app-layout";
 import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import TechniciansPage from "./pages/dashboard/TechniciansPage";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 import BomPage from "./pages/production/BomPage";
@@ -69,6 +70,7 @@ const App = () => (
               }>
                 <Route index element={<DashboardPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="dashboard/technicians" element={<TechniciansPage />} />
                 <Route path="mfg/bom" element={<BomPage />} />
                 <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
                 <Route path="mfg/executions" element={<ExecutionsPage />} />

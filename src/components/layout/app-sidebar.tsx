@@ -62,6 +62,7 @@ const navigationGroups: NavGroup[] = [
     title: "Dashboard",
     items: [
       { title: "Panoramica", url: "/dashboard", icon: LayoutDashboard },
+      { title: "Gestione Tecnici", url: "/dashboard/technicians", icon: Users },
     ]
   },
   {
