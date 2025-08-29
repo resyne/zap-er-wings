@@ -1961,11 +1961,9 @@ export type Database = {
           notes: string | null
           number: string
           order_date: string | null
+          order_type: string | null
           quote_id: string | null
           status: string | null
-          subtotal: number | null
-          tax_amount: number | null
-          total_amount: number | null
           updated_at: string | null
         }
         Insert: {
@@ -1977,11 +1975,9 @@ export type Database = {
           notes?: string | null
           number: string
           order_date?: string | null
+          order_type?: string | null
           quote_id?: string | null
           status?: string | null
-          subtotal?: number | null
-          tax_amount?: number | null
-          total_amount?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -1993,11 +1989,9 @@ export type Database = {
           notes?: string | null
           number?: string
           order_date?: string | null
+          order_type?: string | null
           quote_id?: string | null
           status?: string | null
-          subtotal?: number | null
-          tax_amount?: number | null
-          total_amount?: number | null
           updated_at?: string | null
         }
         Relationships: [
