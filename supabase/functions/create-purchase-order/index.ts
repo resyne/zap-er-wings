@@ -11,9 +11,9 @@ interface CreatePurchaseOrderRequest {
   materialId: string;
   quantity: number;
   supplierId: string;
-  unitPrice?: number;
+  deliveryTimeframe: string;
+  priority: string;
   notes?: string;
-  expectedDeliveryDate?: string;
 }
 
 interface Material {
@@ -77,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const requestData: CreatePurchaseOrderRequest = await req.json();
-    const { materialId, quantity, supplierId, unitPrice, notes, expectedDeliveryDate } = requestData;
+    const { materialId, quantity, supplierId, deliveryTimeframe, priority, notes } = requestData;
 
     console.log("Creating purchase order with data:", requestData);
 
@@ -107,9 +107,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Supplier found:", supplier);
 
-    // Calculate pricing
-    const finalUnitPrice = unitPrice || material.cost || 0;
-    const totalPrice = quantity * finalUnitPrice;
+    // Calculate expected delivery date based on timeframe
+    const currentDate = new Date();
+    const deliveryDays = parseInt(deliveryTimeframe);
+    const expectedDeliveryDate = new Date(currentDate);
+    expectedDeliveryDate.setDate(currentDate.getDate() + deliveryDays);
+
+    // Calculate pricing (use material cost as placeholder)
+    const estimatedUnitPrice = material.cost || 0;
+    const totalPrice = quantity * estimatedUnitPrice;
 
     // Create purchase order
     const { data: purchaseOrder, error: poError } = await supabase
@@ -117,11 +123,11 @@ const handler = async (req: Request): Promise<Response> => {
       .insert({
         supplier_id: supplierId,
         status: 'pending',
-        expected_delivery_date: expectedDeliveryDate || null,
+        expected_delivery_date: expectedDeliveryDate.toISOString().split('T')[0],
         subtotal: totalPrice,
         tax_amount: totalPrice * 0.22, // 22% VAT
         total_amount: totalPrice * 1.22,
-        notes: notes || `Ordine di riordino per ${material.name}`,
+        notes: notes || `Riordino ${material.name} - Priorità: ${priority}`,
         created_by: userData.user.id
       })
       .select()
@@ -141,7 +147,7 @@ const handler = async (req: Request): Promise<Response> => {
         purchase_order_id: purchaseOrder.id,
         material_id: materialId,
         quantity: quantity,
-        unit_price: finalUnitPrice,
+        unit_price: estimatedUnitPrice,
         total_price: totalPrice,
         notes: notes || null
       })
@@ -195,7 +201,7 @@ const handler = async (req: Request): Promise<Response> => {
                         <small style="color: #666;">${material.description || ''}</small>
                       </td>
                       <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${quantity} ${material.unit}</td>
-                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">€${finalUnitPrice.toFixed(2)}</td>
+                      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">€${estimatedUnitPrice.toFixed(2)}</td>
                       <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;"><strong>€${totalPrice.toFixed(2)}</strong></td>
                     </tr>
                   </tbody>

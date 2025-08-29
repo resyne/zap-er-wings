@@ -41,8 +41,8 @@ interface Supplier {
 
 const purchaseOrderSchema = z.object({
   quantity: z.number().min(1, "Quantità deve essere maggiore di 0"),
-  unitPrice: z.number().min(0, "Prezzo deve essere positivo").optional(),
-  expectedDeliveryDate: z.string().optional(),
+  deliveryTimeframe: z.string().min(1, "Seleziona un tempo di consegna"),
+  priority: z.string().min(1, "Seleziona una priorità"),
   notes: z.string().optional(),
 });
 
@@ -62,8 +62,8 @@ export default function StockPage() {
   const form = useForm<z.infer<typeof purchaseOrderSchema>>({
     defaultValues: {
       quantity: 1,
-      unitPrice: 0,
-      expectedDeliveryDate: "",
+      deliveryTimeframe: "",
+      priority: "",
       notes: "",
     },
   });
@@ -129,9 +129,9 @@ export default function StockPage() {
     setSelectedMaterial(material);
     form.reset({
       quantity: material.minimum_stock,
-      unitPrice: material.cost,
-      expectedDeliveryDate: "",
-      notes: `Riordino per ${material.name} - Scorta sotto soglia minima`,
+      deliveryTimeframe: "",
+      priority: "medium",
+      notes: `Riordino per ${material.name}`,
     });
     setIsPurchaseOrderDialogOpen(true);
   };
@@ -147,9 +147,9 @@ export default function StockPage() {
           materialId: selectedMaterial.id,
           quantity: values.quantity,
           supplierId: selectedMaterial.supplier_id,
-          unitPrice: values.unitPrice,
+          deliveryTimeframe: values.deliveryTimeframe,
+          priority: values.priority,
           notes: values.notes,
-          expectedDeliveryDate: values.expectedDeliveryDate,
         },
       });
 
@@ -327,20 +327,21 @@ export default function StockPage() {
 
                   <FormField
                     control={form.control}
-                    name="unitPrice"
+                    name="deliveryTimeframe"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Prezzo unitario</FormLabel>
+                        <FormLabel>Tempo di consegna richiesto *</FormLabel>
                         <FormControl>
-                          <div className="flex items-center gap-2">
-                            <Input 
-                              {...field} 
-                              type="number" 
-                              step="0.01"
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                            />
-                            <span className="text-sm text-muted-foreground">€</span>
-                          </div>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona tempo di consegna" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="7">7 giorni</SelectItem>
+                              <SelectItem value="15">15 giorni</SelectItem>
+                              <SelectItem value="30">30 giorni</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -349,12 +350,22 @@ export default function StockPage() {
 
                   <FormField
                     control={form.control}
-                    name="expectedDeliveryDate"
+                    name="priority"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data consegna prevista</FormLabel>
+                        <FormLabel>Priorità *</FormLabel>
                         <FormControl>
-                          <Input {...field} type="date" />
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona priorità" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Bassa</SelectItem>
+                              <SelectItem value="medium">Media</SelectItem>
+                              <SelectItem value="high">Alta</SelectItem>
+                              <SelectItem value="urgent">Urgente</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -366,9 +377,9 @@ export default function StockPage() {
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Note</FormLabel>
+                        <FormLabel>Note e richieste specifiche</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Note aggiuntive per l'ordine" />
+                          <Input {...field} placeholder="Eventuali note per il fornitore..." />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
