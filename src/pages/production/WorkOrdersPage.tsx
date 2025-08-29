@@ -29,6 +29,12 @@ interface WorkOrder {
     name: string;
     version: string;
   };
+  technician?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    employee_code: string;
+  };
 }
 
 export default function WorkOrdersPage() {
@@ -76,13 +82,29 @@ export default function WorkOrdersPage() {
           *,
           boms(name, version),
           customers(name, code),
-          technicians(first_name, last_name, employee_code),
           service_work_orders!production_work_order_id(id, number, title)
         `)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setWorkOrders(data || []);
+
+      // Manually join technician data
+      const workOrdersWithTechnicians = await Promise.all(
+        (data || []).map(async (wo) => {
+          if (wo.assigned_to) {
+            const { data: techData } = await supabase
+              .from('technicians')
+              .select('id, first_name, last_name, employee_code')
+              .eq('id', wo.assigned_to)
+              .single();
+            
+            return { ...wo, technician: techData };
+          }
+          return wo;
+        })
+      );
+
+      setWorkOrders(workOrdersWithTechnicians);
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -661,10 +683,10 @@ export default function WorkOrdersPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {wo.technicians ? (
+                        {wo.technician ? (
                           <div>
-                            <div className="font-medium">{wo.technicians.first_name} {wo.technicians.last_name}</div>
-                            <div className="text-sm text-muted-foreground">({wo.technicians.employee_code})</div>
+                            <div className="font-medium">{wo.technician.first_name} {wo.technician.last_name}</div>
+                            <div className="text-sm text-muted-foreground">({wo.technician.employee_code})</div>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
