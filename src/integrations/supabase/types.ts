@@ -1752,6 +1752,71 @@ export type Database = {
           },
         ]
       }
+      service_reports: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          customer_signature: string
+          description: string
+          end_time: string | null
+          id: string
+          intervention_date: string
+          intervention_type: string
+          materials_used: string | null
+          notes: string | null
+          start_time: string | null
+          status: string
+          technician_name: string
+          technician_signature: string
+          updated_at: string
+          work_performed: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          customer_signature: string
+          description: string
+          end_time?: string | null
+          id?: string
+          intervention_date: string
+          intervention_type: string
+          materials_used?: string | null
+          notes?: string | null
+          start_time?: string | null
+          status?: string
+          technician_name: string
+          technician_signature: string
+          updated_at?: string
+          work_performed?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          customer_signature?: string
+          description?: string
+          end_time?: string | null
+          id?: string
+          intervention_date?: string
+          intervention_type?: string
+          materials_used?: string | null
+          notes?: string | null
+          start_time?: string | null
+          status?: string
+          technician_name?: string
+          technician_signature?: string
+          updated_at?: string
+          work_performed?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_reports_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
