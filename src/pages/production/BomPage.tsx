@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2, Wrench, Factory, Package, Component, Layers } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2, Wrench, Factory, Package, Component, Layers, Package2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,15 @@ interface BOM {
   level: number;
   parent_id?: string;
   machinery_model?: string;
+  material_id?: string;
   children?: BOM[];
+  material?: {
+    id: string;
+    name: string;
+    code: string;
+    current_stock: number;
+    unit: string;
+  };
 }
 
 interface ParentBOM {
@@ -52,6 +60,14 @@ interface IncludableBOM {
   quantity: number;
 }
 
+interface Material {
+  id: string;
+  name: string;
+  code: string;
+  current_stock: number;
+  unit: string;
+}
+
 const levelLabels = {
   0: "Machinery Models",
   1: "Parent Groups", 
@@ -68,13 +84,17 @@ export default function BomPage() {
   const [boms, setBoms] = useState<BOM[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBom, setSelectedBom] = useState<BOM | null>(null);
+  const [viewingBom, setViewingBom] = useState<BOM | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<number>(0);
   const [parentBoms, setParentBoms] = useState<ParentBOM[]>([]);
   const [activeTab, setActiveTab] = useState("0");
   const [includableBoms, setIncludableBoms] = useState<IncludableBOM[]>([]);
   const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [bomDetails, setBomDetails] = useState<any>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -83,7 +103,8 @@ export default function BomPage() {
     notes: "",
     level: 0,
     parent_id: "",
-    machinery_model: ""
+    machinery_model: "",
+    material_id: ""
   });
 
   const resetForm = () => {
@@ -93,7 +114,8 @@ export default function BomPage() {
       notes: "",
       level: 0,
       parent_id: "",
-      machinery_model: ""
+      machinery_model: "",
+      material_id: ""
     });
     setSelectedLevel(0);
     setIncludableBoms([]);
@@ -101,6 +123,7 @@ export default function BomPage() {
 
   useEffect(() => {
     fetchBoms();
+    fetchMaterials();
   }, []);
 
   useEffect(() => {
@@ -112,6 +135,25 @@ export default function BomPage() {
     }
   }, [selectedLevel]);
 
+  const fetchMaterials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, name, code, current_stock, unit')
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setMaterials(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchBoms = async () => {
     try {
       const { data, error } = await supabase
@@ -119,6 +161,7 @@ export default function BomPage() {
         .select(`
           *,
           bom_items(count),
+          material:materials(id, name, code, current_stock, unit),
           bom_inclusions!parent_bom_id(
             id,
             included_bom_id,
@@ -197,6 +240,53 @@ export default function BomPage() {
     }
   };
 
+  const fetchBomDetails = async (bomId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('boms')
+        .select(`
+          *,
+          material:materials(id, name, code, current_stock, unit),
+          bom_items(
+            id,
+            item_id,
+            quantity,
+            item:items(id, name, code, type, unit)
+          ),
+          bom_inclusions!parent_bom_id(
+            id,
+            included_bom_id,
+            quantity,
+            notes,
+            included_bom:boms!included_bom_id(
+              id,
+              name,
+              version,
+              level,
+              material:materials(id, name, code, current_stock, unit)
+            )
+          )
+        `)
+        .eq('id', bomId)
+        .single();
+
+      if (error) throw error;
+      setBomDetails(data);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleView = async (bom: BOM) => {
+    setViewingBom(bom);
+    await fetchBomDetails(bom.id);
+    setIsViewDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -204,7 +294,8 @@ export default function BomPage() {
         ...formData,
         level: selectedLevel,
         parent_id: formData.parent_id || null,
-        machinery_model: selectedLevel === 0 ? formData.machinery_model : null
+        machinery_model: selectedLevel === 0 ? formData.machinery_model : null,
+        material_id: selectedLevel === 2 && formData.material_id ? formData.material_id : null
       };
 
       let bomId: string;
@@ -290,7 +381,8 @@ export default function BomPage() {
       notes: bom.notes || "",
       level: bom.level,
       parent_id: bom.parent_id || "",
-      machinery_model: bom.machinery_model || ""
+      machinery_model: bom.machinery_model || "",
+      material_id: bom.material_id || ""
     });
 
     // Fetch existing inclusions for this BOM
@@ -423,7 +515,7 @@ export default function BomPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Hierarchical Bill of Materials</h1>
           <p className="text-muted-foreground">
-            Manage machinery models, parent groups, and child elements in a hierarchical structure
+            Manage machinery models, parent groups, and child elements with automatic warehouse integration
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -490,6 +582,27 @@ export default function BomPage() {
                     placeholder="Enter machinery model name"
                     required={selectedLevel === 0}
                   />
+                </div>
+              )}
+
+              {selectedLevel === 2 && (
+                <div className="space-y-2">
+                  <Label htmlFor="material_id">Warehouse Material</Label>
+                  <Select 
+                    value={formData.material_id} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, material_id: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Connect to warehouse material (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {materials.map((material) => (
+                        <SelectItem key={material.id} value={material.id}>
+                          {material.name} ({material.code}) - Stock: {material.current_stock} {material.unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
@@ -566,6 +679,152 @@ export default function BomPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* BOM View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Package2 className="h-5 w-5" />
+              <span>BOM Details: {viewingBom?.name}</span>
+            </DialogTitle>
+            <DialogDescription>
+              View all components and inclusions for this BOM
+            </DialogDescription>
+          </DialogHeader>
+          
+          {bomDetails && (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Name</Label>
+                  <p className="text-sm text-muted-foreground">{bomDetails.name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Version</Label>
+                  <p className="text-sm text-muted-foreground">{bomDetails.version}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Level</Label>
+                  <Badge variant={getLevelBadgeVariant(bomDetails.level)}>
+                    Level {bomDetails.level}
+                  </Badge>
+                </div>
+                {bomDetails.machinery_model && (
+                  <div>
+                    <Label className="text-sm font-medium">Machinery Model</Label>
+                    <p className="text-sm text-muted-foreground">{bomDetails.machinery_model}</p>
+                  </div>
+                )}
+                {bomDetails.material && (
+                  <div className="col-span-2">
+                    <Label className="text-sm font-medium">Warehouse Material</Label>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Badge variant="secondary">
+                        {bomDetails.material.name} ({bomDetails.material.code})
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        Stock: {bomDetails.material.current_stock} {bomDetails.material.unit}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* BOM Inclusions */}
+              {bomDetails.bom_inclusions && bomDetails.bom_inclusions.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Included BOMs</Label>
+                  <div className="border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Version</TableHead>
+                          <TableHead>Level</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Material</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bomDetails.bom_inclusions.map((inclusion: any) => (
+                          <TableRow key={inclusion.id}>
+                            <TableCell>{inclusion.included_bom.name}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{inclusion.included_bom.version}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getLevelBadgeVariant(inclusion.included_bom.level)}>
+                                L{inclusion.included_bom.level}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{inclusion.quantity}</TableCell>
+                            <TableCell>
+                              {inclusion.included_bom.material ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">
+                                    {inclusion.included_bom.material.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Stock: {inclusion.included_bom.material.current_stock} {inclusion.included_bom.material.unit}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Items */}
+              {bomDetails.bom_items && bomDetails.bom_items.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Direct Items</Label>
+                  <div className="border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Unit</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bomDetails.bom_items.map((item: any) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.item.name}</TableCell>
+                            <TableCell>{item.item.code}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{item.item.type}</Badge>
+                            </TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>{item.item.unit}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {bomDetails.notes && (
+                <div>
+                  <Label className="text-sm font-medium">Notes</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{bomDetails.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Level Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -656,7 +915,8 @@ export default function BomPage() {
                         <TableHead>Name</TableHead>
                         <TableHead>Version</TableHead>
                         {level === 0 && <TableHead>Machinery Model</TableHead>}
-                        {level > 0 && <TableHead>Includes</TableHead>}
+                        {level === 2 && <TableHead>Material</TableHead>}
+                        {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
                         <TableHead>Components</TableHead>
                         <TableHead>Last Modified</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -691,7 +951,21 @@ export default function BomPage() {
                                 )}
                               </TableCell>
                             )}
-                            {level > 0 && (
+                            {level === 2 && (
+                              <TableCell>
+                                {bom.material ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium">{bom.material.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Stock: {bom.material.current_stock} {bom.material.unit}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Not connected</span>
+                                )}
+                              </TableCell>
+                            )}
+                            {level > 0 && level < 2 && (
                               <TableCell>
                                 <Badge variant="secondary">
                                   {(bom as any).inclusions?.length || 0} included
@@ -708,7 +982,7 @@ export default function BomPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end space-x-2">
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" onClick={() => handleView(bom)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => handleEdit(bom)}>
