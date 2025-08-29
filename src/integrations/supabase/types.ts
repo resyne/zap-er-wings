@@ -1022,6 +1022,71 @@ export type Database = {
         }
         Relationships: []
       }
+      materials: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          code: string
+          cost: number | null
+          created_at: string
+          current_stock: number | null
+          description: string | null
+          id: string
+          location: string | null
+          material_type: string
+          maximum_stock: number | null
+          minimum_stock: number | null
+          name: string
+          supplier_id: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string | null
+          code: string
+          cost?: number | null
+          created_at?: string
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          material_type: string
+          maximum_stock?: number | null
+          minimum_stock?: number | null
+          name: string
+          supplier_id?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          category?: string | null
+          code?: string
+          cost?: number | null
+          created_at?: string
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          material_type?: string
+          maximum_stock?: number | null
+          minimum_stock?: number | null
+          name?: string
+          supplier_id?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "materials_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunity_activities: {
         Row: {
           activity_type: string
@@ -1331,6 +1396,113 @@ export type Database = {
           user_type?: string | null
         }
         Relationships: []
+      }
+      purchase_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string | null
+          notes: string | null
+          purchase_order_id: string | null
+          quantity: number
+          total_price: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          notes?: string | null
+          purchase_order_id?: string | null
+          quantity: number
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          notes?: string | null
+          purchase_order_id?: string | null
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expected_delivery_date: string | null
+          id: string
+          notes: string | null
+          number: string
+          order_date: string
+          status: string
+          subtotal: number | null
+          supplier_id: string | null
+          tax_amount: number | null
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          order_date?: string
+          status?: string
+          subtotal?: number | null
+          supplier_id?: string | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          order_date?: string
+          status?: string
+          subtotal?: number | null
+          supplier_id?: string | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_codes: {
         Row: {
@@ -2216,7 +2388,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_material_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_production_work_order_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_purchase_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

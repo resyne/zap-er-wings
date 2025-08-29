@@ -7,9 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Package, AlertTriangle, TrendingUp, TrendingDown, Building2 } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Plus, Search, Package, AlertTriangle, TrendingUp, TrendingDown, Building2, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 interface Material {
   id: string;
@@ -33,7 +36,15 @@ interface Material {
 interface Supplier {
   id: string;
   name: string;
+  email?: string;
 }
+
+const purchaseOrderSchema = z.object({
+  quantity: z.number().min(1, "Quantità deve essere maggiore di 0"),
+  unitPrice: z.number().min(0, "Prezzo deve essere positivo").optional(),
+  expectedDeliveryDate: z.string().optional(),
+  notes: z.string().optional(),
+});
 
 export default function StockPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -43,7 +54,19 @@ export default function StockPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPurchaseOrderDialogOpen, setIsPurchaseOrderDialogOpen] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [creatingOrder, setCreatingOrder] = useState(false);
   const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof purchaseOrderSchema>>({
+    defaultValues: {
+      quantity: 1,
+      unitPrice: 0,
+      expectedDeliveryDate: "",
+      notes: "",
+    },
+  });
 
   useEffect(() => {
     fetchData();
@@ -71,7 +94,7 @@ export default function StockPage() {
       // Fetch suppliers
       const { data: suppliersData, error: suppliersError } = await supabase
         .from('suppliers')
-        .select('id, name')
+        .select('id, name, email')
         .eq('active', true)
         .order('name');
 
@@ -90,6 +113,68 @@ export default function StockPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreatePurchaseOrder = (material: Material) => {
+    if (!material.supplier_id) {
+      toast({
+        title: "Fornitore mancante",
+        description: "Questo materiale non ha un fornitore associato",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSelectedMaterial(material);
+    form.reset({
+      quantity: material.minimum_stock,
+      unitPrice: material.cost,
+      expectedDeliveryDate: "",
+      notes: `Riordino per ${material.name} - Scorta sotto soglia minima`,
+    });
+    setIsPurchaseOrderDialogOpen(true);
+  };
+
+  const onSubmitPurchaseOrder = async (values: z.infer<typeof purchaseOrderSchema>) => {
+    if (!selectedMaterial || !selectedMaterial.supplier_id) return;
+
+    setCreatingOrder(true);
+
+    try {
+      const { error } = await supabase.functions.invoke('create-purchase-order', {
+        body: {
+          materialId: selectedMaterial.id,
+          quantity: values.quantity,
+          supplierId: selectedMaterial.supplier_id,
+          unitPrice: values.unitPrice,
+          notes: values.notes,
+          expectedDeliveryDate: values.expectedDeliveryDate,
+        },
+      });
+
+      if (error) {
+        console.error('Error creating purchase order:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Ordine creato",
+        description: "L'ordine di acquisto è stato creato e inviato al fornitore",
+      });
+
+      setIsPurchaseOrderDialogOpen(false);
+      setSelectedMaterial(null);
+      form.reset();
+    } catch (error: any) {
+      console.error('Error creating purchase order:', error);
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nella creazione dell'ordine di acquisto",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingOrder(false);
     }
   };
 
@@ -190,6 +275,121 @@ export default function StockPage() {
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Purchase Order Dialog */}
+        <Dialog open={isPurchaseOrderDialogOpen} onOpenChange={setIsPurchaseOrderDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Crea Ordine di Acquisto</DialogTitle>
+              <DialogDescription>
+                Crea un nuovo ordine di acquisto per {selectedMaterial?.name}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedMaterial && (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmitPurchaseOrder)} className="space-y-4">
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="font-medium">{selectedMaterial.name}</h4>
+                    <p className="text-sm text-muted-foreground">Codice: {selectedMaterial.code}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Scorta attuale: {selectedMaterial.current_stock} {selectedMaterial.unit}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Scorta minima: {selectedMaterial.minimum_stock} {selectedMaterial.unit}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Fornitore: {suppliers.find(s => s.id === selectedMaterial.supplier_id)?.name}
+                    </p>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantità da ordinare *</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                            />
+                            <span className="text-sm text-muted-foreground">{selectedMaterial.unit}</span>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="unitPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Prezzo unitario</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              step="0.01"
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                            />
+                            <span className="text-sm text-muted-foreground">€</span>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="expectedDeliveryDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data consegna prevista</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Note</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Note aggiuntive per l'ordine" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsPurchaseOrderDialogOpen(false)}
+                    >
+                      Annulla
+                    </Button>
+                    <Button type="submit" disabled={creatingOrder}>
+                      {creatingOrder ? "Creazione..." : "Crea Ordine"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
           </DialogContent>
         </Dialog>
       </div>
@@ -305,18 +505,19 @@ export default function StockPage() {
                   <TableHead className="text-right">Min/Max</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead className="text-right">Valore</TableHead>
+                  <TableHead>Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={11} className="text-center py-8">
                       Caricamento...
                     </TableCell>
                   </TableRow>
                 ) : filteredMaterials.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       Nessun materiale trovato
                     </TableCell>
                   </TableRow>
@@ -372,6 +573,19 @@ export default function StockPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           €{(material.current_stock * material.cost).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {material.supplier_id && material.current_stock <= material.minimum_stock && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCreatePurchaseOrder(material)}
+                              className="gap-1"
+                            >
+                              <ShoppingCart className="h-3 w-3" />
+                              Riordina
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
