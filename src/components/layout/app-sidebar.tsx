@@ -27,7 +27,8 @@ import {
   ChevronRight,
   Store,
   ShieldCheck,
-  BookOpen
+  BookOpen,
+  Calendar
 } from "lucide-react";
 
 import {
@@ -63,6 +64,7 @@ const navigationGroups: NavGroup[] = [
     title: "Dashboard",
     items: [
       { title: "Panoramica", url: "/dashboard", icon: LayoutDashboard },
+      { title: "Calendario", url: "/calendar", icon: Calendar },
     ]
   },
   {
