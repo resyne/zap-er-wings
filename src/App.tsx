@@ -91,6 +91,7 @@ const App = () => (
                 <Route path="wms/ddt" element={<DdtPage />} />
                 <Route path="procurement/suppliers" element={<SuppliersPage />} />
                 <Route path="procurement/rfq" element={<RfqPage />} />
+                <Route path="procurement/po" element={<PurchaseOrdersPage />} />
                 <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
                 <Route path="procurement/receipts" element={<ReceiptsPage />} />
                 <Route path="procurement/quality-control" element={<QualityControlPage />} />
