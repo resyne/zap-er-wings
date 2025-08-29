@@ -424,14 +424,14 @@ export default function WorkOrdersServicePage() {
               Nuovo Ordine
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Crea Nuovo Ordine di Lavoro</DialogTitle>
               <DialogDescription>
                 Inserisci i dettagli per il nuovo ordine di lavoro
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
               <div className="space-y-2">
                 <Label htmlFor="title">Titolo *</Label>
                 <Input
@@ -824,14 +824,14 @@ export default function WorkOrdersServicePage() {
 
       {/* Dialog Modifica */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifica Ordine di Lavoro</DialogTitle>
             <DialogDescription>
               {selectedWorkOrder?.number} - Modifica i dettagli dell'ordine di lavoro
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="space-y-2">
               <Label htmlFor="edit_title">Titolo *</Label>
               <Input
