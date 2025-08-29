@@ -49,7 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
           )
         `)
         .eq('confirmation_token', token)
-        .single();
+        .maybeSingle();
 
       if (confirmationError || !confirmation) {
         return new Response(`
