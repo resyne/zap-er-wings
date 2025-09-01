@@ -192,8 +192,9 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const [openGroups, setOpenGroups] = useState<string[]>(
-    // Inizializza con tutti i gruppi aperti per semplicità
-    navigationGroups.map(group => group.title)
+    navigationGroups
+      .filter(group => group.items.some(item => currentPath.startsWith(item.url.split('/')[1] || item.url)))
+      .map(group => group.title)
   );
 
   // Debug: sempre mostra il testo su mobile, logica normale su desktop
@@ -241,11 +242,11 @@ export function AppSidebar() {
                 className="space-y-1"
               >
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-gray-900 hover:text-gray-700 transition-colors cursor-pointer py-2">
+                  <SidebarGroupLabel className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors cursor-pointer py-2">
                     {group.title}
                     {openGroups.includes(group.title) ? 
-                      <ChevronDown className="h-3 w-3 text-gray-900" /> : 
-                      <ChevronRight className="h-3 w-3 text-gray-900" />
+                      <ChevronDown className="h-3 w-3 text-gray-700" /> : 
+                      <ChevronRight className="h-3 w-3 text-gray-700" />
                     }
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
@@ -263,11 +264,11 @@ export function AppSidebar() {
                                 rel="noopener noreferrer"
                                 className={cn(
                                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                  "text-gray-800 hover:text-gray-900 hover:bg-gray-100"
+                                  "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                                 )}
                                >
                                  <item.icon className="h-4 w-4 shrink-0 text-gray-700" />
-                                 <span className="text-sm font-medium text-gray-800">{item.title}</span>
+                                 <span className="text-sm font-medium text-gray-700">{item.title}</span>
                                  {item.badge && (
                                    <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
                                      {item.badge}
@@ -280,13 +281,16 @@ export function AppSidebar() {
                                  className={({ isActive: linkIsActive }) =>
                                    cn(
                                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                     "text-gray-800 hover:text-gray-900 hover:bg-gray-100",
+                                     "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
                                      (linkIsActive || isActive(item.url)) && 
-                                       "bg-blue-600 text-white shadow-sm"
+                                       "bg-blue-100 text-blue-900 border-l-4 border-blue-600 font-medium"
                                    )
                                  }
                                 >
-                                 <item.icon className="h-4 w-4 shrink-0" />
+                                 <item.icon className={cn(
+                                   "h-4 w-4 shrink-0", 
+                                   (isActive(item.url)) ? "text-blue-600" : "text-gray-700"
+                                 )} />
                                  <span className="text-sm font-medium">{item.title}</span>
                                  {item.badge && (
                                    <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
