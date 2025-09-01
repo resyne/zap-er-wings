@@ -196,9 +196,10 @@ export function AppSidebar() {
       .map(group => group.title)
   );
 
-  // Su mobile: mostra sempre il testo quando il sidebar è aperto
-  // Su desktop: mostra il testo quando non è collapsed
-  const showText = isMobile ? open : !collapsed;
+  // Debug: sempre mostra il testo su mobile, logica normale su desktop
+  const showText = isMobile ? true : !collapsed;
+  
+  console.log('Sidebar debug:', { isMobile, open, collapsed, showText, state });
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return currentPath === "/" || currentPath === "/dashboard";
@@ -235,13 +236,12 @@ export function AppSidebar() {
           {navigationGroups.map((group) => (
             <SidebarGroup key={group.title}>
               <Collapsible
-                open={showText && openGroups.includes(group.title)}
+                open={openGroups.includes(group.title)}
                 onOpenChange={() => toggleGroup(group.title)}
               >
                 <CollapsibleTrigger asChild>
                   <SidebarGroupLabel className={cn(
-                    "flex items-center justify-between w-full text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors",
-                    !showText && "sr-only"
+                    "flex items-center justify-between w-full text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
                   )}>
                     {group.title}
                     {showText && (
@@ -269,10 +269,8 @@ export function AppSidebar() {
                                 )}
                                >
                                  <item.icon className="h-4 w-4 shrink-0" />
-                                 {showText && (
-                                   <span className="text-sm font-medium">{item.title}</span>
-                                 )}
-                                 {showText && item.badge && (
+                                 <span className="text-sm font-medium">{item.title}</span>
+                                 {item.badge && (
                                    <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
                                      {item.badge}
                                    </span>
@@ -291,10 +289,8 @@ export function AppSidebar() {
                                 }
                                >
                                  <item.icon className="h-4 w-4 shrink-0" />
-                                 {showText && (
-                                   <span className="text-sm font-medium">{item.title}</span>
-                                 )}
-                                 {showText && item.badge && (
+                                 <span className="text-sm font-medium">{item.title}</span>
+                                 {item.badge && (
                                    <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
                                      {item.badge}
                                    </span>
