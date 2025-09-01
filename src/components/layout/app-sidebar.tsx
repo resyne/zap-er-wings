@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NavItem {
   title: string;
@@ -184,8 +185,9 @@ const navigationGroups: NavGroup[] = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, open } = useSidebar();
   const collapsed = state === "collapsed";
+  const isMobile = useIsMobile();
   const location = useLocation();
   const currentPath = location.pathname;
   const [openGroups, setOpenGroups] = useState<string[]>(
@@ -193,6 +195,9 @@ export function AppSidebar() {
       .filter(group => group.items.some(item => currentPath.startsWith(item.url.split('/')[1] || item.url)))
       .map(group => group.title)
   );
+
+  // Show text when: not collapsed on desktop OR open on mobile
+  const showText = !collapsed || (isMobile && open);
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return currentPath === "/" || currentPath === "/dashboard";
@@ -216,7 +221,7 @@ export function AppSidebar() {
             <div className="h-8 w-8 rounded bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-lg">Z</span>
             </div>
-            {!collapsed && (
+            {showText && (
               <div className="flex flex-col">
                 <span className="font-bold text-sidebar-foreground">ZAPPER</span>
                 <span className="text-xs text-sidebar-foreground/60">ERP System</span>
@@ -229,16 +234,16 @@ export function AppSidebar() {
           {navigationGroups.map((group) => (
             <SidebarGroup key={group.title}>
               <Collapsible
-                open={!collapsed && openGroups.includes(group.title)}
+                open={showText && openGroups.includes(group.title)}
                 onOpenChange={() => toggleGroup(group.title)}
               >
                 <CollapsibleTrigger asChild>
                   <SidebarGroupLabel className={cn(
                     "flex items-center justify-between w-full text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors",
-                    collapsed && "sr-only"
+                    !showText && "sr-only"
                   )}>
                     {group.title}
-                    {!collapsed && (
+                    {showText && (
                       openGroups.includes(group.title) ? 
                         <ChevronDown className="h-3 w-3" /> : 
                         <ChevronRight className="h-3 w-3" />
@@ -261,17 +266,17 @@ export function AppSidebar() {
                                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                                   "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                                 )}
-                              >
-                                <item.icon className="h-4 w-4 shrink-0" />
-                                {!collapsed && (
-                                  <span className="text-sm font-medium">{item.title}</span>
-                                )}
-                                {!collapsed && item.badge && (
-                                  <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </a>
+                               >
+                                 <item.icon className="h-4 w-4 shrink-0" />
+                                 {showText && (
+                                   <span className="text-sm font-medium">{item.title}</span>
+                                 )}
+                                 {showText && item.badge && (
+                                   <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                                     {item.badge}
+                                   </span>
+                                 )}
+                               </a>
                             ) : (
                               <NavLink
                                 to={item.url}
@@ -283,17 +288,17 @@ export function AppSidebar() {
                                       "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                                   )
                                 }
-                              >
-                                <item.icon className="h-4 w-4 shrink-0" />
-                                {!collapsed && (
-                                  <span className="text-sm font-medium">{item.title}</span>
-                                )}
-                                {!collapsed && item.badge && (
-                                  <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </NavLink>
+                               >
+                                 <item.icon className="h-4 w-4 shrink-0" />
+                                 {showText && (
+                                   <span className="text-sm font-medium">{item.title}</span>
+                                 )}
+                                 {showText && item.badge && (
+                                   <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                                     {item.badge}
+                                   </span>
+                                 )}
+                               </NavLink>
                             )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
