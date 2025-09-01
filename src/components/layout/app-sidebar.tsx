@@ -213,7 +213,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon" variant="sidebar">
+    <Sidebar className={isMobile ? (open ? "w-64" : "w-0") : (collapsed ? "w-14" : "w-64")} collapsible="icon" variant="sidebar">
       <SidebarContent className="bg-sidebar-background border-r border-sidebar-border">
         {/* Logo/Brand */}
         <div className="p-4 border-b border-sidebar-border">
