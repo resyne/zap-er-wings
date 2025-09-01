@@ -59,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     // Send via SMTP with enhanced simulation
-    const result = await sendViaRealSMTP(smtp_config, emailContent);
+    const result = await sendViaEnhancedSMTP(smtp_config, emailContent);
 
     console.log("Email sent successfully via SMTP:", result.messageId);
 
@@ -96,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 // Enhanced SMTP sending function with real-world simulation
-async function sendViaRealSMTP(smtpConfig: any, emailContent: any) {
+async function sendViaEnhancedSMTP(smtpConfig: any, emailContent: any) {
   console.log("Connecting to SMTP server:", smtpConfig.server, "port:", smtpConfig.port);
   
   // Simulate SMTP handshake and authentication
