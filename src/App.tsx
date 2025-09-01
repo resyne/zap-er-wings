@@ -53,6 +53,7 @@ import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
 import MaterialsPage from "./pages/warehouse/MaterialsPage";
 import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
+import EmailPage from "./pages/communication/EmailPage";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const App = () => (
                 <Route index element={<DashboardPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="email" element={<EmailPage />} />
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="mfg/bom" element={<BomPage />} />
