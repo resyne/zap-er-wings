@@ -191,22 +191,10 @@ export function AppSidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const currentPath = location.pathname;
-  const [openGroups, setOpenGroups] = useState<string[]>([]);
-
-  // Inizializza i gruppi aperti quando isMobile viene determinato
-  React.useEffect(() => {
-    if (isMobile) {
-      // Su mobile, apri tutti i gruppi per default
-      setOpenGroups(navigationGroups.map(group => group.title));
-    } else {
-      // Su desktop, apri solo il gruppo che contiene la pagina corrente
-      setOpenGroups(
-        navigationGroups
-          .filter(group => group.items.some(item => currentPath.startsWith(item.url.split('/')[1] || item.url)))
-          .map(group => group.title)
-      );
-    }
-  }, [isMobile, currentPath]);
+  const [openGroups, setOpenGroups] = useState<string[]>(
+    // Inizializza con tutti i gruppi aperti per semplicità
+    navigationGroups.map(group => group.title)
+  );
 
   // Debug: sempre mostra il testo su mobile, logica normale su desktop
   const showText = isMobile ? true : !collapsed;
