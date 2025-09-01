@@ -105,10 +105,10 @@ const EmailPage = () => {
           subject: composeEmail.subject,
           body: composeEmail.body,
           smtp_config: {
-            server: emailConfig.smtp_server,
+            host: emailConfig.smtp_server,
             port: emailConfig.smtp_port,
-            email: emailConfig.email,
-            password: emailConfig.password
+            user: emailConfig.email,
+            pass: emailConfig.password
           }
         }
       });
@@ -117,16 +117,14 @@ const EmailPage = () => {
 
       toast({
         title: "Email inviata",
-        description: data.smtp_used 
-          ? "Email inviata tramite server aziendale e salvata in Posta Inviata"
-          : "Email inviata con successo"
+        description: `Email inviata con successo a ${composeEmail.to}`
       });
-
+      
       setComposeEmail({ to: "", subject: "", body: "" });
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Errore invio",
-        description: "Impossibile inviare l'email.",
+        title: "Errore nell'invio",
+        description: error.message || "Impossibile inviare l'email",
         variant: "destructive"
       });
     } finally {
@@ -141,29 +139,28 @@ const EmailPage = () => {
       const { data, error } = await supabase.functions.invoke('fetch-emails', {
         body: {
           imap_config: {
-            server: emailConfig.imap_server,
+            host: emailConfig.imap_server,
             port: emailConfig.imap_port,
-            email: emailConfig.email,
-            password: emailConfig.password
+            user: emailConfig.email,
+            pass: emailConfig.password
           }
         }
       });
 
       if (error) throw error;
 
-      setEmails(data.emails || []);
-      
-      if (data.warning) {
-        toast({
-          title: "Modalità simulazione",
-          description: data.warning,
-          variant: "default"
-        });
+      if (data && data.emails) {
+        setEmails(data.emails);
       }
-    } catch (error) {
+
       toast({
-        title: "Errore",
-        description: "Impossibile recuperare le email.",
+        title: "Email caricate",
+        description: `Caricate ${data?.emails?.length || 0} email`
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore nel caricamento",
+        description: error.message || "Impossibile caricare le email",
         variant: "destructive"
       });
     } finally {
@@ -180,52 +177,50 @@ const EmailPage = () => {
           action,
           email_id: emailId,
           imap_config: {
-            server: emailConfig.imap_server,
+            host: emailConfig.imap_server,
             port: emailConfig.imap_port,
-            email: emailConfig.email,
-            password: emailConfig.password
+            user: emailConfig.email,
+            pass: emailConfig.password
           }
         }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Azione completata",
-        description: data.message
-      });
-
-      // Update local state based on action
-      setEmails(prev => prev.map(email => {
-        if (email.id === emailId) {
-          switch (action) {
-            case 'mark_read':
-              return { ...email, read: true };
-            case 'mark_unread':
-              return { ...email, read: false };
-            case 'star':
-              return { ...email, starred: true };
-            case 'unstar':
-              return { ...email, starred: false };
-            default:
-              return email;
+      // Aggiorna stato locale
+      setEmails(prevEmails => 
+        prevEmails.map(email => {
+          if (email.id === emailId) {
+            switch (action) {
+              case 'mark_read':
+                return { ...email, read: true };
+              case 'mark_unread':
+                return { ...email, read: false };
+              case 'star':
+                return { ...email, starred: !email.starred };
+              default:
+                return email;
+            }
           }
-        }
-        return email;
-      }));
+          return email;
+        })
+      );
 
-      // Remove email from list if deleted
       if (action === 'delete') {
-        setEmails(prev => prev.filter(email => email.id !== emailId));
+        setEmails(prevEmails => prevEmails.filter(email => email.id !== emailId));
         if (selectedEmail?.id === emailId) {
           setSelectedEmail(null);
         }
       }
-      
-    } catch (error) {
+
+      toast({
+        title: "Azione completata",
+        description: `Azione "${action}" eseguita con successo`
+      });
+    } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile completare l'azione.",
+        description: error.message || "Impossibile eseguire l'azione",
         variant: "destructive"
       });
     } finally {
@@ -233,122 +228,135 @@ const EmailPage = () => {
     }
   };
 
-  const mockEmails: Email[] = [
-    {
-      id: "1",
-      from: "cliente@example.com",
-      to: emailConfig.email,
-      subject: "Richiesta preventivo abbattitore",
-      body: "Buongiorno, vorrei ricevere un preventivo per un abbattitore di temperatura...",
-      date: "2024-01-15 10:30",
-      read: false,
-      starred: false
-    },
-    {
-      id: "2", 
-      from: "fornitore@supplier.com",
-      to: emailConfig.email,
-      subject: "Conferma ordine materiali",
-      body: "Confermiamo la ricezione del vostro ordine di materiali...",
-      date: "2024-01-15 09:15",
-      read: true,
-      starred: true
-    }
-  ];
+  if (!isConfigured) {
+    return (
+      <div className="container mx-auto p-3 md:p-6 space-y-4 md:space-y-6 max-w-2xl">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl md:text-3xl font-bold">Configurazione Email</h1>
+          <p className="text-muted-foreground">Configura le tue credenziali email per iniziare</p>
+        </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Credenziali Email</CardTitle>
+            <CardDescription>
+              Inserisci le credenziali per accedere al sistema email aziendale
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="utente@abbattitorizapper.it"
+                  value={emailConfig.email}
+                  onChange={(e) => setEmailConfig(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Password email"
+                  value={emailConfig.password}
+                  onChange={(e) => setEmailConfig(prev => ({ ...prev, password: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <Button onClick={saveEmailConfig} disabled={loading} className="w-full">
+              <Settings className="h-4 w-4 mr-2" />
+              Salva e Continua
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Mail className="h-8 w-8 text-primary" />
+    <div className="container mx-auto p-3 md:p-6 space-y-4 md:space-y-6 max-w-7xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Email</h1>
-          <p className="text-muted-foreground">
-            Sistema email aziendale integrato
-          </p>
+          <h1 className="text-2xl md:text-3xl font-bold">Sistema Email</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Gestisci le tue email con webmail Zapper</p>
         </div>
       </div>
 
-      <Tabs defaultValue={isConfigured ? "inbox" : "settings"} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="inbox" disabled={!isConfigured}>
-            <Inbox className="h-4 w-4 mr-2" />
-            Posta in arrivo
+      <Tabs defaultValue="inbox" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger value="inbox" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 md:py-3 text-xs md:text-sm">
+            <Inbox className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">Posta in arrivo</span>
+            <span className="sm:hidden">Inbox</span>
+            <span className="text-xs">({emails.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="compose" disabled={!isConfigured}>
-            <Send className="h-4 w-4 mr-2" />
-            Scrivi
+          <TabsTrigger value="compose" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 md:py-3 text-xs md:text-sm">
+            <Plus className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">Componi</span>
+            <span className="sm:hidden">New</span>
           </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="h-4 w-4 mr-2" />
-            Configurazione
+          <TabsTrigger value="settings" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 md:py-3 text-xs md:text-sm">
+            <Settings className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">Config</span>
+            <span className="sm:hidden">Set</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="inbox" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={fetchEmails} disabled={loading}>
-                <Search className="h-4 w-4 mr-2" />
-                Aggiorna
-              </Button>
+        <TabsContent value="inbox" className="space-y-3 md:space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                placeholder="Cerca nelle email..." 
+                className="pl-9 h-9 md:h-10"
+              />
             </div>
+            <Button onClick={fetchEmails} disabled={!isConfigured || loading} className="w-full sm:w-auto">
+              <Mail className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Aggiorna</span>
+              <span className="sm:hidden">Sync</span>
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Messaggi</CardTitle>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+            {/* Lista Email */}
+            <Card className="h-[500px] md:h-[600px]">
+              <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
+                <CardTitle className="text-base md:text-lg">Email</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[600px]">
-                  <div className="space-y-2">
-                    {(emails.length > 0 ? emails : []).map((email) => (
+              <CardContent className="p-0">
+                <ScrollArea className="h-[420px] md:h-[520px]">
+                  <div className="space-y-1 p-3 md:p-4">
+                    {emails.map((email) => (
                       <div
                         key={email.id}
-                        className={`p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${
-                          selectedEmail?.id === email.id ? 'bg-muted' : ''
-                        } ${!email.read ? 'border-primary bg-primary/5' : ''}`}
-                        onClick={() => {
-                          setSelectedEmail(email);
-                          if (!email.read) {
-                            performEmailAction('mark_read', email.id);
-                          }
-                        }}
+                        className={`p-3 md:p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${
+                          selectedEmail?.id === email.id ? 'bg-muted border-primary' : ''
+                        } ${!email.read ? 'bg-blue-50/50 border-blue-200' : ''}`}
+                        onClick={() => setSelectedEmail(email)}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-sm ${!email.read ? 'font-bold' : 'font-medium'}`}>
-                            {email.from}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                            {email.starred && (
-                              <Star 
-                                className="h-3 w-3 text-yellow-500 fill-yellow-500 cursor-pointer" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  performEmailAction('unstar', email.id);
-                                }}
-                              />
-                            )}
-                            {!email.starred && (
-                              <Star 
-                                className="h-3 w-3 text-muted-foreground cursor-pointer hover:text-yellow-500" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  performEmailAction('star', email.id);
-                                }}
-                              />
-                            )}
-                            {!email.read && <Badge variant="secondary" className="text-xs">Nuovo</Badge>}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 md:gap-2 mb-2">
+                              {email.starred && <Star className="h-3 w-3 md:h-4 md:w-4 text-yellow-500 fill-current" />}
+                              {email.hasAttachments && <Paperclip className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />}
+                              <span className="text-xs md:text-sm font-medium truncate">{email.from}</span>
+                              {!email.read && <Badge variant="secondary" className="text-xs">Nuovo</Badge>}
+                            </div>
+                            <h3 className="text-xs md:text-sm font-medium truncate mb-1">{email.subject}</h3>
+                            <p className="text-xs text-muted-foreground truncate line-clamp-2 md:line-clamp-1">{email.body}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(email.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {!email.read && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
                           </div>
                         </div>
-                        <p className={`text-sm ${!email.read ? 'font-semibold' : 'font-medium'}`}>
-                          {email.subject}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">{email.body}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(email.date).toLocaleString('it-IT')}
-                        </p>
                       </div>
                     ))}
                     {emails.length === 0 && (
@@ -365,87 +373,67 @@ const EmailPage = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Anteprima</CardTitle>
-              </CardHeader>
-              <CardContent>
+            {/* Visualizzazione Email */}
+            <Card className="h-[500px] md:h-[600px]">
+              <CardContent className="p-0 h-full">
                 {selectedEmail ? (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{selectedEmail.from}</Badge>
-                          {selectedEmail.hasAttachments && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Paperclip className="h-3 w-3 mr-1" />
-                              Allegati
-                            </Badge>
-                          )}
+                  <div className="flex flex-col h-full">
+                    <div className="p-3 md:p-6 border-b">
+                      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 lg:gap-4 mb-4">
+                        <div className="flex-1 min-w-0">
+                          <h2 className="text-lg md:text-xl font-semibold mb-2 line-clamp-2">{selectedEmail.subject}</h2>
+                          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-xs md:text-sm text-muted-foreground">
+                            <span className="truncate">Da: {selectedEmail.from}</span>
+                            <span className="truncate">A: {selectedEmail.to}</span>
+                            <span className="hidden md:inline">{new Date(selectedEmail.date).toLocaleString()}</span>
+                            <span className="md:hidden text-xs">{new Date(selectedEmail.date).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(selectedEmail.date).toLocaleString('it-IT')}
-                        </span>
+                        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => performEmailAction('star', selectedEmail.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Star className={`h-3 w-3 md:h-4 md:w-4 ${selectedEmail.starred ? 'text-yellow-500 fill-current' : ''}`} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setComposeEmail({
+                                to: selectedEmail.from,
+                                subject: `Re: ${selectedEmail.subject}`,
+                                body: `\n\n--- Messaggio originale ---\nDa: ${selectedEmail.from}\nData: ${selectedEmail.date}\nOggetto: ${selectedEmail.subject}\n\n${selectedEmail.body}`
+                              });
+                            }}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Reply className="h-3 w-3 md:h-4 md:w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => performEmailAction('delete', selectedEmail.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <h3 className="font-semibold text-lg">{selectedEmail.subject}</h3>
                     </div>
-                    <Separator />
-                    <div className="prose prose-sm max-w-none">
-                      <div className="bg-muted/50 p-4 rounded-lg border-l-4 border-primary">
-                        <p className="whitespace-pre-wrap leading-relaxed">{selectedEmail.body}</p>
+                    <ScrollArea className="flex-1 p-3 md:p-6">
+                      <div className="prose max-w-none text-sm md:text-base">
+                        <div dangerouslySetInnerHTML={{ __html: selectedEmail.body.replace(/\n/g, '<br>') }} />
                       </div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setComposeEmail({
-                            to: selectedEmail.from,
-                            subject: `Re: ${selectedEmail.subject}`,
-                            body: `\n\n--- Messaggio originale ---\nDa: ${selectedEmail.from}\nData: ${new Date(selectedEmail.date).toLocaleString('it-IT')}\nOggetto: ${selectedEmail.subject}\n\n${selectedEmail.body}`
-                          });
-                          // Switch to compose tab
-                          const composeTab = document.querySelector('[value="compose"]') as HTMLButtonElement;
-                          composeTab?.click();
-                        }}
-                      >
-                        <Reply className="h-4 w-4 mr-2" />
-                        Rispondi
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Forward className="h-4 w-4 mr-2" />
-                        Inoltra
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          if (!selectedEmail.read) {
-                            performEmailAction('mark_unread', selectedEmail.id);
-                          } else {
-                            performEmailAction('mark_read', selectedEmail.id);
-                          }
-                        }}
-                      >
-                        {selectedEmail.read ? 'Segna come non letta' : 'Segna come letta'}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => performEmailAction('delete', selectedEmail.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Elimina
-                      </Button>
-                    </div>
+                    </ScrollArea>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
                     <div className="text-center">
-                      <Mail className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">Seleziona un'email per visualizzarla</p>
+                      <Mail className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-base md:text-lg font-medium">Seleziona un'email per visualizzarla</p>
                       <p className="text-sm">Scegli un messaggio dalla lista per leggere il contenuto</p>
                     </div>
                   </div>
@@ -458,7 +446,7 @@ const EmailPage = () => {
         <TabsContent value="compose" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Nuova Email</CardTitle>
+              <CardTitle className="text-lg md:text-xl">Nuova Email</CardTitle>
               <CardDescription>
                 Componi una nuova email
               </CardDescription>
@@ -488,17 +476,17 @@ const EmailPage = () => {
                 <Textarea
                   id="body"
                   placeholder="Scrivi il tuo messaggio..."
-                  className="min-h-[300px]"
+                  className="min-h-[200px] md:min-h-[300px]"
                   value={composeEmail.body}
                   onChange={(e) => setComposeEmail(prev => ({ ...prev, body: e.target.value }))}
                 />
               </div>
-              <div className="flex justify-between">
-                <Button variant="outline">
+              <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-4">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <Paperclip className="h-4 w-4 mr-2" />
                   Allega file
                 </Button>
-                <Button onClick={sendEmail} disabled={loading || !composeEmail.to || !composeEmail.subject}>
+                <Button onClick={sendEmail} disabled={loading || !composeEmail.to || !composeEmail.subject} className="w-full sm:w-auto">
                   <Send className="h-4 w-4 mr-2" />
                   Invia
                 </Button>
@@ -510,7 +498,7 @@ const EmailPage = () => {
         <TabsContent value="settings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurazione Email</CardTitle>
+              <CardTitle className="text-lg md:text-xl">Configurazione Email</CardTitle>
               <CardDescription>
                 Configura le credenziali per accedere al sistema email aziendale
               </CardDescription>

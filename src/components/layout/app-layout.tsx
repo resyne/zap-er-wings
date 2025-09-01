@@ -77,11 +77,11 @@ export function AppLayout() {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           <Header 
             user={{
               name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
@@ -91,7 +91,7 @@ export function AppLayout() {
             onLogout={handleLogout}
           />
           
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
             <Outlet />
           </main>
         </div>

@@ -39,8 +39,8 @@ export function Header({ user, onLogout }: HeaderProps) {
         {/* Sidebar Toggle */}
         <SidebarTrigger className="h-8 w-8" />
 
-        {/* Search */}
-        <div className="flex-1 max-w-md">
+        {/* Search - Hidden on mobile */}
+        <div className="hidden md:flex flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -49,6 +49,9 @@ export function Header({ user, onLogout }: HeaderProps) {
             />
           </div>
         </div>
+        
+        {/* Mobile spacer */}
+        <div className="flex-1 md:hidden" />
 
         {/* Right side */}
         <div className="flex items-center gap-2">
@@ -82,10 +85,10 @@ export function Header({ user, onLogout }: HeaderProps) {
                       {user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="hidden sm:flex flex-col items-start">
-                    <span className="text-sm font-medium">{user.name}</span>
-                    <span className="text-xs text-muted-foreground">{user.role}</span>
-                  </div>
+                   <div className="hidden lg:flex flex-col items-start">
+                     <span className="text-sm font-medium">{user.name}</span>
+                     <span className="text-xs text-muted-foreground">{user.role}</span>
+                   </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
