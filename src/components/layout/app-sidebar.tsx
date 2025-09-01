@@ -237,8 +237,8 @@ export function AppSidebar() {
             </div>
             {showText && (
               <div className="flex flex-col">
-                <span className="font-bold text-foreground">ZAPPER</span>
-                <span className="text-xs text-muted-foreground">ERP System</span>
+                <span className="font-bold text-gray-900">ZAPPER</span>
+                <span className="text-xs text-gray-600">ERP System</span>
               </div>
             )}
           </div>
@@ -253,11 +253,11 @@ export function AppSidebar() {
                 className="space-y-1"
               >
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-foreground/70 hover:text-foreground transition-colors cursor-pointer py-2">
+                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-gray-900 hover:text-gray-700 transition-colors cursor-pointer py-2">
                     {group.title}
                     {openGroups.includes(group.title) ? 
-                      <ChevronDown className="h-3 w-3" /> : 
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronDown className="h-3 w-3 text-gray-900" /> : 
+                      <ChevronRight className="h-3 w-3 text-gray-900" />
                     }
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
@@ -275,11 +275,11 @@ export function AppSidebar() {
                                 rel="noopener noreferrer"
                                 className={cn(
                                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                  "text-foreground/80 hover:text-foreground hover:bg-accent"
+                                  "text-gray-800 hover:text-gray-900 hover:bg-gray-100"
                                 )}
                                >
-                                 <item.icon className="h-4 w-4 shrink-0" />
-                                 <span className="text-sm font-medium">{item.title}</span>
+                                 <item.icon className="h-4 w-4 shrink-0 text-gray-700" />
+                                 <span className="text-sm font-medium text-gray-800">{item.title}</span>
                                  {item.badge && (
                                    <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
                                      {item.badge}
@@ -287,17 +287,17 @@ export function AppSidebar() {
                                  )}
                                </a>
                             ) : (
-                              <NavLink
-                                to={item.url}
-                                className={({ isActive: linkIsActive }) =>
-                                  cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                    "text-foreground/80 hover:text-foreground hover:bg-accent",
-                                    (linkIsActive || isActive(item.url)) && 
-                                      "bg-primary text-primary-foreground shadow-sm"
-                                  )
-                                }
-                               >
+                               <NavLink
+                                 to={item.url}
+                                 className={({ isActive: linkIsActive }) =>
+                                   cn(
+                                     "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                                     "text-gray-800 hover:text-gray-900 hover:bg-gray-100",
+                                     (linkIsActive || isActive(item.url)) && 
+                                       "bg-blue-600 text-white shadow-sm"
+                                   )
+                                 }
+                                >
                                  <item.icon className="h-4 w-4 shrink-0" />
                                  <span className="text-sm font-medium">{item.title}</span>
                                  {item.badge && (
