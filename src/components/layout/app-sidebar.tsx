@@ -177,6 +177,17 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Marketing",
+    items: [
+      { title: "Cruscotto KPI", url: "/marketing/dashboard", icon: BarChart3 },
+      { title: "Campagne", url: "/marketing/campaigns", icon: Target },
+      { title: "Canali", url: "/marketing/channels", icon: Zap },
+      { title: "Budget & Costi", url: "/marketing/budget", icon: DollarSign },
+      { title: "Reportistica", url: "/marketing/reports", icon: PieChart },
+      { title: "Archivio documenti/media", url: "/marketing/archive", icon: FileText },
+    ]
+  },
+  {
     title: "Sistema",
     items: [
       { title: "Integrazioni", url: "/integrations", icon: Zap },
