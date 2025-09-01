@@ -44,8 +44,8 @@ async function connectToImap(config: any): Promise<Deno.TcpConn | null> {
       port: config.port,
     });
     
-    // Start TLS if using secure port
-    if (config.port === 993) {
+    // Use TLS only for secure ports (993, 465)
+    if (config.port === 993 || config.port === 465) {
       return await Deno.startTls(conn, { hostname: config.host });
     }
     

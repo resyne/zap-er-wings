@@ -50,9 +50,9 @@ const EmailPage = () => {
     email: "",
     password: "",
     imap_server: "mail.abbattitorizapper.it",
-    imap_port: 993,
+    imap_port: 143, // IMAP standard port
     smtp_server: "mail.abbattitorizapper.it",
-    smtp_port: 465
+    smtp_port: 587 // SMTP standard port
   });
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
