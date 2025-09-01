@@ -135,6 +135,16 @@ const EmailPage = () => {
   const fetchEmails = async () => {
     try {
       setLoading(true);
+
+      // Verifica che le credenziali siano configurate
+      if (!emailConfig.email || !emailConfig.password || emailConfig.email === '') {
+        toast({
+          title: "Configurazione mancante",
+          description: "Inserisci email e password per connettersi al server IMAP.",
+          variant: "destructive"
+        });
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('fetch-emails', {
         body: {
@@ -171,6 +181,16 @@ const EmailPage = () => {
   const performEmailAction = async (action: string, emailId: string) => {
     try {
       setLoading(true);
+
+      // Verifica che le credenziali siano configurate
+      if (!emailConfig.email || !emailConfig.password || emailConfig.email === '') {
+        toast({
+          title: "Configurazione mancante",
+          description: "Inserisci email e password per eseguire azioni IMAP.",
+          variant: "destructive"
+        });
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('email-action', {
         body: {
