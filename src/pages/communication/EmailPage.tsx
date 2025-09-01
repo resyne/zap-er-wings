@@ -240,7 +240,8 @@ const EmailPage = () => {
           <CardHeader>
             <CardTitle>Credenziali Email</CardTitle>
             <CardDescription>
-              Inserisci le credenziali per accedere al sistema email aziendale
+              Inserisci le credenziali per accedere al sistema email aziendale.
+              Il sistema si collegherà direttamente al server mail per sincronizzare le email reali.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -267,6 +268,13 @@ const EmailPage = () => {
               </div>
             </div>
 
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                ℹ️ <strong>Connessione Reale:</strong> Il sistema tenterà di connettersi al server IMAP/SMTP reale. 
+                Se la connessione fallisce, verranno mostrati dati di esempio per testing.
+              </p>
+            </div>
+
             <Button onClick={saveEmailConfig} disabled={loading} className="w-full">
               <Settings className="h-4 w-4 mr-2" />
               Salva e Continua
@@ -282,7 +290,15 @@ const EmailPage = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Sistema Email</h1>
-          <p className="text-muted-foreground text-sm md:text-base">Gestisci le tue email con webmail Zapper</p>
+          <p className="text-muted-foreground text-sm md:text-base">
+            Gestisci le tue email con connessione diretta al server webmail Zapper
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs text-green-600">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            Connesso a {emailConfig.imap_server}
+          </div>
         </div>
       </div>
 
@@ -307,20 +323,39 @@ const EmailPage = () => {
         </TabsList>
 
         <TabsContent value="inbox" className="space-y-3 md:space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                placeholder="Cerca nelle email..." 
-                className="pl-9 h-9 md:h-10"
-              />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input 
+                  placeholder="Cerca nelle email..." 
+                  className="pl-9 h-9 md:h-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={fetchEmails} disabled={!isConfigured || loading} className="flex-1 sm:w-auto">
+                  <Mail className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Sincronizza</span>
+                  <span className="sm:hidden">Sync</span>
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Auto-sync every 30 seconds when enabled
+                    if (!loading) {
+                      const interval = setInterval(() => {
+                        if (!loading) fetchEmails();
+                      }, 30000);
+                      setTimeout(() => clearInterval(interval), 300000); // Stop after 5 minutes
+                    }
+                  }} 
+                  variant="outline" 
+                  size="sm" 
+                  className="hidden md:flex"
+                  disabled={loading}
+                >
+                  Auto-sync
+                </Button>
+              </div>
             </div>
-            <Button onClick={fetchEmails} disabled={!isConfigured || loading} className="w-full sm:w-auto">
-              <Mail className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Aggiorna</span>
-              <span className="sm:hidden">Sync</span>
-            </Button>
-          </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
             {/* Lista Email */}
