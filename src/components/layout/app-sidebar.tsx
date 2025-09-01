@@ -217,23 +217,23 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={isMobile ? "w-64" : (collapsed ? "w-14" : "w-64")} collapsible="icon" variant="sidebar">
-      <SidebarContent className="bg-background border-r border-border">
+      <SidebarContent className="bg-white border-r border-gray-200">
         {/* Logo/Brand */}
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">Z</span>
+            <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">Z</span>
             </div>
             {showText && (
               <div className="flex flex-col">
-                <span className="font-bold text-gray-900">ZAPPER</span>
-                <span className="text-xs text-gray-600">ERP System</span>
+                <span className="font-bold text-black text-lg">ZAPPER</span>
+                <span className="text-sm text-gray-600">ERP System</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-2">
+        <div className="flex-1 overflow-auto p-2 bg-white">
           {navigationGroups.map((group) => (
             <SidebarGroup key={group.title}>
               <Collapsible
@@ -242,11 +242,11 @@ export function AppSidebar() {
                 className="space-y-1"
               >
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors cursor-pointer py-2">
+                  <SidebarGroupLabel className="flex items-center justify-between w-full text-sm font-bold text-black hover:text-blue-600 transition-colors cursor-pointer py-3 px-2">
                     {group.title}
                     {openGroups.includes(group.title) ? 
-                      <ChevronDown className="h-3 w-3 text-gray-700" /> : 
-                      <ChevronRight className="h-3 w-3 text-gray-700" />
+                      <ChevronDown className="h-4 w-4 text-black" /> : 
+                      <ChevronRight className="h-4 w-4 text-black" />
                     }
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
@@ -262,15 +262,12 @@ export function AppSidebar() {
                                 href={item.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={cn(
-                                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                  "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                                )}
+                                className="flex items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 transition-colors"
                                >
-                                 <item.icon className="h-4 w-4 shrink-0 text-gray-700" />
-                                 <span className="text-sm font-medium text-gray-700">{item.title}</span>
+                                 <item.icon className="h-5 w-5 text-black" />
+                                 <span className="text-sm font-medium text-black">{item.title}</span>
                                  {item.badge && (
-                                   <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                                   <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-2 py-1">
                                      {item.badge}
                                    </span>
                                  )}
@@ -278,22 +275,20 @@ export function AppSidebar() {
                             ) : (
                                <NavLink
                                  to={item.url}
-                                 className={({ isActive: linkIsActive }) =>
-                                   cn(
-                                     "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                     "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
-                                     (linkIsActive || isActive(item.url)) && 
-                                       "bg-blue-600 text-white shadow-md border-l-4 border-blue-800 font-medium"
-                                   )
-                                 }
-                                >
-                                 <item.icon className={cn(
-                                   "h-4 w-4 shrink-0", 
-                                   (isActive(item.url)) ? "text-white" : "text-gray-700"
-                                 )} />
+                                 className={({ isActive: linkIsActive }) => {
+                                   const active = linkIsActive || isActive(item.url);
+                                   return active 
+                                     ? "flex items-center gap-3 px-4 py-3 bg-blue-600 text-white border-l-4 border-blue-800" 
+                                     : "flex items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 transition-colors";
+                                 }}
+                               >
+                                 <item.icon className={(() => {
+                                   const active = isActive(item.url);
+                                   return active ? "h-5 w-5 text-white" : "h-5 w-5 text-black";
+                                 })()} />
                                  <span className="text-sm font-medium">{item.title}</span>
                                  {item.badge && (
-                                   <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                                   <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-2 py-1">
                                      {item.badge}
                                    </span>
                                  )}
