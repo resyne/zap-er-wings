@@ -226,8 +226,8 @@ export function AppSidebar() {
             </div>
             {showText && (
               <div className="flex flex-col">
-                <span className="font-bold text-black text-lg">ZAPPER</span>
-                <span className="text-sm text-gray-600">ERP System</span>
+                <span className="font-semibold text-gray-900 text-base">ZAPPER</span>
+                <span className="text-xs text-gray-500">ERP System</span>
               </div>
             )}
           </div>
@@ -242,11 +242,11 @@ export function AppSidebar() {
                 className="space-y-1"
               >
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex items-center justify-between w-full text-sm font-bold text-black hover:text-blue-600 transition-colors cursor-pointer py-3 px-2">
+                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors cursor-pointer py-2 px-2 uppercase tracking-wide">
                     {group.title}
                     {openGroups.includes(group.title) ? 
-                      <ChevronDown className="h-4 w-4 text-black" /> : 
-                      <ChevronRight className="h-4 w-4 text-black" />
+                      <ChevronDown className="h-3 w-3 text-gray-400" /> : 
+                      <ChevronRight className="h-3 w-3 text-gray-400" />
                     }
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
@@ -262,12 +262,12 @@ export function AppSidebar() {
                                 href={item.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 rounded-md mx-1"
                                >
-                                 <item.icon className="h-5 w-5 text-black" />
-                                 <span className="text-sm font-medium text-black">{item.title}</span>
+                                 <item.icon className="h-4 w-4 text-gray-500" />
+                                 <span className="text-sm font-normal text-gray-700">{item.title}</span>
                                  {item.badge && (
-                                   <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-2 py-1">
+                                   <span className="ml-auto text-xs bg-blue-100 text-blue-600 rounded-full px-2 py-0.5 font-medium">
                                      {item.badge}
                                    </span>
                                  )}
@@ -278,17 +278,17 @@ export function AppSidebar() {
                                  className={({ isActive: linkIsActive }) => {
                                    const active = linkIsActive || isActive(item.url);
                                    return active 
-                                     ? "flex items-center gap-3 px-4 py-3 bg-blue-600 text-white border-l-4 border-blue-800" 
-                                     : "flex items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 transition-colors";
+                                     ? "flex items-center gap-3 px-3 py-2 bg-blue-50 text-blue-700 border-l-2 border-blue-500 rounded-r-md mx-1 font-medium" 
+                                     : "flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 rounded-md mx-1";
                                  }}
                                >
                                  <item.icon className={(() => {
                                    const active = isActive(item.url);
-                                   return active ? "h-5 w-5 text-white" : "h-5 w-5 text-black";
+                                   return active ? "h-4 w-4 text-blue-600" : "h-4 w-4 text-gray-500";
                                  })()} />
-                                 <span className="text-sm font-medium">{item.title}</span>
+                                 <span className="text-sm font-normal">{item.title}</span>
                                  {item.badge && (
-                                   <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-2 py-1">
+                                   <span className="ml-auto text-xs bg-blue-100 text-blue-600 rounded-full px-2 py-0.5 font-medium">
                                      {item.badge}
                                    </span>
                                  )}
