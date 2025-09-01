@@ -283,13 +283,13 @@ export function AppSidebar() {
                                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                                      "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
                                      (linkIsActive || isActive(item.url)) && 
-                                       "bg-blue-100 text-blue-900 border-l-4 border-blue-600 font-medium"
+                                       "bg-blue-600 text-white shadow-md border-l-4 border-blue-800 font-medium"
                                    )
                                  }
                                 >
                                  <item.icon className={cn(
                                    "h-4 w-4 shrink-0", 
-                                   (isActive(item.url)) ? "text-blue-600" : "text-gray-700"
+                                   (isActive(item.url)) ? "text-white" : "text-gray-700"
                                  )} />
                                  <span className="text-sm font-medium">{item.title}</span>
                                  {item.badge && (
