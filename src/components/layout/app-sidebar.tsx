@@ -191,6 +191,8 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const [openGroups, setOpenGroups] = useState<string[]>(
+    // Su mobile, apri tutti i gruppi di default per una migliore UX
+    isMobile ? navigationGroups.map(group => group.title) : 
     navigationGroups
       .filter(group => group.items.some(item => currentPath.startsWith(item.url.split('/')[1] || item.url)))
       .map(group => group.title)
@@ -199,7 +201,7 @@ export function AppSidebar() {
   // Debug: sempre mostra il testo su mobile, logica normale su desktop
   const showText = isMobile ? true : !collapsed;
   
-  console.log('Sidebar debug:', { isMobile, open, collapsed, showText, state });
+  console.log('Sidebar debug:', { isMobile, open, collapsed, showText, state, openGroups });
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return currentPath === "/" || currentPath === "/dashboard";
@@ -238,15 +240,15 @@ export function AppSidebar() {
               <Collapsible
                 open={openGroups.includes(group.title)}
                 onOpenChange={() => toggleGroup(group.title)}
+                className="space-y-1"
               >
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-foreground/70 hover:text-foreground transition-colors">
+                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-foreground/70 hover:text-foreground transition-colors cursor-pointer py-2">
                     {group.title}
-                    {showText && (
-                      openGroups.includes(group.title) ? 
-                        <ChevronDown className="h-3 w-3" /> : 
-                        <ChevronRight className="h-3 w-3" />
-                    )}
+                    {openGroups.includes(group.title) ? 
+                      <ChevronDown className="h-3 w-3" /> : 
+                      <ChevronRight className="h-3 w-3" />
+                    }
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
 
