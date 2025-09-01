@@ -196,8 +196,9 @@ export function AppSidebar() {
       .map(group => group.title)
   );
 
-  // Show text when: not collapsed on desktop OR open on mobile
-  const showText = !collapsed || (isMobile && open);
+  // Su mobile: mostra sempre il testo quando il sidebar è aperto
+  // Su desktop: mostra il testo quando non è collapsed
+  const showText = isMobile ? open : !collapsed;
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return currentPath === "/" || currentPath === "/dashboard";
@@ -213,7 +214,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={isMobile ? (open ? "w-64" : "w-0") : (collapsed ? "w-14" : "w-64")} collapsible="icon" variant="sidebar">
+    <Sidebar className={isMobile ? "w-64" : (collapsed ? "w-14" : "w-64")} collapsible="icon" variant="sidebar">
       <SidebarContent className="bg-sidebar-background border-r border-sidebar-border">
         {/* Logo/Brand */}
         <div className="p-4 border-b border-sidebar-border">

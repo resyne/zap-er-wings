@@ -7,6 +7,7 @@ import { AppSidebar } from "./app-sidebar";
 import { Header } from "./header";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function AppLayout() {
   const [user, setUser] = useState<User | null>(null);
@@ -14,6 +15,7 @@ export function AppLayout() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     // Set up auth state listener
@@ -77,7 +79,7 @@ export function AppLayout() {
   }
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={!isMobile}>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         
