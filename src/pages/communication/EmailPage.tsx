@@ -42,6 +42,7 @@ interface Email {
   date: string;
   read: boolean;
   starred: boolean;
+  hasAttachments?: boolean;
 }
 
 const EmailPage = () => {
@@ -151,10 +152,80 @@ const EmailPage = () => {
       if (error) throw error;
 
       setEmails(data.emails || []);
+      
+      if (data.warning) {
+        toast({
+          title: "Modalità simulazione",
+          description: data.warning,
+          variant: "default"
+        });
+      }
     } catch (error) {
       toast({
         title: "Errore",
         description: "Impossibile recuperare le email.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const performEmailAction = async (action: string, emailId: string) => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('email-action', {
+        body: {
+          action,
+          email_id: emailId,
+          imap_config: {
+            server: emailConfig.imap_server,
+            port: emailConfig.imap_port,
+            email: emailConfig.email,
+            password: emailConfig.password
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Azione completata",
+        description: data.message
+      });
+
+      // Update local state based on action
+      setEmails(prev => prev.map(email => {
+        if (email.id === emailId) {
+          switch (action) {
+            case 'mark_read':
+              return { ...email, read: true };
+            case 'mark_unread':
+              return { ...email, read: false };
+            case 'star':
+              return { ...email, starred: true };
+            case 'unstar':
+              return { ...email, starred: false };
+            default:
+              return email;
+          }
+        }
+        return email;
+      }));
+
+      // Remove email from list if deleted
+      if (action === 'delete') {
+        setEmails(prev => prev.filter(email => email.id !== emailId));
+        if (selectedEmail?.id === emailId) {
+          setSelectedEmail(null);
+        }
+      }
+      
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile completare l'azione.",
         variant: "destructive"
       });
     } finally {
@@ -231,26 +302,64 @@ const EmailPage = () => {
               <CardContent>
                 <ScrollArea className="h-[600px]">
                   <div className="space-y-2">
-                    {(emails.length > 0 ? emails : mockEmails).map((email) => (
+                    {(emails.length > 0 ? emails : []).map((email) => (
                       <div
                         key={email.id}
                         className={`p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${
                           selectedEmail?.id === email.id ? 'bg-muted' : ''
-                        } ${!email.read ? 'border-primary' : ''}`}
-                        onClick={() => setSelectedEmail(email)}
+                        } ${!email.read ? 'border-primary bg-primary/5' : ''}`}
+                        onClick={() => {
+                          setSelectedEmail(email);
+                          if (!email.read) {
+                            performEmailAction('mark_read', email.id);
+                          }
+                        }}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-sm">{email.from}</span>
+                          <span className={`text-sm ${!email.read ? 'font-bold' : 'font-medium'}`}>
+                            {email.from}
+                          </span>
                           <div className="flex items-center gap-1">
-                            {email.starred && <Star className="h-3 w-3 text-yellow-500" />}
+                            {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+                            {email.starred && (
+                              <Star 
+                                className="h-3 w-3 text-yellow-500 fill-yellow-500 cursor-pointer" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  performEmailAction('unstar', email.id);
+                                }}
+                              />
+                            )}
+                            {!email.starred && (
+                              <Star 
+                                className="h-3 w-3 text-muted-foreground cursor-pointer hover:text-yellow-500" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  performEmailAction('star', email.id);
+                                }}
+                              />
+                            )}
                             {!email.read && <Badge variant="secondary" className="text-xs">Nuovo</Badge>}
                           </div>
                         </div>
-                        <p className="font-medium text-sm">{email.subject}</p>
+                        <p className={`text-sm ${!email.read ? 'font-semibold' : 'font-medium'}`}>
+                          {email.subject}
+                        </p>
                         <p className="text-xs text-muted-foreground truncate">{email.body}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{email.date}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(email.date).toLocaleString('it-IT')}
+                        </p>
                       </div>
                     ))}
+                    {emails.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nessuna email trovata</p>
+                        <Button variant="outline" onClick={fetchEmails} className="mt-2">
+                          Ricarica
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </ScrollArea>
               </CardContent>
@@ -265,17 +374,42 @@ const EmailPage = () => {
                   <div className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline">{selectedEmail.from}</Badge>
-                        <span className="text-sm text-muted-foreground">{selectedEmail.date}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{selectedEmail.from}</Badge>
+                          {selectedEmail.hasAttachments && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Paperclip className="h-3 w-3 mr-1" />
+                              Allegati
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(selectedEmail.date).toLocaleString('it-IT')}
+                        </span>
                       </div>
-                      <h3 className="font-semibold">{selectedEmail.subject}</h3>
+                      <h3 className="font-semibold text-lg">{selectedEmail.subject}</h3>
                     </div>
                     <Separator />
                     <div className="prose prose-sm max-w-none">
-                      <p className="whitespace-pre-wrap">{selectedEmail.body}</p>
+                      <div className="bg-muted/50 p-4 rounded-lg border-l-4 border-primary">
+                        <p className="whitespace-pre-wrap leading-relaxed">{selectedEmail.body}</p>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                    <div className="flex gap-2 flex-wrap">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setComposeEmail({
+                            to: selectedEmail.from,
+                            subject: `Re: ${selectedEmail.subject}`,
+                            body: `\n\n--- Messaggio originale ---\nDa: ${selectedEmail.from}\nData: ${new Date(selectedEmail.date).toLocaleString('it-IT')}\nOggetto: ${selectedEmail.subject}\n\n${selectedEmail.body}`
+                          });
+                          // Switch to compose tab
+                          const composeTab = document.querySelector('[value="compose"]') as HTMLButtonElement;
+                          composeTab?.click();
+                        }}
+                      >
                         <Reply className="h-4 w-4 mr-2" />
                         Rispondi
                       </Button>
@@ -283,7 +417,25 @@ const EmailPage = () => {
                         <Forward className="h-4 w-4 mr-2" />
                         Inoltra
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          if (!selectedEmail.read) {
+                            performEmailAction('mark_unread', selectedEmail.id);
+                          } else {
+                            performEmailAction('mark_read', selectedEmail.id);
+                          }
+                        }}
+                      >
+                        {selectedEmail.read ? 'Segna come non letta' : 'Segna come letta'}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => performEmailAction('delete', selectedEmail.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Elimina
                       </Button>
@@ -291,7 +443,11 @@ const EmailPage = () => {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-                    Seleziona un'email per visualizzarla
+                    <div className="text-center">
+                      <Mail className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">Seleziona un'email per visualizzarla</p>
+                      <p className="text-sm">Scegli un messaggio dalla lista per leggere il contenuto</p>
+                    </div>
                   </div>
                 )}
               </CardContent>
