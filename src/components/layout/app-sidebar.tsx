@@ -216,17 +216,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={isMobile ? "w-64" : (collapsed ? "w-14" : "w-64")} collapsible="icon" variant="sidebar">
-      <SidebarContent className="bg-sidebar-background border-r border-sidebar-border">
+      <SidebarContent className="bg-background border-r border-border">
         {/* Logo/Brand */}
-        <div className="p-4 border-b border-sidebar-border">
+        <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-lg">Z</span>
             </div>
             {showText && (
               <div className="flex flex-col">
-                <span className="font-bold text-sidebar-foreground">ZAPPER</span>
-                <span className="text-xs text-sidebar-foreground/60">ERP System</span>
+                <span className="font-bold text-foreground">ZAPPER</span>
+                <span className="text-xs text-muted-foreground">ERP System</span>
               </div>
             )}
           </div>
@@ -240,9 +240,7 @@ export function AppSidebar() {
                 onOpenChange={() => toggleGroup(group.title)}
               >
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className={cn(
-                    "flex items-center justify-between w-full text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
-                  )}>
+                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-foreground/70 hover:text-foreground transition-colors">
                     {group.title}
                     {showText && (
                       openGroups.includes(group.title) ? 
@@ -265,7 +263,7 @@ export function AppSidebar() {
                                 rel="noopener noreferrer"
                                 className={cn(
                                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                  "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                                  "text-foreground/80 hover:text-foreground hover:bg-accent"
                                 )}
                                >
                                  <item.icon className="h-4 w-4 shrink-0" />
@@ -282,9 +280,9 @@ export function AppSidebar() {
                                 className={({ isActive: linkIsActive }) =>
                                   cn(
                                     "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
-                                    "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                                    "text-foreground/80 hover:text-foreground hover:bg-accent",
                                     (linkIsActive || isActive(item.url)) && 
-                                      "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                                      "bg-primary text-primary-foreground shadow-sm"
                                   )
                                 }
                                >
