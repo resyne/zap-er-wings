@@ -79,8 +79,9 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
   }
 
   try {
-    // Read initial greeting
-    await sendImapCommand(conn, '');
+    // Read initial greeting (the server sends this automatically)
+    const greeting = await readImapResponse(conn);
+    console.log('IMAP Greeting:', greeting);
     
     // Authenticate
     const authenticated = await authenticateImap(conn, config.user, config.pass);
@@ -89,7 +90,8 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
     }
 
     // Select INBOX
-    await sendImapCommand(conn, 'A002 SELECT INBOX');
+    const selectResponse = await sendImapCommand(conn, 'A002 SELECT INBOX');
+    console.log('Select response:', selectResponse);
     
     // Search for recent emails
     const searchResponse = await sendImapCommand(conn, 'A003 SEARCH RECENT');
@@ -115,6 +117,14 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
       console.error('Error closing IMAP connection:', e);
     }
   }
+}
+
+async function readImapResponse(conn: Deno.TcpConn): Promise<string> {
+  const decoder = new TextDecoder();
+  const buffer = new Uint8Array(8192);
+  const bytesRead = await conn.read(buffer);
+  if (bytesRead === null) throw new Error('Connection closed');
+  return decoder.decode(buffer.subarray(0, bytesRead));
 }
 
 function parseImapResponse(response: string): Email[] {
