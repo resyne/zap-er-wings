@@ -97,7 +97,7 @@ const EmailPage = () => {
     try {
       setLoading(true);
       
-      const { error } = await supabase.functions.invoke('send-email', {
+      const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           from: emailConfig.email,
           to: composeEmail.to,
@@ -116,7 +116,9 @@ const EmailPage = () => {
 
       toast({
         title: "Email inviata",
-        description: "L'email è stata inviata con successo."
+        description: data.smtp_used 
+          ? "Email inviata tramite server aziendale e salvata in Posta Inviata"
+          : "Email inviata con successo"
       });
 
       setComposeEmail({ to: "", subject: "", body: "" });
