@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { 
   Mail, 
   Send, 
@@ -21,7 +22,10 @@ import {
   Reply,
   Forward,
   Star,
-  Paperclip
+  Paperclip,
+  Eye,
+  EyeOff,
+  LogOut
 } from "lucide-react";
 
 interface EmailConfig {
@@ -46,6 +50,7 @@ interface Email {
 }
 
 const EmailPage = () => {
+  const navigate = useNavigate();
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
     email: "",
     password: "",
@@ -63,6 +68,7 @@ const EmailPage = () => {
   });
   const [isConfigured, setIsConfigured] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -91,6 +97,41 @@ const EmailPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Clear local email data
+      localStorage.removeItem('emailConfig');
+      setEmailConfig({
+        email: "",
+        password: "",
+        imap_server: "mail.abbattitorizapper.it",
+        imap_port: 143,
+        smtp_server: "mail.abbattitorizapper.it",
+        smtp_port: 587
+      });
+      setEmails([]);
+      setSelectedEmail(null);
+      setIsConfigured(false);
+      
+      // Try to logout from Supabase if user is logged in
+      await supabase.auth.signOut();
+      
+      toast({
+        title: "Logout effettuato",
+        description: "Sei stato disconnesso dal sistema email."
+      });
+      
+      // Navigate to home page
+      navigate('/');
+    } catch (error) {
+      toast({
+        title: "Errore logout",
+        description: "Errore durante il logout, ma i dati locali sono stati rimossi.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -294,13 +335,29 @@ const EmailPage = () => {
               </div>
               <div>
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Password email"
-                  value={emailConfig.password}
-                  onChange={(e) => setEmailConfig(prev => ({ ...prev, password: e.target.value }))}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password email"
+                    value={emailConfig.password}
+                    onChange={(e) => setEmailConfig(prev => ({ ...prev, password: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -331,6 +388,15 @@ const EmailPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
           <div className="flex items-center gap-1 text-xs text-green-600">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             Connesso a {emailConfig.imap_server}
