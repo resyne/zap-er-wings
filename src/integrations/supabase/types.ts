@@ -1435,11 +1435,13 @@ export type Database = {
           last_name: string
           latitude: number | null
           longitude: number | null
+          notes: string | null
           partner_type: string | null
           phone: string | null
           priority: string | null
           region: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
           acquisition_notes?: string | null
@@ -1454,11 +1456,13 @@ export type Database = {
           last_name: string
           latitude?: number | null
           longitude?: number | null
+          notes?: string | null
           partner_type?: string | null
           phone?: string | null
           priority?: string | null
           region?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
           acquisition_notes?: string | null
@@ -1473,11 +1477,13 @@ export type Database = {
           last_name?: string
           latitude?: number | null
           longitude?: number | null
+          notes?: string | null
           partner_type?: string | null
           phone?: string | null
           priority?: string | null
           region?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }

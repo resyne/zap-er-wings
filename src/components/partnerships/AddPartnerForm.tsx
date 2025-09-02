@@ -15,6 +15,8 @@ interface Partner {
   email?: string;
   company_name: string;
   address: string;
+  website?: string;
+  notes?: string;
   latitude?: number;
   longitude?: number;
   partner_type?: string;
@@ -39,6 +41,8 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
     email: '',
     company_name: '',
     address: '',
+    website: '',
+    notes: '',
     partner_type: defaultPartnerType,
     country: '',
     region: '',
@@ -197,6 +201,8 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
         email: '',
         company_name: '',
         address: '',
+        website: '',
+        notes: '',
         partner_type: defaultPartnerType,
         country: '',
         region: '',
@@ -336,6 +342,30 @@ export const AddPartnerForm: React.FC<AddPartnerFormProps> = ({ onPartnerAdded, 
           rows={3}
           placeholder="Enter full address (street, city, country)"
           required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="website">Sito Web</Label>
+        <Input
+          id="website"
+          name="website"
+          type="url"
+          value={formData.website}
+          onChange={handleInputChange}
+          placeholder="https://www.example.com"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">Note</Label>
+        <Textarea
+          id="notes"
+          name="notes"
+          value={formData.notes}
+          onChange={handleInputChange}
+          placeholder="Note aggiuntive..."
+          rows={3}
         />
       </div>
 

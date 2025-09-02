@@ -20,6 +20,8 @@ interface Importer {
   email?: string;
   company_name: string;
   address: string;
+  website?: string;
+  notes?: string;
   latitude?: number;
   longitude?: number;
   partner_type?: string;
