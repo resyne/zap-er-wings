@@ -381,6 +381,31 @@ export default function WorkOrdersPage() {
     }
 
     try {
+      // Prima controlla se ci sono service work orders collegati
+      const { data: linkedServiceOrders, error: checkError } = await supabase
+        .from('service_work_orders')
+        .select('id')
+        .eq('production_work_order_id', woId);
+
+      if (checkError) throw checkError;
+
+      if (linkedServiceOrders && linkedServiceOrders.length > 0) {
+        const shouldProceed = confirm(
+          `Questo ordine di produzione ha ${linkedServiceOrders.length} ordini di servizio collegati. Eliminandolo, anche questi verranno scollegati. Vuoi continuare?`
+        );
+        
+        if (!shouldProceed) return;
+
+        // Scollega gli ordini di servizio impostando production_work_order_id a null
+        const { error: unlinkError } = await supabase
+          .from('service_work_orders')
+          .update({ production_work_order_id: null })
+          .eq('production_work_order_id', woId);
+
+        if (unlinkError) throw unlinkError;
+      }
+
+      // Ora elimina l'ordine di produzione
       const { error } = await supabase
         .from('work_orders')
         .delete()
