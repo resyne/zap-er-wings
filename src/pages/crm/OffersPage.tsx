@@ -12,6 +12,7 @@ import { Plus, FileText, Mail, Download, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
+import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 
 interface Offer {
   id: string;
@@ -36,19 +37,14 @@ interface Customer {
   code?: string;
 }
 
-interface TechnicalDoc {
-  id: string;
-  name: string;
-  url: string;
-  category: string;
-}
+// Removed TechnicalDoc interface - using DocumentItem from useDocuments hook
 
 export default function OffersPage() {
   const { toast } = useToast();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [technicalDocs, setTechnicalDocs] = useState<TechnicalDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const { documents: availableDocuments, loading: documentsLoading } = useDocuments();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -100,17 +96,8 @@ export default function OffersPage() {
 
       if (customersError) throw customersError;
 
-      // Mock technical documents (in real scenario, these would come from storage/database)
-      const mockTechnicalDocs = [
-        { id: '1', name: 'Scheda Tecnica Forni Professional', url: '/docs/forni-professional.pdf', category: 'Forni' },
-        { id: '2', name: 'Scheda Tecnica Abbattitori Blast', url: '/docs/abbattitori-blast.pdf', category: 'Abbattitori' },
-        { id: '3', name: 'Listino Prezzi 2024', url: '/docs/listino-2024.pdf', category: 'Listini' },
-        { id: '4', name: 'Manuale Installazione', url: '/docs/manuale-installazione.pdf', category: 'Manuali' }
-      ];
-
       setOffers(transformedOffers);
       setCustomers(customersData || []);
-      setTechnicalDocs(mockTechnicalDocs);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -436,25 +423,44 @@ export default function OffersPage() {
               
               <div>
                 <label className="text-sm font-medium mb-2 block">Documentazione Tecnica da Allegare</label>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                  {technicalDocs.map((doc) => (
-                    <label key={doc.id} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedDocs.includes(doc.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedDocs(prev => [...prev, doc.id]);
-                          } else {
-                            setSelectedDocs(prev => prev.filter(id => id !== doc.id));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{doc.name}</span>
-                    </label>
-                  ))}
-                </div>
+                {documentsLoading ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Caricamento documenti...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                    {availableDocuments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nessun documento disponibile
+                      </p>
+                    ) : (
+                      availableDocuments.map((doc) => (
+                        <label key={doc.id} className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-muted/50 rounded">
+                          <input
+                            type="checkbox"
+                            checked={selectedDocs.includes(doc.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedDocs(prev => [...prev, doc.id]);
+                              } else {
+                                setSelectedDocs(prev => prev.filter(id => id !== doc.id));
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{doc.name}</div>
+                            <div className="text-xs text-muted-foreground flex gap-2">
+                              <span className="bg-secondary/50 px-1 rounded">{doc.category}</span>
+                              <span className="bg-secondary/50 px-1 rounded">{doc.type}</span>
+                              {doc.size && <span>{doc.size}</span>}
+                            </div>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end space-x-2">
