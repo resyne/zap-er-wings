@@ -352,6 +352,32 @@ function extractQuotedString(data: string, index: number): string | null {
   return parts[targetIndex] || null;
 }
 
+// Extract body content from IMAP response lines
+function extractBodyContent(lines: string[], startIndex: number, type: 'text' | 'html'): string {
+  let content = '';
+  let insideBody = false;
+  
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Skip until we find the actual content
+    if (!insideBody && line.trim() === '') {
+      insideBody = true;
+      continue;
+    }
+    
+    if (insideBody) {
+      // Stop at the end of this body section
+      if (line.startsWith(')') || line.includes('BODY[') || line.includes('FLAGS')) {
+        break;
+      }
+      content += line + '\n';
+    }
+  }
+  
+  return content.trim();
+}
+
 // Parse individual email from IMAP response
 function parseIndividualEmail(response: string, msgNum: number): Email | null {
   try {
@@ -361,6 +387,7 @@ function parseIndividualEmail(response: string, msgNum: number): Email | null {
     let to = '';
     let date = new Date().toISOString();
     let body = '';
+    let htmlBody = '';
     let flags = '';
     
     // Parse FETCH response
