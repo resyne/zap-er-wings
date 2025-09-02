@@ -782,14 +782,14 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {/* Photo Upload */}
+              {/* File Upload */}
               <div>
-                <Label>Foto Ordine</Label>
+                <Label>File Ordine</Label>
                 <div className="mt-2">
                   <FileUpload
                     value={uploadedFiles}
                     onChange={setUploadedFiles}
-                    acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp', 'image/gif']}
+                    acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']}
                     maxFiles={10}
                   />
                   {uploadedFiles.length > 0 && (
