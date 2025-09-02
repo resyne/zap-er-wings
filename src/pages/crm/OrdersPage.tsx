@@ -14,6 +14,7 @@ import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, Mo
 import { FileUpload } from "@/components/ui/file-upload";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 
 interface Order {
   id: string;
@@ -45,6 +46,7 @@ export default function OrdersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
@@ -473,6 +475,11 @@ export default function OrdersPage() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleCustomerCreated = async () => {
+    await loadRelatedData(); // Reload customers to include the new one
+    setIsCreateCustomerDialogOpen(false);
+  };
+
   const filteredOrders = orders.filter(order =>
     `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
       .toLowerCase()
@@ -522,18 +529,29 @@ export default function OrdersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="customer_id">Cliente *</Label>
-                  <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map(customer => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name} ({customer.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name} ({customer.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setIsCreateCustomerDialogOpen(true)}
+                      title="Aggiungi nuovo cliente"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 <div>
@@ -1027,18 +1045,29 @@ export default function OrdersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit_customer_id">Cliente *</Label>
-                <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({...newOrder, customer_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(customer => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCreateCustomerDialogOpen(true)}
+                    title="Aggiungi nuovo cliente"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               
               <div>
@@ -1116,8 +1145,15 @@ export default function OrdersPage() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Customer Dialog */}
+        <CreateCustomerDialog
+          open={isCreateCustomerDialogOpen}
+          onOpenChange={setIsCreateCustomerDialogOpen}
+          onCustomerCreated={handleCustomerCreated}
+        />
+      </div>
+    );
+  }
