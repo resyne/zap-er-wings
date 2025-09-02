@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory } from "lucide-react";
+import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2 } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 
 interface ServiceWorkOrder {
@@ -366,6 +366,34 @@ export default function WorkOrdersServicePage() {
       toast({
         title: "Errore",
         description: "Errore nell'aggiornamento dello stato",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteWorkOrder = async (workOrderId: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo ordine di lavoro? Questa azione non può essere annullata.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('service_work_orders')
+        .delete()
+        .eq('id', workOrderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ordine di lavoro eliminato con successo",
+      });
+
+      loadServiceWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare l'ordine di lavoro: " + error.message,
         variant: "destructive",
       });
     }
@@ -729,9 +757,18 @@ export default function WorkOrdersServicePage() {
                              });
                              setShowEditDialog(true);
                            }}
-                           title="Modifica ordine di lavoro"
-                         >
-                           <Edit className="w-4 h-4" />
+                            title="Modifica ordine di lavoro"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteWorkOrder(workOrder.id)}
+                            title="Elimina ordine di lavoro"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
                          </Button>
                        </div>
                      </TableCell>
