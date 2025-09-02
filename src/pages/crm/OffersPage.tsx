@@ -37,17 +37,27 @@ interface Customer {
   code?: string;
 }
 
+interface BOMItem {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  level: number;
+}
+
 // Removed TechnicalDoc interface - using DocumentItem from useDocuments hook
 
 export default function OffersPage() {
   const { toast } = useToast();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [boms, setBoms] = useState<BOMItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { documents: availableDocuments, loading: documentsLoading } = useDocuments();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [selectedBomId, setSelectedBomId] = useState<string>('');
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -96,8 +106,18 @@ export default function OffersPage() {
 
       if (customersError) throw customersError;
 
+      // Load BOMs for selection
+      const { data: bomsData, error: bomsError } = await supabase
+        .from('boms')
+        .select('id, name, version, description, level')
+        .order('level')
+        .order('name');
+
+      if (bomsError) throw bomsError;
+
       setOffers(transformedOffers);
       setCustomers(customersData || []);
+      setBoms(bomsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -289,6 +309,7 @@ export default function OffersPage() {
         attachments: []
       });
       setSelectedDocs([]);
+      setSelectedBomId('');
       loadData();
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -400,6 +421,42 @@ export default function OffersPage() {
                 />
               </div>
               
+              <div>
+                <label className="text-sm font-medium">Oggetto dell'Offerta</label>
+                <Select value={selectedBomId} onValueChange={(value) => {
+                  setSelectedBomId(value);
+                  // Auto-fill title and description from selected BOM
+                  const selectedBom = boms.find(bom => bom.id === value);
+                  if (selectedBom) {
+                    setNewOffer(prev => ({
+                      ...prev,
+                      title: `${selectedBom.name} ${selectedBom.version}`,
+                      description: selectedBom.description || prev.description
+                    }));
+                  }
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona dalla Distinta Base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boms.length === 0 ? (
+                      <SelectItem value="no-boms" disabled>Nessuna Distinta Base disponibile</SelectItem>
+                    ) : (
+                      boms.map((bom) => (
+                        <SelectItem key={bom.id} value={bom.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{bom.name} {bom.version}</span>
+                            <span className="text-xs text-muted-foreground">
+                              Level {bom.level} • {bom.description || 'Nessuna descrizione'}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Importo (€)</label>
@@ -464,7 +521,10 @@ export default function OffersPage() {
               </div>
               
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  setSelectedBomId('');
+                }}>
                   Annulla
                 </Button>
                 <Button onClick={handleCreateOffer}>

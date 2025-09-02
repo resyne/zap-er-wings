@@ -19,6 +19,7 @@ interface BOM {
   id: string;
   name: string;
   version: string;
+  description?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -102,6 +103,7 @@ export default function BomPage() {
   const [formData, setFormData] = useState({
     name: "",
     version: "",
+    description: "",
     notes: "",
     level: 0,
     parent_id: "",
@@ -113,6 +115,7 @@ export default function BomPage() {
     setFormData({
       name: "",
       version: "",
+      description: "",
       notes: "",
       level: 0,
       parent_id: "",
@@ -380,6 +383,7 @@ export default function BomPage() {
     setFormData({
       name: bom.name,
       version: bom.version,
+      description: bom.description || "",
       notes: bom.notes || "",
       level: bom.level,
       parent_id: bom.parent_id || "",
@@ -628,6 +632,15 @@ export default function BomPage() {
                   onChange={(e) => setFormData(prev => ({ ...prev, version: e.target.value }))}
                   placeholder="e.g., v1.0"
                   required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Descrizione dell'elemento per selezione offerte"
                 />
               </div>
               <div className="space-y-2">
@@ -920,37 +933,43 @@ export default function BomPage() {
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Version</TableHead>
-                        {level === 0 && <TableHead>Machinery Model</TableHead>}
-                        {level === 2 && <TableHead>Material</TableHead>}
-                        {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
-                        <TableHead>Components</TableHead>
-                        <TableHead>Last Modified</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
+                       <TableRow>
+                         <TableHead>Name</TableHead>
+                         <TableHead>Version</TableHead>
+                         <TableHead>Description</TableHead>
+                         {level === 0 && <TableHead>Machinery Model</TableHead>}
+                         {level === 2 && <TableHead>Material</TableHead>}
+                         {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
+                         <TableHead>Components</TableHead>
+                         <TableHead>Last Modified</TableHead>
+                         <TableHead className="text-right">Actions</TableHead>
+                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {loading ? (
-                        <TableRow>
-                          <TableCell colSpan={level === 0 ? 6 : 6} className="text-center py-8">
-                            Loading BOMs...
-                          </TableCell>
-                        </TableRow>
-                      ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={level === 0 ? 6 : 6} className="text-center py-8">
-                            No Level {level} BOMs found
-                          </TableCell>
-                        </TableRow>
+                       {loading ? (
+                         <TableRow>
+                           <TableCell colSpan={level === 0 ? 7 : 7} className="text-center py-8">
+                             Loading BOMs...
+                           </TableCell>
+                         </TableRow>
+                       ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
+                         <TableRow>
+                           <TableCell colSpan={level === 0 ? 7 : 7} className="text-center py-8">
+                             No Level {level} BOMs found
+                           </TableCell>
+                         </TableRow>
                       ) : (
                         groupedBoms[level].map((bom) => (
-                          <TableRow key={bom.id}>
-                            <TableCell className="font-medium">{bom.name}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{bom.version}</Badge>
-                            </TableCell>
+                           <TableRow key={bom.id}>
+                             <TableCell className="font-medium">{bom.name}</TableCell>
+                             <TableCell>
+                               <Badge variant="outline">{bom.version}</Badge>
+                             </TableCell>
+                             <TableCell className="max-w-xs truncate">
+                               {bom.description || (
+                                 <span className="text-muted-foreground italic">Nessuna descrizione</span>
+                               )}
+                             </TableCell>
                             {level === 0 && (
                               <TableCell>
                                 {bom.machinery_model ? (
