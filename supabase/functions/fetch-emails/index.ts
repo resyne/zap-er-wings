@@ -121,23 +121,38 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
     const selectResponse = await sendImapCommand(conn, 'A002 SELECT INBOX');
     console.log('Select response:', selectResponse);
     
-    // Search for ALL emails (not just recent) to get more results
-    const searchResponse = await sendImapCommand(conn, 'A003 SEARCH ALL');
+    // Search for recent emails only to avoid timeouts
+    const searchResponse = await sendImapCommand(conn, 'A003 SEARCH RECENT');
     console.log('Search response:', searchResponse);
     
     // Extract message numbers from search response
-    const messageNumbers = extractMessageNumbers(searchResponse);
+    let messageNumbers = extractMessageNumbers(searchResponse);
     console.log('Found message numbers:', messageNumbers);
+    
+    // If no recent emails, get the last 20 emails
+    if (messageNumbers.length === 0) {
+      const searchAllResponse = await sendImapCommand(conn, 'A003 SEARCH ALL');
+      const allNumbers = extractMessageNumbers(searchAllResponse);
+      // Get only the latest 20 emails to avoid timeouts
+      messageNumbers = allNumbers.slice(-20);
+      console.log('Using last 20 emails:', messageNumbers);
+    }
+    
+    // Limit to maximum 50 emails to prevent timeouts
+    if (messageNumbers.length > 50) {
+      messageNumbers = messageNumbers.slice(-50);
+      console.log('Limited to last 50 emails');
+    }
     
     if (messageNumbers.length === 0) {
       console.log('No messages found in mailbox');
       return [];
     }
     
-    // Fetch all emails with proper headers and body
+    // Fetch emails with proper headers and body
     const emails: Email[] = [];
     
-    // Process all messages, not just the latest 10
+    // Process messages with error handling
     for (const msgNum of messageNumbers) {
       try {
         // Fetch full message data including headers, text and HTML body
@@ -148,6 +163,7 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
         }
       } catch (error) {
         console.warn(`Failed to fetch message ${msgNum}:`, error);
+        // Continue with next message instead of failing completely
       }
     }
     
