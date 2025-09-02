@@ -104,16 +104,27 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
     const selectResponse = await sendImapCommand(conn, 'A002 SELECT INBOX');
     console.log('Select response:', selectResponse);
     
-    // Search for recent emails
-    const searchResponse = await sendImapCommand(conn, 'A003 SEARCH RECENT');
+    // Search for ALL emails (not just recent) to get more results
+    const searchResponse = await sendImapCommand(conn, 'A003 SEARCH ALL');
     console.log('Search response:', searchResponse);
     
-    // Fetch message headers
-    const fetchResponse = await sendImapCommand(conn, 'A004 FETCH 1:* (FLAGS ENVELOPE BODY[HEADER])');
+    // Extract message numbers from search response
+    const messageNumbers = extractMessageNumbers(searchResponse);
+    console.log('Found message numbers:', messageNumbers);
+    
+    if (messageNumbers.length === 0) {
+      console.log('No messages found in mailbox');
+      return [];
+    }
+    
+    // Fetch message headers for all found messages
+    const messageRange = messageNumbers.length > 10 ? `${Math.max(1, messageNumbers.length - 9)}:${messageNumbers.length}` : messageNumbers.join(',');
+    const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${messageRange} (FLAGS ENVELOPE BODY[HEADER])`);
     console.log('Fetch response sample:', fetchResponse.substring(0, 500));
     
     // Parse the IMAP response to extract emails
     const emails = parseImapResponse(fetchResponse);
+    console.log(`Parsed ${emails.length} emails from IMAP response`);
     
     await sendImapCommand(conn, 'A005 LOGOUT');
     
@@ -146,51 +157,89 @@ function parseImapResponse(response: string): Email[] {
     const lines = response.split('\n');
     let currentEmail: Partial<Email> = {};
     let emailIndex = 0;
+    let insideMessage = false;
     
-    for (const line of lines) {
-      if (line.includes('ENVELOPE')) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Start of a new message
+      if (line.includes('FETCH')) {
+        if (currentEmail.id) {
+          // Save previous email if it has required fields
+          if (currentEmail.subject && currentEmail.from) {
+            currentEmail.body = currentEmail.body || 'Email content...';
+            currentEmail.to = currentEmail.to || config.user;
+            currentEmail.date = currentEmail.date || new Date().toISOString();
+            emails.push(currentEmail as Email);
+          }
+        }
+        
         emailIndex++;
         currentEmail = {
           id: `imap_${Date.now()}_${emailIndex}`,
-          read: !line.includes('\\Recent'),
+          read: !line.includes('\\Recent') && !line.includes('\\Unseen'),
           starred: line.includes('\\Flagged'),
-          hasAttachments: line.includes('attachment'),
+          hasAttachments: line.includes('attachment') || line.includes('multipart'),
         };
+        insideMessage = true;
+      }
+      
+      // Parse headers
+      if (insideMessage) {
+        if (line.startsWith('Subject:')) {
+          const rawSubject = line.replace('Subject:', '').trim();
+          currentEmail.subject = decodeImapField(rawSubject);
+        }
         
-        // Extract envelope data (simplified)
-        const envMatch = line.match(/ENVELOPE \((.*?)\)/);
-        if (envMatch) {
-          const envData = envMatch[1];
-          // Parse envelope - this is simplified, real IMAP parsing is more complex
-          currentEmail.subject = extractQuotedString(envData, 1) || 'No Subject';
-          currentEmail.from = extractQuotedString(envData, 2) || 'Unknown Sender';
-          currentEmail.to = extractQuotedString(envData, 3) || config.user;
-          currentEmail.date = new Date().toISOString();
+        if (line.startsWith('From:')) {
+          const rawFrom = line.replace('From:', '').trim();
+          currentEmail.from = decodeImapField(rawFrom);
+        }
+        
+        if (line.startsWith('To:')) {
+          const rawTo = line.replace('To:', '').trim();
+          currentEmail.to = decodeImapField(rawTo);
+        }
+        
+        if (line.startsWith('Date:')) {
+          const dateStr = line.replace('Date:', '').trim();
+          try {
+            currentEmail.date = new Date(dateStr).toISOString();
+          } catch {
+            currentEmail.date = new Date().toISOString();
+          }
+        }
+        
+        // Extract envelope data from IMAP ENVELOPE response
+        if (line.includes('ENVELOPE')) {
+          const envMatch = line.match(/ENVELOPE \((.*?)\)/);
+          if (envMatch) {
+            const envData = envMatch[1];
+            
+            // Parse IMAP envelope format: (date subject from sender reply-to to cc bcc in-reply-to message-id)
+            const envParts = parseImapEnvelope(envData);
+            if (envParts) {
+              currentEmail.date = envParts.date || new Date().toISOString();
+              currentEmail.subject = decodeImapField(envParts.subject || 'No Subject');
+              currentEmail.from = decodeImapField(envParts.from || 'Unknown Sender');
+              currentEmail.to = decodeImapField(envParts.to || config.user);
+            }
+          }
         }
       }
       
-      if (line.startsWith('Subject:')) {
-        currentEmail.subject = line.replace('Subject:', '').trim();
+      // End of message
+      if (line.startsWith(')') && insideMessage) {
+        insideMessage = false;
       }
-      
-      if (line.startsWith('From:')) {
-        currentEmail.from = line.replace('From:', '').trim();
-      }
-      
-      if (line.startsWith('To:')) {
-        currentEmail.to = line.replace('To:', '').trim();
-      }
-      
-      if (line.startsWith('Date:')) {
-        currentEmail.date = new Date(line.replace('Date:', '').trim()).toISOString();
-      }
-      
-      // If we have enough data for an email, add it
-      if (currentEmail.id && currentEmail.subject && currentEmail.from) {
-        currentEmail.body = currentEmail.body || 'Email content...';
-        emails.push(currentEmail as Email);
-        currentEmail = {};
-      }
+    }
+    
+    // Don't forget the last email
+    if (currentEmail.id && currentEmail.subject && currentEmail.from) {
+      currentEmail.body = currentEmail.body || 'Email content...';
+      currentEmail.to = currentEmail.to || config.user;
+      currentEmail.date = currentEmail.date || new Date().toISOString();
+      emails.push(currentEmail as Email);
     }
     
     return emails;
@@ -200,10 +249,97 @@ function parseImapResponse(response: string): Email[] {
   }
 }
 
+// Function to decode IMAP encoded fields (UTF-8, Base64, etc.)
+function decodeImapField(field: string): string {
+  if (!field) return '';
+  
+  try {
+    // Handle =?UTF-8?B?...?= encoding (Base64)
+    const base64Match = field.match(/=\?UTF-8\?B\?(.*?)\?=/gi);
+    if (base64Match) {
+      let decoded = field;
+      for (const match of base64Match) {
+        const base64Content = match.match(/=\?UTF-8\?B\?(.*?)\?=/i)?.[1];
+        if (base64Content) {
+          try {
+            const decodedBytes = atob(base64Content);
+            const utf8Decoded = decodeURIComponent(escape(decodedBytes));
+            decoded = decoded.replace(match, utf8Decoded);
+          } catch (e) {
+            console.warn('Failed to decode base64:', e);
+          }
+        }
+      }
+      return decoded.trim();
+    }
+    
+    // Handle =?UTF-8?Q?...?= encoding (Quoted-Printable)
+    const quotedMatch = field.match(/=\?UTF-8\?Q\?(.*?)\?=/gi);
+    if (quotedMatch) {
+      let decoded = field;
+      for (const match of quotedMatch) {
+        const quotedContent = match.match(/=\?UTF-8\?Q\?(.*?)\?=/i)?.[1];
+        if (quotedContent) {
+          try {
+            // Basic quoted-printable decoding
+            const qpDecoded = quotedContent
+              .replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+              .replace(/_/g, ' ');
+            decoded = decoded.replace(match, qpDecoded);
+          } catch (e) {
+            console.warn('Failed to decode quoted-printable:', e);
+          }
+        }
+      }
+      return decoded.trim();
+    }
+    
+    return field.trim();
+  } catch (error) {
+    console.warn('Error decoding IMAP field:', error);
+    return field;
+  }
+}
+
+// Parse IMAP ENVELOPE structure
+function parseImapEnvelope(envData: string): any {
+  try {
+    // This is a simplified envelope parser
+    // Real IMAP envelope parsing is much more complex
+    const parts = envData.split(' ');
+    return {
+      date: extractQuotedString(envData, 1),
+      subject: extractQuotedString(envData, 2),
+      from: extractQuotedString(envData, 3),
+      to: extractQuotedString(envData, 6)
+    };
+  } catch (error) {
+    console.warn('Error parsing IMAP envelope:', error);
+    return null;
+  }
+}
+
 function extractQuotedString(data: string, index: number): string | null {
   const parts = data.split('"');
   const targetIndex = (index * 2) - 1;
   return parts[targetIndex] || null;
+}
+
+// Extract message numbers from SEARCH response
+function extractMessageNumbers(searchResponse: string): number[] {
+  try {
+    const match = searchResponse.match(/\* SEARCH (.+)/);
+    if (match) {
+      const numberStr = match[1].trim();
+      if (numberStr && numberStr !== '') {
+        return numberStr.split(' ').map(num => parseInt(num.trim())).filter(num => !isNaN(num));
+      }
+    }
+    return [];
+  } catch (error) {
+    console.warn('Error extracting message numbers:', error);
+    return [];
+  }
 }
 
 // Fallback mock data for development/testing
