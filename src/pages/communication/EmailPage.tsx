@@ -102,7 +102,7 @@ const EmailPage = () => {
 
   const handleLogout = async () => {
     try {
-      // Clear local email data
+      // Clear solo i dati email locali
       localStorage.removeItem('emailConfig');
       setEmailConfig({
         email: "",
@@ -116,20 +116,14 @@ const EmailPage = () => {
       setSelectedEmail(null);
       setIsConfigured(false);
       
-      // Try to logout from Supabase if user is logged in
-      await supabase.auth.signOut();
-      
       toast({
-        title: "Logout effettuato",
-        description: "Sei stato disconnesso dal sistema email."
+        title: "Disconnesso dal sistema email",
+        description: "Configurazione email rimossa. Puoi riconfigurare le credenziali."
       });
-      
-      // Navigate to home page
-      navigate('/');
     } catch (error) {
       toast({
-        title: "Errore logout",
-        description: "Errore durante il logout, ma i dati locali sono stati rimossi.",
+        title: "Errore",
+        description: "Errore durante la rimozione della configurazione email.",
         variant: "destructive"
       });
     }
