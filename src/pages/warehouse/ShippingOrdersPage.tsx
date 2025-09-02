@@ -160,6 +160,52 @@ export default function ShippingOrdersPage() {
     },
   });
 
+  const createOrderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from("shipping_orders")
+        .insert([data]);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      setIsCreateDialogOpen(false);
+      toast({ title: "Ordine creato con successo" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Errore nella creazione dell'ordine", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const updateOrderMutation = useMutation({
+    mutationFn: async ({ id, ...data }: any) => {
+      const { error } = await supabase
+        .from("shipping_orders")
+        .update(data)
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      setIsEditDialogOpen(false);
+      setSelectedOrder(null);
+      toast({ title: "Ordine aggiornato con successo" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Errore nell'aggiornamento dell'ordine", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
   const generateDDTMutation = useMutation({
     mutationFn: async (orderId: string) => {
       // This would typically call an edge function to generate the PDF
@@ -170,6 +216,31 @@ export default function ShippingOrdersPage() {
       });
     },
   });
+
+  const handleCreateOrder = (formData: FormData) => {
+    const data = {
+      customer_id: formData.get("customer_id") || null,
+      shipping_address: formData.get("shipping_address") || "",
+      payment_on_delivery: formData.get("payment_on_delivery") === "on",
+      payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
+      notes: formData.get("notes") || "",
+    };
+    createOrderMutation.mutate(data);
+  };
+
+  const handleUpdateOrder = (formData: FormData) => {
+    if (!selectedOrder) return;
+    
+    const data = {
+      id: selectedOrder.id,
+      customer_id: formData.get("customer_id") || null,
+      shipping_address: formData.get("shipping_address") || "",
+      payment_on_delivery: formData.get("payment_on_delivery") === "on",
+      payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
+      notes: formData.get("notes") || "",
+    };
+    updateOrderMutation.mutate(data);
+  };
 
   const getStatusBadge = (status: string) => {
     const statusOption = statusOptions.find(s => s.value === status);
@@ -289,8 +360,190 @@ export default function ShippingOrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Create Dialog would go here */}
-      {/* Edit Dialog would go here */}
+      {/* Create Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nuovo Ordine di Spedizione</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            handleCreateOrder(formData);
+          }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="customer_id">Cliente</Label>
+                <Select name="customer_id">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies?.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name} ({company.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="payment_amount">Importo Pagamento alla Consegna</Label>
+                <Input
+                  name="payment_amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+              <Textarea
+                name="shipping_address"
+                placeholder="Inserisci l'indirizzo di spedizione"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox name="payment_on_delivery" />
+              <Label htmlFor="payment_on_delivery">Pagamento alla Consegna</Label>
+            </div>
+
+            <div>
+              <Label htmlFor="notes">Note</Label>
+              <Textarea
+                name="notes"
+                placeholder="Note aggiuntive"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={createOrderMutation.isPending}>
+                {createOrderMutation.isPending ? "Creazione..." : "Crea Ordine"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Dettagli Ordine: {selectedOrder?.number}</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              handleUpdateOrder(formData);
+            }} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customer_id">Cliente</Label>
+                  <Select name="customer_id" defaultValue={selectedOrder.customer_id || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies?.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name} ({company.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="payment_amount">Importo Pagamento alla Consegna</Label>
+                  <Input
+                    name="payment_amount"
+                    type="number"
+                    step="0.01"
+                    defaultValue={selectedOrder.payment_amount || ""}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+                <Textarea
+                  name="shipping_address"
+                  placeholder="Inserisci l'indirizzo di spedizione"
+                  defaultValue={selectedOrder.shipping_address || ""}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  name="payment_on_delivery" 
+                  defaultChecked={selectedOrder.payment_on_delivery}
+                />
+                <Label htmlFor="payment_on_delivery">Pagamento alla Consegna</Label>
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Note</Label>
+                <Textarea
+                  name="notes"
+                  placeholder="Note aggiuntive"
+                  defaultValue={selectedOrder.notes || ""}
+                  rows={3}
+                />
+              </div>
+
+              {/* Order Items Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-4">Materiali</h3>
+                {selectedOrder.shipping_order_items && selectedOrder.shipping_order_items.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Materiale</TableHead>
+                        <TableHead>Quantità</TableHead>
+                        <TableHead>Prezzo Unitario</TableHead>
+                        <TableHead>Totale</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedOrder.shipping_order_items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            {item.materials?.name} ({item.materials?.code})
+                          </TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>€{item.unit_price}</TableCell>
+                          <TableCell>€{item.total_price}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-muted-foreground">Nessun materiale aggiunto</p>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Chiudi
+                </Button>
+                <Button type="submit" disabled={updateOrderMutation.isPending}>
+                  {updateOrderMutation.isPending ? "Aggiornamento..." : "Aggiorna Ordine"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
