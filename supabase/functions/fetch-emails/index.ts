@@ -18,6 +18,7 @@ interface Email {
   to: string;
   subject: string;
   body: string;
+  htmlBody?: string;
   date: string;
   read: boolean;
   starred: boolean;
@@ -139,8 +140,8 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
     // Process all messages, not just the latest 10
     for (const msgNum of messageNumbers) {
       try {
-        // Fetch full message data including headers and body
-        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODY.PEEK[HEADER] BODY.PEEK[1])`);
+        // Fetch full message data including headers, text and HTML body
+        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODY.PEEK[HEADER] BODY.PEEK[TEXT] BODY.PEEK[1])`);
         const email = parseIndividualEmail(fetchResponse, msgNum);
         if (email) {
           emails.push(email);
@@ -396,61 +397,22 @@ function parseIndividualEmail(response: string, msgNum: number): Email | null {
         }
       }
       
-      // Extract body content - improved parsing for BODY[1]
+      // Extract text body content - BODY[TEXT]
+      if (line.includes('BODY[TEXT]') && i + 1 < lines.length) {
+        body = extractBodyContent(lines, i + 1, 'text');
+      }
+      
+      // Extract HTML body content - BODY[1] (usually HTML part)
       if (line.includes('BODY[1]') && i + 1 < lines.length) {
-        // Look for content after BODY[1] header  
-        let bodyStartIndex = i + 1;
-        let bodyLines = [];
-        let insideBody = false;
-        
-        for (let j = bodyStartIndex; j < lines.length; j++) {
-          const bodyLine = lines[j];
-          
-          // Skip MIME headers and boundaries
-          if (bodyLine.includes('Content-Type:') || 
-              bodyLine.includes('Content-Transfer-Encoding:') || 
-              bodyLine.includes('MIME-Version:') ||
-              bodyLine.startsWith('--') ||
-              bodyLine.trim() === '') {
-            if (!insideBody) continue;
+        const content = extractBodyContent(lines, i + 1, 'html');
+        // Check if it looks like HTML content
+        if (content.includes('<') && content.includes('>')) {
+          htmlBody = content;
+        } else {
+          // If BODY[1] is not HTML, use it as text body if we don't have one
+          if (!body) {
+            body = content;
           }
-          
-          // Stop at end of message
-          if (bodyLine.trim().startsWith(')') || bodyLine.includes('A004 OK')) {
-            break;
-          }
-          
-          // Start collecting body content after headers
-          if (!insideBody && bodyLine.trim() !== '' && 
-              !bodyLine.includes('Content-') && 
-              !bodyLine.includes('MIME-') &&
-              !bodyLine.startsWith('--')) {
-            insideBody = true;
-          }
-          
-          if (insideBody) {
-            // Decode content if it appears to be base64 or contains encoded text
-            let cleanLine = bodyLine;
-            if (bodyLine.match(/^[A-Za-z0-9+/=]+$/)) {
-              try {
-                cleanLine = atob(bodyLine);
-              } catch {
-                // If base64 decode fails, use original line
-              }
-            }
-            bodyLines.push(cleanLine);
-          }
-        }
-        
-        body = bodyLines.join('\n').trim();
-        // Clean up common MIME artifacts
-        body = body.replace(/Content-Type:[^\n]+\n/g, '')
-                  .replace(/Content-Transfer-Encoding:[^\n]+\n/g, '')
-                  .replace(/--[A-Za-z0-9_-]+/g, '')
-                  .trim();
-        
-        if (body.length > 1000) {
-          body = body.substring(0, 1000) + '...';
         }
       }
     }
@@ -467,6 +429,7 @@ function parseIndividualEmail(response: string, msgNum: number): Email | null {
       from: from || 'Unknown Sender',
       to: to || 'Unknown',
       body: body || 'Email content not available',
+      htmlBody: htmlBody || undefined,
       date,
       read: !flags.includes('\\Unseen'),
       starred: flags.includes('\\Flagged'),

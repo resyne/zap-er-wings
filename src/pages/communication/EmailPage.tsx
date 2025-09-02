@@ -25,7 +25,9 @@ import {
   Paperclip,
   Eye,
   EyeOff,
-  LogOut
+  LogOut,
+  Code,
+  FileText
 } from "lucide-react";
 
 interface EmailConfig {
@@ -43,6 +45,7 @@ interface Email {
   to: string;
   subject: string;
   body: string;
+  htmlBody?: string;
   date: string;
   read: boolean;
   starred: boolean;
@@ -69,6 +72,7 @@ const EmailPage = () => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showHtml, setShowHtml] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -521,6 +525,17 @@ const EmailPage = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                          {selectedEmail.htmlBody && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowHtml(!showHtml)}
+                              className="h-8 w-8 p-0"
+                              title={showHtml ? "Mostra testo" : "Mostra HTML"}
+                            >
+                              {showHtml ? <FileText className="h-3 w-3 md:h-4 md:w-4" /> : <Code className="h-3 w-3 md:h-4 md:w-4" />}
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -556,7 +571,16 @@ const EmailPage = () => {
                     </div>
                     <ScrollArea className="flex-1 p-3 md:p-6">
                       <div className="prose max-w-none text-sm md:text-base">
-                        <div dangerouslySetInnerHTML={{ __html: selectedEmail.body.replace(/\n/g, '<br>') }} />
+                        {selectedEmail.htmlBody && showHtml ? (
+                          <div 
+                            dangerouslySetInnerHTML={{ __html: selectedEmail.htmlBody }} 
+                            className="email-content [&_img]:max-w-full [&_img]:h-auto [&_table]:table-auto [&_table]:w-full"
+                          />
+                        ) : (
+                          <div className="whitespace-pre-wrap">
+                            {selectedEmail.body}
+                          </div>
+                        )}
                       </div>
                     </ScrollArea>
                   </div>

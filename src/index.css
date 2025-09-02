@@ -130,3 +130,47 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Email content styles */
+.email-content {
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+.email-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 4px;
+}
+
+.email-content table {
+  width: 100% !important;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.email-content table td,
+.email-content table th {
+  padding: 0.5rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.email-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.email-content blockquote {
+  border-left: 4px solid hsl(var(--border));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+}
+
+.email-content pre {
+  background: hsl(var(--muted));
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: monospace;
+}
