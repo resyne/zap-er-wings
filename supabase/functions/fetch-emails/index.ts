@@ -117,14 +117,24 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
       return [];
     }
     
-    // Fetch message headers for all found messages
-    const messageRange = messageNumbers.length > 10 ? `${Math.max(1, messageNumbers.length - 9)}:${messageNumbers.length}` : messageNumbers.join(',');
-    const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${messageRange} (FLAGS ENVELOPE BODY[HEADER])`);
-    console.log('Fetch response sample:', fetchResponse.substring(0, 500));
+    // Fetch latest 10 emails with full headers and body
+    const latestMessages = messageNumbers.slice(-10);
+    const emails: Email[] = [];
     
-    // Parse the IMAP response to extract emails
-    const emails = parseImapResponse(fetchResponse);
-    console.log(`Parsed ${emails.length} emails from IMAP response`);
+    for (const msgNum of latestMessages) {
+      try {
+        // Fetch full message data
+        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODY.PEEK[HEADER] BODY.PEEK[TEXT])`);
+        const email = parseIndividualEmail(fetchResponse, msgNum);
+        if (email) {
+          emails.push(email);
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch message ${msgNum}:`, error);
+      }
+    }
+    
+    console.log(`Successfully parsed ${emails.length} real emails from IMAP server`);
     
     await sendImapCommand(conn, 'A005 LOGOUT');
     
@@ -325,6 +335,96 @@ function extractQuotedString(data: string, index: number): string | null {
   return parts[targetIndex] || null;
 }
 
+// Parse individual email from IMAP response
+function parseIndividualEmail(response: string, msgNum: number): Email | null {
+  try {
+    const lines = response.split('\n');
+    let subject = '';
+    let from = '';
+    let to = '';
+    let date = new Date().toISOString();
+    let body = '';
+    let flags = '';
+    
+    // Parse FETCH response
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Extract FLAGS
+      if (line.includes('FLAGS')) {
+        const flagsMatch = line.match(/FLAGS \(([^)]*)\)/);
+        if (flagsMatch) {
+          flags = flagsMatch[1];
+        }
+      }
+      
+      // Extract headers
+      if (line.startsWith('Subject:')) {
+        subject = decodeImapField(line.replace('Subject:', '').trim());
+      }
+      
+      if (line.startsWith('From:')) {
+        from = decodeImapField(line.replace('From:', '').trim());
+      }
+      
+      if (line.startsWith('To:')) {
+        to = decodeImapField(line.replace('To:', '').trim());
+      }
+      
+      if (line.startsWith('Date:')) {
+        const dateStr = line.replace('Date:', '').trim();
+        try {
+          date = new Date(dateStr).toISOString();
+        } catch {
+          date = new Date().toISOString();
+        }
+      }
+      
+      // Extract body content
+      if (line.includes('BODY[TEXT]') && i + 1 < lines.length) {
+        // Look for content after BODY[TEXT] header
+        let bodyStartIndex = i + 1;
+        let bodyLines = [];
+        
+        for (let j = bodyStartIndex; j < lines.length; j++) {
+          const bodyLine = lines[j];
+          if (bodyLine.trim().startsWith(')') || bodyLine.includes('A004 OK')) {
+            break;
+          }
+          bodyLines.push(bodyLine);
+        }
+        
+        body = bodyLines.join('\n').trim();
+        if (body.length > 500) {
+          body = body.substring(0, 500) + '...';
+        }
+      }
+    }
+    
+    // Validate required fields
+    if (!subject || !from) {
+      console.warn(`Invalid email data for message ${msgNum}: missing subject or from`);
+      return null;
+    }
+    
+    return {
+      id: `imap_real_${msgNum}_${Date.now()}`,
+      subject: subject || 'No Subject',
+      from: from || 'Unknown Sender',
+      to: to || 'Unknown',
+      body: body || 'Email content not available',
+      date,
+      read: !flags.includes('\\Unseen'),
+      starred: flags.includes('\\Flagged'),
+      hasAttachments: flags.includes('attachment') || body.includes('attachment')
+    };
+    
+  } catch (error) {
+    console.error(`Error parsing individual email ${msgNum}:`, error);
+    return null;
+  }
+}
+
 // Extract message numbers from SEARCH response
 function extractMessageNumbers(searchResponse: string): number[] {
   try {
@@ -513,14 +613,9 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error('Credenziali IMAP non valide - email e password richieste');
       }
       
-      // Try real IMAP connection first
+      // Connect to real IMAP server
       emails = await fetchEmailsViaImap(imap_config);
-      console.log(`Successfully fetched ${emails.length} emails from IMAP`);
-      
-      if (emails.length === 0) {
-        console.log('No emails found on server, adding demo emails for testing');
-        emails = getMockEmails();
-      }
+      console.log(`Successfully fetched ${emails.length} real emails from IMAP server`);
     } catch (error) {
       console.error('IMAP connection failed:', error);
       
