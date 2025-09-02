@@ -19,6 +19,8 @@ interface ShippingOrder {
   id: string;
   number: string;
   customer_id?: string;
+  work_order_id?: string;
+  sales_order_id?: string;
   status: string;
   order_date: string;
   preparation_date?: string;
@@ -29,7 +31,9 @@ interface ShippingOrder {
   payment_amount?: number;
   notes?: string;
   shipping_address?: string;
-  companies?: { name: string };
+  companies?: { name: string; address?: string };
+  work_orders?: { number: string; title: string };
+  sales_orders?: { number: string };
   shipping_order_items?: ShippingOrderItem[];
 }
 
@@ -48,6 +52,27 @@ interface Company {
   name: string;
   code: string;
   address?: string;
+}
+
+interface CrmContact {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  company_name?: string;
+  address?: string;
+}
+
+interface WorkOrder {
+  id: string;
+  number: string;
+  title: string;
+  customer_id?: string;
+}
+
+interface SalesOrder {
+  id: string;
+  number: string;
+  customer_id?: string;
 }
 
 interface Material {
@@ -69,6 +94,7 @@ export default function ShippingOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<ShippingOrder | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -79,7 +105,9 @@ export default function ShippingOrdersPage() {
         .from("shipping_orders")
         .select(`
           *,
-          companies(name),
+          companies!customer_id(name, address),
+          work_orders!work_order_id(number, title),
+          sales_orders!sales_order_id(number),
           shipping_order_items(
             *,
             materials(name, code)
@@ -99,6 +127,45 @@ export default function ShippingOrdersPage() {
         .from("companies")
         .select("id, name, code, address")
         .order("name");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: crmContacts } = useQuery({
+    queryKey: ["crm-contacts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_contacts")
+        .select("id, first_name, last_name, company_name, address")
+        .order("first_name");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: workOrders } = useQuery({
+    queryKey: ["work-orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("work_orders")
+        .select("id, number, title, customer_id")
+        .order("number");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: salesOrders } = useQuery({
+    queryKey: ["sales-orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_orders")
+        .select("id, number, customer_id")
+        .order("number");
 
       if (error) throw error;
       return data;
@@ -220,6 +287,8 @@ export default function ShippingOrdersPage() {
   const handleCreateOrder = (formData: FormData) => {
     const data = {
       customer_id: formData.get("customer_id") || null,
+      work_order_id: formData.get("work_order_id") || null,
+      sales_order_id: formData.get("sales_order_id") || null,
       shipping_address: formData.get("shipping_address") || "",
       payment_on_delivery: formData.get("payment_on_delivery") === "on",
       payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
@@ -234,6 +303,8 @@ export default function ShippingOrdersPage() {
     const data = {
       id: selectedOrder.id,
       customer_id: formData.get("customer_id") || null,
+      work_order_id: formData.get("work_order_id") || null,
+      sales_order_id: formData.get("sales_order_id") || null,
       shipping_address: formData.get("shipping_address") || "",
       payment_on_delivery: formData.get("payment_on_delivery") === "on",
       payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
@@ -257,6 +328,30 @@ export default function ShippingOrdersPage() {
 
   const handleGenerateDDT = (order: ShippingOrder) => {
     generateDDTMutation.mutate(order.id);
+  };
+
+  const getCustomerDisplayName = (order: ShippingOrder) => {
+    if (order.companies?.name) {
+      return order.companies.name;
+    }
+    
+    // Check if customer_id belongs to a CRM contact
+    const contact = crmContacts?.find(c => c.id === order.customer_id);
+    if (contact) {
+      return `${contact.first_name} ${contact.last_name} - ${contact.company_name}`;
+    }
+    
+    return "N/A";
+  };
+
+  const getSelectedCustomerAddress = (customerId: string) => {
+    const company = companies?.find(c => c.id === customerId);
+    if (company?.address) return company.address;
+    
+    const contact = crmContacts?.find(c => c.id === customerId);
+    if (contact?.address) return contact.address;
+    
+    return null;
   };
 
   if (isLoading) {
@@ -301,7 +396,9 @@ export default function ShippingOrdersPage() {
               {shippingOrders?.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.number}</TableCell>
-                  <TableCell>{order.companies?.name || "N/A"}</TableCell>
+                  <TableCell>
+                    {getCustomerDisplayName(order)}
+                  </TableCell>
                   <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Select
@@ -374,14 +471,56 @@ export default function ShippingOrdersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="customer_id">Cliente</Label>
-                <Select name="customer_id">
+                <Select name="customer_id" onValueChange={setSelectedCustomerId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {companies?.map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name} ({company.code})
+                    <optgroup label="Aziende">
+                      {companies?.map((company) => (
+                        <SelectItem key={`company-${company.id}`} value={company.id}>
+                          {company.name} ({company.code})
+                        </SelectItem>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Contatti CRM">
+                      {crmContacts?.map((contact) => (
+                        <SelectItem key={`contact-${contact.id}`} value={contact.id}>
+                          {contact.first_name} {contact.last_name} - {contact.company_name}
+                        </SelectItem>
+                      ))}
+                    </optgroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="work_order_id">Ordine di Produzione (OdP)</Label>
+                <Select name="work_order_id">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Collega OdP (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workOrders?.map((wo) => (
+                      <SelectItem key={wo.id} value={wo.id}>
+                        {wo.number} - {wo.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="sales_order_id">Ordine di Vendita (OdV)</Label>
+                <Select name="sales_order_id">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Collega OdV (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesOrders?.map((so) => (
+                      <SelectItem key={so.id} value={so.id}>
+                        {so.number}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -398,14 +537,25 @@ export default function ShippingOrdersPage() {
               </div>
             </div>
             
-            <div>
-              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
-              <Textarea
-                name="shipping_address"
-                placeholder="Inserisci l'indirizzo di spedizione"
-                rows={3}
-              />
-            </div>
+            {/* Only show shipping address if customer doesn't have one */}
+            {!getSelectedCustomerAddress(selectedCustomerId) && (
+              <div>
+                <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+                <Textarea
+                  name="shipping_address"
+                  placeholder="Inserisci l'indirizzo di spedizione"
+                  rows={3}
+                />
+              </div>
+            )}
+            
+            {/* Show customer address if available */}
+            {getSelectedCustomerAddress(selectedCustomerId) && (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-semibold mb-2">Indirizzo Cliente</h4>
+                <p className="text-sm">{getSelectedCustomerAddress(selectedCustomerId)}</p>
+              </div>
+            )}
 
             <div className="flex items-center space-x-2">
               <Checkbox name="payment_on_delivery" />
@@ -453,9 +603,51 @@ export default function ShippingOrdersPage() {
                       <SelectValue placeholder="Seleziona cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies?.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name} ({company.code})
+                      <optgroup label="Aziende">
+                        {companies?.map((company) => (
+                          <SelectItem key={`company-${company.id}`} value={company.id}>
+                            {company.name} ({company.code})
+                          </SelectItem>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Contatti CRM">
+                        {crmContacts?.map((contact) => (
+                          <SelectItem key={`contact-${contact.id}`} value={contact.id}>
+                            {contact.first_name} {contact.last_name} - {contact.company_name}
+                          </SelectItem>
+                        ))}
+                      </optgroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="work_order_id">Ordine di Produzione (OdP)</Label>
+                  <Select name="work_order_id" defaultValue={selectedOrder.work_order_id || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Collega OdP (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workOrders?.map((wo) => (
+                        <SelectItem key={wo.id} value={wo.id}>
+                          {wo.number} - {wo.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="sales_order_id">Ordine di Vendita (OdV)</Label>
+                  <Select name="sales_order_id" defaultValue={selectedOrder.sales_order_id || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Collega OdV (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {salesOrders?.map((so) => (
+                        <SelectItem key={so.id} value={so.id}>
+                          {so.number}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -472,16 +664,44 @@ export default function ShippingOrdersPage() {
                   />
                 </div>
               </div>
+
+              {/* Show linked order details */}
+              {(selectedOrder.work_orders || selectedOrder.sales_orders) && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-2">Ordini Collegati</h4>
+                  {selectedOrder.work_orders && (
+                    <p className="text-sm">
+                      <strong>OdP:</strong> {selectedOrder.work_orders.number} - {selectedOrder.work_orders.title}
+                    </p>
+                  )}
+                  {selectedOrder.sales_orders && (
+                    <p className="text-sm">
+                      <strong>OdV:</strong> {selectedOrder.sales_orders.number}
+                    </p>
+                  )}
+                </div>
+              )}
               
-              <div>
-                <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
-                <Textarea
-                  name="shipping_address"
-                  placeholder="Inserisci l'indirizzo di spedizione"
-                  defaultValue={selectedOrder.shipping_address || ""}
-                  rows={3}
-                />
-              </div>
+              {/* Show shipping address conditionally in edit mode */}
+              {(!selectedOrder.customer_id || !getSelectedCustomerAddress(selectedOrder.customer_id)) && (
+                <div>
+                  <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+                  <Textarea
+                    name="shipping_address"
+                    placeholder="Inserisci l'indirizzo di spedizione"
+                    defaultValue={selectedOrder.shipping_address || ""}
+                    rows={3}
+                  />
+                </div>
+              )}
+              
+              {/* Show customer address if available */}
+              {selectedOrder.customer_id && getSelectedCustomerAddress(selectedOrder.customer_id) && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-2">Indirizzo Cliente</h4>
+                  <p className="text-sm">{getSelectedCustomerAddress(selectedOrder.customer_id)}</p>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Checkbox 
