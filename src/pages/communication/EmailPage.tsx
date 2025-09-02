@@ -137,10 +137,10 @@ const EmailPage = () => {
       setLoading(true);
 
       // Verifica che le credenziali siano configurate
-      if (!emailConfig.email || !emailConfig.password || emailConfig.email === '') {
+      if (!emailConfig.email || !emailConfig.password || emailConfig.email.trim() === '' || emailConfig.password.trim() === '') {
         toast({
           title: "Configurazione mancante",
-          description: "Inserisci email e password per connettersi al server IMAP.",
+          description: "Inserisci email e password valide per connettersi al server IMAP.",
           variant: "destructive"
         });
         return;
@@ -159,15 +159,31 @@ const EmailPage = () => {
 
       if (error) throw error;
 
-      if (data && data.emails) {
-        setEmails(data.emails);
+      // Handle authentication errors specifically
+      if (data && data.authError) {
+        toast({
+          title: "Autenticazione fallita",
+          description: "Credenziali email non valide. Verifica email e password nelle impostazioni.",
+          variant: "destructive"
+        });
+        return;
       }
 
-      toast({
-        title: "Email caricate",
-        description: `Caricate ${data?.emails?.length || 0} email`
-      });
+      if (data && data.emails) {
+        setEmails(data.emails);
+        
+        // Show different messages based on source
+        if (data.emails.length > 0) {
+          const isRealData = data.emails[0].id.includes('imap_') && !data.emails[0].from.includes('.it');
+          toast({
+            title: isRealData ? "Email caricate dal server" : "Email demo caricate",
+            description: `${data.emails.length} email disponibili${!isRealData ? ' (dati di test)' : ''}`
+          });
+        }
+      }
+
     } catch (error: any) {
+      console.error('Email fetch error:', error);
       toast({
         title: "Errore nel caricamento",
         description: error.message || "Impossibile caricare le email",

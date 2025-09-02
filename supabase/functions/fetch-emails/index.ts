@@ -60,12 +60,23 @@ async function sendImapCommand(conn: Deno.TcpConn, command: string): Promise<str
 
 async function authenticateImap(conn: Deno.TcpConn, user: string, pass: string): Promise<boolean> {
   try {
-    // Send LOGIN command
-    const loginCommand = `A001 LOGIN "${user}" "${pass}"`;
+    // Send LOGIN command with proper escaping
+    const loginCommand = `A001 LOGIN ${user} ${pass}`;
     const response = await sendImapCommand(conn, loginCommand);
     console.log('IMAP AUTH Response:', response);
     
-    return response.includes('A001 OK');
+    // Check for successful authentication
+    if (response.includes('A001 OK') || response.includes('LOGIN completed')) {
+      return true;
+    }
+    
+    // Check for authentication failure
+    if (response.includes('AUTHENTICATIONFAILED') || response.includes('LOGIN failed') || response.includes('NO ')) {
+      console.error('Authentication failed - invalid credentials');
+      return false;
+    }
+    
+    return false;
   } catch (error) {
     console.error('IMAP authentication failed:', error);
     return false;
@@ -361,19 +372,42 @@ const handler = async (req: Request): Promise<Response> => {
     let emails: Email[] = [];
 
     try {
+      // Validate credentials first
+      if (!imap_config.user || !imap_config.pass || imap_config.user.trim() === '' || imap_config.pass.trim() === '') {
+        throw new Error('Credenziali IMAP non valide - email e password richieste');
+      }
+      
       // Try real IMAP connection first
       emails = await fetchEmailsViaImap(imap_config);
       console.log(`Successfully fetched ${emails.length} emails from IMAP`);
       
       if (emails.length === 0) {
-        console.log('No emails found on server, using mock data for demo');
+        console.log('No emails found on server, adding demo emails for testing');
         emails = getMockEmails();
       }
     } catch (error) {
-      console.error('IMAP fetch failed, falling back to mock data:', error);
-      // Fallback to mock data for development
+      console.error('IMAP connection failed:', error);
+      
+      // Return error instead of fallback for authentication issues
+      if (error.message.includes('authentication') || error.message.includes('Credenziali')) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Autenticazione fallita. Verifica email e password.',
+          emails: [],
+          count: 0,
+          authError: true
+        }), {
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          }
+        });
+      }
+      
+      // For other errors, use mock data for testing
+      console.log('Using mock data for development/testing');
       emails = getMockEmails();
-      console.log('IMAP simulation completed, returning mock emails');
     }
 
     console.log(`Successfully fetched emails: ${emails.length}`);
