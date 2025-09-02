@@ -415,7 +415,43 @@ export default function OrdersPage() {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo ordine? Questa azione non può essere annullata.")) {
+      return;
+    }
+
     try {
+      // Prima controlla e gestisci i work orders collegati
+      const { data: linkedWorkOrders, error: checkError } = await supabase
+        .from('work_orders')
+        .select('id')
+        .eq('customer_id', orderId);
+
+      if (checkError) throw checkError;
+
+      if (linkedWorkOrders && linkedWorkOrders.length > 0) {
+        const shouldProceed = confirm(
+          `Questo ordine ha ${linkedWorkOrders.length} ordini di lavoro collegati. Eliminandolo, anche questi verranno eliminati. Vuoi continuare?`
+        );
+        
+        if (!shouldProceed) return;
+
+        // Elimina prima i work orders collegati
+        for (const wo of linkedWorkOrders) {
+          // Prima scollega eventuali service work orders
+          await supabase
+            .from('service_work_orders')
+            .update({ production_work_order_id: null })
+            .eq('production_work_order_id', wo.id);
+
+          // Elimina il work order
+          await supabase
+            .from('work_orders')
+            .delete()
+            .eq('id', wo.id);
+        }
+      }
+
+      // Ora elimina l'ordine principale
       const { error } = await supabase
         .from("sales_orders")
         .delete()
