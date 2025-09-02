@@ -12,6 +12,7 @@ import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { InstallerKanban } from "@/components/partnerships/InstallerKanban";
 import { EmailComposer } from "@/components/partnerships/EmailComposer";
+import { PartnerPriceLists } from "@/components/partnerships/PartnerPriceLists";
 
 interface Installer {
   id: string;
@@ -23,6 +24,8 @@ interface Installer {
   address: string;
   website?: string;
   notes?: string;
+  price_lists?: any;
+  pricing_notes?: string;
   latitude?: number;
   longitude?: number;
   partner_type?: string;
@@ -207,10 +210,11 @@ export default function InstallersPage() {
 
       {/* Tabs for different views */}
       <Tabs defaultValue="pipeline" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="regions">By Region</TabsTrigger>
           <TabsTrigger value="map">Installers Map</TabsTrigger>
+          <TabsTrigger value="pricelists">Price Lists</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline">
@@ -282,6 +286,27 @@ export default function InstallersPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pricelists">
+          <div className="space-y-6">
+            {installers.map((installer) => (
+              <div key={installer.id}>
+                <PartnerPriceLists
+                  partnerId={installer.id}
+                  partnerName={`${installer.first_name} ${installer.last_name} - ${installer.company_name}`}
+                  priceLists={Array.isArray(installer.price_lists) ? installer.price_lists : []}
+                  pricingNotes={installer.pricing_notes || ""}
+                  onUpdate={fetchInstallers}
+                />
+              </div>
+            ))}
+            {installers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No installers found. Add your first installer to get started.
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

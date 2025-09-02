@@ -1438,6 +1438,8 @@ export type Database = {
           notes: string | null
           partner_type: string | null
           phone: string | null
+          price_lists: Json | null
+          pricing_notes: string | null
           priority: string | null
           region: string | null
           updated_at: string
@@ -1459,6 +1461,8 @@ export type Database = {
           notes?: string | null
           partner_type?: string | null
           phone?: string | null
+          price_lists?: Json | null
+          pricing_notes?: string | null
           priority?: string | null
           region?: string | null
           updated_at?: string
@@ -1480,6 +1484,8 @@ export type Database = {
           notes?: string | null
           partner_type?: string | null
           phone?: string | null
+          price_lists?: Json | null
+          pricing_notes?: string | null
           priority?: string | null
           region?: string | null
           updated_at?: string

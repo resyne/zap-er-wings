@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { ResellerKanban } from "@/components/partnerships/ResellerKanban";
+import { PartnerPriceLists } from "@/components/partnerships/PartnerPriceLists";
 
 interface Reseller {
   id: string;
@@ -22,6 +23,8 @@ interface Reseller {
   address: string;
   website?: string;
   notes?: string;
+  price_lists?: any;
+  pricing_notes?: string;
   latitude?: number;
   longitude?: number;
   partner_type?: string;
@@ -251,10 +254,11 @@ export default function ResellersPage() {
 
       {/* Tabs for different views */}
       <Tabs defaultValue="pipeline" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="regions">By Region</TabsTrigger>
           <TabsTrigger value="map">Resellers Map</TabsTrigger>
+          <TabsTrigger value="pricelists">Price Lists</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline">
@@ -326,6 +330,27 @@ export default function ResellersPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pricelists">
+          <div className="space-y-6">
+            {resellers.map((reseller) => (
+              <div key={reseller.id}>
+                <PartnerPriceLists
+                  partnerId={reseller.id}
+                  partnerName={`${reseller.first_name} ${reseller.last_name} - ${reseller.company_name}`}
+                  priceLists={Array.isArray(reseller.price_lists) ? reseller.price_lists : []}
+                  pricingNotes={reseller.pricing_notes || ""}
+                  onUpdate={fetchResellers}
+                />
+              </div>
+            ))}
+            {resellers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No resellers found. Add your first reseller to get started.
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

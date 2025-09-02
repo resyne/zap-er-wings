@@ -12,6 +12,7 @@ import { PartnerMap } from "@/components/partnerships/PartnerMap";
 import { AddPartnerForm } from "@/components/partnerships/AddPartnerForm";
 import { ImporterKanban } from "@/components/partnerships/ImporterKanban";
 import { EmailComposer } from "@/components/partnerships/EmailComposer";
+import { PartnerPriceLists } from "@/components/partnerships/PartnerPriceLists";
 interface Importer {
   id: string;
   first_name: string;
@@ -22,6 +23,8 @@ interface Importer {
   address: string;
   website?: string;
   notes?: string;
+  price_lists?: any;
+  pricing_notes?: string;
   latitude?: number;
   longitude?: number;
   partner_type?: string;
@@ -195,10 +198,11 @@ export default function ImportersPage() {
 
       {/* Tabs for different views */}
       <Tabs defaultValue="pipeline" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="regions">By Region</TabsTrigger>
           <TabsTrigger value="map">Importers Map</TabsTrigger>
+          <TabsTrigger value="pricelists">Price Lists</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline">
@@ -260,6 +264,27 @@ export default function ImportersPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pricelists">
+          <div className="space-y-6">
+            {importers.map((importer) => (
+              <div key={importer.id}>
+                <PartnerPriceLists
+                  partnerId={importer.id}
+                  partnerName={`${importer.first_name} ${importer.last_name} - ${importer.company_name}`}
+                  priceLists={Array.isArray(importer.price_lists) ? importer.price_lists : []}
+                  pricingNotes={importer.pricing_notes || ""}
+                  onUpdate={fetchImporters}
+                />
+              </div>
+            ))}
+            {importers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No importers found. Add your first importer to get started.
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>;
