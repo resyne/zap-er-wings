@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
+import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 
 interface Offer {
   id: string;
@@ -49,6 +50,7 @@ export default function OffersPage() {
   const [technicalDocs, setTechnicalDocs] = useState<TechnicalDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   
   const [newOffer, setNewOffer] = useState({
@@ -311,6 +313,10 @@ export default function OffersPage() {
     }
   };
 
+  const handleCustomerCreated = () => {
+    loadData(); // Reload customers list after creation
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'default';
@@ -361,20 +367,31 @@ export default function OffersPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Cliente</label>
-                <Select value={newOffer.customer_id} onValueChange={(value) => 
-                  setNewOffer(prev => ({ ...prev, customer_id: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={newOffer.customer_id} onValueChange={(value) => 
+                    setNewOffer(prev => ({ ...prev, customer_id: value }))
+                  }>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCreateCustomerDialogOpen(true)}
+                    title="Aggiungi nuovo cliente"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               
               <div>
@@ -452,6 +469,12 @@ export default function OffersPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <CreateCustomerDialog
+        open={isCreateCustomerDialogOpen}
+        onOpenChange={setIsCreateCustomerDialogOpen}
+        onCustomerCreated={handleCustomerCreated}
+      />
 
       <Card>
         <CardHeader>
