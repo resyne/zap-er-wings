@@ -122,48 +122,40 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
     const selectResponse = await sendImapCommand(conn, 'A002 SELECT INBOX');
     console.log('Select response:', selectResponse);
     
-    // Search for recent emails only to avoid timeouts
-    const searchResponse = await sendImapCommand(conn, 'A003 SEARCH RECENT');
+    // Search for ALL emails to download everything
+    const searchResponse = await sendImapCommand(conn, 'A003 SEARCH ALL');
     console.log('Search response:', searchResponse);
     
     // Extract message numbers from search response
     let messageNumbers = extractMessageNumbers(searchResponse);
     console.log('Found message numbers:', messageNumbers);
     
-    // If no recent emails, get the last 20 emails
-    if (messageNumbers.length === 0) {
-      const searchAllResponse = await sendImapCommand(conn, 'A003 SEARCH ALL');
-      const allNumbers = extractMessageNumbers(searchAllResponse);
-      // Get only the latest 20 emails to avoid timeouts
-      messageNumbers = allNumbers.slice(-20);
-      console.log('Using last 20 emails:', messageNumbers);
-    }
-    
-    // Limit to maximum 50 emails to prevent timeouts
-    if (messageNumbers.length > 50) {
-      messageNumbers = messageNumbers.slice(-50);
-      console.log('Limited to last 50 emails');
-    }
-    
     if (messageNumbers.length === 0) {
       console.log('No messages found in mailbox');
       return [];
     }
     
+    console.log(`Preparing to download ALL ${messageNumbers.length} emails from the server`);
+    
     // Fetch emails with proper headers and body
     const emails: Email[] = [];
     
-    // Process messages with error handling
+    // Process all messages with improved error handling
     for (const msgNum of messageNumbers) {
       try {
-        // Fetch full message data including headers, text and HTML body
-        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODY.PEEK[HEADER] BODY.PEEK[TEXT] BODY.PEEK[1])`);
+        console.log(`Processing email ${msgNum}/${messageNumbers.length}`);
+        
+        // Fetch complete message data with better structure
+        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODYSTRUCTURE BODY.PEEK[HEADER] BODY.PEEK[TEXT] BODY.PEEK[1] BODY.PEEK[2])`);
         const email = parseIndividualEmail(fetchResponse, msgNum);
         if (email) {
           emails.push(email);
+          console.log(`✓ Successfully parsed email: "${email.subject}" from ${email.from}`);
+        } else {
+          console.warn(`✗ Failed to parse email ${msgNum}`);
         }
       } catch (error) {
-        console.warn(`Failed to fetch message ${msgNum}:`, error);
+        console.error(`Failed to fetch message ${msgNum}:`, error);
         // Continue with next message instead of failing completely
       }
     }
@@ -369,30 +361,52 @@ function extractQuotedString(data: string, index: number): string | null {
   return parts[targetIndex] || null;
 }
 
-// Extract body content from IMAP response lines
+// Enhanced body content extraction from IMAP response
 function extractBodyContent(lines: string[], startIndex: number, type: 'text' | 'html'): string {
   let content = '';
   let insideBody = false;
+  let foundContentStart = false;
   
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i];
     
-    // Skip until we find the actual content
-    if (!insideBody && line.trim() === '') {
-      insideBody = true;
-      continue;
+    // Look for the actual body content start
+    if (!insideBody) {
+      // Skip IMAP protocol lines until we hit the actual content
+      if (line.includes('Content-Type:') || line.includes('Content-Transfer-Encoding:') || line.includes('charset=') || line.trim() === '') {
+        continue;
+      }
+      // If we find a line that doesn't look like a header, start collecting
+      if (!line.includes(':') || line.startsWith('<') || foundContentStart) {
+        insideBody = true;
+        foundContentStart = true;
+      }
     }
     
     if (insideBody) {
-      // Stop at the end of this body section
-      if (line.startsWith(')') || line.includes('BODY[') || line.includes('FLAGS')) {
+      // Stop at the end of this body section or next IMAP command
+      if (line.startsWith(')') || line.includes('BODY[') || line.includes('FLAGS') || line.includes('* ')) {
         break;
       }
-      content += line + '\n';
+      
+      // Clean up the line
+      const cleanLine = line.trim();
+      if (cleanLine) {
+        content += cleanLine + '\n';
+      }
     }
   }
   
-  return content.trim();
+  const finalContent = content.trim();
+  
+  // Log content quality for verification
+  if (finalContent.length > 0) {
+    console.log(`✓ Extracted ${type} content (${finalContent.length} chars): ${finalContent.substring(0, 100)}...`);
+  } else {
+    console.warn(`✗ No ${type} content extracted`);
+  }
+  
+  return finalContent;
 }
 
 // Parse individual email from IMAP response
@@ -658,12 +672,73 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Save emails to database
+// Verify content quality and readability  
+function verifyEmailContent(email: Email): boolean {
+  let quality = 0;
+  let issues = [];
+  
+  // Check subject
+  if (email.subject && email.subject.length > 3) {
+    quality += 20;
+  } else {
+    issues.push('Subject too short or missing');
+  }
+  
+  // Check sender
+  if (email.from && email.from.includes('@')) {
+    quality += 20;
+  } else {
+    issues.push('Invalid sender address');
+  }
+  
+  // Check body content
+  if (email.body && email.body.length > 10) {
+    quality += 30;
+  } else {
+    issues.push('Body content too short or missing');
+  }
+  
+  // Check HTML body if available
+  if (email.htmlBody && email.htmlBody.length > 20) {
+    quality += 20;
+  }
+  
+  // Check date
+  if (email.date && !isNaN(Date.parse(email.date))) {
+    quality += 10;
+  } else {
+    issues.push('Invalid or missing date');
+  }
+  
+  const isQuality = quality >= 60;
+  
+  if (isQuality) {
+    console.log(`✓ Email quality GOOD (${quality}%): "${email.subject}"`);
+  } else {
+    console.warn(`✗ Email quality POOR (${quality}%): "${email.subject}" - Issues: ${issues.join(', ')}`);
+  }
+  
+  return isQuality;
+}
+
+// Save emails to database with content verification
 async function saveEmailsToDatabase(emails: Email[], userId: string): Promise<void> {
   console.log(`Saving ${emails.length} emails to database for user ${userId}`);
   
+  let savedCount = 0;
+  let skippedCount = 0;
+  
   for (const email of emails) {
     try {
+      // Verify content quality before saving
+      const isQualityContent = verifyEmailContent(email);
+      
+      if (!isQualityContent) {
+        skippedCount++;
+        console.warn(`Skipping low-quality email: ${email.subject}`);
+        continue;
+      }
+      
       // Check if email already exists
       const { data: existingEmail } = await supabase
         .from('emails')
@@ -693,13 +768,18 @@ async function saveEmailsToDatabase(emails: Email[], userId: string): Promise<vo
         if (error) {
           console.error('Error saving email:', error);
         } else {
-          console.log(`Saved email: ${email.subject}`);
+          savedCount++;
+          console.log(`✓ Saved quality email: ${email.subject}`);
         }
+      } else {
+        console.log(`Email already exists: ${email.subject}`);
       }
     } catch (error) {
       console.error(`Error processing email ${email.id}:`, error);
     }
   }
+  
+  console.log(`📧 Email save summary: ${savedCount} saved, ${skippedCount} skipped (low quality), ${emails.length} total processed`);
 }
 
 // Save or update user email config
