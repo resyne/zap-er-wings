@@ -51,11 +51,27 @@ async function sendImapCommand(conn: Deno.TcpConn, command: string): Promise<str
   
   await conn.write(encoder.encode(command + '\r\n'));
   
-  const buffer = new Uint8Array(8192);
-  const bytesRead = await conn.read(buffer);
-  if (bytesRead === null) throw new Error('Connection closed');
+  // Use larger buffer for email content
+  const buffer = new Uint8Array(32768);
+  let fullResponse = '';
+  let totalBytes = 0;
   
-  return decoder.decode(buffer.subarray(0, bytesRead));
+  // Read response in chunks
+  while (true) {
+    const bytesRead = await conn.read(buffer);
+    if (bytesRead === null) break;
+    
+    const chunk = decoder.decode(buffer.subarray(0, bytesRead));
+    fullResponse += chunk;
+    totalBytes += bytesRead;
+    
+    // Check if response is complete (basic check for command completion)
+    if (chunk.includes(' OK ') || chunk.includes(' NO ') || chunk.includes(' BAD ') || totalBytes > 0 && bytesRead < buffer.length) {
+      break;
+    }
+  }
+  
+  return fullResponse;
 }
 
 async function authenticateImap(conn: Deno.TcpConn, user: string, pass: string): Promise<boolean> {
@@ -117,14 +133,14 @@ async function fetchEmailsViaImap(config: ImapConfig): Promise<Email[]> {
       return [];
     }
     
-    // Fetch latest 10 emails with full headers and body
-    const latestMessages = messageNumbers.slice(-10);
+    // Fetch all emails with proper headers and body
     const emails: Email[] = [];
     
-    for (const msgNum of latestMessages) {
+    // Process all messages, not just the latest 10
+    for (const msgNum of messageNumbers) {
       try {
-        // Fetch full message data
-        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODY.PEEK[HEADER] BODY.PEEK[TEXT])`);
+        // Fetch full message data including headers and body
+        const fetchResponse = await sendImapCommand(conn, `A004 FETCH ${msgNum} (FLAGS ENVELOPE BODY.PEEK[HEADER] BODY.PEEK[1])`);
         const email = parseIndividualEmail(fetchResponse, msgNum);
         if (email) {
           emails.push(email);
@@ -380,23 +396,61 @@ function parseIndividualEmail(response: string, msgNum: number): Email | null {
         }
       }
       
-      // Extract body content
-      if (line.includes('BODY[TEXT]') && i + 1 < lines.length) {
-        // Look for content after BODY[TEXT] header
+      // Extract body content - improved parsing for BODY[1]
+      if (line.includes('BODY[1]') && i + 1 < lines.length) {
+        // Look for content after BODY[1] header  
         let bodyStartIndex = i + 1;
         let bodyLines = [];
+        let insideBody = false;
         
         for (let j = bodyStartIndex; j < lines.length; j++) {
           const bodyLine = lines[j];
+          
+          // Skip MIME headers and boundaries
+          if (bodyLine.includes('Content-Type:') || 
+              bodyLine.includes('Content-Transfer-Encoding:') || 
+              bodyLine.includes('MIME-Version:') ||
+              bodyLine.startsWith('--') ||
+              bodyLine.trim() === '') {
+            if (!insideBody) continue;
+          }
+          
+          // Stop at end of message
           if (bodyLine.trim().startsWith(')') || bodyLine.includes('A004 OK')) {
             break;
           }
-          bodyLines.push(bodyLine);
+          
+          // Start collecting body content after headers
+          if (!insideBody && bodyLine.trim() !== '' && 
+              !bodyLine.includes('Content-') && 
+              !bodyLine.includes('MIME-') &&
+              !bodyLine.startsWith('--')) {
+            insideBody = true;
+          }
+          
+          if (insideBody) {
+            // Decode content if it appears to be base64 or contains encoded text
+            let cleanLine = bodyLine;
+            if (bodyLine.match(/^[A-Za-z0-9+/=]+$/)) {
+              try {
+                cleanLine = atob(bodyLine);
+              } catch {
+                // If base64 decode fails, use original line
+              }
+            }
+            bodyLines.push(cleanLine);
+          }
         }
         
         body = bodyLines.join('\n').trim();
-        if (body.length > 500) {
-          body = body.substring(0, 500) + '...';
+        // Clean up common MIME artifacts
+        body = body.replace(/Content-Type:[^\n]+\n/g, '')
+                  .replace(/Content-Transfer-Encoding:[^\n]+\n/g, '')
+                  .replace(/--[A-Za-z0-9_-]+/g, '')
+                  .trim();
+        
+        if (body.length > 1000) {
+          body = body.substring(0, 1000) + '...';
         }
       }
     }
