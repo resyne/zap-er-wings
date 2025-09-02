@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -652,6 +653,91 @@ tecnico@hotelsplendid.com`,
   ];
 }
 
+// Supabase client initialization
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Save emails to database
+async function saveEmailsToDatabase(emails: Email[], userId: string): Promise<void> {
+  console.log(`Saving ${emails.length} emails to database for user ${userId}`);
+  
+  for (const email of emails) {
+    try {
+      // Check if email already exists
+      const { data: existingEmail } = await supabase
+        .from('emails')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('external_id', email.id)
+        .single();
+        
+      if (!existingEmail) {
+        // Insert new email
+        const { error } = await supabase
+          .from('emails')
+          .insert({
+            user_id: userId,
+            external_id: email.id,
+            from_address: email.from,
+            to_address: email.to,
+            subject: email.subject,
+            body: email.body,
+            html_body: email.htmlBody,
+            email_date: email.date,
+            is_read: email.read,
+            is_starred: email.starred,
+            has_attachments: email.hasAttachments
+          });
+          
+        if (error) {
+          console.error('Error saving email:', error);
+        } else {
+          console.log(`Saved email: ${email.subject}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing email ${email.id}:`, error);
+    }
+  }
+}
+
+// Save or update user email config
+async function saveUserEmailConfig(config: ImapConfig, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_email_configs')
+    .upsert({
+      user_id: userId,
+      email_address: config.user,
+      imap_host: config.host,
+      imap_port: config.port,
+      imap_username: config.user,
+      imap_password: config.pass,
+      last_sync_at: new Date().toISOString(),
+      is_active: true
+    });
+    
+  if (error) {
+    console.error('Error saving email config:', error);
+  } else {
+    console.log('Email config saved successfully');
+  }
+}
+
+// Get user ID from JWT token
+function getUserIdFromRequest(req: Request): string | null {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader) return null;
+  
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -659,6 +745,23 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     console.log('Fetch emails function called');
+    
+    // Get user ID from token
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Authentication required',
+        emails: [],
+        count: 0
+      }), {
+        status: 401,
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders 
+        }
+      });
+    }
     
     const { imap_config }: { imap_config: ImapConfig } = await req.json();
     
@@ -676,6 +779,13 @@ const handler = async (req: Request): Promise<Response> => {
       // Connect to real IMAP server
       emails = await fetchEmailsViaImap(imap_config);
       console.log(`Successfully fetched ${emails.length} real emails from IMAP server`);
+      
+      // Save emails to database
+      await saveEmailsToDatabase(emails, userId);
+      
+      // Save user email config
+      await saveUserEmailConfig(imap_config, userId);
+      
     } catch (error) {
       console.error('IMAP connection failed:', error);
       
@@ -696,9 +806,35 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
       
-      // For other errors, use mock data for testing
-      console.log('Using mock data for development/testing');
-      emails = getMockEmails();
+      // For other errors, try to get saved emails from database
+      console.log('IMAP failed, trying to get saved emails from database');
+      const { data: savedEmails } = await supabase
+        .from('emails')
+        .select('*')
+        .eq('user_id', userId)
+        .order('email_date', { ascending: false })
+        .limit(50);
+        
+      if (savedEmails && savedEmails.length > 0) {
+        // Convert database emails to Email format
+        emails = savedEmails.map(email => ({
+          id: email.external_id,
+          from: email.from_address,
+          to: email.to_address,
+          subject: email.subject,
+          body: email.body,
+          htmlBody: email.html_body,
+          date: email.email_date,
+          read: email.is_read,
+          starred: email.is_starred,
+          hasAttachments: email.has_attachments
+        }));
+        console.log(`Using ${emails.length} saved emails from database`);
+      } else {
+        // Use mock data for testing if no saved emails
+        console.log('Using mock data for development/testing');
+        emails = getMockEmails();
+      }
     }
 
     console.log(`Successfully fetched emails: ${emails.length}`);

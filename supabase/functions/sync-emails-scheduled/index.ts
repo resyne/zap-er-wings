@@ -253,21 +253,22 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get all active email accounts
-    const { data: accounts, error } = await supabase
-      .from('email_accounts')
+    // Get all active email configurations
+    const { data: emailConfigs, error } = await supabase
+      .from('user_email_configs')
       .select('*')
-      .eq('active', true);
+      .eq('is_active', true);
     
     if (error) {
+      console.error('Error fetching email configs:', error);
       throw error;
     }
     
-    if (!accounts || accounts.length === 0) {
-      console.log('No active email accounts found');
+    if (!emailConfigs || emailConfigs.length === 0) {
+      console.log('No active email configurations found');
       return new Response(JSON.stringify({
         success: true,
-        message: 'No active email accounts to sync',
+        message: 'No active email configurations to sync',
         synced_accounts: 0,
         total_emails: 0
       }), {
@@ -278,33 +279,74 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
     
-    console.log(`Found ${accounts.length} active email accounts to sync`);
+    console.log(`Found ${emailConfigs.length} active email configurations to sync`);
     
     let totalSyncedEmails = 0;
     let successfulSyncs = 0;
     const syncResults = [];
     
-    // Sync each account
-    for (const account of accounts) {
+    // Sync each email configuration
+    for (const config of emailConfigs) {
       try {
-        const syncedCount = await syncEmailsForAccount(account, supabase);
-        totalSyncedEmails += syncedCount;
-        successfulSyncs++;
+        console.log(`Syncing emails for user ${config.user_id} (${config.email_address})`);
         
-        syncResults.push({
-          account_id: account.id,
-          email: account.email,
-          synced_emails: syncedCount,
-          success: true
+        // Call the fetch-emails function
+        const fetchResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-emails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({
+            imap_config: {
+              host: config.imap_host,
+              port: config.imap_port,
+              user: config.imap_username,
+              pass: config.imap_password
+            },
+            user_id: config.user_id // Pass user ID for sync
+          })
         });
         
-        console.log(`Successfully synced ${syncedCount} emails for ${account.email}`);
+        const fetchResult = await fetchResponse.json();
+        
+        if (fetchResult.success) {
+          totalSyncedEmails += fetchResult.count || 0;
+          successfulSyncs++;
+          
+          syncResults.push({
+            user_id: config.user_id,
+            email: config.email_address,
+            synced_emails: fetchResult.count || 0,
+            success: true
+          });
+          
+          console.log(`Successfully synced ${fetchResult.count || 0} emails for ${config.email_address}`);
+          
+          // Update last sync time
+          await supabase
+            .from('user_email_configs')
+            .update({ last_sync_at: new Date().toISOString() })
+            .eq('user_id', config.user_id);
+            
+        } else {
+          console.error(`Failed to sync emails for ${config.email_address}:`, fetchResult.error);
+          
+          syncResults.push({
+            user_id: config.user_id,
+            email: config.email_address,
+            synced_emails: 0,
+            success: false,
+            error: fetchResult.error
+          });
+        }
+        
       } catch (error) {
-        console.error(`Failed to sync account ${account.email}:`, error);
+        console.error(`Error syncing emails for user ${config.user_id}:`, error);
         
         syncResults.push({
-          account_id: account.id,
-          email: account.email,
+          user_id: config.user_id,
+          email: config.email_address,
           synced_emails: 0,
           success: false,
           error: error.message
@@ -312,7 +354,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
     
-    console.log(`Email sync completed: ${successfulSyncs}/${accounts.length} accounts, ${totalSyncedEmails} total emails`);
+    console.log(`Email sync completed: ${successfulSyncs}/${emailConfigs.length} accounts, ${totalSyncedEmails} total emails`);
 
     return new Response(JSON.stringify({
       success: true,

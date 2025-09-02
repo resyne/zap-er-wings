@@ -75,14 +75,63 @@ const EmailPage = () => {
   const [showHtml, setShowHtml] = useState(true);
   const { toast } = useToast();
 
+  // Load emails from database
+  const loadEmailsFromDatabase = async () => {
+    try {
+      const { data: savedEmails, error } = await supabase
+        .from('emails')
+        .select('*')
+        .order('email_date', { ascending: false })
+        .limit(100);
+      
+      if (error) {
+        console.error('Error loading emails from database:', error);
+        return;
+      }
+      
+      if (savedEmails && savedEmails.length > 0) {
+        // Convert database emails to Email format
+        const formattedEmails: Email[] = savedEmails.map(email => ({
+          id: email.external_id,
+          from: email.from_address,
+          to: email.to_address,
+          subject: email.subject,
+          body: email.body,
+          htmlBody: email.html_body,
+          date: email.email_date,
+          read: email.is_read,
+          starred: email.is_starred,
+          hasAttachments: email.has_attachments
+        }));
+        
+        setEmails(formattedEmails);
+        console.log(`Loaded ${formattedEmails.length} emails from database`);
+      }
+    } catch (error) {
+      console.error('Error loading emails from database:', error);
+    }
+  };
+
   useEffect(() => {
-    // Carica configurazione salvata
+    // Load saved configuration and emails
     const savedConfig = localStorage.getItem('emailConfig');
     if (savedConfig) {
       setEmailConfig(JSON.parse(savedConfig));
       setIsConfigured(true);
     }
-  }, []);
+    
+    // Load emails from database
+    loadEmailsFromDatabase();
+    
+    // Set up auto-sync every 2 minutes (120000ms)
+    const autoSyncInterval = setInterval(() => {
+      if (isConfigured) {
+        handleFetchEmails(false); // Silent sync without loading state
+      }
+    }, 120000);
+    
+    return () => clearInterval(autoSyncInterval);
+  }, [isConfigured]);
 
   const saveEmailConfig = async () => {
     try {
@@ -230,6 +279,63 @@ const EmailPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle fetch emails with optional silent mode for auto-sync
+  const handleFetchEmails = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+
+      if (!emailConfig.email || !emailConfig.password) {
+        if (showLoading) {
+          toast({
+            title: "Configurazione mancante",
+            description: "Inserisci email e password valide.",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+      
+      const { data, error } = await supabase.functions.invoke('fetch-emails', {
+        body: {
+          imap_config: {
+            host: emailConfig.imap_server,
+            port: emailConfig.imap_port,
+            user: emailConfig.email,
+            pass: emailConfig.password
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data && data.emails) {
+        setEmails(data.emails);
+        
+        // Refresh emails from database to get the latest saved emails
+        await loadEmailsFromDatabase();
+        
+        if (showLoading) {
+          toast({
+            title: "Email sincronizzate",
+            description: `${data.emails.length} email caricate e salvate nel database`
+          });
+        }
+      }
+
+    } catch (error: any) {
+      console.error('Email fetch error:', error);
+      if (showLoading) {
+        toast({
+          title: "Errore nel caricamento",
+          description: error.message || "Impossibile caricare le email",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      if (showLoading) setLoading(false);
     }
   };
 

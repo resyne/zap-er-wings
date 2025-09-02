@@ -725,6 +725,57 @@ export type Database = {
         }
         Relationships: []
       }
+      emails: {
+        Row: {
+          body: string | null
+          created_at: string
+          email_date: string
+          external_id: string
+          from_address: string
+          has_attachments: boolean
+          html_body: string | null
+          id: string
+          is_read: boolean
+          is_starred: boolean
+          subject: string
+          to_address: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          email_date: string
+          external_id: string
+          from_address: string
+          has_attachments?: boolean
+          html_body?: string | null
+          id?: string
+          is_read?: boolean
+          is_starred?: boolean
+          subject: string
+          to_address: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          email_date?: string
+          external_id?: string
+          from_address?: string
+          has_attachments?: boolean
+          html_body?: string | null
+          id?: string
+          is_read?: boolean
+          is_starred?: boolean
+          subject?: string
+          to_address?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       executions: {
         Row: {
           created_at: string
@@ -2653,6 +2704,48 @@ export type Database = {
           position?: string | null
           specializations?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_email_configs: {
+        Row: {
+          created_at: string
+          email_address: string
+          id: string
+          imap_host: string
+          imap_password: string
+          imap_port: number
+          imap_username: string
+          is_active: boolean
+          last_sync_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_address: string
+          id?: string
+          imap_host: string
+          imap_password: string
+          imap_port?: number
+          imap_username: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_address?: string
+          id?: string
+          imap_host?: string
+          imap_password?: string
+          imap_port?: number
+          imap_username?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
