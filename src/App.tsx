@@ -23,7 +23,7 @@ import OrdersPage from "./pages/crm/OrdersPage";
 import CustomersPage from "./pages/crm/CustomersPage";
 import StockPage from "./pages/warehouse/StockPage";
 import MovementsPage from "./pages/warehouse/MovementsPage";
-import BatchesSerialsPage from "./pages/warehouse/BatchesSerialsPage";
+
 import InventoryPage from "./pages/warehouse/InventoryPage";
 import PickingPage from "./pages/warehouse/PickingPage";
 import DdtPage from "./pages/warehouse/DdtPage";
@@ -92,7 +92,7 @@ const App = () => (
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
                 <Route path="wms/stock" element={<StockPage />} />
                 <Route path="wms/movements" element={<MovementsPage />} />
-                <Route path="wms/batches-serials" element={<BatchesSerialsPage />} />
+                
                 <Route path="wms/inventory" element={<InventoryPage />} />
                 <Route path="wms/picking" element={<PickingPage />} />
                 <Route path="wms/ddt" element={<DdtPage />} />
