@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Upload, FileText, Image, Video, Trash2, Download, Tag } from "lucide-react";
+import { FilePreview } from "@/components/ui/file-preview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -278,74 +279,20 @@ const ArchivePage = () => {
       {/* Materials Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {materials.map((material) => (
-          <Card key={material.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  {getFileIcon(material.file_type)}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {material.file_name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(material.file_size)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex space-x-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadMaterial(material)}
-                  >
-                    <Download className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteMaterial(material)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="secondary" className="text-xs">
-                    {material.equipment_type === 'abbattitori' ? 'Abbattitori' : 'Forni'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {material.category === 'media_professionale' ? 'Media Prof.' : 'Creative Adv.'}
-                  </Badge>
-                </div>
-                
-                {material.description && (
-                  <p className="text-xs text-gray-600 line-clamp-2">
-                    {material.description}
-                  </p>
-                )}
-                
-                {material.tags && material.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {material.tags.slice(0, 3).map((tag, index) => (
-                      <div key={index} className="flex items-center space-x-1">
-                        <Tag className="h-2 w-2" />
-                        <span className="text-xs text-gray-500">{tag}</span>
-                      </div>
-                    ))}
-                    {material.tags.length > 3 && (
-                      <span className="text-xs text-gray-400">+{material.tags.length - 3}</span>
-                    )}
-                  </div>
-                )}
-                
-                <p className="text-xs text-gray-400">
-                  {new Date(material.created_at).toLocaleDateString('it-IT')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <FilePreview
+            key={material.id}
+            fileName={material.file_name}
+            filePath={material.file_path}
+            fileType={material.file_type}
+            fileSize={material.file_size}
+            onDownload={() => downloadMaterial(material)}
+            onDelete={() => deleteMaterial(material)}
+            description={material.description}
+            tags={material.tags}
+            createdAt={material.created_at}
+            equipmentType={material.equipment_type}
+            category={material.category}
+          />
         ))}
       </div>
 
