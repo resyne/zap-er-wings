@@ -361,14 +361,22 @@ function extractQuotedString(data: string, index: number): string | null {
   return parts[targetIndex] || null;
 }
 
-// Enhanced body content extraction from IMAP response
+// Enhanced body content extraction and decoding from IMAP response
 function extractBodyContent(lines: string[], startIndex: number, type: 'text' | 'html'): string {
   let content = '';
   let insideBody = false;
   let foundContentStart = false;
+  let encoding = '';
   
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i];
+    
+    // Check for encoding information
+    if (line.includes('Content-Transfer-Encoding:')) {
+      encoding = line.split(':')[1].trim().toLowerCase();
+      console.log(`Found encoding: ${encoding}`);
+      continue;
+    }
     
     // Look for the actual body content start
     if (!insideBody) {
@@ -389,24 +397,62 @@ function extractBodyContent(lines: string[], startIndex: number, type: 'text' | 
         break;
       }
       
-      // Clean up the line
-      const cleanLine = line.trim();
-      if (cleanLine) {
-        content += cleanLine + '\n';
-      }
+      // Collect the raw content
+      content += line + '\n';
     }
   }
   
-  const finalContent = content.trim();
+  // Decode the content based on encoding
+  let decodedContent = content.trim();
   
-  // Log content quality for verification
-  if (finalContent.length > 0) {
-    console.log(`✓ Extracted ${type} content (${finalContent.length} chars): ${finalContent.substring(0, 100)}...`);
-  } else {
-    console.warn(`✗ No ${type} content extracted`);
+  if (encoding === 'quoted-printable' || decodedContent.includes('=')) {
+    decodedContent = decodeQuotedPrintable(decodedContent);
+  } else if (encoding === 'base64') {
+    try {
+      decodedContent = atob(decodedContent);
+    } catch (e) {
+      console.warn('Failed to decode base64 content:', e);
+    }
   }
   
-  return finalContent;
+  // Additional cleanup for common email artifacts
+  decodedContent = cleanEmailContent(decodedContent);
+  
+  // Log content quality for verification
+  if (decodedContent.length > 0) {
+    console.log(`✓ Extracted and decoded ${type} content (${decodedContent.length} chars): ${decodedContent.substring(0, 150)}...`);
+  } else {
+    console.warn(`✗ No readable ${type} content extracted`);
+  }
+  
+  return decodedContent;
+}
+
+// Decode quoted-printable encoding
+function decodeQuotedPrintable(input: string): string {
+  return input
+    // Decode =XX sequences
+    .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
+      return String.fromCharCode(parseInt(hex, 16));
+    })
+    // Remove soft line breaks (= at end of line)
+    .replace(/=\r?\n/g, '')
+    // Clean up any remaining artifacts
+    .replace(/=\s*$/gm, '');
+}
+
+// Clean email content from common artifacts
+function cleanEmailContent(content: string): string {
+  return content
+    // Remove IMAP artifacts
+    .replace(/^[\s\r\n]*/, '')
+    .replace(/[\s\r\n]*$/, '')
+    // Clean up multiple line breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove null characters
+    .replace(/\0/g, '')
+    // Clean up whitespace
+    .trim();
 }
 
 // Parse individual email from IMAP response
