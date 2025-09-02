@@ -15,6 +15,7 @@ import jsPDF from 'jspdf';
 interface Offer {
   id: string;
   number: string;
+  customer_id?: string;
   customer_name: string;
   title: string;
   description?: string;
@@ -31,6 +32,7 @@ interface Customer {
   email?: string;
   address?: string;
   tax_id?: string;
+  code?: string;
 }
 
 interface TechnicalDoc {
@@ -65,18 +67,33 @@ export default function OffersPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load offers
+      // Load offers (using quotes as table doesn't exist yet)
       const { data: offersData, error: offersError } = await supabase
-        .from('offers')
+        .from('quotes')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (offersError) throw offersError;
 
+      // Transform quotes to offers format
+      const transformedOffers = (offersData || []).map(quote => ({
+        id: quote.id,
+        number: quote.number,
+        customer_id: quote.customer_id,
+        customer_name: 'Cliente', // You may want to join with customers table
+        title: 'Offerta ' + quote.number,
+        description: quote.notes,
+        amount: quote.total_amount || 0,
+        status: quote.status as 'draft' | 'sent' | 'approved' | 'rejected',
+        created_at: quote.created_at,
+        valid_until: quote.valid_until,
+        attachments: []
+      }));
+
       // Load customers
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
-        .select('id, name, email, address, tax_id')
+        .select('id, name, email, address, tax_id, code')
         .eq('active', true);
 
       if (customersError) throw customersError;
@@ -89,7 +106,7 @@ export default function OffersPage() {
         { id: '4', name: 'Manuale Installazione', url: '/docs/manuale-installazione.pdf', category: 'Manuali' }
       ];
 
-      setOffers(offersData || []);
+      setOffers(transformedOffers);
       setCustomers(customersData || []);
       setTechnicalDocs(mockTechnicalDocs);
     } catch (error) {
@@ -215,9 +232,9 @@ export default function OffersPage() {
 
         if (error) throw error;
 
-        // Update offer status
+        // Update offer status (using quotes table for now)
         await supabase
-          .from('offers')
+          .from('quotes')
           .update({ status: 'sent' })
           .eq('id', offer.id);
 
@@ -255,16 +272,14 @@ export default function OffersPage() {
       const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       const { error } = await supabase
-        .from('offers')
+        .from('quotes')
         .insert([{
           number: offerNumber,
           customer_id: newOffer.customer_id,
-          customer_name: customer.name,
-          title: newOffer.title,
-          description: newOffer.description,
-          amount: newOffer.amount,
+          date: new Date().toISOString().split('T')[0],
+          total_amount: newOffer.amount,
           valid_until: newOffer.valid_until || null,
-          attachments: selectedDocs,
+          notes: `${newOffer.title}\n\n${newOffer.description || ''}`,
           status: 'draft'
         }]);
 
@@ -300,7 +315,7 @@ export default function OffersPage() {
     switch (status) {
       case 'draft': return 'default';
       case 'sent': return 'secondary';
-      case 'approved': return 'success';
+      case 'approved': return 'secondary';
       case 'rejected': return 'destructive';
       default: return 'default';
     }

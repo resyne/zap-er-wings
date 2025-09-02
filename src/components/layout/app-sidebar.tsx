@@ -77,6 +77,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Dashboard CRM", url: "/crm/dashboard", icon: LayoutDashboard },
       { title: "Ordini", url: "/crm/orders", icon: ShoppingCart },
       { title: "Clienti", url: "/crm/customers", icon: Building2 },
+      { title: "Offerte", url: "/crm/offers", icon: FileText },
     ]
   },
   {

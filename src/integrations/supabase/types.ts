@@ -1201,6 +1201,59 @@ export type Database = {
           },
         ]
       }
+      offers: {
+        Row: {
+          amount: number
+          attachments: string[] | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          description: string | null
+          id: string
+          number: string
+          status: string
+          title: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          amount?: number
+          attachments?: string[] | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          description?: string | null
+          id?: string
+          number: string
+          status?: string
+          title: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          amount?: number
+          attachments?: string[] | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          description?: string | null
+          id?: string
+          number?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunity_activities: {
         Row: {
           activity_type: string
