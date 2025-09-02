@@ -30,6 +30,7 @@ interface WorkOrder {
   notes?: string;
   bom_id?: string;
   accessori_ids?: string[];
+  sales_order_id?: string;
   boms?: {
     name: string;
     version: string;
@@ -43,6 +44,9 @@ interface WorkOrder {
     first_name: string;
     last_name: string;
     employee_code: string;
+  };
+  sales_orders?: {
+    number: string;
   };
 }
 
@@ -94,6 +98,7 @@ export default function WorkOrdersPage() {
           *,
           boms(name, version),
           customers(name, code),
+          sales_orders(number),
           service_work_orders!production_work_order_id(id, number, title)
         `)
         .order('updated_at', { ascending: false });
@@ -834,6 +839,7 @@ export default function WorkOrdersPage() {
                   <TableHead>Numero</TableHead>
                   <TableHead>Titolo</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Ordine di Vendita</TableHead>
                   <TableHead>Tecnico</TableHead>
                   <TableHead>Priorità</TableHead>
                   <TableHead>Stato</TableHead>
@@ -844,13 +850,13 @@ export default function WorkOrdersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       Caricamento ordini di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       Nessun ordine di produzione trovato
                     </TableCell>
                   </TableRow>
@@ -875,6 +881,13 @@ export default function WorkOrdersPage() {
                             <div className="font-medium">{wo.customers.name}</div>
                             <div className="text-sm text-muted-foreground">({wo.customers.code})</div>
                           </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wo.sales_orders ? (
+                          <Badge variant="outline">{wo.sales_orders.number}</Badge>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}

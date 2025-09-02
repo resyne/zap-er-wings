@@ -31,6 +31,7 @@ interface ServiceWorkOrder {
   updated_at: string;
   notes?: string;
   production_work_order_id?: string;
+  sales_order_id?: string;
   customers?: {
     name: string;
     code: string;
@@ -50,6 +51,9 @@ interface ServiceWorkOrder {
     id: string;
     number: string;
     status: string;
+  };
+  sales_orders?: {
+    number: string;
   };
 }
 
@@ -115,6 +119,9 @@ export default function WorkOrdersServicePage() {
             first_name,
             last_name,
             company_name
+          ),
+          sales_orders (
+            number
           )
         `)
         .order('created_at', { ascending: false });
@@ -610,6 +617,7 @@ export default function WorkOrdersServicePage() {
                 <TableHead>Numero</TableHead>
                 <TableHead>Titolo</TableHead>
                 <TableHead>Cliente/Contatto</TableHead>
+                <TableHead>Ordine di Vendita</TableHead>
                 <TableHead>Tecnico</TableHead>
                 <TableHead>Priorità</TableHead>
                 <TableHead>Stato</TableHead>
@@ -620,7 +628,7 @@ export default function WorkOrdersServicePage() {
             <TableBody>
               {filteredWorkOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Nessun ordine di lavoro trovato
                   </TableCell>
                 </TableRow>
@@ -675,9 +683,16 @@ export default function WorkOrdersServicePage() {
                              )}
                            </div>
                          )}
-                       </div>
-                     </TableCell>
-                     <TableCell>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {workOrder.sales_orders ? (
+                          <Badge variant="outline">{workOrder.sales_orders.number}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                        {workOrder.technician ? (
                          <div className="space-y-1">
                            <div className="text-sm font-medium">

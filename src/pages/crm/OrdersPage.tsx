@@ -168,7 +168,8 @@ export default function OrdersPage() {
       planned_start_date: newOrder.planned_start_date || null,
       planned_end_date: newOrder.planned_end_date || null,
       notes: newOrder.notes,
-      includes_installation: newOrder.order_type === 'odpel'
+      includes_installation: newOrder.order_type === 'odpel',
+      sales_order_id: orderId
     };
 
     const { data: productionWO, error } = await supabase
@@ -194,7 +195,8 @@ export default function OrdersPage() {
       location: newOrder.location || null,
       equipment_needed: newOrder.equipment_needed || null,
       notes: newOrder.notes,
-      production_work_order_id: productionWOId || null
+      production_work_order_id: productionWOId || null,
+      sales_order_id: orderId
     };
 
     const { data: serviceWO, error } = await supabase

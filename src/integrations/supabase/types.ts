@@ -2279,6 +2279,7 @@ export type Database = {
           number: string
           priority: string | null
           production_work_order_id: string | null
+          sales_order_id: string | null
           scheduled_date: string | null
           status: string
           title: string
@@ -2302,6 +2303,7 @@ export type Database = {
           number: string
           priority?: string | null
           production_work_order_id?: string | null
+          sales_order_id?: string | null
           scheduled_date?: string | null
           status?: string
           title: string
@@ -2325,6 +2327,7 @@ export type Database = {
           number?: string
           priority?: string | null
           production_work_order_id?: string | null
+          sales_order_id?: string | null
           scheduled_date?: string | null
           status?: string
           title?: string
@@ -2350,6 +2353,13 @@ export type Database = {
             columns: ["production_work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_work_orders_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -2687,6 +2697,7 @@ export type Database = {
           planned_end_date: string | null
           planned_start_date: string | null
           priority: string | null
+          sales_order_id: string | null
           scheduled_date: string | null
           status: Database["public"]["Enums"]["wo_status"]
           title: string
@@ -2711,6 +2722,7 @@ export type Database = {
           planned_end_date?: string | null
           planned_start_date?: string | null
           priority?: string | null
+          sales_order_id?: string | null
           scheduled_date?: string | null
           status?: Database["public"]["Enums"]["wo_status"]
           title: string
@@ -2735,6 +2747,7 @@ export type Database = {
           planned_end_date?: string | null
           planned_start_date?: string | null
           priority?: string | null
+          sales_order_id?: string | null
           scheduled_date?: string | null
           status?: Database["public"]["Enums"]["wo_status"]
           title?: string
@@ -2760,6 +2773,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
         ]
