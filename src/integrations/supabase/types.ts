@@ -2298,6 +2298,122 @@ export type Database = {
           },
         ]
       }
+      shipping_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string | null
+          notes: string | null
+          quantity: number
+          shipping_order_id: string
+          total_price: number | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          notes?: string | null
+          quantity: number
+          shipping_order_id: string
+          total_price?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          notes?: string | null
+          quantity?: number
+          shipping_order_id?: string
+          total_price?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_order_items_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipping_order_items_shipping_order_id_fkey"
+            columns: ["shipping_order_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          delivered_date: string | null
+          id: string
+          notes: string | null
+          number: string
+          order_date: string
+          payment_amount: number | null
+          payment_on_delivery: boolean | null
+          preparation_date: string | null
+          ready_date: string | null
+          shipped_date: string | null
+          shipping_address: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          delivered_date?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          order_date?: string
+          payment_amount?: number | null
+          payment_on_delivery?: boolean | null
+          preparation_date?: string | null
+          ready_date?: string | null
+          shipped_date?: string | null
+          shipping_address?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          delivered_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          order_date?: string
+          payment_amount?: number | null
+          payment_on_delivery?: boolean | null
+          preparation_date?: string | null
+          ready_date?: string | null
+          shipped_date?: string | null
+          shipping_address?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -2606,6 +2722,10 @@ export type Database = {
         Returns: string
       }
       generate_service_work_order_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_shipping_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

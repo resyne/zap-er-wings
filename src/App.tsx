@@ -52,6 +52,7 @@ import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
 import MaterialsPage from "./pages/warehouse/MaterialsPage";
+import ShippingOrdersPage from "./pages/warehouse/ShippingOrdersPage";
 import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
 import EmailPage from "./pages/communication/EmailPage";
 import ArchivePage from "./pages/marketing/ArchivePage";
@@ -90,6 +91,7 @@ const App = () => (
                 <Route path="crm/orders" element={<OrdersPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
+                <Route path="warehouse/shipping-orders" element={<ShippingOrdersPage />} />
                 <Route path="wms/stock" element={<StockPage />} />
                 <Route path="wms/movements" element={<MovementsPage />} />
                 

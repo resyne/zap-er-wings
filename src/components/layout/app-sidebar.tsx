@@ -101,6 +101,7 @@ const navigationGroups: NavGroup[] = [
     title: "Magazzino",
     items: [
       { title: "Anagrafica Materiali", url: "/warehouse/materials", icon: Package2 },
+      { title: "Ordini di Spedizione", url: "/warehouse/shipping-orders", icon: Truck },
       { title: "Scorte", url: "/wms/stock", icon: Boxes },
       { title: "Movimenti", url: "/wms/movements", icon: Truck },
       
