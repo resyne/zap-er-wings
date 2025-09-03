@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import ZapierIntegration from "@/components/leads/ZapierIntegration";
+
 
 interface Lead {
   id: string;
@@ -629,18 +629,6 @@ export default function LeadsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Zapier Integration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5" />
-            Integrazione Zapier
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ZapierIntegration onWebhookSent={handleWebhookReceived} />
-        </CardContent>
-      </Card>
     </div>
   );
 }

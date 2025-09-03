@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { UserManagement } from "@/components/settings/UserManagement";
 import { RolePermissions } from "@/components/settings/RolePermissions";
 import { SystemSettings } from "@/components/settings/SystemSettings";
+import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import { PasswordChange } from "@/components/settings/PasswordChange";
 import { ProfileEdit } from "@/components/settings/ProfileEdit";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Users, Shield, Settings, AlertCircle, Lock } from "lucide-react";
+import { Users, Shield, Settings, AlertCircle, Lock, Zap } from "lucide-react";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ export function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Profilo
@@ -55,6 +56,10 @@ export function SettingsPage() {
           <TabsTrigger value="roles" className="flex items-center gap-2" disabled={!isAdmin}>
             <Shield className="h-4 w-4" />
             Ruoli e Permessi
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2" disabled={!isAdmin}>
+            <Zap className="h-4 w-4" />
+            Integrazioni
           </TabsTrigger>
           <TabsTrigger value="system" className="flex items-center gap-2" disabled={!isAdmin}>
             <Settings className="h-4 w-4" />
@@ -111,6 +116,21 @@ export function SettingsPage() {
                 <RolePermissions />
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="integrations" className="space-y-4">
+          {!isAdmin ? (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-6">
+                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  Solo gli amministratori possono gestire le integrazioni
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <IntegrationsSettings />
           )}
         </TabsContent>
 
