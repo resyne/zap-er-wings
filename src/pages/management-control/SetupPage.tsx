@@ -5,21 +5,115 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Edit, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const SetupPage = () => {
   const [activeTab, setActiveTab] = useState("chart-accounts");
+  const [chartOfAccounts, setChartOfAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedAccounts, setExpandedAccounts] = useState(new Set());
 
-  const chartOfAccounts = [
-    { code: "R001", name: "Ricavi Macchine", type: "revenue", category: "machines" },
-    { code: "R002", name: "Ricavi Installazioni", type: "revenue", category: "installations" },
-    { code: "R003", name: "Ricavi Service/Manutenzione", type: "revenue", category: "service" },
-    { code: "C001", name: "Costi Materiali", type: "cost", category: "materials" },
-    { code: "C002", name: "Costi Manodopera", type: "cost", category: "labor" },
-    { code: "O001", name: "Personale", type: "opex", category: "personnel" },
-    { code: "O002", name: "Marketing", type: "opex", category: "marketing" },
-  ];
+  useEffect(() => {
+    loadChartOfAccounts();
+  }, []);
+
+  const loadChartOfAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chart_of_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (error) throw error;
+      setChartOfAccounts(data || []);
+    } catch (error) {
+      console.error('Error loading chart of accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleExpanded = (code) => {
+    const newExpanded = new Set(expandedAccounts);
+    if (newExpanded.has(code)) {
+      newExpanded.delete(code);
+    } else {
+      newExpanded.add(code);
+    }
+    setExpandedAccounts(newExpanded);
+  };
+
+  const renderAccountHierarchy = (accounts) => {
+    const level1Accounts = accounts.filter(acc => acc.level === 1);
+    
+    return level1Accounts.map((account) => {
+      const childAccounts = accounts.filter(acc => acc.parent_code === account.code);
+      const isExpanded = expandedAccounts.has(account.code);
+      
+      return (
+        <div key={account.code} className="space-y-2">
+          {/* Level 1 Account */}
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+            <div className="flex-1">
+              <div className="flex items-center space-x-3">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => toggleExpanded(account.code)}
+                  className="p-0 h-auto"
+                >
+                  {childAccounts.length > 0 ? (
+                    isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <div className="w-4 h-4" />
+                  )}
+                </Button>
+                <span className="font-mono text-sm font-bold">{account.code}</span>
+                <span className="font-bold text-lg">{account.name}</span>
+                <Badge className={getTypeColor(account.account_type)}>
+                  {account.account_type}
+                </Badge>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">
+                <Edit className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Level 2 Accounts (Children) */}
+          {isExpanded && childAccounts.map((childAccount) => (
+            <div key={childAccount.code} className="ml-8 p-3 border rounded-lg border-l-4 border-l-primary/30">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3">
+                    <span className="font-mono text-sm font-medium">{childAccount.code}</span>
+                    <span className="font-medium">{childAccount.name}</span>
+                    <Badge variant="outline">{childAccount.category}</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    });
+  };
 
   const costCenters = [
     { code: "CC001", name: "Produzione", description: "Centro di costo per attività produttive" },
@@ -52,6 +146,8 @@ const SetupPage = () => {
       case "revenue": return "text-green-600 bg-green-100 dark:bg-green-900";
       case "cost": return "text-red-600 bg-red-100 dark:bg-red-900";
       case "opex": return "text-orange-600 bg-orange-100 dark:bg-orange-900";
+      case "depreciation": return "text-purple-600 bg-purple-100 dark:bg-purple-900";
+      case "extraordinary": return "text-blue-600 bg-blue-100 dark:bg-blue-900";
       case "capex": return "text-blue-600 bg-blue-100 dark:bg-blue-900";
       default: return "text-gray-600 bg-gray-100 dark:bg-gray-900";
     }
@@ -92,30 +188,15 @@ const SetupPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {chartOfAccounts.map((account) => (
-                  <div key={account.code} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <span className="font-mono text-sm font-medium">{account.code}</span>
-                        <span className="font-medium">{account.name}</span>
-                        <Badge className={getTypeColor(account.type)}>
-                          {account.type}
-                        </Badge>
-                        <Badge variant="outline">{account.category}</Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div>Caricamento...</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {renderAccountHierarchy(chartOfAccounts)}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
