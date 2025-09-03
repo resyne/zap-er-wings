@@ -142,6 +142,15 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Controllo di Gestione",
+    items: [
+      { title: "Dashboard CEO", url: "/management-control", icon: LayoutDashboard },
+      { title: "Setup", url: "/management-control/setup", icon: Settings },
+      { title: "Commesse", url: "/management-control/projects", icon: Target },
+      { title: "Budget & Forecast", url: "/management-control/budget", icon: BarChart3 },
+    ]
+  },
+  {
     title: "Risorse Umane",
     items: [
       { title: "Personale", url: "/hr/people", icon: Users },
