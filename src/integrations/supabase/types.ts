@@ -188,6 +188,106 @@ export type Database = {
           },
         ]
       }
+      budget: {
+        Row: {
+          account_id: string
+          actual_amount: number | null
+          budgeted_amount: number
+          cost_center_id: string | null
+          created_at: string | null
+          id: string
+          month: number
+          profit_center_id: string | null
+          updated_at: string | null
+          variance: number | null
+          variance_percent: number | null
+          year: number
+        }
+        Insert: {
+          account_id: string
+          actual_amount?: number | null
+          budgeted_amount: number
+          cost_center_id?: string | null
+          created_at?: string | null
+          id?: string
+          month: number
+          profit_center_id?: string | null
+          updated_at?: string | null
+          variance?: number | null
+          variance_percent?: number | null
+          year: number
+        }
+        Update: {
+          account_id?: string
+          actual_amount?: number | null
+          budgeted_amount?: number
+          cost_center_id?: string | null
+          created_at?: string | null
+          id?: string
+          month?: number
+          profit_center_id?: string | null
+          updated_at?: string | null
+          variance?: number | null
+          variance_percent?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chart_of_accounts: {
+        Row: {
+          account_type: string
+          category: string | null
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_type: string
+          category?: string | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_type?: string
+          category?: string | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null
@@ -287,6 +387,36 @@ export type Database = {
           message?: string | null
           name?: string
           phone?: string | null
+        }
+        Relationships: []
+      }
+      cost_centers: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -623,6 +753,78 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_invoices: {
+        Row: {
+          aging_days: number | null
+          amount: number
+          created_at: string | null
+          customer_id: string | null
+          customer_name: string
+          due_date: string
+          id: string
+          invoice_date: string
+          invoice_number: string
+          payment_date: string | null
+          profit_center_id: string | null
+          project_id: string | null
+          status: string | null
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          aging_days?: number | null
+          amount: number
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name: string
+          due_date: string
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          payment_date?: string | null
+          profit_center_id?: string | null
+          project_id?: string | null
+          status?: string | null
+          tax_amount?: number | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          aging_days?: number | null
+          amount?: number
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          payment_date?: string | null
+          profit_center_id?: string | null
+          project_id?: string | null
+          status?: string | null
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_invoices_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           active: boolean | null
@@ -883,6 +1085,53 @@ export type Database = {
         }
         Relationships: []
       }
+      forecast: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          forecast_date: string
+          forecast_type: string
+          id: string
+          probability: number | null
+          project_id: string | null
+          scenario: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          forecast_date: string
+          forecast_type: string
+          id?: string
+          probability?: number | null
+          project_id?: string | null
+          scenario?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          forecast_date?: string
+          forecast_type?: string
+          id?: string
+          probability?: number | null
+          project_id?: string | null
+          scenario?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecast_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employees: {
         Row: {
           created_at: string
@@ -1100,6 +1349,42 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_drivers: {
+        Row: {
+          created_at: string | null
+          current_value: number | null
+          description: string | null
+          id: string
+          name: string
+          period_type: string | null
+          target_value: number | null
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          name: string
+          period_type?: string | null
+          target_value?: number | null
+          unit: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          name?: string
+          period_type?: string | null
+          target_value?: number | null
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -1144,6 +1429,248 @@ export type Database = {
           value?: number | null
         }
         Relationships: []
+      }
+      ledger_entries: {
+        Row: {
+          amount: number
+          bank_account: string | null
+          cost_center_id: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_invoice_id: string | null
+          description: string
+          entry_date: string
+          entry_type: string
+          id: string
+          profit_center_id: string | null
+          reference_number: string | null
+          supplier_invoice_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account?: string | null
+          cost_center_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_invoice_id?: string | null
+          description: string
+          entry_date: string
+          entry_type: string
+          id?: string
+          profit_center_id?: string | null
+          reference_number?: string | null
+          supplier_invoice_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account?: string | null
+          cost_center_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_invoice_id?: string | null
+          description?: string
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          profit_center_id?: string | null
+          reference_number?: string | null
+          supplier_invoice_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_customer_invoice_id_fkey"
+            columns: ["customer_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "customer_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logistics_expenses: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          project_id: string
+          supplier_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          expense_date: string
+          expense_type: string
+          id?: string
+          project_id: string
+          supplier_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          project_id?: string
+          supplier_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistics_expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      management_projects: {
+        Row: {
+          actual_costs: number | null
+          actual_revenue: number | null
+          code: string
+          created_at: string | null
+          customer_id: string | null
+          customer_name: string
+          end_date: string | null
+          estimated_costs: number | null
+          estimated_revenue: number | null
+          id: string
+          machine_model: string | null
+          profit_center_id: string | null
+          project_type: string
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_costs?: number | null
+          actual_revenue?: number | null
+          code: string
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name: string
+          end_date?: string | null
+          estimated_costs?: number | null
+          estimated_revenue?: number | null
+          id?: string
+          machine_model?: string | null
+          profit_center_id?: string | null
+          project_type: string
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_costs?: number | null
+          actual_revenue?: number | null
+          code?: string
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          end_date?: string | null
+          estimated_costs?: number | null
+          estimated_revenue?: number | null
+          id?: string
+          machine_model?: string | null
+          profit_center_id?: string | null
+          project_type?: string
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_projects_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      management_timesheets: {
+        Row: {
+          activity_type: string | null
+          created_at: string | null
+          date: string
+          description: string | null
+          hourly_rate: number
+          hours: number
+          id: string
+          project_id: string | null
+          technician_id: string | null
+          technician_name: string
+          total_cost: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activity_type?: string | null
+          created_at?: string | null
+          date: string
+          description?: string | null
+          hourly_rate: number
+          hours: number
+          id?: string
+          project_id?: string | null
+          technician_id?: string | null
+          technician_name: string
+          total_cost?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activity_type?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          hourly_rate?: number
+          hours?: number
+          id?: string
+          project_id?: string | null
+          technician_id?: string | null
+          technician_name?: string
+          total_cost?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_timesheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       marketing_materials: {
         Row: {
@@ -1629,6 +2156,89 @@ export type Database = {
           user_type?: string | null
         }
         Relationships: []
+      }
+      profit_centers: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          machine_model: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          machine_model?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          machine_model?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      project_materials: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_kit: boolean | null
+          material_id: string | null
+          material_name: string
+          project_id: string
+          quantity: number
+          total_cost: number | null
+          unit_cost: number
+          updated_at: string | null
+          usage_date: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_kit?: boolean | null
+          material_id?: string | null
+          material_name: string
+          project_id: string
+          quantity: number
+          total_cost?: number | null
+          unit_cost: number
+          updated_at?: string | null
+          usage_date?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_kit?: boolean | null
+          material_id?: string | null
+          material_name?: string
+          project_id?: string
+          quantity?: number
+          total_cost?: number | null
+          unit_cost?: number
+          updated_at?: string | null
+          usage_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_materials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchase_order_confirmations: {
         Row: {
@@ -2216,6 +2826,57 @@ export type Database = {
           },
         ]
       }
+      service_contracts: {
+        Row: {
+          annual_revenue: number | null
+          contract_number: string
+          created_at: string | null
+          customer_id: string | null
+          customer_name: string
+          days_to_renewal: number | null
+          end_date: string
+          id: string
+          machine_model: string | null
+          monthly_revenue: number
+          renewal_date: string | null
+          start_date: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          annual_revenue?: number | null
+          contract_number: string
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name: string
+          days_to_renewal?: number | null
+          end_date: string
+          id?: string
+          machine_model?: string | null
+          monthly_revenue: number
+          renewal_date?: string | null
+          start_date: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          annual_revenue?: number | null
+          contract_number?: string
+          created_at?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          days_to_renewal?: number | null
+          end_date?: string
+          id?: string
+          machine_model?: string | null
+          monthly_revenue?: number
+          renewal_date?: string | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       service_reports: {
         Row: {
           contact_id: string | null
@@ -2551,6 +3212,48 @@ export type Database = {
           },
         ]
       }
+      standard_costs: {
+        Row: {
+          cost_type: string
+          created_at: string | null
+          description: string
+          id: string
+          is_active: boolean | null
+          machine_model: string | null
+          unit: string
+          unit_cost: number
+          updated_at: string | null
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          cost_type: string
+          created_at?: string | null
+          description: string
+          id?: string
+          is_active?: boolean | null
+          machine_model?: string | null
+          unit: string
+          unit_cost: number
+          updated_at?: string | null
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          cost_type?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          is_active?: boolean | null
+          machine_model?: string | null
+          unit?: string
+          unit_cost?: number
+          updated_at?: string | null
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -2589,6 +3292,81 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      supplier_invoices: {
+        Row: {
+          aging_days: number | null
+          amount: number
+          category: string
+          cost_center_id: string | null
+          created_at: string | null
+          due_date: string
+          id: string
+          invoice_date: string
+          invoice_number: string
+          payment_date: string | null
+          project_id: string | null
+          status: string | null
+          supplier_id: string | null
+          supplier_name: string
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          aging_days?: number | null
+          amount: number
+          category: string
+          cost_center_id?: string | null
+          created_at?: string | null
+          due_date: string
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          payment_date?: string | null
+          project_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          supplier_name: string
+          tax_amount?: number | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          aging_days?: number | null
+          amount?: number
+          category?: string
+          cost_center_id?: string | null
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          payment_date?: string | null
+          project_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          supplier_name?: string
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoices_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
@@ -2882,6 +3660,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_aging_days: {
+        Args: { due_date: string; payment_date: string; status: string }
+        Returns: number
+      }
+      calculate_days_to_renewal: {
+        Args: { renewal_date: string }
+        Returns: number
+      }
       generate_customer_code: {
         Args: Record<PropertyKey, never>
         Returns: string

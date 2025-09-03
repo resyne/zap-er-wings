@@ -40,6 +40,10 @@ import InstallersPage from "./pages/partnerships/InstallersPage";
 import ResellersPage from "./pages/partnerships/ResellersPage";
 import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
 import InvoicesPage from "./pages/finance/InvoicesPage";
+import ManagementControlPage from "./pages/management-control/ManagementControlPage";
+import SetupPage from "./pages/management-control/SetupPage";
+import ProjectsPage from "./pages/management-control/ProjectsPage";
+import BudgetPage from "./pages/management-control/BudgetPage";
 import FluidaPage from "./pages/hr/FluidaPage";
 import DocumentationPage from "./pages/documentation/DocumentationPage";
 import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
@@ -113,6 +117,10 @@ const App = () => (
                 <Route path="partnerships/resellers" element={<ResellersPage />} />
                 <Route path="finance/prima-nota" element={<PrimaNotaPage />} />
                 <Route path="finance/invoices" element={<InvoicesPage />} />
+                <Route path="management-control" element={<ManagementControlPage />} />
+                <Route path="management-control/setup" element={<SetupPage />} />
+                <Route path="management-control/projects" element={<ProjectsPage />} />
+                <Route path="management-control/budget" element={<BudgetPage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />
                 <Route path="docs" element={<DocumentationPage />} />
                 <Route path="docs/technical-sheets" element={<TechnicalSheetsPage />} />
