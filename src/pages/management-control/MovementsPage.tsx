@@ -56,6 +56,7 @@ interface SalesOrder {
 }
 
 export default function MovementsPage() {
+  console.log("Management Control MovementsPage loaded");
   const [movements, setMovements] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [profitCenters, setProfitCenters] = useState<ProfitCenter[]>([]);
