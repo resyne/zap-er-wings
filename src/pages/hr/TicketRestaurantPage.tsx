@@ -1,7 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UtensilsCrossed } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { UtensilsCrossed, ExternalLink } from "lucide-react";
 
 export default function TicketRestaurantPage() {
+  const handleOpenPortal = () => {
+    window.open("https://clienti.ticketxte.com", "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -21,17 +26,19 @@ export default function TicketRestaurantPage() {
             Accesso al sistema di gestione ticket restaurant
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="w-full h-[800px] rounded-lg border bg-muted/50">
-            <iframe
-              src="https://clienti.ticketxte.com"
-              className="w-full h-full rounded-lg"
-              title="TicketXTE Portal"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation"
-            />
+        <CardContent className="space-y-6">
+          <div className="text-center">
+            <Button 
+              onClick={handleOpenPortal}
+              size="lg"
+              className="flex items-center gap-2"
+            >
+              <ExternalLink className="h-5 w-5" />
+              Apri Portale TicketXTE
+            </Button>
           </div>
           
-          <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+          <div className="p-4 bg-muted/50 rounded-lg">
             <h3 className="font-semibold mb-2">Credenziali di accesso:</h3>
             <div className="space-y-1 text-sm text-muted-foreground">
               <p><strong>Username:</strong> elefantes</p>
