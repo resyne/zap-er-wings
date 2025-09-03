@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Upload, FileText, CheckCircle, AlertCircle, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,6 +43,7 @@ export function InvoiceXMLImporter({ onSuccess }: InvoiceXMLImporterProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [parsedInvoices, setParsedInvoices] = useState<ParsedInvoice[]>([]);
+  const [xmlPreview, setXmlPreview] = useState<{ fileName: string; content: string } | null>(null);
   const { toast } = useToast();
 
   const parseXMLFile = async (file: File): Promise<ParsedInvoice | null> => {
@@ -135,6 +138,10 @@ export function InvoiceXMLImporter({ onSuccess }: InvoiceXMLImporterProps) {
 
     for (const file of files) {
       if (file.type === "text/xml" || file.name.endsWith(".xml")) {
+        // Store XML content for preview
+        const xmlContent = await file.text();
+        setXmlPreview({ fileName: file.name, content: xmlContent });
+        
         const result = await parseXMLFile(file);
         if (result) {
           parsed.push(result);
@@ -343,84 +350,121 @@ export function InvoiceXMLImporter({ onSuccess }: InvoiceXMLImporterProps) {
             </CardContent>
           </Card>
 
-          {/* Parsed Invoices */}
-          {parsedInvoices.length > 0 && (
+          {/* Results Tabs */}
+          {(parsedInvoices.length > 0 || xmlPreview) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  Fatture Analizzate ({parsedInvoices.length})
+                  Risultati Analisi
                 </CardTitle>
                 <CardDescription>
-                  Verifica i dati delle fatture prima dell'importazione
+                  Verifica i dati delle fatture e visualizza l'XML originale
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {parsedInvoices.map((invoice, index) => (
-                    <Card key={index} className="border-l-4 border-l-blue-500">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">
-                              Fattura {invoice.invoice.number}
-                            </CardTitle>
-                            <CardDescription>
-                              {invoice.supplier.name} - {invoice.supplier.vatNumber}
-                            </CardDescription>
+                <Tabs defaultValue="parsed" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="parsed" disabled={parsedInvoices.length === 0}>
+                      Fatture Analizzate ({parsedInvoices.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="xml" disabled={!xmlPreview}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Anteprima XML
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="parsed" className="space-y-4 mt-4">
+                    {parsedInvoices.map((invoice, index) => (
+                      <Card key={index} className="border-l-4 border-l-blue-500">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg">
+                                Fattura {invoice.invoice.number}
+                              </CardTitle>
+                              <CardDescription>
+                                {invoice.supplier.name} - {invoice.supplier.vatNumber}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline">
+                              €{invoice.invoice.totalAmount.toLocaleString()}
+                            </Badge>
                           </div>
-                          <Badge variant="outline">
-                            €{invoice.invoice.totalAmount.toLocaleString()}
-                          </Badge>
+                        </CardHeader>
+                        <CardContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Conto</TableHead>
+                                <TableHead>Descrizione</TableHead>
+                                <TableHead className="text-right">Dare</TableHead>
+                                <TableHead className="text-right">Avere</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell className="font-medium">4010</TableCell>
+                                <TableCell>Acquisti</TableCell>
+                                <TableCell className="text-right">€{invoice.invoice.netAmount.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">-</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">1410</TableCell>
+                                <TableCell>IVA a credito</TableCell>
+                                <TableCell className="text-right">€{invoice.invoice.vatAmount.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">-</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">2010</TableCell>
+                                <TableCell>Debiti vs fornitori - {invoice.supplier.name}</TableCell>
+                                <TableCell className="text-right">-</TableCell>
+                                <TableCell className="text-right">€{invoice.invoice.totalAmount.toLocaleString()}</TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                    {parsedInvoices.length > 0 && (
+                      <div className="flex justify-between items-center mt-6 p-4 bg-muted rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-5 w-5 text-amber-600" />
+                          <span className="text-sm font-medium">
+                            I movimenti verranno creati con stato "Incompleto" per permettere la classificazione manuale
+                          </span>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Conto</TableHead>
-                              <TableHead>Descrizione</TableHead>
-                              <TableHead className="text-right">Dare</TableHead>
-                              <TableHead className="text-right">Avere</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium">4010</TableCell>
-                              <TableCell>Acquisti</TableCell>
-                              <TableCell className="text-right">€{invoice.invoice.netAmount.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">-</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">1410</TableCell>
-                              <TableCell>IVA a credito</TableCell>
-                              <TableCell className="text-right">€{invoice.invoice.vatAmount.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">-</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">2010</TableCell>
-                              <TableCell>Debiti vs fornitori - {invoice.supplier.name}</TableCell>
-                              <TableCell className="text-right">-</TableCell>
-                              <TableCell className="text-right">€{invoice.invoice.totalAmount.toLocaleString()}</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                <div className="flex justify-between items-center mt-6 p-4 bg-muted rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
-                    <span className="text-sm font-medium">
-                      I movimenti verranno creati con stato "Incompleto" per permettere la classificazione manuale
-                    </span>
-                  </div>
-                  <Button onClick={importInvoices} disabled={loading}>
-                    {loading ? "Importazione..." : `Importa ${parsedInvoices.length} Fatture`}
-                  </Button>
-                </div>
+                        <Button onClick={importInvoices} disabled={loading}>
+                          {loading ? "Importazione..." : `Importa ${parsedInvoices.length} Fatture`}
+                        </Button>
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="xml" className="mt-4">
+                    {xmlPreview && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            {xmlPreview.fileName}
+                          </CardTitle>
+                          <CardDescription>
+                            Contenuto originale del file XML
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ScrollArea className="h-96 w-full rounded-md border">
+                            <pre className="p-4 text-sm font-mono whitespace-pre-wrap">
+                              {xmlPreview.content}
+                            </pre>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}
