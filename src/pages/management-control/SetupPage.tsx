@@ -12,25 +12,49 @@ import { supabase } from "@/integrations/supabase/client";
 const SetupPage = () => {
   const [activeTab, setActiveTab] = useState("chart-accounts");
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
+  const [costCenters, setCostCenters] = useState([]);
+  const [profitCenters, setProfitCenters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedAccounts, setExpandedAccounts] = useState(new Set());
 
   useEffect(() => {
-    loadChartOfAccounts();
+    loadData();
   }, []);
 
-  const loadChartOfAccounts = async () => {
+  const loadData = async () => {
     try {
-      const { data, error } = await supabase
+      // Load chart of accounts
+      const { data: chartData, error: chartError } = await supabase
         .from('chart_of_accounts')
         .select('*')
         .eq('is_active', true)
         .order('sort_order');
 
-      if (error) throw error;
-      setChartOfAccounts(data || []);
+      if (chartError) throw chartError;
+      setChartOfAccounts(chartData || []);
+
+      // Load cost centers
+      const { data: costData, error: costError } = await supabase
+        .from('cost_centers')
+        .select('*')
+        .eq('is_active', true)
+        .order('code');
+
+      if (costError) throw costError;
+      setCostCenters(costData || []);
+
+      // Load profit centers
+      const { data: profitData, error: profitError } = await supabase
+        .from('profit_centers')
+        .select('*')
+        .eq('is_active', true)
+        .order('code');
+
+      if (profitError) throw profitError;
+      setProfitCenters(profitData || []);
+
     } catch (error) {
-      console.error('Error loading chart of accounts:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -115,19 +139,59 @@ const SetupPage = () => {
     });
   };
 
-  const costCenters = [
-    { code: "CC001", name: "Produzione", description: "Centro di costo per attività produttive" },
-    { code: "CC002", name: "Installazioni", description: "Centro di costo per installazioni" },
-    { code: "CC003", name: "Service/Manutenzione", description: "Centro di costo per service e manutenzione" },
-    { code: "CC004", name: "Commerciale & Marketing", description: "Centro di costo per attività commerciali" },
-    { code: "CC005", name: "Amministrazione", description: "Centro di costo per attività amministrative" },
-  ];
+  const renderCostCenters = () => {
+    return costCenters.map((center) => (
+      <div key={center.code} className="flex items-center justify-between p-4 border rounded-lg">
+        <div className="flex-1">
+          <div className="flex items-center space-x-3 mb-2">
+            <span className="font-mono text-sm font-medium">{center.code}</span>
+            <span className="font-medium">{center.name}</span>
+            {center.account_code && (
+              <Badge variant="secondary" className="text-xs">
+                → {center.account_code}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{center.description}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm">
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    ));
+  };
 
-  const profitCenters = [
-    { code: "PC001", name: "Macchine", description: "Centro di profitto per vendita macchine" },
-    { code: "PC002", name: "Installazioni", description: "Centro di profitto per installazioni" },
-    { code: "PC003", name: "Service/Manutenzione", description: "Centro di profitto per service e manutenzione" },
-  ];
+  const renderProfitCenters = () => {
+    return profitCenters.map((center) => (
+      <div key={center.code} className="flex items-center justify-between p-4 border rounded-lg">
+        <div className="flex-1">
+          <div className="flex items-center space-x-3 mb-2">
+            <span className="font-mono text-sm font-medium">{center.code}</span>
+            <span className="font-medium">{center.name}</span>
+            {center.account_code && (
+              <Badge variant="secondary" className="text-xs">
+                → {center.account_code}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{center.description}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm">
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    ));
+  };
 
   const standardCosts = [
     { type: "technician_hour", description: "Ora tecnico installazione standard", cost: 45.00, unit: "hour" },
@@ -218,27 +282,15 @@ const SetupPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {costCenters.map((center) => (
-                  <div key={center.code} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <span className="font-mono text-sm font-medium">{center.code}</span>
-                        <span className="font-medium">{center.name}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{center.description}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div>Caricamento...</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {renderCostCenters()}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -260,27 +312,15 @@ const SetupPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {profitCenters.map((center) => (
-                  <div key={center.code} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <span className="font-mono text-sm font-medium">{center.code}</span>
-                        <span className="font-medium">{center.name}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{center.description}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div>Caricamento...</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {renderProfitCenters()}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

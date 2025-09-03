@@ -401,6 +401,7 @@ export type Database = {
       }
       cost_centers: {
         Row: {
+          account_code: string | null
           code: string
           created_at: string | null
           description: string | null
@@ -410,6 +411,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          account_code?: string | null
           code: string
           created_at?: string | null
           description?: string | null
@@ -419,6 +421,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          account_code?: string | null
           code?: string
           created_at?: string | null
           description?: string | null
@@ -2259,6 +2262,7 @@ export type Database = {
       }
       profit_centers: {
         Row: {
+          account_code: string | null
           code: string
           created_at: string | null
           description: string | null
@@ -2269,6 +2273,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          account_code?: string | null
           code: string
           created_at?: string | null
           description?: string | null
@@ -2279,6 +2284,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          account_code?: string | null
           code?: string
           created_at?: string | null
           description?: string | null
