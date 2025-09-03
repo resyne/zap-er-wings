@@ -781,12 +781,18 @@ export default function ShippingOrdersPage() {
         <DialogContent className="max-w-6xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Tracking Spedizione</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Sistema di tracciamento per ordini spediti
+            </p>
           </DialogHeader>
           <div className="w-full h-[600px]">
             <iframe
               src="http://dg.netup.eu:3683/esLogin.aspx"
               className="w-full h-full border-0 rounded-lg"
               title="Sistema di Tracking"
+              allow="cross-origin-isolated"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation"
+              referrerPolicy="no-referrer-when-downgrade"
             />
           </div>
         </DialogContent>
