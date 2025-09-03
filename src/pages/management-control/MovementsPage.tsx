@@ -9,6 +9,7 @@ import { Plus, Search, FileText, TrendingUp, TrendingDown, Upload, Edit, Trash2 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { GLEntryDialog } from "@/components/movements/GLEntryDialog";
+import { InvoiceXMLImporter } from "@/components/movements/InvoiceXMLImporter";
 
 interface GLEntry {
   id: string;
@@ -168,10 +169,7 @@ export default function MovementsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Importa
-          </Button>
+          <InvoiceXMLImporter onSuccess={loadData} />
           <GLEntryDialog 
             open={isAddDialogOpen} 
             onOpenChange={setIsAddDialogOpen}
