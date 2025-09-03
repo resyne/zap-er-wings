@@ -26,9 +26,20 @@ interface GLEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  editData?: {
+    id: string;
+    date: string;
+    doc_type: string;
+    doc_ref?: string;
+    description: string;
+    cost_center_id?: string;
+    profit_center_id?: string;
+    job_id?: string;
+    gl_entry_line: GLEntryLine[];
+  };
 }
 
-export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogProps) {
+export function GLEntryDialog({ open, onOpenChange, onSuccess, editData }: GLEntryDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -55,8 +66,34 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
   useEffect(() => {
     if (open) {
       loadData();
+      if (editData) {
+        // Load existing data for editing
+        setEntry({
+          date: editData.date,
+          doc_type: editData.doc_type as any,
+          doc_ref: editData.doc_ref || '',
+          description: editData.description,
+          cost_center_id: editData.cost_center_id || '',
+          profit_center_id: editData.profit_center_id || '',
+          job_id: editData.job_id || '',
+          origin_module: 'Manual'
+        });
+        setLines(editData.gl_entry_line.map(line => ({
+          id: line.id,
+          gl_account_id: line.gl_account_id,
+          debit: line.debit || 0,
+          credit: line.credit || 0,
+          vat_rate: line.vat_rate,
+          cost_center_id: line.cost_center_id,
+          profit_center_id: line.profit_center_id,
+          job_id: line.job_id,
+          notes: line.notes
+        })));
+      } else {
+        resetForm();
+      }
     }
-  }, [open]);
+  }, [open, editData]);
 
   const loadData = async () => {
     try {
@@ -138,42 +175,94 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
 
     setLoading(true);
     try {
-      // Create GL entry
-      const { data: glEntry, error: entryError } = await supabase
-        .from('gl_entry')
-        .insert([{
-          ...entry,
-          cost_center_id: entry.cost_center_id || null,
-          profit_center_id: entry.profit_center_id || null,
-          job_id: entry.job_id || null,
-          created_by: (await supabase.auth.getUser()).data.user?.id
-        }])
-        .select()
-        .single();
+      if (editData) {
+        // Update existing GL entry
+        const { error: entryError } = await supabase
+          .from('gl_entry')
+          .update({
+            date: entry.date,
+            doc_type: entry.doc_type,
+            doc_ref: entry.doc_ref || null,
+            description: entry.description,
+            cost_center_id: entry.cost_center_id || null,
+            profit_center_id: entry.profit_center_id || null,
+            job_id: entry.job_id || null,
+          })
+          .eq('id', editData.id);
 
-      if (entryError) throw entryError;
+        if (entryError) throw entryError;
 
-      // Create GL entry lines
-      const linesToInsert = lines
-        .filter(line => line.gl_account_id && (line.debit > 0 || line.credit > 0))
-        .map(line => ({
-          gl_entry_id: glEntry.id,
-          ...line,
-          cost_center_id: line.cost_center_id || entry.cost_center_id || null,
-          profit_center_id: line.profit_center_id || entry.profit_center_id || null,
-          job_id: line.job_id || entry.job_id || null
-        }));
+        // Delete existing lines
+        const { error: deleteError } = await supabase
+          .from('gl_entry_line')
+          .delete()
+          .eq('gl_entry_id', editData.id);
 
-      const { error: linesError } = await supabase
-        .from('gl_entry_line')
-        .insert(linesToInsert);
+        if (deleteError) throw deleteError;
 
-      if (linesError) throw linesError;
+        // Insert updated lines
+        const linesToInsert = lines
+          .filter(line => line.gl_account_id && (line.debit > 0 || line.credit > 0))
+          .map(line => ({
+            gl_entry_id: editData.id,
+            gl_account_id: line.gl_account_id,
+            debit: line.debit || 0,
+            credit: line.credit || 0,
+            vat_rate: line.vat_rate,
+            cost_center_id: line.cost_center_id || entry.cost_center_id || null,
+            profit_center_id: line.profit_center_id || entry.profit_center_id || null,
+            job_id: line.job_id || entry.job_id || null,
+            notes: line.notes
+          }));
 
-      toast({
-        title: "Successo",
-        description: "Movimento contabile creato con successo",
-      });
+        const { error: linesError } = await supabase
+          .from('gl_entry_line')
+          .insert(linesToInsert);
+
+        if (linesError) throw linesError;
+
+        toast({
+          title: "Successo",
+          description: "Movimento contabile aggiornato con successo",
+        });
+      } else {
+        // Create new GL entry
+        const { data: glEntry, error: entryError } = await supabase
+          .from('gl_entry')
+          .insert([{
+            ...entry,
+            cost_center_id: entry.cost_center_id || null,
+            profit_center_id: entry.profit_center_id || null,
+            job_id: entry.job_id || null,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+          }])
+          .select()
+          .single();
+
+        if (entryError) throw entryError;
+
+        // Create GL entry lines
+        const linesToInsert = lines
+          .filter(line => line.gl_account_id && (line.debit > 0 || line.credit > 0))
+          .map(line => ({
+            gl_entry_id: glEntry.id,
+            ...line,
+            cost_center_id: line.cost_center_id || entry.cost_center_id || null,
+            profit_center_id: line.profit_center_id || entry.profit_center_id || null,
+            job_id: line.job_id || entry.job_id || null
+          }));
+
+        const { error: linesError } = await supabase
+          .from('gl_entry_line')
+          .insert(linesToInsert);
+
+        if (linesError) throw linesError;
+
+        toast({
+          title: "Successo",
+          description: "Movimento contabile creato con successo",
+        });
+      }
 
       onSuccess();
       onOpenChange(false);
@@ -215,9 +304,9 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nuovo Movimento Contabile</DialogTitle>
+          <DialogTitle>{editData ? 'Modifica Movimento Contabile' : 'Nuovo Movimento Contabile'}</DialogTitle>
           <DialogDescription>
-            Crea un nuovo movimento con righe contabili bilanciate
+            {editData ? 'Modifica il movimento con righe contabili bilanciate' : 'Crea un nuovo movimento con righe contabili bilanciate'}
           </DialogDescription>
         </DialogHeader>
 

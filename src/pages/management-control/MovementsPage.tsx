@@ -47,6 +47,7 @@ export default function MovementsPage() {
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<GLEntry | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -146,6 +147,48 @@ export default function MovementsPage() {
     return movement.gl_entry_line.reduce((sum, line) => sum + Math.max(line.debit, line.credit), 0);
   };
 
+  const handleEdit = (movement: GLEntry) => {
+    setEditingMovement(movement);
+  };
+
+  const handleDelete = async (movementId: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo movimento contabile? Questa azione non può essere annullata.")) {
+      return;
+    }
+
+    try {
+      // First delete the lines
+      const { error: linesError } = await supabase
+        .from('gl_entry_line')
+        .delete()
+        .eq('gl_entry_id', movementId);
+
+      if (linesError) throw linesError;
+
+      // Then delete the entry
+      const { error: entryError } = await supabase
+        .from('gl_entry')
+        .delete()
+        .eq('id', movementId);
+
+      if (entryError) throw entryError;
+
+      toast({
+        title: "Successo",
+        description: "Movimento contabile eliminato con successo",
+      });
+
+      loadData();
+    } catch (error) {
+      console.error('Error deleting movement:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione del movimento",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Calculate summary
   const summary = {
     totalDebits: movements.reduce((sum, m) => sum + m.gl_entry_line.reduce((lineSum, line) => lineSum + line.debit, 0), 0),
@@ -175,6 +218,17 @@ export default function MovementsPage() {
             onOpenChange={setIsAddDialogOpen}
             onSuccess={loadData}
           />
+          {editingMovement && (
+            <GLEntryDialog 
+              open={!!editingMovement} 
+              onOpenChange={(open) => !open && setEditingMovement(null)}
+              onSuccess={() => {
+                loadData();
+                setEditingMovement(null);
+              }}
+              editData={editingMovement}
+            />
+          )}
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nuovo Movimento
@@ -338,10 +392,20 @@ export default function MovementsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEdit(movement)}
+                        title="Modifica movimento"
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDelete(movement.id)}
+                        title="Elimina movimento"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
