@@ -73,8 +73,8 @@ export default function MovementsPage() {
     amount: '',
     description: '',
     reference_number: '',
-    profit_center_id: '',
-    project_id: '',
+    profit_center_id: 'none',
+    project_id: 'none',
     account_id: '',
     document_type: '',
     document_number: '',
@@ -205,8 +205,8 @@ export default function MovementsPage() {
           amount: parseFloat(newMovement.amount),
           description: newMovement.description,
           reference_number: newMovement.reference_number || null,
-          profit_center_id: newMovement.profit_center_id || null,
-          project_id: newMovement.project_id || null,
+          profit_center_id: newMovement.profit_center_id === "none" ? null : newMovement.profit_center_id,
+          project_id: newMovement.project_id === "none" ? null : newMovement.project_id,
           account_id: newMovement.account_id,
           document_type: newMovement.document_type || null,
           document_number: newMovement.document_number || null,
@@ -231,8 +231,8 @@ export default function MovementsPage() {
         amount: '',
         description: '',
         reference_number: '',
-        profit_center_id: '',
-        project_id: '',
+        profit_center_id: 'none',
+        project_id: 'none',
         account_id: '',
         document_type: '',
         document_number: '',
@@ -355,12 +355,12 @@ export default function MovementsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="profit_center_id">Centro di Profitto</Label>
-                  <Select value={newMovement.profit_center_id} onValueChange={(value) => setNewMovement(prev => ({ ...prev, profit_center_id: value }))}>
+                  <Select value={newMovement.profit_center_id || "none"} onValueChange={(value) => setNewMovement(prev => ({ ...prev, profit_center_id: value === "none" ? "" : value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona centro di profitto" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="none">Nessuno</SelectItem>
                       {profitCenters.map(pc => (
                         <SelectItem key={pc.id} value={pc.id}>
                           {pc.code} - {pc.name}
@@ -371,12 +371,12 @@ export default function MovementsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="project_id">Commessa</Label>
-                  <Select value={newMovement.project_id} onValueChange={(value) => setNewMovement(prev => ({ ...prev, project_id: value }))}>
+                  <Select value={newMovement.project_id || "none"} onValueChange={(value) => setNewMovement(prev => ({ ...prev, project_id: value === "none" ? "" : value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona commessa" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuna</SelectItem>
+                      <SelectItem value="none">Nessuna</SelectItem>
                       {projects.map(project => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.code} - {project.customer_name}
