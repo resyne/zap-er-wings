@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, Package, Truck, CheckCircle } from "lucide-react";
+import { Plus, FileText, Package, Truck, CheckCircle, MapPin } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 
 interface ShippingOrder {
@@ -94,6 +94,7 @@ export default function ShippingOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<ShippingOrder | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isTrackingDialogOpen, setIsTrackingDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -438,6 +439,16 @@ export default function ShippingOrdersPage() {
                           Genera DDT
                         </Button>
                       )}
+                      {order.status === "spedito" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsTrackingDialogOpen(true)}
+                        >
+                          <MapPin className="w-4 h-4 mr-1" />
+                          Tracking
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -762,6 +773,22 @@ export default function ShippingOrdersPage() {
               </div>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Tracking Dialog */}
+      <Dialog open={isTrackingDialogOpen} onOpenChange={setIsTrackingDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Tracking Spedizione</DialogTitle>
+          </DialogHeader>
+          <div className="w-full h-[600px]">
+            <iframe
+              src="http://dg.netup.eu:3683/esLogin.aspx"
+              className="w-full h-full border-0 rounded-lg"
+              title="Sistema di Tracking"
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
