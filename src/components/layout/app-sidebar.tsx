@@ -30,7 +30,8 @@ import {
   ShieldCheck,
   BookOpen,
   Calendar,
-  Mail
+  Mail,
+  UtensilsCrossed
 } from "lucide-react";
 
 import {
@@ -161,6 +162,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Rimborsi", url: "/hr/expenses", icon: DollarSign },
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },
       { title: "Fluida", url: "/hr/fluida", icon: Users },
+      { title: "Ticket Restaurant", url: "/hr/ticket-restaurant", icon: UtensilsCrossed },
     ]
   },
   {
