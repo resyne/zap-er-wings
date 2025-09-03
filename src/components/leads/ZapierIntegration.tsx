@@ -250,14 +250,35 @@ export default function ZapierIntegration({ contactData, onWebhookSent }: Zapier
         </form>
 
         <div className="pt-4 border-t">
-          <h4 className="text-sm font-medium mb-2">Come configurare:</h4>
+          <h4 className="text-sm font-medium mb-2">Come configurare l'integrazione Lead:</h4>
           <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
             <li>Crea un nuovo Zap in Zapier</li>
-            <li>Scegli "Webhooks by Zapier" come trigger</li>
-            <li>Seleziona "Catch Hook" come evento trigger</li>
-            <li>Copia l'URL webhook fornito da Zapier</li>
-            <li>Incolla l'URL nel campo sopra e configura le azioni</li>
+            <li>Scegli la fonte dei tuoi lead (Gmail, Form, CRM, etc.) come trigger</li>
+            <li>Come azione, scegli "Webhooks by Zapier" → "POST"</li>
+            <li>Usa questo URL per inviare lead direttamente al sistema:</li>
           </ol>
+          
+          <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono break-all">
+            {window.location.origin.replace(/:\d+/, '')}/functions/v1/zapier-lead-webhook
+          </div>
+          
+          <div className="mt-3">
+            <h5 className="text-xs font-medium mb-1">Struttura dati per nuovi lead:</h5>
+            <div className="bg-gray-50 p-2 rounded text-xs">
+              <pre>{JSON.stringify({
+                company_name: "Nome Azienda (obbligatorio)",
+                contact_name: "Nome Contatto",
+                email: "email@esempio.com",
+                phone: "+39 123 456 7890",
+                value: 15000,
+                notes: "Note aggiuntive"
+              }, null, 2)}</pre>
+            </div>
+          </div>
+          
+          <p className="text-xs text-muted-foreground mt-2">
+            Configura il tuo Zap per inviare i dati in questo formato all'endpoint sopra per creare automaticamente nuovi lead.
+          </p>
         </div>
       </CardContent>
     </Card>

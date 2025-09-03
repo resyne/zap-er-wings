@@ -1,85 +1,80 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Download, Loader2, Zap } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import ZapierIntegration from "@/components/leads/ZapierIntegration";
 
-interface Contact {
+interface Lead {
   id: string;
-  first_name?: string;
-  last_name?: string;
+  company_name: string;
+  contact_name?: string;
   email?: string;
   phone?: string;
-  mobile?: string;
-  job_title?: string;
-  lead_source?: string;
-  company_id?: string;
-  company_name?: string;
-  piva?: string;
-  address?: string;
-  sdi_code?: string;
-  pec?: string;
-  company?: {
-    name: string;
-  };
+  value?: number;
+  source?: string;
+  status: string;
+  notes?: string;
+  assigned_to?: string;
   created_at: string;
+  updated_at: string;
 }
 
-const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "other"];
+const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
+const leadStatuses = [
+  { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
+  { id: "contacted", title: "Contattato", color: "bg-yellow-100 text-yellow-800" },
+  { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
+  { id: "proposal", title: "Proposta", color: "bg-purple-100 text-purple-800" },
+  { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
+  { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
+  { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" }
+];
 
 export default function LeadsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [newContact, setNewContact] = useState({
-    first_name: "",
-    last_name: "",
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [newLead, setNewLead] = useState({
+    company_name: "",
+    contact_name: "",
     email: "",
     phone: "",
-    mobile: "",
-    job_title: "",
-    lead_source: "",
-    company_id: "",
-    company_name: "",
-    piva: "",
-    address: "",
-    sdi_code: "",
-    pec: "",
+    value: "",
+    source: "",
+    status: "new",
+    notes: "",
   });
   const { toast } = useToast();
 
   useEffect(() => {
-    loadContacts();
+    loadLeads();
   }, []);
 
-  const loadContacts = async () => {
+  const loadLeads = async () => {
     try {
       const { data, error } = await supabase
-        .from("crm_contacts")
-        .select(`
-          *,
-          company:crm_companies(name)
-        `)
+        .from("leads")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setContacts(data || []);
+      setLeads(data || []);
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile caricare i contatti: " + error.message,
+        description: "Impossibile caricare i lead: " + error.message,
         variant: "destructive",
       });
     } finally {
@@ -87,166 +82,170 @@ export default function LeadsPage() {
     }
   };
 
-  const handleCreateContact = async () => {
+  const handleCreateLead = async () => {
     try {
-      const contactData = {
-        ...newContact,
-        company_id: newContact.company_id || null
+      const leadData = {
+        ...newLead,
+        value: newLead.value ? parseFloat(newLead.value) : null
       };
       
       const { error } = await supabase
-        .from("crm_contacts")
-        .insert([contactData]);
+        .from("leads")
+        .insert([leadData]);
 
       if (error) throw error;
 
       toast({
-        title: "Contatto creato",
-        description: "Il contatto è stato creato con successo",
+        title: "Lead creato",
+        description: "Il lead è stato creato con successo",
       });
 
       setIsDialogOpen(false);
-      setNewContact({
-        first_name: "",
-        last_name: "",
-        email: "",
-        phone: "",
-        mobile: "",
-        job_title: "",
-        lead_source: "",
-        company_id: "",
-        company_name: "",
-        piva: "",
-        address: "",
-        sdi_code: "",
-        pec: "",
-      });
-      await loadContacts();
+      resetForm();
+      await loadLeads();
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile creare il contatto: " + error.message,
+        description: "Impossibile creare il lead: " + error.message,
         variant: "destructive",
       });
     }
   };
 
-  const handleEditContact = (contact: Contact) => {
-    setSelectedContact(contact);
-    setNewContact({
-      first_name: contact.first_name || "",
-      last_name: contact.last_name || "",
-      email: contact.email || "",
-      phone: contact.phone || "",
-      mobile: contact.mobile || "",
-      job_title: contact.job_title || "",
-      lead_source: contact.lead_source || "",
-      company_id: contact.company_id || "",
-      company_name: contact.company_name || "",
-      piva: contact.piva || "",
-      address: contact.address || "",
-      sdi_code: contact.sdi_code || "",
-      pec: contact.pec || "",
+  const handleEditLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setNewLead({
+      company_name: lead.company_name,
+      contact_name: lead.contact_name || "",
+      email: lead.email || "",
+      phone: lead.phone || "",
+      value: lead.value ? lead.value.toString() : "",
+      source: lead.source || "",
+      status: lead.status,
+      notes: lead.notes || "",
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateContact = async () => {
-    if (!selectedContact) return;
+  const handleUpdateLead = async () => {
+    if (!selectedLead) return;
     
     try {
-      const contactData = {
-        ...newContact,
-        company_id: newContact.company_id || null
+      const leadData = {
+        ...newLead,
+        value: newLead.value ? parseFloat(newLead.value) : null
       };
       
       const { error } = await supabase
-        .from("crm_contacts")
-        .update(contactData)
-        .eq("id", selectedContact.id);
+        .from("leads")
+        .update(leadData)
+        .eq("id", selectedLead.id);
 
       if (error) throw error;
 
       toast({
-        title: "Contatto aggiornato",
-        description: "Il contatto è stato aggiornato con successo",
+        title: "Lead aggiornato",
+        description: "Il lead è stato aggiornato con successo",
       });
 
       setIsEditDialogOpen(false);
-      setSelectedContact(null);
-      setNewContact({
-        first_name: "",
-        last_name: "",
-        email: "",
-        phone: "",
-        mobile: "",
-        job_title: "",
-        lead_source: "",
-        company_id: "",
-        company_name: "",
-        piva: "",
-        address: "",
-        sdi_code: "",
-        pec: "",
-      });
-      await loadContacts();
+      setSelectedLead(null);
+      resetForm();
+      await loadLeads();
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile aggiornare il contatto: " + error.message,
+        description: "Impossibile aggiornare il lead: " + error.message,
         variant: "destructive",
       });
     }
   };
 
-  const handleImportFromFattura24 = async () => {
-    setImporting(true);
+  const resetForm = () => {
+    setNewLead({
+      company_name: "",
+      contact_name: "",
+      email: "",
+      phone: "",
+      value: "",
+      source: "",
+      status: "new",
+      notes: "",
+    });
+  };
+
+  const onDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+    const lead = leads.find(l => l.id === draggableId);
+    if (!lead) return;
+
     try {
-      const { data, error } = await supabase.functions.invoke('fattura24-sync');
-      
+      const { error } = await supabase
+        .from("leads")
+        .update({ status: destination.droppableId })
+        .eq("id", draggableId);
+
       if (error) throw error;
 
+      // Update local state
+      setLeads(prev => prev.map(l => 
+        l.id === draggableId 
+          ? { ...l, status: destination.droppableId }
+          : l
+      ));
+
       toast({
-        title: "Importazione completata",
-        description: data.message,
+        title: "Lead aggiornato",
+        description: `Lead spostato in ${leadStatuses.find(s => s.id === destination.droppableId)?.title}`,
       });
-
-      if (data.errors && data.errors.length > 0) {
-        console.warn('Import errors:', data.errors);
-      }
-
-      loadContacts();
     } catch (error: any) {
-      console.error('Error importing from Fattura24:', error);
       toast({
         title: "Errore",
-        description: "Errore nell'importazione da Fattura24",
+        description: "Impossibile aggiornare lo stato del lead",
         variant: "destructive",
       });
-    } finally {
-      setImporting(false);
     }
   };
 
-  const filteredContacts = contacts.filter(contact =>
-    `${contact.first_name} ${contact.last_name} ${contact.email} ${contact.company?.name || ""}`
+  const handleWebhookReceived = useCallback(() => {
+    loadLeads();
+    toast({
+      title: "Nuovo lead ricevuto",
+      description: "Un nuovo lead è stato aggiunto tramite Zapier",
+    });
+  }, []);
+
+  const filteredLeads = leads.filter(lead =>
+    `${lead.company_name} ${lead.contact_name} ${lead.email}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  const totalContacts = filteredContacts.length;
-  const recentContacts = filteredContacts.filter(contact => {
-    const createdDate = new Date(contact.created_at);
+  // Group leads by status
+  const leadsByStatus = leadStatuses.reduce((acc, status) => {
+    acc[status.id] = filteredLeads.filter(lead => lead.status === status.id);
+    return acc;
+  }, {} as Record<string, Lead[]>);
+
+  const totalLeads = filteredLeads.length;
+  const recentLeads = filteredLeads.filter(lead => {
+    const createdDate = new Date(lead.created_at);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     return createdDate > weekAgo;
   }).length;
 
+  const totalValue = filteredLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-96">
-          <div className="text-lg">Caricamento contatti...</div>
+          <div className="text-lg">Caricamento lead...</div>
         </div>
       </div>
     );
@@ -256,55 +255,38 @@ export default function LeadsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Leads</h1>
-          <p className="text-muted-foreground">Gestisci tutti i tuoi contatti come leads</p>
+          <h1 className="text-3xl font-bold">Lead Management</h1>
+          <p className="text-muted-foreground">Gestisci i tuoi lead con il kanban board</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            onClick={handleImportFromFattura24}
-            disabled={importing}
-          >
-            {importing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Importando...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Importa da Fattura24
-              </>
-            )}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Nuovo Contatto
+                Nuovo Lead
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Crea Nuovo Contatto</DialogTitle>
+                <DialogTitle>Crea Nuovo Lead</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="first_name">Nome</Label>
+                <div className="col-span-2">
+                  <Label htmlFor="company_name">Nome Azienda *</Label>
                   <Input
-                    id="first_name"
-                    value={newContact.first_name}
-                    onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
-                    placeholder="Mario"
+                    id="company_name"
+                    value={newLead.company_name}
+                    onChange={(e) => setNewLead({...newLead, company_name: e.target.value})}
+                    placeholder="ABC S.r.l."
                   />
                 </div>
                 <div>
-                  <Label htmlFor="last_name">Cognome</Label>
+                  <Label htmlFor="contact_name">Nome Contatto</Label>
                   <Input
-                    id="last_name"
-                    value={newContact.last_name}
-                    onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
-                    placeholder="Rossi"
+                    id="contact_name"
+                    value={newLead.contact_name}
+                    onChange={(e) => setNewLead({...newLead, contact_name: e.target.value})}
+                    placeholder="Mario Rossi"
                   />
                 </div>
                 <div>
@@ -312,8 +294,8 @@ export default function LeadsPage() {
                   <Input
                     id="email"
                     type="email"
-                    value={newContact.email}
-                    onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                    value={newLead.email}
+                    onChange={(e) => setNewLead({...newLead, email: e.target.value})}
                     placeholder="mario.rossi@esempio.com"
                   />
                 </div>
@@ -321,32 +303,24 @@ export default function LeadsPage() {
                   <Label htmlFor="phone">Telefono</Label>
                   <Input
                     id="phone"
-                    value={newContact.phone}
-                    onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                    value={newLead.phone}
+                    onChange={(e) => setNewLead({...newLead, phone: e.target.value})}
                     placeholder="+39 123 456 7890"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="mobile">Cellulare</Label>
+                  <Label htmlFor="value">Valore Stimato (€)</Label>
                   <Input
-                    id="mobile"
-                    value={newContact.mobile}
-                    onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
-                    placeholder="+39 123 456 7890"
+                    id="value"
+                    type="number"
+                    value={newLead.value}
+                    onChange={(e) => setNewLead({...newLead, value: e.target.value})}
+                    placeholder="10000"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="job_title">Ruolo</Label>
-                  <Input
-                    id="job_title"
-                    value={newContact.job_title}
-                    onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
-                    placeholder="Manager, Direttore..."
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="lead_source">Fonte Lead</Label>
-                  <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
+                  <Label htmlFor="source">Fonte</Label>
+                  <Select value={newLead.source} onValueChange={(value) => setNewLead({...newLead, source: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona fonte" />
                     </SelectTrigger>
@@ -358,72 +332,45 @@ export default function LeadsPage() {
                            source === "social_media" ? "Social Media" :
                            source === "cold_call" ? "Cold Call" :
                            source === "trade_show" ? "Fiera" :
+                           source === "zapier" ? "Zapier" :
                            "Altro"}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                
-                {/* Company Demographics Section */}
-                <div className="col-span-2 mt-4">
-                  <h3 className="text-lg font-medium mb-3">Anagrafica Azienda</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="company_name">Nome Azienda</Label>
-                      <Input
-                        id="company_name"
-                        value={newContact.company_name}
-                        onChange={(e) => setNewContact({...newContact, company_name: e.target.value})}
-                        placeholder="ABC S.r.l."
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="piva">P.IVA</Label>
-                      <Input
-                        id="piva"
-                        value={newContact.piva}
-                        onChange={(e) => setNewContact({...newContact, piva: e.target.value})}
-                        placeholder="12345678901"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="address">Indirizzo</Label>
-                      <Input
-                        id="address"
-                        value={newContact.address}
-                        onChange={(e) => setNewContact({...newContact, address: e.target.value})}
-                        placeholder="Via Roma 123, 00100 Roma"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="sdi_code">Codice SDI</Label>
-                      <Input
-                        id="sdi_code"
-                        value={newContact.sdi_code}
-                        onChange={(e) => setNewContact({...newContact, sdi_code: e.target.value})}
-                        placeholder="ABCDEF1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="pec">PEC</Label>
-                      <Input
-                        id="pec"
-                        type="email"
-                        value={newContact.pec}
-                        onChange={(e) => setNewContact({...newContact, pec: e.target.value})}
-                        placeholder="azienda@pec.it"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <Label htmlFor="status">Stato</Label>
+                  <Select value={newLead.status} onValueChange={(value) => setNewLead({...newLead, status: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona stato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadStatuses.map(status => (
+                        <SelectItem key={status.id} value={status.id}>
+                          {status.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="notes">Note</Label>
+                  <Textarea
+                    id="notes"
+                    value={newLead.notes}
+                    onChange={(e) => setNewLead({...newLead, notes: e.target.value})}
+                    placeholder="Note aggiuntive sul lead..."
+                    rows={3}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annulla
                 </Button>
-                <Button onClick={handleCreateContact}>
-                  Crea Contatto
+                <Button onClick={handleCreateLead}>
+                  Crea Lead
                 </Button>
               </div>
             </DialogContent>
@@ -431,29 +378,168 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Edit Contact Dialog */}
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Totale Lead</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalLeads}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Nuovi questa settimana</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{recentLeads}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Valore Totale</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€{totalValue.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tasso Conversione</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {totalLeads > 0 ? Math.round((leadsByStatus.won?.length || 0) / totalLeads * 100) : 0}%
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center space-x-2">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Cerca lead..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      {/* Kanban Board */}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+          {leadStatuses.map(status => (
+            <div key={status.id} className="bg-muted/30 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">{status.title}</h3>
+                <Badge variant="secondary" className={status.color}>
+                  {leadsByStatus[status.id]?.length || 0}
+                </Badge>
+              </div>
+              
+              <Droppable droppableId={status.id}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`min-h-[200px] space-y-3 ${
+                      snapshot.isDraggingOver ? 'bg-muted/50' : ''
+                    }`}
+                  >
+                    {leadsByStatus[status.id]?.map((lead, index) => (
+                      <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                        {(provided, snapshot) => (
+                          <Card
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`cursor-pointer transition-shadow hover:shadow-md ${
+                              snapshot.isDragging ? 'shadow-lg' : ''
+                            }`}
+                            onClick={() => handleEditLead(lead)}
+                          >
+                            <CardContent className="p-3">
+                              <div
+                                {...provided.dragHandleProps}
+                                className="flex items-start justify-between mb-2"
+                              >
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-sm truncate">{lead.company_name}</h4>
+                                  {lead.contact_name && (
+                                    <p className="text-xs text-muted-foreground truncate">{lead.contact_name}</p>
+                                  )}
+                                </div>
+                                <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              </div>
+                              
+                              {lead.email && (
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Mail className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
+                                </div>
+                              )}
+                              
+                              {lead.phone && (
+                                <div className="flex items-center gap-1 mb-2">
+                                  <Phone className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">{lead.phone}</span>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center justify-between">
+                                {lead.value && (
+                                  <span className="text-xs font-medium text-green-600">
+                                    €{lead.value.toLocaleString()}
+                                  </span>
+                                )}
+                                {lead.source && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {lead.source === "zapier" ? <Zap className="h-3 w-3" /> : lead.source}
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+
+      {/* Edit Lead Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Modifica Contatto</DialogTitle>
+            <DialogTitle>Modifica Lead</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="edit_first_name">Nome</Label>
+            <div className="col-span-2">
+              <Label htmlFor="edit_company_name">Nome Azienda *</Label>
               <Input
-                id="edit_first_name"
-                value={newContact.first_name}
-                onChange={(e) => setNewContact({...newContact, first_name: e.target.value})}
-                placeholder="Mario"
+                id="edit_company_name"
+                value={newLead.company_name}
+                onChange={(e) => setNewLead({...newLead, company_name: e.target.value})}
+                placeholder="ABC S.r.l."
               />
             </div>
             <div>
-              <Label htmlFor="edit_last_name">Cognome</Label>
+              <Label htmlFor="edit_contact_name">Nome Contatto</Label>
               <Input
-                id="edit_last_name"
-                value={newContact.last_name}
-                onChange={(e) => setNewContact({...newContact, last_name: e.target.value})}
-                placeholder="Rossi"
+                id="edit_contact_name"
+                value={newLead.contact_name}
+                onChange={(e) => setNewLead({...newLead, contact_name: e.target.value})}
+                placeholder="Mario Rossi"
               />
             </div>
             <div>
@@ -461,8 +547,8 @@ export default function LeadsPage() {
               <Input
                 id="edit_email"
                 type="email"
-                value={newContact.email}
-                onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                value={newLead.email}
+                onChange={(e) => setNewLead({...newLead, email: e.target.value})}
                 placeholder="mario.rossi@esempio.com"
               />
             </div>
@@ -470,32 +556,24 @@ export default function LeadsPage() {
               <Label htmlFor="edit_phone">Telefono</Label>
               <Input
                 id="edit_phone"
-                value={newContact.phone}
-                onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                value={newLead.phone}
+                onChange={(e) => setNewLead({...newLead, phone: e.target.value})}
                 placeholder="+39 123 456 7890"
               />
             </div>
             <div>
-              <Label htmlFor="edit_mobile">Cellulare</Label>
+              <Label htmlFor="edit_value">Valore Stimato (€)</Label>
               <Input
-                id="edit_mobile"
-                value={newContact.mobile}
-                onChange={(e) => setNewContact({...newContact, mobile: e.target.value})}
-                placeholder="+39 123 456 7890"
+                id="edit_value"
+                type="number"
+                value={newLead.value}
+                onChange={(e) => setNewLead({...newLead, value: e.target.value})}
+                placeholder="10000"
               />
             </div>
             <div>
-              <Label htmlFor="edit_job_title">Ruolo</Label>
-              <Input
-                id="edit_job_title"
-                value={newContact.job_title}
-                onChange={(e) => setNewContact({...newContact, job_title: e.target.value})}
-                placeholder="Manager, Direttore..."
-              />
-            </div>
-            <div className="col-span-2">
-              <Label htmlFor="edit_lead_source">Fonte Lead</Label>
-              <Select value={newContact.lead_source} onValueChange={(value) => setNewContact({...newContact, lead_source: value})}>
+              <Label htmlFor="edit_source">Fonte</Label>
+              <Select value={newLead.source} onValueChange={(value) => setNewLead({...newLead, source: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona fonte" />
                 </SelectTrigger>
@@ -507,225 +585,62 @@ export default function LeadsPage() {
                        source === "social_media" ? "Social Media" :
                        source === "cold_call" ? "Cold Call" :
                        source === "trade_show" ? "Fiera" :
+                       source === "zapier" ? "Zapier" :
                        "Altro"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            
-            {/* Company Demographics Section */}
-            <div className="col-span-2 mt-4">
-              <h3 className="text-lg font-medium mb-3">Anagrafica Azienda</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit_company_name">Nome Azienda</Label>
-                  <Input
-                    id="edit_company_name"
-                    value={newContact.company_name}
-                    onChange={(e) => setNewContact({...newContact, company_name: e.target.value})}
-                    placeholder="ABC S.r.l."
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_piva">P.IVA</Label>
-                  <Input
-                    id="edit_piva"
-                    value={newContact.piva}
-                    onChange={(e) => setNewContact({...newContact, piva: e.target.value})}
-                    placeholder="12345678901"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="edit_address">Indirizzo</Label>
-                  <Input
-                    id="edit_address"
-                    value={newContact.address}
-                    onChange={(e) => setNewContact({...newContact, address: e.target.value})}
-                    placeholder="Via Roma 123, 00100 Roma"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_sdi_code">Codice SDI</Label>
-                  <Input
-                    id="edit_sdi_code"
-                    value={newContact.sdi_code}
-                    onChange={(e) => setNewContact({...newContact, sdi_code: e.target.value})}
-                    placeholder="ABCDEF1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_pec">PEC</Label>
-                  <Input
-                    id="edit_pec"
-                    type="email"
-                    value={newContact.pec}
-                    onChange={(e) => setNewContact({...newContact, pec: e.target.value})}
-                    placeholder="azienda@pec.it"
-                  />
-                </div>
-              </div>
+            <div>
+              <Label htmlFor="edit_status">Stato</Label>
+              <Select value={newLead.status} onValueChange={(value) => setNewLead({...newLead, status: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leadStatuses.map(status => (
+                    <SelectItem key={status.id} value={status.id}>
+                      {status.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="edit_notes">Note</Label>
+              <Textarea
+                id="edit_notes"
+                value={newLead.notes}
+                onChange={(e) => setNewLead({...newLead, notes: e.target.value})}
+                placeholder="Note aggiuntive sul lead..."
+                rows={3}
+              />
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Annulla
             </Button>
-            <Button onClick={handleUpdateContact}>
-              Aggiorna Contatto
+            <Button onClick={handleUpdateLead}>
+              Salva Modifiche
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Totale Contatti</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalContacts}</div>
-            <p className="text-xs text-muted-foreground">
-              Contatti nel sistema
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nuovi questa settimana</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{recentContacts}</div>
-            <p className="text-xs text-muted-foreground">
-              Aggiunti negli ultimi 7 giorni
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Con Email</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredContacts.filter(c => c.email).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Contatti con email valida
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Zapier Integration */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista Contatti ({filteredContacts.length})</CardTitle>
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Cerca contatti..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Integrazione Zapier
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Azienda</TableHead>
-                <TableHead>Contatto</TableHead>
-                <TableHead>Ruolo</TableHead>
-                <TableHead>Fonte</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredContacts.map((contact) => (
-                <TableRow 
-                  key={contact.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleEditContact(contact)}
-                >
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">
-                        {contact.first_name} {contact.last_name}
-                      </span>
-                      {contact.email && (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Mail className="w-3 h-3 mr-1" />
-                          {contact.email}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {contact.company?.name && (
-                      <div className="flex items-center">
-                        <Building2 className="w-4 h-4 mr-1 text-muted-foreground" />
-                        {contact.company.name}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {contact.phone && (
-                        <div className="flex items-center text-sm">
-                          <Phone className="w-3 h-3 mr-1" />
-                          {contact.phone}
-                        </div>
-                      )}
-                      {contact.mobile && (
-                        <div className="flex items-center text-sm">
-                          <Phone className="w-3 h-3 mr-1" />
-                          {contact.mobile}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {contact.job_title && (
-                      <Badge variant="secondary">{contact.job_title}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {contact.lead_source && (
-                      <Badge variant="outline">{contact.lead_source}</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredContacts.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      {searchTerm ? "Nessun contatto trovato" : "Nessun contatto presente"}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <ZapierIntegration onWebhookSent={handleWebhookReceived} />
         </CardContent>
       </Card>
-
-      {/* Zapier Integration Section */}
-      <ZapierIntegration
-        contactData={selectedContact}
-        onWebhookSent={() => {
-          toast({
-            title: "Zapier Webhook Attivato",
-            description: "I dati del lead sono stati inviati a Zapier per l'automazione",
-          });
-        }}
-      />
     </div>
   );
 }
