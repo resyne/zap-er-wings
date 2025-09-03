@@ -20,7 +20,7 @@ interface JournalEntry {
   description: string;
   reference_number?: string;
   profit_center_id?: string;
-  project_id?: string;
+  sales_order_id?: string;
   account_id: string;
   document_type?: string;
   document_number?: string;
@@ -32,7 +32,7 @@ interface JournalEntry {
   import_source?: string;
   created_at: string;
   profit_center?: { name: string; code: string };
-  project?: { customer_name: string; code: string };
+  sales_order?: { number: string; customer_id: string };
   account?: { name: string; code: string };
 }
 
@@ -49,17 +49,17 @@ interface ProfitCenter {
   name: string;
 }
 
-interface Project {
+interface SalesOrder {
   id: string;
-  code: string;
-  customer_name: string;
+  number: string;
+  customer_id: string;
 }
 
 export default function MovementsPage() {
   const [movements, setMovements] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [profitCenters, setProfitCenters] = useState<ProfitCenter[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -74,7 +74,7 @@ export default function MovementsPage() {
     description: '',
     reference_number: '',
     profit_center_id: 'none',
-    project_id: 'none',
+    sales_order_id: 'none',
     account_id: '',
     document_type: '',
     document_number: '',
@@ -95,7 +95,7 @@ export default function MovementsPage() {
         .select(`
           *,
           profit_center:profit_centers(name, code),
-          project:management_projects(customer_name, code),
+          sales_order:sales_orders(number, customer_id),
           account:chart_of_accounts(name, code)
         `)
         .order('entry_date', { ascending: false }) as { data: JournalEntry[] | null, error: any };
@@ -120,19 +120,18 @@ export default function MovementsPage() {
 
       if (profitCentersError) throw profitCentersError;
 
-      // Load projects
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('management_projects')
+      // Load sales orders
+      const { data: salesOrdersData, error: salesOrdersError } = await supabase
+        .from('sales_orders')
         .select('*')
-        .eq('status', 'active')
-        .order('code');
+        .order('number');
 
-      if (projectsError) throw projectsError;
+      if (salesOrdersError) throw salesOrdersError;
 
       setMovements(movementsData || []);
       setAccounts(accountsData || []);
       setProfitCenters(profitCentersData || []);
-      setProjects(projectsData || []);
+      setSalesOrders(salesOrdersData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -206,7 +205,7 @@ export default function MovementsPage() {
           description: newMovement.description,
           reference_number: newMovement.reference_number || null,
           profit_center_id: newMovement.profit_center_id === "none" ? null : newMovement.profit_center_id,
-          project_id: newMovement.project_id === "none" ? null : newMovement.project_id,
+          sales_order_id: newMovement.sales_order_id === "none" ? null : newMovement.sales_order_id,
           account_id: newMovement.account_id,
           document_type: newMovement.document_type || null,
           document_number: newMovement.document_number || null,
@@ -232,7 +231,7 @@ export default function MovementsPage() {
         description: '',
         reference_number: '',
         profit_center_id: 'none',
-        project_id: 'none',
+        sales_order_id: 'none',
         account_id: '',
         document_type: '',
         document_number: '',
@@ -370,16 +369,16 @@ export default function MovementsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="project_id">Commessa</Label>
-                  <Select value={newMovement.project_id || "none"} onValueChange={(value) => setNewMovement(prev => ({ ...prev, project_id: value === "none" ? "" : value }))}>
+                  <Label htmlFor="sales_order_id">Ordine di Vendita</Label>
+                  <Select value={newMovement.sales_order_id || "none"} onValueChange={(value) => setNewMovement(prev => ({ ...prev, sales_order_id: value === "none" ? "" : value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona commessa" />
+                      <SelectValue placeholder="Seleziona ordine di vendita" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Nessuna</SelectItem>
-                      {projects.map(project => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.code} - {project.customer_name}
+                      <SelectItem value="none">Nessuno</SelectItem>
+                      {salesOrders.map(order => (
+                        <SelectItem key={order.id} value={order.id}>
+                          {order.number}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -530,7 +529,7 @@ export default function MovementsPage() {
                 <TableHead>Cliente/Fornitore</TableHead>
                 <TableHead>Conto</TableHead>
                 <TableHead>Centro Profitto</TableHead>
-                <TableHead>Commessa</TableHead>
+                <TableHead>Ordine di Vendita</TableHead>
                 <TableHead>Importo</TableHead>
                 <TableHead>IVA</TableHead>
                 <TableHead>Totale</TableHead>
@@ -555,7 +554,7 @@ export default function MovementsPage() {
                     {movement.profit_center ? `${movement.profit_center.code} - ${movement.profit_center.name}` : '-'}
                   </TableCell>
                   <TableCell>
-                    {movement.project ? `${movement.project.code} - ${movement.project.customer_name}` : '-'}
+                    {movement.sales_order ? movement.sales_order.number : '-'}
                   </TableCell>
                   <TableCell>€{movement.amount.toLocaleString()}</TableCell>
                   <TableCell>€{movement.vat_amount.toLocaleString()}</TableCell>

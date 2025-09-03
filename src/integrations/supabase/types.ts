@@ -1364,8 +1364,8 @@ export type Database = {
           import_source: string | null
           is_imported: boolean | null
           profit_center_id: string | null
-          project_id: string | null
           reference_number: string | null
+          sales_order_id: string | null
           status: string
           supplier_customer_name: string | null
           total_amount: number
@@ -1386,8 +1386,8 @@ export type Database = {
           import_source?: string | null
           is_imported?: boolean | null
           profit_center_id?: string | null
-          project_id?: string | null
           reference_number?: string | null
+          sales_order_id?: string | null
           status?: string
           supplier_customer_name?: string | null
           total_amount?: number
@@ -1408,8 +1408,8 @@ export type Database = {
           import_source?: string | null
           is_imported?: boolean | null
           profit_center_id?: string | null
-          project_id?: string | null
           reference_number?: string | null
+          sales_order_id?: string | null
           status?: string
           supplier_customer_name?: string | null
           total_amount?: number
@@ -1432,10 +1432,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "journal_entries_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "journal_entries_sales_order_id_fkey"
+            columns: ["sales_order_id"]
             isOneToOne: false
-            referencedRelation: "management_projects"
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
         ]
