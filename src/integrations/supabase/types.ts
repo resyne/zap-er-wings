@@ -1349,6 +1349,97 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_entries: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          document_number: string | null
+          document_type: string | null
+          entry_date: string
+          entry_type: string
+          id: string
+          import_source: string | null
+          is_imported: boolean | null
+          profit_center_id: string | null
+          project_id: string | null
+          reference_number: string | null
+          status: string
+          supplier_customer_name: string | null
+          total_amount: number
+          updated_at: string
+          vat_amount: number | null
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          document_number?: string | null
+          document_type?: string | null
+          entry_date?: string
+          entry_type: string
+          id?: string
+          import_source?: string | null
+          is_imported?: boolean | null
+          profit_center_id?: string | null
+          project_id?: string | null
+          reference_number?: string | null
+          status?: string
+          supplier_customer_name?: string | null
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          document_number?: string | null
+          document_type?: string | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          import_source?: string | null
+          is_imported?: boolean | null
+          profit_center_id?: string | null
+          project_id?: string | null
+          reference_number?: string | null
+          status?: string
+          supplier_customer_name?: string | null
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_drivers: {
         Row: {
           created_at: string | null

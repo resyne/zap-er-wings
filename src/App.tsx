@@ -44,6 +44,7 @@ import ManagementControlPage from "./pages/management-control/ManagementControlP
 import SetupPage from "./pages/management-control/SetupPage";
 import ProjectsPage from "./pages/management-control/ProjectsPage";
 import BudgetPage from "./pages/management-control/BudgetPage";
+import MovementsPageMC from "./pages/management-control/MovementsPage";
 import FluidaPage from "./pages/hr/FluidaPage";
 import DocumentationPage from "./pages/documentation/DocumentationPage";
 import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
@@ -119,6 +120,7 @@ const App = () => (
                 <Route path="finance/invoices" element={<InvoicesPage />} />
                 <Route path="management-control" element={<ManagementControlPage />} />
                 <Route path="management-control/setup" element={<SetupPage />} />
+                <Route path="management-control/movements" element={<MovementsPageMC />} />
                 <Route path="management-control/projects" element={<ProjectsPage />} />
                 <Route path="management-control/budget" element={<BudgetPage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />

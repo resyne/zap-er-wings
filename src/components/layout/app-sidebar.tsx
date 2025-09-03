@@ -146,6 +146,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Dashboard CEO", url: "/management-control", icon: LayoutDashboard },
       { title: "Setup", url: "/management-control/setup", icon: Settings },
+      { title: "Movimenti", url: "/management-control/movements", icon: FileText },
       { title: "Commesse", url: "/management-control/projects", icon: Target },
       { title: "Budget & Forecast", url: "/management-control/budget", icon: BarChart3 },
     ]
