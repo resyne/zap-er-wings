@@ -94,7 +94,6 @@ export default function ShippingOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<ShippingOrder | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isTrackingDialogOpen, setIsTrackingDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -443,7 +442,7 @@ export default function ShippingOrdersPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setIsTrackingDialogOpen(true)}
+                          onClick={() => window.open('http://dg.netup.eu:3683/esLogin.aspx', '_blank', 'noopener,noreferrer')}
                         >
                           <MapPin className="w-4 h-4 mr-1" />
                           Tracking
@@ -773,28 +772,6 @@ export default function ShippingOrdersPage() {
               </div>
             </form>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Tracking Dialog */}
-      <Dialog open={isTrackingDialogOpen} onOpenChange={setIsTrackingDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Tracking Spedizione</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              Sistema di tracciamento per ordini spediti
-            </p>
-          </DialogHeader>
-          <div className="w-full h-[600px]">
-            <iframe
-              src="http://dg.netup.eu:3683/esLogin.aspx"
-              className="w-full h-full border-0 rounded-lg"
-              title="Sistema di Tracking"
-              allow="cross-origin-isolated"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-top-navigation"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
         </DialogContent>
       </Dialog>
     </div>
