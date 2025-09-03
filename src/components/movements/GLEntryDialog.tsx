@@ -273,12 +273,12 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Centro di Costo</Label>
-              <Select value={entry.cost_center_id} onValueChange={(value) => setEntry(prev => ({ ...prev, cost_center_id: value }))}>
+              <Select value={entry.cost_center_id || "none"} onValueChange={(value) => setEntry(prev => ({ ...prev, cost_center_id: value === "none" ? "" : value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona centro di costo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
+                  <SelectItem value="none">Nessuno</SelectItem>
                   {costCenters.map(cc => (
                     <SelectItem key={cc.id} value={cc.id}>
                       {cc.code} - {cc.name}
@@ -289,12 +289,12 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
             </div>
             <div className="space-y-2">
               <Label>Centro di Profitto</Label>
-              <Select value={entry.profit_center_id} onValueChange={(value) => setEntry(prev => ({ ...prev, profit_center_id: value }))}>
+              <Select value={entry.profit_center_id || "none"} onValueChange={(value) => setEntry(prev => ({ ...prev, profit_center_id: value === "none" ? "" : value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona centro di profitto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
+                  <SelectItem value="none">Nessuno</SelectItem>
                   {profitCenters.map(pc => (
                     <SelectItem key={pc.id} value={pc.id}>
                       {pc.code} - {pc.name}
@@ -305,12 +305,12 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
             </div>
             <div className="space-y-2">
               <Label>Commessa</Label>
-              <Select value={entry.job_id} onValueChange={(value) => setEntry(prev => ({ ...prev, job_id: value }))}>
+              <Select value={entry.job_id || "none"} onValueChange={(value) => setEntry(prev => ({ ...prev, job_id: value === "none" ? "" : value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona commessa" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuna</SelectItem>
+                  <SelectItem value="none">Nessuna</SelectItem>
                   {jobs.map(job => (
                     <SelectItem key={job.id} value={job.id}>
                       {job.code} - {job.customer_name}
@@ -403,14 +403,14 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={line.cost_center_id || ''}
-                          onValueChange={(value) => updateLine(index, 'cost_center_id', value || undefined)}
+                          value={line.cost_center_id || 'inherit'}
+                          onValueChange={(value) => updateLine(index, 'cost_center_id', value === 'inherit' ? undefined : value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Eredita</SelectItem>
+                            <SelectItem value="inherit">Eredita</SelectItem>
                             {costCenters.map(cc => (
                               <SelectItem key={cc.id} value={cc.id}>
                                 {cc.code}
@@ -421,14 +421,14 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={line.profit_center_id || ''}
-                          onValueChange={(value) => updateLine(index, 'profit_center_id', value || undefined)}
+                          value={line.profit_center_id || 'inherit'}
+                          onValueChange={(value) => updateLine(index, 'profit_center_id', value === 'inherit' ? undefined : value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Eredita</SelectItem>
+                            <SelectItem value="inherit">Eredita</SelectItem>
                             {profitCenters.map(pc => (
                               <SelectItem key={pc.id} value={pc.id}>
                                 {pc.code}
@@ -439,14 +439,14 @@ export function GLEntryDialog({ open, onOpenChange, onSuccess }: GLEntryDialogPr
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={line.job_id || ''}
-                          onValueChange={(value) => updateLine(index, 'job_id', value || undefined)}
+                          value={line.job_id || 'inherit'}
+                          onValueChange={(value) => updateLine(index, 'job_id', value === 'inherit' ? undefined : value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Eredita</SelectItem>
+                            <SelectItem value="inherit">Eredita</SelectItem>
                             {jobs.map(job => (
                               <SelectItem key={job.id} value={job.id}>
                                 {job.code}
