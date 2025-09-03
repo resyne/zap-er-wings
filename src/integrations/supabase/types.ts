@@ -1144,6 +1144,157 @@ export type Database = {
           },
         ]
       }
+      gl_entry: {
+        Row: {
+          cost_center_id: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string
+          doc_ref: string | null
+          doc_type: Database["public"]["Enums"]["gl_doc_type"]
+          id: string
+          job_id: string | null
+          origin_module: Database["public"]["Enums"]["gl_origin_module"]
+          profit_center_id: string | null
+          status: Database["public"]["Enums"]["gl_status"]
+          updated_at: string
+        }
+        Insert: {
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date: string
+          description: string
+          doc_ref?: string | null
+          doc_type: Database["public"]["Enums"]["gl_doc_type"]
+          id?: string
+          job_id?: string | null
+          origin_module?: Database["public"]["Enums"]["gl_origin_module"]
+          profit_center_id?: string | null
+          status?: Database["public"]["Enums"]["gl_status"]
+          updated_at?: string
+        }
+        Update: {
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string
+          doc_ref?: string | null
+          doc_type?: Database["public"]["Enums"]["gl_doc_type"]
+          id?: string
+          job_id?: string | null
+          origin_module?: Database["public"]["Enums"]["gl_origin_module"]
+          profit_center_id?: string | null
+          status?: Database["public"]["Enums"]["gl_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gl_entry_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_entry_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_entry_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gl_entry_line: {
+        Row: {
+          cost_center_id: string | null
+          created_at: string
+          credit: number | null
+          debit: number | null
+          gl_account_id: string
+          gl_entry_id: string
+          id: string
+          job_id: string | null
+          notes: string | null
+          profit_center_id: string | null
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          cost_center_id?: string | null
+          created_at?: string
+          credit?: number | null
+          debit?: number | null
+          gl_account_id: string
+          gl_entry_id: string
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          profit_center_id?: string | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          cost_center_id?: string | null
+          created_at?: string
+          credit?: number | null
+          debit?: number | null
+          gl_account_id?: string
+          gl_entry_id?: string
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          profit_center_id?: string | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gl_entry_line_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_entry_line_gl_account_id_fkey"
+            columns: ["gl_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_entry_line_gl_entry_id_fkey"
+            columns: ["gl_entry_id"]
+            isOneToOne: false
+            referencedRelation: "gl_entry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_entry_line_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_entry_line_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employees: {
         Row: {
           created_at: string
@@ -3840,6 +3991,23 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
+      gl_doc_type:
+        | "SaleInvoice"
+        | "PurchaseInvoice"
+        | "Manual"
+        | "Timesheet"
+        | "MaterialIssue"
+        | "Logistics"
+        | "Adjustment"
+        | "Opening"
+      gl_origin_module:
+        | "Sales"
+        | "Purchases"
+        | "Warehouse"
+        | "Timesheet"
+        | "Finance"
+        | "Manual"
+      gl_status: "draft" | "incomplete" | "posted"
       rma_status: "open" | "analysis" | "repaired" | "closed"
       serial_status: "in_test" | "approved" | "rejected"
       wo_status: "planned" | "in_progress" | "testing" | "closed"
@@ -3971,6 +4139,25 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "moderator"],
+      gl_doc_type: [
+        "SaleInvoice",
+        "PurchaseInvoice",
+        "Manual",
+        "Timesheet",
+        "MaterialIssue",
+        "Logistics",
+        "Adjustment",
+        "Opening",
+      ],
+      gl_origin_module: [
+        "Sales",
+        "Purchases",
+        "Warehouse",
+        "Timesheet",
+        "Finance",
+        "Manual",
+      ],
+      gl_status: ["draft", "incomplete", "posted"],
       rma_status: ["open", "analysis", "repaired", "closed"],
       serial_status: ["in_test", "approved", "rejected"],
       wo_status: ["planned", "in_progress", "testing", "closed"],
