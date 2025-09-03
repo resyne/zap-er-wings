@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Download, Loader2 } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Download, Loader2, Zap } from "lucide-react";
+import ZapierIntegration from "@/components/leads/ZapierIntegration";
 
 interface Contact {
   id: string;
@@ -714,6 +715,17 @@ export default function LeadsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Zapier Integration Section */}
+      <ZapierIntegration
+        contactData={selectedContact}
+        onWebhookSent={() => {
+          toast({
+            title: "Zapier Webhook Attivato",
+            description: "I dati del lead sono stati inviati a Zapier per l'automazione",
+          });
+        }}
+      />
     </div>
   );
 }
