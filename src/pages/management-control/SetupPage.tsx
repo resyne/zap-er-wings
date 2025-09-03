@@ -1,9 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -12,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 const SetupPage = () => {
   const [activeTab, setActiveTab] = useState("chart-accounts");
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
-  const [costCenters, setCostCenters] = useState([]);
-  const [profitCenters, setProfitCenters] = useState([]);
+  const [costCentersData, setCostCentersData] = useState([]);
+  const [profitCentersData, setProfitCentersData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedAccounts, setExpandedAccounts] = useState(new Set());
 
@@ -41,7 +38,7 @@ const SetupPage = () => {
         .order('code');
 
       if (costError) throw costError;
-      setCostCenters(costData || []);
+      setCostCentersData(costData || []);
 
       // Load profit centers
       const { data: profitData, error: profitError } = await supabase
@@ -51,7 +48,7 @@ const SetupPage = () => {
         .order('code');
 
       if (profitError) throw profitError;
-      setProfitCenters(profitData || []);
+      setProfitCentersData(profitData || []);
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -140,7 +137,7 @@ const SetupPage = () => {
   };
 
   const renderCostCenters = () => {
-    return costCenters.map((center) => (
+    return costCentersData.map((center) => (
       <div key={center.code} className="flex items-center justify-between p-4 border rounded-lg">
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
@@ -167,7 +164,7 @@ const SetupPage = () => {
   };
 
   const renderProfitCenters = () => {
-    return profitCenters.map((center) => (
+    return profitCentersData.map((center) => (
       <div key={center.code} className="flex items-center justify-between p-4 border rounded-lg">
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
