@@ -250,13 +250,28 @@ export default function ZapierIntegration({ contactData, onWebhookSent }: Zapier
         </form>
 
         <div className="pt-4 border-t">
-          <h4 className="text-sm font-medium mb-2">Come configurare l'integrazione Lead:</h4>
-          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Crea un nuovo Zap in Zapier</li>
-            <li>Scegli la fonte dei tuoi lead (Gmail, Form, CRM, etc.) come trigger</li>
-            <li>Come azione, scegli "Webhooks by Zapier" → "POST"</li>
-            <li>Usa questo URL per inviare lead direttamente al sistema:</li>
+          <h4 className="text-sm font-medium mb-2">📝 Come ottenere il link webhook da Zapier:</h4>
+          <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside ml-2">
+            <li>Vai su <strong>zapier.com</strong> e accedi al tuo account</li>
+            <li>Clicca su <strong>"Create Zap"</strong> (Crea Zap)</li>
+            <li>Come <strong>Trigger</strong>, cerca e seleziona <strong>"Webhooks by Zapier"</strong></li>
+            <li>Scegli <strong>"Catch Hook"</strong> come evento</li>
+            <li>Zapier ti darà un <strong>URL webhook</strong> - <span className="text-primary font-medium">copialo e incollalo nel campo sopra</span></li>
+            <li>Configura l'azione che vuoi eseguire quando ricevi i dati</li>
+            <li>Attiva il Zap</li>
           </ol>
+          
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800">
+              💡 <strong>Suggerimento:</strong> L'URL webhook sarà simile a: 
+              <code className="bg-blue-100 px-1 rounded">https://hooks.zapier.com/hooks/catch/123456/abcdef/</code>
+            </p>
+          </div>
+
+          <h4 className="text-sm font-medium mb-2 mt-6">🔄 Configurazione alternativa - Invia lead dal tuo CRM a Zapier:</h4>
+          <p className="text-xs text-muted-foreground mb-2">
+            Se invece vuoi inviare lead dal nostro sistema verso Zapier, usa questo endpoint:
+          </p>
           
           <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono break-all">
             {window.location.origin.replace(/:\d+/, '')}/functions/v1/zapier-lead-webhook
