@@ -31,7 +31,8 @@ import {
   BookOpen,
   Calendar,
   Mail,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Ticket
 } from "lucide-react";
 
 import {
@@ -98,6 +99,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Dashboard", url: "/support", icon: LayoutDashboard },
       { title: "Ordini di Lavoro (OdL)", url: "/support/work-orders", icon: Wrench },
       { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
+      { title: "Ticket", url: "/support/tickets", icon: Ticket },
     ]
   },
   {

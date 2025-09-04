@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Wrench, Users, Settings } from "lucide-react";
+import { FileText, Wrench, Users, Settings, Ticket } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function SupportPage() {
@@ -25,6 +25,13 @@ export default function SupportPage() {
       icon: Users,
       href: "/support/technicians",
       color: "text-green-600"
+    },
+    {
+      title: "Ticket",
+      description: "Gestisci segnalazioni e problematiche dei clienti",
+      icon: Ticket,
+      href: "/support/tickets",
+      color: "text-red-600"
     },
     {
       title: "Attrezzature",

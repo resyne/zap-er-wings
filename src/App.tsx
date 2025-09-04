@@ -59,6 +59,7 @@ import CalendarPage from "./pages/planning/CalendarPage";
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
+import TicketsPage from "./pages/support/TicketsPage";
 import MaterialsPage from "./pages/warehouse/MaterialsPage";
 import ShippingOrdersPage from "./pages/warehouse/ShippingOrdersPage";
 import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
@@ -139,6 +140,7 @@ const App = () => (
                 <Route path="support" element={<SupportPage />} />
                 <Route path="support/service-reports" element={<ServiceReportsPage />} />
                 <Route path="support/work-orders" element={<WorkOrdersServicePage />} />
+                <Route path="support/tickets" element={<TicketsPage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
