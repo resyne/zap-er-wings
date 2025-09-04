@@ -65,6 +65,7 @@ import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPa
 import EmailPage from "./pages/communication/EmailPage";
 import ArchivePage from "./pages/marketing/ArchivePage";
 import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
+import IntegrationsPage from "./pages/integrations/IntegrationsPage";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,7 @@ const App = () => (
                 <Route path="support/service-reports" element={<ServiceReportsPage />} />
                 <Route path="support/work-orders" element={<WorkOrdersServicePage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />
+                <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
