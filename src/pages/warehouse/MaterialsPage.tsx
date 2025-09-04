@@ -566,11 +566,13 @@ export default function MaterialsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutti i fornitori</SelectItem>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
+                  {suppliers
+                    .filter(supplier => supplier.id)
+                    .map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
