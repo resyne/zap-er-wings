@@ -499,9 +499,9 @@ export default function LeadsPage() {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {leadStatuses.map(status => (
-            <div key={status.id} className="bg-muted/30 rounded-lg p-4">
+            <div key={status.id} className="bg-muted/30 rounded-lg p-4 min-w-[300px]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm">{status.title}</h3>
                 <Badge variant="secondary" className={status.color}>
@@ -529,18 +529,19 @@ export default function LeadsPage() {
                             }`}
                             
                           >
-                             <CardContent className="p-3">
-                               <div className="flex items-start justify-between mb-2">
-                                 <div 
-                                   {...provided.dragHandleProps}
-                                   className="flex-1 cursor-grab"
-                                 >
-                                   <h4 className="font-medium text-sm truncate">{lead.company_name}</h4>
+                             <CardContent className="p-4 space-y-3">
+                               {/* Header con titolo e azioni */}
+                               <div className="flex items-start justify-between">
+                                 <div className="flex-1 min-w-0">
+                                   <div className="flex items-center gap-2 mb-1">
+                                     <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                                     <h4 className="font-semibold text-sm truncate">{lead.company_name}</h4>
+                                   </div>
                                    {lead.contact_name && (
-                                     <p className="text-xs text-muted-foreground truncate">{lead.contact_name}</p>
+                                     <p className="text-xs text-muted-foreground truncate ml-6">{lead.contact_name}</p>
                                    )}
                                  </div>
-                                 <div className="flex items-center gap-1">
+                                 <div className="flex items-center gap-1 flex-shrink-0">
                                    <Button
                                      variant="ghost"
                                      size="sm"
@@ -548,7 +549,7 @@ export default function LeadsPage() {
                                        e.stopPropagation();
                                        handleEditLead(lead);
                                      }}
-                                     className="h-6 w-6 p-0"
+                                     className="h-6 w-6 p-0 hover:bg-muted"
                                    >
                                      <Edit className="h-3 w-3" />
                                    </Button>
@@ -558,7 +559,7 @@ export default function LeadsPage() {
                                          variant="ghost"
                                          size="sm"
                                          onClick={(e) => e.stopPropagation()}
-                                         className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                         className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                        >
                                          <Trash2 className="h-3 w-3" />
                                        </Button>
@@ -581,37 +582,62 @@ export default function LeadsPage() {
                                        </AlertDialogFooter>
                                      </AlertDialogContent>
                                    </AlertDialog>
-                                   <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                  </div>
                                </div>
-                              
-                              {lead.email && (
-                                <div className="flex items-center gap-1 mb-1">
-                                  <Mail className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
-                                </div>
-                              )}
-                              
-                              {lead.phone && (
-                                <div className="flex items-center gap-1 mb-2">
-                                  <Phone className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">{lead.phone}</span>
-                                </div>
-                              )}
-                              
-                              <div className="flex items-center justify-between">
-                                {lead.value && (
-                                  <span className="text-xs font-medium text-green-600">
-                                    €{lead.value.toLocaleString()}
-                                  </span>
-                                )}
-                                {lead.source && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {lead.source === "zapier" ? <Zap className="h-3 w-3" /> : lead.source}
-                                  </Badge>
-                                )}
-                              </div>
-                            </CardContent>
+
+                               {/* Informazioni di contatto */}
+                               <div className="space-y-2 border-t pt-2">
+                                 {lead.email && (
+                                   <div className="flex items-center gap-2">
+                                     <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                     <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
+                                   </div>
+                                 )}
+                                 
+                                 {lead.phone && (
+                                   <div className="flex items-center gap-2">
+                                     <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                     <span className="text-xs text-muted-foreground">{lead.phone}</span>
+                                   </div>
+                                 )}
+                               </div>
+                               
+                               {/* Footer con valore e fonte */}
+                               <div className="flex items-center justify-between border-t pt-2">
+                                 <div className="flex items-center gap-2">
+                                   {lead.value && (
+                                     <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
+                                       €{lead.value.toLocaleString()}
+                                     </span>
+                                   )}
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                   {lead.source && (
+                                     <Badge variant="outline" className="text-xs">
+                                       {lead.source === "zapier" ? (
+                                         <div className="flex items-center gap-1">
+                                           <Zap className="h-3 w-3" />
+                                           <span>Zapier</span>
+                                         </div>
+                                       ) : (
+                                         lead.source === "social_media" ? "Social" :
+                                         lead.source === "website" ? "Web" :
+                                         lead.source === "referral" ? "Referral" :
+                                         lead.source === "cold_call" ? "Cold Call" :
+                                         lead.source === "trade_show" ? "Fiera" :
+                                         "Altro"
+                                       )}
+                                     </Badge>
+                                   )}
+                                   <div 
+                                     {...provided.dragHandleProps}
+                                     className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-muted"
+                                   >
+                                     <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                   </div>
+                                 </div>
+                               </div>
+                             </CardContent>
                           </Card>
                         )}
                       </Draggable>
