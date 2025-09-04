@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Play, TestTube, CheckCircle, Wrench, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -947,46 +947,19 @@ export default function WorkOrdersPage() {
                           <span className="text-muted-foreground">Non impostato</span>
                         }
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleViewDetails(wo)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {wo.status === 'planned' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleStatusChange(wo.id, 'in_progress')}
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {wo.status === 'in_progress' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleStatusChange(wo.id, 'testing')}
-                            >
-                              <TestTube className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {wo.status === 'testing' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleStatusChange(wo.id, 'closed')}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(wo.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                       <TableCell className="text-right">
+                         <div className="flex items-center justify-end space-x-2">
+                           <Button variant="ghost" size="sm" onClick={() => handleViewDetails(wo)}>
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                           <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
+                             <Edit className="h-4 w-4" />
+                           </Button>
+                           <Button variant="ghost" size="sm" onClick={() => handleDelete(wo.id)}>
+                             <Trash2 className="h-4 w-4" />
+                           </Button>
+                         </div>
+                       </TableCell>
                     </TableRow>
                   ))
                 )}
