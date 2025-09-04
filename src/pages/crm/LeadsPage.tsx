@@ -32,12 +32,16 @@ interface Lead {
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
 const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro"];
-const leadStatuses = [
+// Solo le fasi principali per la Kanban
+const kanbanStatuses = [
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
-  { id: "contacted", title: "Contattato", color: "bg-yellow-100 text-yellow-800" },
   { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
-  { id: "proposal", title: "Proposta", color: "bg-purple-100 text-purple-800" },
-  { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
+  { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" }
+];
+
+// Tutti gli stati per i form
+const allStatuses = [
+  ...kanbanStatuses,
   { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
   { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" }
 ];
@@ -232,12 +236,105 @@ export default function LeadsPage() {
 
       toast({
         title: "Lead aggiornato",
-        description: `Lead spostato in ${leadStatuses.find(s => s.id === destination.droppableId)?.title}`,
+        description: `Lead spostato in ${kanbanStatuses.find(s => s.id === destination.droppableId)?.title}`,
       });
     } catch (error: any) {
       toast({
         title: "Errore",
         description: "Impossibile aggiornare lo stato del lead",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleWinLead = async (lead: Lead) => {
+    try {
+      // 1. Aggiorna il lead come vinto
+      const { error: leadError } = await supabase
+        .from("leads")
+        .update({ status: "won" })
+        .eq("id", lead.id);
+
+      if (leadError) throw leadError;
+
+      // 2. Crea un cliente con badge "vinto"
+      const { data: customer, error: customerError } = await supabase
+        .from("crm_contacts")
+        .insert([{
+          first_name: lead.contact_name?.split(' ')[0] || "",
+          last_name: lead.contact_name?.split(' ').slice(1).join(' ') || "",
+          company_name: lead.company_name,
+          email: lead.email,
+          phone: lead.phone,
+          lead_source: "won_lead"
+        }])
+        .select()
+        .single();
+
+      if (customerError) throw customerError;
+
+      // 3. Crea un ordine di vendita
+      const { error: salesOrderError } = await supabase
+        .from("sales_orders")
+        .insert([{
+          customer_id: customer.id,
+          status: "draft",
+          notes: `Ordine creato da lead vinto: ${lead.company_name}`,
+          order_type: "lead_conversion",
+          number: `SO-${Date.now()}`
+        }]);
+
+      if (salesOrderError) throw salesOrderError;
+
+      toast({
+        title: "Lead vinto!",
+        description: "Cliente creato e ordine di vendita generato",
+      });
+
+      await loadLeads();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile processare il lead vinto: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLoseLead = async (lead: Lead) => {
+    try {
+      // 1. Aggiorna il lead come perso
+      const { error: leadError } = await supabase
+        .from("leads")
+        .update({ status: "lost" })
+        .eq("id", lead.id);
+
+      if (leadError) throw leadError;
+
+      // 2. Crea un cliente con badge "perso"
+      const { error: customerError } = await supabase
+        .from("crm_contacts")
+        .insert([{
+          first_name: lead.contact_name?.split(' ')[0] || "",
+          last_name: lead.contact_name?.split(' ').slice(1).join(' ') || "",
+          company_name: lead.company_name,
+          email: lead.email,
+          phone: lead.phone,
+          lead_source: "lost_lead"
+        }]);
+
+      if (customerError) throw customerError;
+
+      toast({
+        title: "Lead perso",
+        description: "Cliente creato con badge perso",
+      });
+
+      await loadLeads();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile processare il lead perso: " + error.message,
         variant: "destructive",
       });
     }
@@ -259,11 +356,16 @@ export default function LeadsPage() {
     return matchesSearch && matchesPipeline;
   });
 
-  // Group leads by status
-  const leadsByStatus = leadStatuses.reduce((acc, status) => {
+  // Group leads by status (solo per le fasi kanban)
+  const leadsByStatus = kanbanStatuses.reduce((acc, status) => {
     acc[status.id] = filteredLeads.filter(lead => lead.status === status.id);
     return acc;
   }, {} as Record<string, Lead[]>);
+
+  // Filtra solo i lead nelle fasi kanban
+  const activeLeads = filteredLeads.filter(lead => 
+    kanbanStatuses.some(status => status.id === lead.status)
+  );
 
   const totalLeads = filteredLeads.length;
   const recentLeads = filteredLeads.filter(lead => {
@@ -380,7 +482,7 @@ export default function LeadsPage() {
                       <SelectValue placeholder="Seleziona stato" />
                     </SelectTrigger>
                     <SelectContent>
-                      {leadStatuses.map(status => (
+                      {allStatuses.map(status => (
                         <SelectItem key={status.id} value={status.id}>
                           {status.title}
                         </SelectItem>
@@ -463,7 +565,7 @@ export default function LeadsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalLeads > 0 ? Math.round((leadsByStatus.won?.length || 0) / totalLeads * 100) : 0}%
+              {totalLeads > 0 ? Math.round((filteredLeads.filter(l => l.status === "won").length) / totalLeads * 100) : 0}%
             </div>
           </CardContent>
         </Card>
@@ -499,8 +601,8 @@ export default function LeadsPage() {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {leadStatuses.map(status => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {kanbanStatuses.map(status => (
             <div key={status.id} className="bg-muted/30 rounded-lg p-4 min-w-[300px]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm">{status.title}</h3>
@@ -635,9 +737,36 @@ export default function LeadsPage() {
                                    >
                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
                                    </div>
-                                 </div>
-                               </div>
-                             </CardContent>
+                                  </div>
+                                </div>
+
+                                {/* Bottoni Vinto/Perso */}
+                                {lead.status === "negotiation" && (
+                                  <div className="flex gap-2 pt-2 border-t">
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleWinLead(lead);
+                                      }}
+                                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                      Vinto
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLoseLead(lead);
+                                      }}
+                                      className="flex-1"
+                                    >
+                                      Perso
+                                    </Button>
+                                  </div>
+                                )}
+                              </CardContent>
                           </Card>
                         )}
                       </Draggable>
@@ -733,7 +862,7 @@ export default function LeadsPage() {
                   <SelectValue placeholder="Seleziona stato" />
                 </SelectTrigger>
                 <SelectContent>
-                  {leadStatuses.map(status => (
+                  {allStatuses.map(status => (
                     <SelectItem key={status.id} value={status.id}>
                       {status.title}
                     </SelectItem>
