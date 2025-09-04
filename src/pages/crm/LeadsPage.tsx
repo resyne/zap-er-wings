@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 
@@ -162,6 +163,30 @@ export default function LeadsPage() {
       toast({
         title: "Errore",
         description: "Impossibile aggiornare il lead: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Lead eliminato",
+        description: "Il lead è stato eliminato con successo",
+      });
+
+      await loadLeads();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il lead: " + error.message,
         variant: "destructive",
       });
     }
@@ -502,21 +527,63 @@ export default function LeadsPage() {
                             className={`cursor-pointer transition-shadow hover:shadow-md ${
                               snapshot.isDragging ? 'shadow-lg' : ''
                             }`}
-                            onClick={() => handleEditLead(lead)}
+                            
                           >
-                            <CardContent className="p-3">
-                              <div
-                                {...provided.dragHandleProps}
-                                className="flex items-start justify-between mb-2"
-                              >
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-sm truncate">{lead.company_name}</h4>
-                                  {lead.contact_name && (
-                                    <p className="text-xs text-muted-foreground truncate">{lead.contact_name}</p>
-                                  )}
-                                </div>
-                                <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              </div>
+                             <CardContent className="p-3">
+                               <div className="flex items-start justify-between mb-2">
+                                 <div 
+                                   {...provided.dragHandleProps}
+                                   className="flex-1 cursor-grab"
+                                 >
+                                   <h4 className="font-medium text-sm truncate">{lead.company_name}</h4>
+                                   {lead.contact_name && (
+                                     <p className="text-xs text-muted-foreground truncate">{lead.contact_name}</p>
+                                   )}
+                                 </div>
+                                 <div className="flex items-center gap-1">
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       handleEditLead(lead);
+                                     }}
+                                     className="h-6 w-6 p-0"
+                                   >
+                                     <Edit className="h-3 w-3" />
+                                   </Button>
+                                   <AlertDialog>
+                                     <AlertDialogTrigger asChild>
+                                       <Button
+                                         variant="ghost"
+                                         size="sm"
+                                         onClick={(e) => e.stopPropagation()}
+                                         className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                       >
+                                         <Trash2 className="h-3 w-3" />
+                                       </Button>
+                                     </AlertDialogTrigger>
+                                     <AlertDialogContent>
+                                       <AlertDialogHeader>
+                                         <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                                         <AlertDialogDescription>
+                                           Questa azione non può essere annullata. Il lead verrà eliminato definitivamente dal sistema.
+                                         </AlertDialogDescription>
+                                       </AlertDialogHeader>
+                                       <AlertDialogFooter>
+                                         <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                         <AlertDialogAction
+                                           onClick={() => handleDeleteLead(lead.id)}
+                                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                         >
+                                           Elimina
+                                         </AlertDialogAction>
+                                       </AlertDialogFooter>
+                                     </AlertDialogContent>
+                                   </AlertDialog>
+                                   <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                 </div>
+                               </div>
                               
                               {lead.email && (
                                 <div className="flex items-center gap-1 mb-1">
