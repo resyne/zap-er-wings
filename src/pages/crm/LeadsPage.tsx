@@ -22,6 +22,7 @@ interface Lead {
   value?: number;
   source?: string;
   status: string;
+  pipeline?: string;
   notes?: string;
   assigned_to?: string;
   created_at: string;
@@ -29,6 +30,7 @@ interface Lead {
 }
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
+const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro"];
 const leadStatuses = [
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
   { id: "contacted", title: "Contattato", color: "bg-yellow-100 text-yellow-800" },
@@ -54,6 +56,7 @@ export default function LeadsPage() {
     value: "",
     source: "",
     status: "new",
+    pipeline: "",
     notes: "",
   });
   const { toast } = useToast();
@@ -122,6 +125,7 @@ export default function LeadsPage() {
       value: lead.value ? lead.value.toString() : "",
       source: lead.source || "",
       status: lead.status,
+      pipeline: lead.pipeline || "",
       notes: lead.notes || "",
     });
     setIsEditDialogOpen(true);
@@ -170,6 +174,7 @@ export default function LeadsPage() {
       value: "",
       source: "",
       status: "new",
+      pipeline: "",
       notes: "",
     });
   };
@@ -349,6 +354,21 @@ export default function LeadsPage() {
                       {leadStatuses.map(status => (
                         <SelectItem key={status.id} value={status.id}>
                           {status.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="pipeline">Pipeline</Label>
+                  <Select value={newLead.pipeline} onValueChange={(value) => setNewLead({...newLead, pipeline: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona pipeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelines.map(pipeline => (
+                        <SelectItem key={pipeline} value={pipeline}>
+                          {pipeline}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -602,6 +622,21 @@ export default function LeadsPage() {
                   {leadStatuses.map(status => (
                     <SelectItem key={status.id} value={status.id}>
                       {status.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit_pipeline">Pipeline</Label>
+              <Select value={newLead.pipeline} onValueChange={(value) => setNewLead({...newLead, pipeline: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map(pipeline => (
+                    <SelectItem key={pipeline} value={pipeline}>
+                      {pipeline}
                     </SelectItem>
                   ))}
                 </SelectContent>
