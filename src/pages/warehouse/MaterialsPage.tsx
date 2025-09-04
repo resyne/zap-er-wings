@@ -75,6 +75,7 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
@@ -266,12 +267,16 @@ export default function MaterialsPage() {
     }
   };
 
-  const filteredMaterials = materials.filter(material =>
-    material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    materialTypeLabels[material.material_type].toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMaterials = materials.filter(material => {
+    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      materialTypeLabels[material.material_type].toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesSupplier = selectedSupplier === "" || material.supplier_id === selectedSupplier;
+    
+    return matchesSearch && matchesSupplier;
+  });
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -543,14 +548,32 @@ export default function MaterialsPage() {
           <CardTitle>Ricerca Materiali</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cerca per nome, codice, categoria o tipo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
-            />
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 flex-1">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca per nome, codice, categoria o tipo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-md"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium">Fornitore:</label>
+              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Tutti i fornitori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Tutti i fornitori</SelectItem>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
