@@ -45,6 +45,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("ZAPPER");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -56,7 +57,7 @@ export default function LeadsPage() {
     value: "",
     source: "",
     status: "new",
-    pipeline: "",
+    pipeline: "ZAPPER",
     notes: "",
   });
   const { toast } = useToast();
@@ -89,7 +90,8 @@ export default function LeadsPage() {
     try {
       const leadData = {
         ...newLead,
-        value: newLead.value ? parseFloat(newLead.value) : null
+        value: newLead.value ? parseFloat(newLead.value) : null,
+        pipeline: newLead.pipeline || selectedPipeline
       };
       
       const { error } = await supabase
@@ -174,7 +176,7 @@ export default function LeadsPage() {
       value: "",
       source: "",
       status: "new",
-      pipeline: "",
+      pipeline: selectedPipeline,
       notes: "",
     });
   };
@@ -224,11 +226,13 @@ export default function LeadsPage() {
     });
   }, []);
 
-  const filteredLeads = leads.filter(lead =>
-    `${lead.company_name} ${lead.contact_name} ${lead.email}`
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+      .includes(searchTerm.toLowerCase());
+    const matchesPipeline = !selectedPipeline || lead.pipeline === selectedPipeline;
+    return matchesSearch && matchesPipeline;
+  });
 
   // Group leads by status
   const leadsByStatus = leadStatuses.reduce((acc, status) => {
@@ -440,15 +444,32 @@ export default function LeadsPage() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Cerca lead..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
+      {/* Pipeline and Search */}
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Label htmlFor="pipeline-filter">Pipeline:</Label>
+          <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Seleziona pipeline" />
+            </SelectTrigger>
+            <SelectContent>
+              {pipelines.map(pipeline => (
+                <SelectItem key={pipeline} value={pipeline}>
+                  {pipeline}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cerca lead..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
       </div>
 
       {/* Kanban Board */}
