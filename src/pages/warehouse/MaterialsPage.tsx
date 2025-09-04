@@ -75,7 +75,7 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
@@ -273,7 +273,7 @@ export default function MaterialsPage() {
       material.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       materialTypeLabels[material.material_type].toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesSupplier = selectedSupplier === "" || material.supplier_id === selectedSupplier;
+    const matchesSupplier = selectedSupplier === "all" || material.supplier_id === selectedSupplier;
     
     return matchesSearch && matchesSupplier;
   });
@@ -565,7 +565,7 @@ export default function MaterialsPage() {
                   <SelectValue placeholder="Tutti i fornitori" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tutti i fornitori</SelectItem>
+                  <SelectItem value="all">Tutti i fornitori</SelectItem>
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>
                       {supplier.name}
