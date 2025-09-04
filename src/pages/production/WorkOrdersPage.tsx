@@ -913,9 +913,34 @@ export default function WorkOrdersPage() {
                            wo.priority === 'medium' ? 'Media' : 'Bassa'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <StatusBadge status={wo.status} />
-                      </TableCell>
+                       <TableCell>
+                         <Select 
+                           value={wo.status} 
+                           onValueChange={(value: 'planned' | 'in_progress' | 'testing' | 'closed') => 
+                             handleStatusChange(wo.id, value)
+                           }
+                         >
+                           <SelectTrigger className="w-32">
+                             <SelectValue>
+                               <StatusBadge status={wo.status} />
+                             </SelectValue>
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="planned">
+                               <StatusBadge status="planned" />
+                             </SelectItem>
+                             <SelectItem value="in_progress">
+                               <StatusBadge status="in_progress" />
+                             </SelectItem>
+                             <SelectItem value="testing">
+                               <StatusBadge status="testing" />
+                             </SelectItem>
+                             <SelectItem value="closed">
+                               <StatusBadge status="closed" />
+                             </SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </TableCell>
                       <TableCell>
                         {wo.planned_start_date ? 
                           new Date(wo.planned_start_date).toLocaleDateString() : 
