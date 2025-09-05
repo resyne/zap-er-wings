@@ -84,7 +84,7 @@ export default function WorkCostCalculatorPage() {
   
   const [searchMaterial, setSearchMaterial] = useState("");
   const [searchTechnician, setSearchTechnician] = useState("");
-  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   
   // Dialog states
@@ -500,7 +500,7 @@ export default function WorkCostCalculatorPage() {
   const filteredMaterials = materials.filter(material => {
     const matchesSearch = material.name.toLowerCase().includes(searchMaterial.toLowerCase()) ||
                          material.code.toLowerCase().includes(searchMaterial.toLowerCase());
-    const matchesSupplier = !selectedSupplier || material.supplier_id === selectedSupplier;
+    const matchesSupplier = selectedSupplier === "all" || !selectedSupplier || material.supplier_id === selectedSupplier;
     return matchesSearch && matchesSupplier;
   });
 
@@ -695,7 +695,7 @@ export default function WorkCostCalculatorPage() {
                           <SelectValue placeholder="Tutti i fornitori" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tutti i fornitori</SelectItem>
+                          <SelectItem value="all">Tutti i fornitori</SelectItem>
                           {suppliers.map((supplier) => (
                             <SelectItem key={supplier.id} value={supplier.id}>
                               {supplier.name} ({supplier.code})
