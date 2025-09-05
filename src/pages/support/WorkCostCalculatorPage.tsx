@@ -606,7 +606,11 @@ export default function WorkCostCalculatorPage() {
                     <Input
                       id="customer-name"
                       value={newDraft.customer_name}
-                      onChange={(e) => setNewDraft({ ...newDraft, customer_name: e.target.value })}
+                      onChange={(e) => setNewDraft({ 
+                        ...newDraft, 
+                        customer_name: e.target.value,
+                        customer_id: "" // Clear customer_id when manually entering name
+                      })}
                       placeholder="Nome del cliente"
                     />
                   </div>
