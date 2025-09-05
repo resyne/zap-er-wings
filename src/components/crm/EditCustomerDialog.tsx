@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ interface EditCustomerDialogProps {
 
 export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpdated }: EditCustomerDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [sameBillingAddress, setSameBillingAddress] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -34,6 +36,9 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
 
   useEffect(() => {
     if (customer) {
+      const hasShippingAddress = customer.shipping_address && customer.shipping_address.trim() !== '';
+      setSameBillingAddress(!hasShippingAddress);
+      
       setFormData({
         name: customer.name || "",
         code: customer.code || "",
@@ -77,7 +82,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
           email: formData.email || null,
           phone: formData.phone || null,
           address: formData.address || null,
-          shipping_address: formData.shipping_address || null,
+          shipping_address: sameBillingAddress ? null : (formData.shipping_address || null),
           city: formData.city || null,
           country: formData.country || null,
           tax_id: formData.tax_id || null,
@@ -179,16 +184,32 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="shipping_address">Indirizzo di Spedizione (se diverso)</Label>
-            <Textarea
-              id="shipping_address"
-              value={formData.shipping_address}
-              onChange={(e) => handleInputChange('shipping_address', e.target.value)}
-              placeholder="Via, numero civico (lascia vuoto se uguale all'indirizzo di fatturazione)"
-              rows={2}
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox
+              id="same_billing"
+              checked={sameBillingAddress}
+              onCheckedChange={(checked) => {
+                setSameBillingAddress(checked as boolean);
+                if (checked) {
+                  handleInputChange('shipping_address', '');
+                }
+              }}
             />
+            <Label htmlFor="same_billing">Stesso indirizzo di fatturazione</Label>
           </div>
+
+          {!sameBillingAddress && (
+            <div className="space-y-2">
+              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+              <Textarea
+                id="shipping_address"
+                value={formData.shipping_address}
+                onChange={(e) => handleInputChange('shipping_address', e.target.value)}
+                placeholder="Via, numero civico"
+                rows={2}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
