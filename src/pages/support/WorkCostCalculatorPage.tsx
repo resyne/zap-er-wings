@@ -586,6 +586,50 @@ export default function WorkCostCalculatorPage() {
     (machine.machinery_model && machine.machinery_model.toLowerCase().includes(searchMachinery.toLowerCase()))
   );
 
+  const calculateBOMCost = async (bomId: string): Promise<number> => {
+    try {
+      // Get all BOM inclusions for this BOM
+      const { data: inclusions, error: inclusionsError } = await supabase
+        .from("bom_inclusions")
+        .select(`
+          quantity,
+          included_bom:boms!bom_inclusions_included_bom_id_fkey(
+            id,
+            material_id,
+            materials(cost)
+          )
+        `)
+        .eq("parent_bom_id", bomId);
+
+      if (inclusionsError) throw inclusionsError;
+
+      let totalCost = 0;
+
+      // Calculate cost for each inclusion
+      for (const inclusion of inclusions || []) {
+        if (inclusion.included_bom?.material_id && inclusion.included_bom.materials?.cost) {
+          totalCost += inclusion.quantity * inclusion.included_bom.materials.cost;
+        } else if (inclusion.included_bom?.id) {
+          // Recursively calculate cost for included BOMs
+          const nestedCost = await calculateBOMCost(inclusion.included_bom.id);
+          totalCost += inclusion.quantity * nestedCost;
+        }
+      }
+
+      return totalCost;
+    } catch (error) {
+      console.error("Error calculating BOM cost:", error);
+      return 0;
+    }
+  };
+
+  const handleMachinerySelection = async (machine: Machinery) => {
+    setSelectedMachinery(machine);
+    // Calculate and set the BOM cost automatically
+    const bomCost = await calculateBOMCost(machine.id);
+    setMachineryCost(bomCost);
+  };
+
   const handleCustomerCreated = (customer: Customer) => {
     setCustomers([...customers, customer]);
     setNewDraft({
@@ -956,7 +1000,7 @@ export default function WorkCostCalculatorPage() {
                         <div
                           key={machine.id}
                           className={`p-3 cursor-pointer hover:bg-muted ${selectedMachinery?.id === machine.id ? 'bg-primary/10' : ''}`}
-                          onClick={() => setSelectedMachinery(machine)}
+                          onClick={() => handleMachinerySelection(machine)}
                         >
                           <div className="font-medium">{machine.name}</div>
                           <div className="text-sm text-muted-foreground">
