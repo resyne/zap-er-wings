@@ -111,7 +111,6 @@ export default function WorkCostCalculatorPage() {
   const [selectedMachinery, setSelectedMachinery] = useState<Machinery | null>(null);
   const [materialQuantity, setMaterialQuantity] = useState<number>(1);
   const [technicianHours, setTechnicianHours] = useState<number>(1);
-  const [machineryHours, setMachineryHours] = useState<number>(1);
   const [machineryCost, setMachineryCost] = useState<number>(0);
   
   // New draft form
@@ -388,8 +387,6 @@ export default function WorkCostCalculatorPage() {
     if (!selectedMachinery || !currentDraft) return;
 
     try {
-      const totalCost = machineryHours * machineryCost;
-      
       const { data, error } = await supabase
         .from("cost_draft_items")
         .insert({
@@ -397,11 +394,10 @@ export default function WorkCostCalculatorPage() {
           type: "machinery",
           machinery_id: selectedMachinery.id,
           name: `${selectedMachinery.name} (${selectedMachinery.machinery_model || 'N/A'})`,
-          quantity: machineryHours,
+          quantity: 1,
           unit_cost: machineryCost,
-          total_cost: totalCost,
-          unit: "ore",
-          hours: machineryHours
+          total_cost: machineryCost,
+          unit: "pcs"
         })
         .select()
         .single();
@@ -414,7 +410,6 @@ export default function WorkCostCalculatorPage() {
       }]);
       setShowMachineryDialog(false);
       setSelectedMachinery(null);
-      setMachineryHours(1);
       setMachineryCost(0);
       
       await updateDraftTotal();
@@ -977,7 +972,7 @@ export default function WorkCostCalculatorPage() {
                 <DialogHeader>
                   <DialogTitle>Aggiungi Macchinario</DialogTitle>
                   <DialogDescription>
-                    Seleziona un macchinario dalla distinta base livello 0 e specifica ore e costo
+                    Seleziona un macchinario dalla distinta base livello 0 e specifica il costo
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -1015,32 +1010,23 @@ export default function WorkCostCalculatorPage() {
                   </div>
                   {selectedMachinery && (
                     <div className="space-y-4 border-t pt-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="machinery-hours">Ore di Utilizzo</Label>
-                          <Input
-                            id="machinery-hours"
-                            type="number"
-                            value={machineryHours}
-                            onChange={(e) => setMachineryHours(parseFloat(e.target.value) || 1)}
-                            min="0.1"
-                            step="0.1"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="machinery-cost">Costo Orario (€)</Label>
-                          <Input
-                            id="machinery-cost"
-                            type="number"
-                            value={machineryCost}
-                            onChange={(e) => setMachineryCost(parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
-                          />
+                      <div>
+                        <Label htmlFor="machinery-cost">Costo BOM (€)</Label>
+                        <Input
+                          id="machinery-cost"
+                          type="number"
+                          value={machineryCost}
+                          onChange={(e) => setMachineryCost(parseFloat(e.target.value) || 0)}
+                          min="0"
+                          step="0.01"
+                          disabled
+                        />
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Costo calcolato automaticamente dalla BOM
                         </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Costo totale: €{(machineryHours * machineryCost).toFixed(2)}
+                      <div className="text-sm font-medium">
+                        Costo totale: €{machineryCost.toFixed(2)}
                       </div>
                     </div>
                   )}
