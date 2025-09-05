@@ -35,7 +35,9 @@ interface BOM {
     code: string;
     current_stock: number;
     unit: string;
+    cost?: number;
   };
+  totalCost?: number;
 }
 
 interface ParentBOM {
@@ -159,6 +161,25 @@ export default function BomPage() {
     }
   };
 
+  const calculateBomCost = (bom: any): number => {
+    let totalCost = 0;
+
+    // Add cost from direct material (Level 2 BOMs)
+    if (bom.material?.cost) {
+      totalCost += Number(bom.material.cost);
+    }
+
+    // Add costs from included BOMs recursively
+    if (bom.bom_inclusions) {
+      bom.bom_inclusions.forEach((inclusion: any) => {
+        const includedBomCost = calculateBomCost(inclusion.included_bom);
+        totalCost += includedBomCost * (inclusion.quantity || 1);
+      });
+    }
+
+    return totalCost;
+  };
+
   const fetchBoms = async () => {
     try {
       const { data, error } = await supabase
@@ -166,13 +187,26 @@ export default function BomPage() {
         .select(`
           *,
           bom_items(count),
-          material:materials(id, name, code, current_stock, unit),
+          material:materials(id, name, code, current_stock, unit, cost),
           bom_inclusions!parent_bom_id(
             id,
             included_bom_id,
             quantity,
             notes,
-            included_bom:boms!included_bom_id(*)
+            included_bom:boms!included_bom_id(
+              *,
+              material:materials(id, name, code, current_stock, unit, cost),
+              bom_inclusions!parent_bom_id(
+                id,
+                included_bom_id,
+                quantity,
+                notes,
+                included_bom:boms!included_bom_id(
+                  *,
+                  material:materials(id, name, code, current_stock, unit, cost)
+                )
+              )
+            )
           )
         `)
         .order('level', { ascending: true })
@@ -183,7 +217,8 @@ export default function BomPage() {
       const bomsWithCount = data?.map(bom => ({
         ...bom,
         component_count: Array.isArray(bom.bom_items) ? bom.bom_items.length : 0,
-        inclusions: bom.bom_inclusions || []
+        inclusions: bom.bom_inclusions || [],
+        totalCost: calculateBomCost(bom)
       })) || [];
 
       setBoms(bomsWithCount);
@@ -734,20 +769,40 @@ export default function BomPage() {
                     <p className="text-sm text-muted-foreground">{bomDetails.machinery_model}</p>
                   </div>
                 )}
-                {bomDetails.material && (
-                  <div className="col-span-2">
-                    <Label className="text-sm font-medium">Warehouse Material</Label>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge variant="secondary">
-                        {bomDetails.material.name} ({bomDetails.material.code})
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Stock: {bomDetails.material.current_stock} {bomDetails.material.unit}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+                 {bomDetails.material && (
+                   <div className="col-span-2">
+                     <Label className="text-sm font-medium">Warehouse Material</Label>
+                     <div className="flex items-center space-x-2 mt-1">
+                       <Badge variant="secondary">
+                         {bomDetails.material.name} ({bomDetails.material.code})
+                       </Badge>
+                       <span className="text-sm text-muted-foreground">
+                         Stock: {bomDetails.material.current_stock} {bomDetails.material.unit}
+                       </span>
+                       {bomDetails.material.cost && (
+                         <span className="font-medium text-green-600">
+                           €{Number(bomDetails.material.cost).toFixed(2)}
+                         </span>
+                       )}
+                     </div>
+                   </div>
+                 )}
+                 <div>
+                   <Label className="text-sm font-medium">Total BOM Cost</Label>
+                   <div className="mt-1">
+                     {(() => {
+                       const totalCost = calculateBomCost(bomDetails);
+                       return totalCost > 0 ? (
+                         <span className="text-lg font-bold text-green-600">
+                           €{totalCost.toFixed(2)}
+                         </span>
+                       ) : (
+                         <span className="text-muted-foreground">Not calculated</span>
+                       );
+                     })()}
+                   </div>
+                 </div>
+               </div>
 
               {/* BOM Inclusions */}
               {bomDetails.bom_inclusions && bomDetails.bom_inclusions.length > 0 && (
@@ -762,6 +817,7 @@ export default function BomPage() {
                           <TableHead>Level</TableHead>
                           <TableHead>Quantity</TableHead>
                           <TableHead>Material</TableHead>
+                          <TableHead>Cost</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -777,21 +833,30 @@ export default function BomPage() {
                               </Badge>
                             </TableCell>
                             <TableCell>{inclusion.quantity}</TableCell>
-                            <TableCell>
-                              {inclusion.included_bom.material ? (
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">
-                                    {inclusion.included_bom.material.name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    Stock: {inclusion.included_bom.material.current_stock} {inclusion.included_bom.material.unit}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
+                             <TableCell>
+                               {inclusion.included_bom.material ? (
+                                 <div className="flex flex-col">
+                                   <span className="text-sm font-medium">
+                                     {inclusion.included_bom.material.name}
+                                   </span>
+                                   <span className="text-xs text-muted-foreground">
+                                     Stock: {inclusion.included_bom.material.current_stock} {inclusion.included_bom.material.unit}
+                                   </span>
+                                 </div>
+                               ) : (
+                                 <span className="text-muted-foreground">-</span>
+                               )}
+                             </TableCell>
+                             <TableCell>
+                               {inclusion.included_bom.material?.cost ? (
+                                 <span className="font-medium text-green-600">
+                                   €{(Number(inclusion.included_bom.material.cost) * inclusion.quantity).toFixed(2)}
+                                 </span>
+                               ) : (
+                                 <span className="text-muted-foreground">-</span>
+                               )}
+                             </TableCell>
+                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
@@ -932,32 +997,33 @@ export default function BomPage() {
               <TabsContent key={level} value={level.toString()}>
                 <div className="rounded-md border">
                   <Table>
-                    <TableHeader>
-                       <TableRow>
-                         <TableHead>Name</TableHead>
-                         <TableHead>Version</TableHead>
-                         <TableHead>Description</TableHead>
-                         {level === 0 && <TableHead>Machinery Model</TableHead>}
-                         {level === 2 && <TableHead>Material</TableHead>}
-                         {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
-                         <TableHead>Components</TableHead>
-                         <TableHead>Last Modified</TableHead>
-                         <TableHead className="text-right">Actions</TableHead>
-                       </TableRow>
-                    </TableHeader>
+                     <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Version</TableHead>
+                          <TableHead>Description</TableHead>
+                          {level === 0 && <TableHead>Machinery Model</TableHead>}
+                          {level === 2 && <TableHead>Material</TableHead>}
+                          {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
+                          <TableHead>Components</TableHead>
+                          <TableHead>Total Cost</TableHead>
+                          <TableHead>Last Modified</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                     </TableHeader>
                     <TableBody>
-                       {loading ? (
-                         <TableRow>
-                           <TableCell colSpan={level === 0 ? 7 : 7} className="text-center py-8">
-                             Loading BOMs...
-                           </TableCell>
-                         </TableRow>
-                       ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
-                         <TableRow>
-                           <TableCell colSpan={level === 0 ? 7 : 7} className="text-center py-8">
-                             No Level {level} BOMs found
-                           </TableCell>
-                         </TableRow>
+                        {loading ? (
+                          <TableRow>
+                            <TableCell colSpan={level === 0 ? 8 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
+                              Loading BOMs...
+                            </TableCell>
+                          </TableRow>
+                        ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={level === 0 ? 8 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
+                              No Level {level} BOMs found
+                            </TableCell>
+                          </TableRow>
                       ) : (
                         groupedBoms[level].map((bom) => (
                            <TableRow key={bom.id}>
@@ -1000,14 +1066,28 @@ export default function BomPage() {
                                 </Badge>
                               </TableCell>
                             )}
-                            <TableCell>
-                              <Badge variant="secondary">
-                                {bom.component_count} items
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {new Date(bom.updated_at).toLocaleDateString()}
-                            </TableCell>
+                             <TableCell>
+                               <Badge variant="secondary">
+                                 {bom.component_count} items
+                               </Badge>
+                             </TableCell>
+                             <TableCell>
+                               {bom.totalCost && bom.totalCost > 0 ? (
+                                 <div className="flex flex-col">
+                                   <span className="font-medium text-green-600">
+                                     €{bom.totalCost.toFixed(2)}
+                                   </span>
+                                   <span className="text-xs text-muted-foreground">
+                                     Total BOM cost
+                                   </span>
+                                 </div>
+                               ) : (
+                                 <span className="text-muted-foreground">-</span>
+                               )}
+                             </TableCell>
+                             <TableCell>
+                               {new Date(bom.updated_at).toLocaleDateString()}
+                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end space-x-2">
                                 <Button variant="ghost" size="sm" onClick={() => handleView(bom)}>
