@@ -438,6 +438,7 @@ export type Database = {
           draft_id: string
           hours: number | null
           id: string
+          machinery_id: string | null
           material_id: string | null
           name: string
           notes: string | null
@@ -454,6 +455,7 @@ export type Database = {
           draft_id: string
           hours?: number | null
           id?: string
+          machinery_id?: string | null
           material_id?: string | null
           name: string
           notes?: string | null
@@ -470,6 +472,7 @@ export type Database = {
           draft_id?: string
           hours?: number | null
           id?: string
+          machinery_id?: string | null
           material_id?: string | null
           name?: string
           notes?: string | null
@@ -487,6 +490,13 @@ export type Database = {
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "customer_cost_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_draft_items_machinery_id_fkey"
+            columns: ["machinery_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
             referencedColumns: ["id"]
           },
           {
