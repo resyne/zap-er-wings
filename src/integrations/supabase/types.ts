@@ -432,6 +432,79 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_draft_items: {
+        Row: {
+          created_at: string
+          draft_id: string
+          hours: number | null
+          id: string
+          material_id: string | null
+          name: string
+          notes: string | null
+          quantity: number
+          technician_id: string | null
+          total_cost: number
+          type: string
+          unit: string | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          draft_id: string
+          hours?: number | null
+          id?: string
+          material_id?: string | null
+          name: string
+          notes?: string | null
+          quantity: number
+          technician_id?: string | null
+          total_cost: number
+          type: string
+          unit?: string | null
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          draft_id?: string
+          hours?: number | null
+          id?: string
+          material_id?: string | null
+          name?: string
+          notes?: string | null
+          quantity?: number
+          technician_id?: string | null
+          total_cost?: number
+          type?: string
+          unit?: string | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_draft_items_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "customer_cost_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_draft_items_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_draft_items_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_companies: {
         Row: {
           annual_revenue: number | null
@@ -764,6 +837,53 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: []
+      }
+      customer_cost_drafts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string
+          description: string | null
+          draft_number: string
+          id: string
+          status: string | null
+          total_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name: string
+          description?: string | null
+          draft_number: string
+          id?: string
+          status?: string | null
+          total_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          description?: string | null
+          draft_number?: string
+          id?: string
+          status?: string | null
+          total_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_cost_drafts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_invoices: {
         Row: {
@@ -3928,6 +4048,10 @@ export type Database = {
         Args: { renewal_date: string }
         Returns: number
       }
+      generate_cost_draft_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_customer_code: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -3985,6 +4109,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      user_created_quote: {
+        Args: { quote_id: string }
         Returns: boolean
       }
       validate_quote_code: {
