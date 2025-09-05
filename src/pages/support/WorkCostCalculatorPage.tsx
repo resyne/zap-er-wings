@@ -216,10 +216,10 @@ export default function WorkCostCalculatorPage() {
   };
 
   const createDraft = async () => {
-    if (!newDraft.customer_name) {
+    if (!newDraft.customer_id) {
       toast({
         title: "Errore",
-        description: "Inserisci il nome del cliente",
+        description: "Seleziona un cliente dall'anagrafica",
         variant: "destructive",
       });
       return;
@@ -229,7 +229,7 @@ export default function WorkCostCalculatorPage() {
       const { data, error } = await supabase
         .from("customer_cost_drafts")
         .insert({
-          customer_id: newDraft.customer_id && newDraft.customer_id !== "" ? newDraft.customer_id : null,
+          customer_id: newDraft.customer_id,
           customer_name: newDraft.customer_name,
           description: newDraft.description,
           created_by: (await supabase.auth.getUser()).data.user?.id,
@@ -602,19 +602,6 @@ export default function WorkCostCalculatorPage() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="customer-name">Nome Cliente (se non in anagrafica)</Label>
-                    <Input
-                      id="customer-name"
-                      value={newDraft.customer_name}
-                      onChange={(e) => setNewDraft({ 
-                        ...newDraft, 
-                        customer_name: e.target.value,
-                        customer_id: "" // Clear customer_id when manually entering name
-                      })}
-                      placeholder="Nome del cliente"
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="description">Descrizione</Label>
                     <Textarea
                       id="description"
@@ -628,7 +615,7 @@ export default function WorkCostCalculatorPage() {
                   <Button variant="outline" onClick={() => setShowCreateDraftDialog(false)}>
                     Annulla
                   </Button>
-                  <Button onClick={createDraft} disabled={!newDraft.customer_name}>
+                  <Button onClick={createDraft} disabled={!newDraft.customer_id}>
                     Crea Bozza
                   </Button>
                 </DialogFooter>
