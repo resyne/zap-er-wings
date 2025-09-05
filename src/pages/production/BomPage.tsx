@@ -75,6 +75,12 @@ interface Material {
   unit: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+  code: string;
+}
+
 const levelLabels = {
   0: "Machinery Models",
   1: "Parent Groups", 
@@ -100,6 +106,8 @@ export default function BomPage() {
   const [includableBoms, setIncludableBoms] = useState<IncludableBOM[]>([]);
   const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [bomDetails, setBomDetails] = useState<any>(null);
   const { toast } = useToast();
 
@@ -130,12 +138,14 @@ export default function BomPage() {
       material_id: ""
     });
     setSelectedLevel(0);
+    setSelectedSupplierId("");
     setIncludableBoms([]);
   };
 
   useEffect(() => {
     fetchBoms();
     fetchMaterials();
+    fetchSuppliers();
   }, []);
 
   useEffect(() => {
@@ -144,13 +154,42 @@ export default function BomPage() {
     }
   }, [selectedLevel]);
 
-  const fetchMaterials = async () => {
+  useEffect(() => {
+    fetchMaterials();
+  }, [selectedSupplierId]);
+
+  const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
-        .from('materials')
-        .select('id, name, code, current_stock, unit')
+        .from('suppliers')
+        .select('id, name, code')
         .eq('active', true)
         .order('name');
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchMaterials = async () => {
+    try {
+      let query = supabase
+        .from('materials')
+        .select('id, name, code, current_stock, unit')
+        .eq('active', true);
+
+      // Filter by supplier if selected
+      if (selectedSupplierId) {
+        query = query.eq('supplier_id', selectedSupplierId);
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
       setMaterials(data || []);
@@ -608,23 +647,51 @@ export default function BomPage() {
               )}
 
               {selectedLevel === 2 && (
-                <div className="space-y-2">
-                  <Label htmlFor="material_id">Warehouse Material</Label>
-                  <Select 
-                    value={formData.material_id} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, material_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Connect to warehouse material (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {materials.map((material) => (
-                        <SelectItem key={material.id} value={material.id}>
-                          {material.name} ({material.code}) - Stock: {material.current_stock} {material.unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier_filter">Filter by Supplier (optional)</Label>
+                    <Select 
+                      value={selectedSupplierId} 
+                      onValueChange={setSelectedSupplierId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All suppliers" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
+                        <SelectItem value="">All suppliers</SelectItem>
+                        {suppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id}>
+                            {supplier.name} ({supplier.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="material_id">Warehouse Material</Label>
+                    <Select 
+                      value={formData.material_id} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, material_id: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Connect to warehouse material (optional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
+                        {materials.map((material) => (
+                          <SelectItem key={material.id} value={material.id}>
+                            {material.name} ({material.code}) - Stock: {material.current_stock} {material.unit}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedSupplierId ? 
+                        `Showing materials from selected supplier (${materials.length} items)` :
+                        `Showing all materials (${materials.length} items)`
+                      }
+                    </p>
+                  </div>
                 </div>
               )}
 
