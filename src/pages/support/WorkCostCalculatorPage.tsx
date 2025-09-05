@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Trash2, Calculator, Save, FileText } from "lucide-react";
+import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,10 +28,13 @@ interface Supplier {
   name: string;
 }
 
-interface Company {
+interface Customer {
   id: string;
   name: string;
   code: string;
+  company_name?: string;
+  email?: string;
+  phone?: string;
 }
 
 interface Technician {
@@ -75,7 +79,7 @@ export default function WorkCostCalculatorPage() {
   
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   
   const [searchMaterial, setSearchMaterial] = useState("");
@@ -88,6 +92,7 @@ export default function WorkCostCalculatorPage() {
   const [showMaterialDialog, setShowMaterialDialog] = useState(false);
   const [showTechnicianDialog, setShowTechnicianDialog] = useState(false);
   const [showNewMaterialDialog, setShowNewMaterialDialog] = useState(false);
+  const [showCreateCustomerDialog, setShowCreateCustomerDialog] = useState(false);
   
   // Form states
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
@@ -152,13 +157,14 @@ export default function WorkCostCalculatorPage() {
 
       if (suppliersError) throw suppliersError;
 
-      // Load companies
-      const { data: companiesData, error: companiesError } = await supabase
-        .from("companies")
-        .select("id, name, code")
+      // Load customers
+      const { data: customersData, error: customersError } = await supabase
+        .from("customers")
+        .select("id, name, code, company_name, email, phone")
+        .eq("active", true)
         .order("name");
 
-      if (companiesError) throw companiesError;
+      if (customersError) throw customersError;
 
       // Load technicians
       const { data: techniciansData, error: techniciansError } = await supabase
@@ -172,7 +178,7 @@ export default function WorkCostCalculatorPage() {
       setCostDrafts(draftsData || []);
       setMaterials(materialsData || []);
       setSuppliers(suppliersData || []);
-      setCompanies(companiesData || []);
+      setCustomers(customersData || []);
       setTechnicians(techniciansData || []);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -502,6 +508,15 @@ export default function WorkCostCalculatorPage() {
     `${tech.first_name} ${tech.last_name}`.toLowerCase().includes(searchTechnician.toLowerCase())
   );
 
+  const handleCustomerCreated = (customer: Customer) => {
+    setCustomers([...customers, customer]);
+    setNewDraft({
+      ...newDraft,
+      customer_id: customer.id,
+      customer_name: customer.name
+    });
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -554,28 +569,37 @@ export default function WorkCostCalculatorPage() {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="customer-select">Cliente</Label>
-                    <Select 
-                      value={newDraft.customer_id} 
-                      onValueChange={(value) => {
-                        const company = companies.find(c => c.id === value);
-                        setNewDraft({ 
-                          ...newDraft, 
-                          customer_id: value,
-                          customer_name: company?.name || ""
-                        });
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name} ({company.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={newDraft.customer_id} 
+                        onValueChange={(value) => {
+                          const customer = customers.find(c => c.id === value);
+                          setNewDraft({ 
+                            ...newDraft, 
+                            customer_id: value,
+                            customer_name: customer?.name || ""
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} {customer.company_name && `(${customer.company_name})`} - {customer.code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        onClick={() => setShowCreateCustomerDialog(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="customer-name">Nome Cliente (se non in anagrafica)</Label>
@@ -1056,6 +1080,13 @@ export default function WorkCostCalculatorPage() {
           </Card>
         </>
       )}
+
+      {/* Create Customer Dialog */}
+      <CreateCustomerDialog
+        open={showCreateCustomerDialog}
+        onOpenChange={setShowCreateCustomerDialog}
+        onCustomerCreated={handleCustomerCreated}
+      />
     </div>
   );
 }
