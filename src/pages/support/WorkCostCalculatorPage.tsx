@@ -229,7 +229,7 @@ export default function WorkCostCalculatorPage() {
       const { data, error } = await supabase
         .from("customer_cost_drafts")
         .insert({
-          customer_id: newDraft.customer_id || null,
+          customer_id: newDraft.customer_id && newDraft.customer_id !== "" ? newDraft.customer_id : null,
           customer_name: newDraft.customer_name,
           description: newDraft.description,
           created_by: (await supabase.auth.getUser()).data.user?.id,
