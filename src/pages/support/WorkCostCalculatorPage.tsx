@@ -50,6 +50,7 @@ export default function WorkCostCalculatorPage() {
   const [showMaterialDialog, setShowMaterialDialog] = useState(false);
   const [showTechnicianDialog, setShowTechnicianDialog] = useState(false);
   const [showCustomMaterialDialog, setShowCustomMaterialDialog] = useState(false);
+  const [showNewMaterialDialog, setShowNewMaterialDialog] = useState(false);
   
   // Form states
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
@@ -63,6 +64,18 @@ export default function WorkCostCalculatorPage() {
     cost: 0,
     quantity: 1,
     unit: "pcs"
+  });
+
+  // New material form (for adding to database)
+  const [newMaterial, setNewMaterial] = useState({
+    code: "",
+    name: "",
+    description: "",
+    material_type: "raw_material",
+    category: "",
+    cost: 0,
+    unit: "pcs",
+    quantity: 1
   });
 
   useEffect(() => {
@@ -184,6 +197,75 @@ export default function WorkCostCalculatorPage() {
     });
   };
 
+  const addNewMaterialToDatabase = async () => {
+    if (!newMaterial.name || !newMaterial.code || newMaterial.cost <= 0) {
+      toast({
+        title: "Errore",
+        description: "Inserisci codice, nome e costo del materiale",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("materials")
+        .insert([{
+          code: newMaterial.code,
+          name: newMaterial.name,
+          description: newMaterial.description,
+          material_type: newMaterial.material_type,
+          category: newMaterial.category,
+          cost: newMaterial.cost,
+          unit: newMaterial.unit,
+          active: true
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add the new material to the local materials list
+      setMaterials([...materials, data]);
+
+      // Add it to the work items
+      const newItem: WorkCostItem = {
+        id: `material-${Date.now()}`,
+        type: "material",
+        name: `${data.name} (${data.code})`,
+        quantity: newMaterial.quantity,
+        unit_cost: data.cost,
+        total_cost: newMaterial.quantity * data.cost,
+        unit: data.unit
+      };
+
+      setWorkItems([...workItems, newItem]);
+      setShowNewMaterialDialog(false);
+      setNewMaterial({
+        code: "",
+        name: "",
+        description: "",
+        material_type: "raw_material",
+        category: "",
+        cost: 0,
+        unit: "pcs",
+        quantity: 1
+      });
+
+      toast({
+        title: "Materiale creato e aggiunto",
+        description: `${data.name} è stato aggiunto all'anagrafica e al calcolo`,
+      });
+    } catch (error: any) {
+      console.error("Error creating material:", error);
+      toast({
+        title: "Errore",
+        description: `Errore nella creazione del materiale: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const removeItem = (id: string) => {
     setWorkItems(workItems.filter(item => item.id !== id));
     toast({
@@ -254,18 +336,34 @@ export default function WorkCostCalculatorPage() {
                 />
               </div>
               <div className="max-h-48 overflow-y-auto border rounded-md">
-                {filteredMaterials.map((material) => (
-                  <div
-                    key={material.id}
-                    className={`p-3 cursor-pointer hover:bg-muted ${selectedMaterial?.id === material.id ? 'bg-primary/10' : ''}`}
-                    onClick={() => setSelectedMaterial(material)}
-                  >
-                    <div className="font-medium">{material.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Codice: {material.code} | Costo: €{material.cost} / {material.unit}
-                    </div>
+                {filteredMaterials.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    <p>Nessun materiale trovato</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMaterialDialog(false);
+                        setShowNewMaterialDialog(true);
+                      }}
+                      className="mt-2 text-primary hover:underline"
+                    >
+                      Aggiungi nuovo materiale all'anagrafica
+                    </button>
                   </div>
-                ))}
+                ) : (
+                  filteredMaterials.map((material) => (
+                    <div
+                      key={material.id}
+                      className={`p-3 cursor-pointer hover:bg-muted ${selectedMaterial?.id === material.id ? 'bg-primary/10' : ''}`}
+                      onClick={() => setSelectedMaterial(material)}
+                    >
+                      <div className="font-medium">{material.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Codice: {material.code} | Costo: €{material.cost} / {material.unit}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
               {selectedMaterial && (
                 <div className="space-y-2">
@@ -359,6 +457,138 @@ export default function WorkCostCalculatorPage() {
               </Button>
               <Button onClick={addTechnician} disabled={!selectedTechnician}>
                 Aggiungi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showNewMaterialDialog} onOpenChange={setShowNewMaterialDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Aggiungi Nuovo Materiale all'Anagrafica</DialogTitle>
+              <DialogDescription>
+                Crea un nuovo materiale che verrà aggiunto all'anagrafica e al calcolo
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-code">Codice Materiale *</Label>
+                  <Input
+                    id="new-code"
+                    value={newMaterial.code}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, code: e.target.value })}
+                    placeholder="MAT-001"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-name">Nome Materiale *</Label>
+                  <Input
+                    id="new-name"
+                    value={newMaterial.name}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, name: e.target.value })}
+                    placeholder="Nome del materiale"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="new-description">Descrizione</Label>
+                <Input
+                  id="new-description"
+                  value={newMaterial.description}
+                  onChange={(e) => setNewMaterial({ ...newMaterial, description: e.target.value })}
+                  placeholder="Descrizione del materiale"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-type">Tipo Materiale</Label>
+                  <Select 
+                    value={newMaterial.material_type} 
+                    onValueChange={(value) => setNewMaterial({ ...newMaterial, material_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw_material">Materia Prima</SelectItem>
+                      <SelectItem value="component">Componente</SelectItem>
+                      <SelectItem value="finished_good">Prodotto Finito</SelectItem>
+                      <SelectItem value="consumable">Consumabile</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="new-category">Categoria</Label>
+                  <Input
+                    id="new-category"
+                    value={newMaterial.category}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, category: e.target.value })}
+                    placeholder="Categoria"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="new-cost">Costo Unitario (€) *</Label>
+                  <Input
+                    id="new-cost"
+                    type="number"
+                    value={newMaterial.cost}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, cost: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-unit">Unità di Misura</Label>
+                  <Select 
+                    value={newMaterial.unit} 
+                    onValueChange={(value) => setNewMaterial({ ...newMaterial, unit: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pcs">Pezzi</SelectItem>
+                      <SelectItem value="kg">Kg</SelectItem>
+                      <SelectItem value="mt">Metri</SelectItem>
+                      <SelectItem value="mq">Metri quadri</SelectItem>
+                      <SelectItem value="lt">Litri</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="new-quantity">Quantità da Aggiungere</Label>
+                  <Input
+                    id="new-quantity"
+                    type="number"
+                    value={newMaterial.quantity}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, quantity: parseFloat(e.target.value) || 1 })}
+                    min="0.1"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+              
+              {newMaterial.name && newMaterial.code && newMaterial.cost > 0 && (
+                <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded">
+                  Il materiale <strong>{newMaterial.name}</strong> (codice: {newMaterial.code}) verrà aggiunto all'anagrafica con costo €{newMaterial.cost}/{newMaterial.unit} e aggiunto al calcolo con quantità {newMaterial.quantity} per un totale di €{(newMaterial.quantity * newMaterial.cost).toFixed(2)}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowNewMaterialDialog(false)}>
+                Annulla
+              </Button>
+              <Button 
+                onClick={addNewMaterialToDatabase} 
+                disabled={!newMaterial.name || !newMaterial.code || newMaterial.cost <= 0}
+              >
+                Crea e Aggiungi
               </Button>
             </DialogFooter>
           </DialogContent>
