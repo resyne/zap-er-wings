@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.confirm-purchase-order]
 verify_jwt = false
+
+[functions.zapier-webhook]
+verify_jwt = false
+
+[functions.zapier-lead-webhook]
+verify_jwt = false
