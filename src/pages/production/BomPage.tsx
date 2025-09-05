@@ -78,30 +78,25 @@ interface Material {
 const levelLabels = {
   0: "Machinery Models",
   1: "Parent Groups", 
-  2: "Child Elements",
-  3: "Accessori"
+  2: "Child Elements"
 };
 
 const levelIcons = {
   0: Factory,
   1: Package,
-  2: Component,
-  3: Package2
+  2: Component
 };
 
 export default function BomPage() {
   const [boms, setBoms] = useState<BOM[]>([]);
-  const [machinery, setMachinery] = useState<Machinery[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isMachineryDialogOpen, setIsMachineryDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBom, setSelectedBom] = useState<BOM | null>(null);
-  const [selectedMachinery, setSelectedMachinery] = useState<Machinery | null>(null);
   const [viewingBom, setViewingBom] = useState<BOM | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState("machinery");
+  const [activeTab, setActiveTab] = useState("0");
   const [includableBoms, setIncludableBoms] = useState<IncludableBOM[]>([]);
   const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -138,22 +133,13 @@ export default function BomPage() {
     setIncludableBoms([]);
   };
 
-  const resetMachineryForm = () => {
-    setMachineryFormData({
-      name: "",
-      model: "",
-      description: ""
-    });
-  };
-
   useEffect(() => {
-    fetchMachinery();
     fetchBoms();
     fetchMaterials();
   }, []);
 
   useEffect(() => {
-    if (selectedLevel < 3) {
+    if (selectedLevel < 2) {
       fetchIncludableBoms();
     }
   }, [selectedLevel]);
@@ -197,46 +183,9 @@ export default function BomPage() {
     return totalCost;
   };
 
-  const fetchMachinery = async () => {
+  const fetchBoms = async () => {
     try {
       const { data, error } = await supabase
-        .from('boms')
-        .select('id, name, machinery_model, description, created_at')
-        .eq('level', 0)
-        .order('machinery_model');
-
-      if (error) throw error;
-
-      // Group BOMs by machinery_model
-      const machineryMap = new Map();
-      data?.forEach(bom => {
-        const model = bom.machinery_model || 'Unknown';
-        if (!machineryMap.has(model)) {
-          machineryMap.set(model, {
-            id: model,
-            name: model,
-            model: model,
-            description: '',
-            created_at: bom.created_at,
-            boms: []
-          });
-        }
-        machineryMap.get(model).boms.push(bom);
-      });
-
-      setMachinery(Array.from(machineryMap.values()));
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchBoms = async (machineryModel?: string) => {
-    try {
-      let query = supabase
         .from('boms')
         .select(`
           *,
@@ -257,17 +206,7 @@ export default function BomPage() {
                 notes,
                 included_bom:boms!included_bom_id(
                   *,
-                  material:materials(id, name, code, current_stock, unit, cost),
-                  bom_inclusions!parent_bom_id(
-                    id,
-                    included_bom_id,
-                    quantity,
-                    notes,
-                    included_bom:boms!included_bom_id(
-                      *,
-                      material:materials(id, name, code, current_stock, unit, cost)
-                    )
-                  )
+                  material:materials(id, name, code, current_stock, unit, cost)
                 )
               )
             )
@@ -275,12 +214,6 @@ export default function BomPage() {
         `)
         .order('level', { ascending: true })
         .order('updated_at', { ascending: false });
-
-      if (machineryModel) {
-        query = query.eq('machinery_model', machineryModel);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -312,18 +245,11 @@ export default function BomPage() {
         return;
       }
 
-      let query = supabase
+      const { data, error } = await supabase
         .from('boms')
         .select('id, name, version, machinery_model')
         .eq('level', targetLevel)
         .order('name');
-
-      // Se stiamo creando Level 0 e abbiamo machinery_model, filtra solo le BOM del level 1 dello stesso macchinario
-      if (selectedLevel === 0 && formData.machinery_model) {
-        query = query.eq('machinery_model', formData.machinery_model);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -392,39 +318,7 @@ export default function BomPage() {
 
   const handleMachinerySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      // Create a Level 0 BOM for the machinery
-      const { data, error } = await supabase
-        .from('boms')
-        .insert([{
-          name: machineryFormData.name,
-          version: "1.0",
-          description: machineryFormData.description,
-          level: 0,
-          machinery_model: machineryFormData.model
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Machinery created successfully",
-      });
-
-      setIsMachineryDialogOpen(false);
-      setSelectedMachinery(null);
-      resetMachineryForm();
-      fetchMachinery();
-      fetchBoms();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    // This function is no longer needed since Level 0 = Machinery
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -470,8 +364,8 @@ export default function BomPage() {
         });
       }
 
-      // Handle BOM inclusions (solo per Level 0, 1, 2 che possono includere livelli inferiori)
-      if (selectedLevel < 3) {
+      // Handle BOM inclusions (solo per Level 0 e 1 che possono includere livelli inferiori)
+      if (selectedLevel < 2) {
         // Delete existing inclusions if updating
         if (selectedBom) {
           await supabase
@@ -524,8 +418,8 @@ export default function BomPage() {
       material_id: bom.material_id || ""
     });
 
-    // Fetch existing inclusions for this BOM (per Level 0, 1, 2)
-    if (bom.level < 3) {
+    // Fetch existing inclusions for this BOM (per Level 0 e 1)
+    if (bom.level < 2) {
       try {
         const { data: inclusions, error } = await supabase
           .from('bom_inclusions')
@@ -658,67 +552,13 @@ export default function BomPage() {
             Manage machinery models, parent groups, and child elements with automatic warehouse integration
           </p>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={isMachineryDialogOpen} onOpenChange={setIsMachineryDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={() => { setSelectedMachinery(null); resetMachineryForm(); }}>
-                <Factory className="mr-2 h-4 w-4" />
-                New Machinery
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Create New Machinery</DialogTitle>
-                <DialogDescription>Add a new machinery model to manage its BOMs.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleMachinerySubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="machinery_name">Name *</Label>
-                  <Input
-                    id="machinery_name"
-                    value={machineryFormData.name}
-                    onChange={(e) => setMachineryFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter machinery name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="machinery_model">Model *</Label>
-                  <Input
-                    id="machinery_model"
-                    value={machineryFormData.model}
-                    onChange={(e) => setMachineryFormData(prev => ({ ...prev, model: e.target.value }))}
-                    placeholder="Enter machinery model"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="machinery_description">Description</Label>
-                  <Textarea
-                    id="machinery_description"
-                    value={machineryFormData.description}
-                    onChange={(e) => setMachineryFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Enter description"
-                    rows={3}
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setIsMachineryDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Create Machinery</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => { setSelectedBom(null); resetForm(); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                New BOM
-              </Button>
-            </DialogTrigger>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => { setSelectedBom(null); resetForm(); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              New BOM
+            </Button>
+          </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{selectedBom ? "Edit BOM" : "Create New BOM"}</DialogTitle>
@@ -741,7 +581,6 @@ export default function BomPage() {
                     <SelectItem value="0">Level 0 - Machinery Model</SelectItem>
                     <SelectItem value="1">Level 1 - Parent Group</SelectItem>
                     <SelectItem value="2">Level 2 - Child Element</SelectItem>
-                    <SelectItem value="3">Level 3 - Accessori</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -873,7 +712,6 @@ export default function BomPage() {
             </form>
           </DialogContent>
         </Dialog>
-        </div>
       </div>
 
       {/* BOM View Dialog */}
@@ -1053,8 +891,8 @@ export default function BomPage() {
       </Dialog>
 
       {/* Level Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((level) => {
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[0, 1, 2].map((level) => {
           const Icon = levelIcons[level as keyof typeof levelIcons];
           const count = groupedBoms[level]?.length || 0;
           return (
@@ -1114,100 +952,25 @@ export default function BomPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="machinery" className="flex items-center space-x-2">
-                <Factory className="h-4 w-4" />
-                <span>Machinery</span>
-                <Badge variant="outline">{machinery.length}</Badge>
-              </TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="0" className="flex items-center space-x-2">
-                <Package className="h-4 w-4" />
-                <span>Level 0</span>
+                <Factory className="h-4 w-4" />
+                <span>Level 0 - Machinery</span>
                 <Badge variant="outline">{groupedBoms[0]?.length || 0}</Badge>
               </TabsTrigger>
               <TabsTrigger value="1" className="flex items-center space-x-2">
                 <Package className="h-4 w-4" />
-                <span>Level 1</span>
+                <span>Level 1 - Groups</span>
                 <Badge variant="outline">{groupedBoms[1]?.length || 0}</Badge>
               </TabsTrigger>
               <TabsTrigger value="2" className="flex items-center space-x-2">
                 <Component className="h-4 w-4" />
-                <span>Level 2</span>
+                <span>Level 2 - Elements</span>
                 <Badge variant="outline">{groupedBoms[2]?.length || 0}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="3" className="flex items-center space-x-2">
-                <Package2 className="h-4 w-4" />
-                <span>Accessori</span>
-                <Badge variant="outline">{groupedBoms[3]?.length || 0}</Badge>
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="machinery">
-              <div className="space-y-4">
-                {machinery.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Factory className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-2 text-sm font-semibold">No machinery</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Get started by creating a new machinery model.
-                    </p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Machinery Model</TableHead>
-                        <TableHead>BOMs Count</TableHead>
-                        <TableHead>Total Cost</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {machinery.map((machine) => (
-                        <TableRow 
-                          key={machine.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => {
-                            setActiveTab("0");
-                            fetchBoms(machine.model);
-                          }}
-                        >
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Factory className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium">{machine.name}</p>
-                                <p className="text-sm text-muted-foreground">{machine.model}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{machine.boms.length} BOMs</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-green-600">
-                              €{machine.boms.reduce((total, bom) => total + (bom.totalCost || 0), 0).toFixed(2)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-1">
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </TabsContent>
-            
-            {[0, 1, 2, 3].map((level) => (
+            {[0, 1, 2].map((level) => (
               <TabsContent key={level} value={level.toString()}>
                 <div className="rounded-md border">
                   <Table>
