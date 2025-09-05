@@ -3928,6 +3928,45 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          data: Json
+          error_message: string | null
+          id: string
+          processed: boolean
+          processed_at: string | null
+          received_at: string
+          source: string
+          updated_at: string
+          webhook_type: string
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          error_message?: string | null
+          id?: string
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+          source?: string
+          updated_at?: string
+          webhook_type?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          error_message?: string | null
+          id?: string
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+          source?: string
+          updated_at?: string
+          webhook_type?: string
+        }
+        Relationships: []
+      }
       work_orders: {
         Row: {
           accessori_ids: string[] | null
