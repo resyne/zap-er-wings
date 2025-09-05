@@ -880,7 +880,7 @@ export type Database = {
             foreignKeyName: "customer_cost_drafts_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "companies"
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
