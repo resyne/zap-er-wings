@@ -134,11 +134,13 @@ export default function BomPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedLevel > 0 && selectedLevel < 3) {
+    // Level 1 e 2 possono avere parent BOMs
+    // Level 0 e 1 possono includere BOMs di livello inferiore
+    if (selectedLevel > 0) {
       fetchParentBoms();
+    }
+    if (selectedLevel < 3) {
       fetchIncludableBoms();
-    } else {
-      setIncludableBoms([]);
     }
   }, [selectedLevel]);
 
@@ -251,7 +253,16 @@ export default function BomPage() {
 
   const fetchParentBoms = async () => {
     try {
+      // Parent BOM deve essere di livello superiore (parent level = current level - 1)
+      // Es: se stiamo creando Level 1, parent deve essere Level 0
+      // Es: se stiamo creando Level 2, parent deve essere Level 1
       const targetLevel = selectedLevel - 1;
+      
+      if (targetLevel < 0) {
+        setParentBoms([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('boms')
         .select('id, name, level')
@@ -271,7 +282,16 @@ export default function BomPage() {
 
   const fetchIncludableBoms = async () => {
     try {
-      const targetLevel = selectedLevel - 1;
+      // Includable BOMs devono essere di livello inferiore (children level = current level + 1)
+      // Es: se stiamo creando Level 0, possiamo includere Level 1
+      // Es: se stiamo creando Level 1, possiamo includere Level 2
+      const targetLevel = selectedLevel + 1;
+      
+      if (targetLevel > 3) {
+        setIncludableBoms([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('boms')
         .select('id, name, version')
@@ -387,8 +407,8 @@ export default function BomPage() {
         });
       }
 
-      // Handle BOM inclusions (not for Accessori level)
-      if (selectedLevel > 0 && selectedLevel < 3) {
+      // Handle BOM inclusions (solo per Level 0, 1, 2 che possono includere livelli inferiori)
+      if (selectedLevel < 3) {
         // Delete existing inclusions if updating
         if (selectedBom) {
           await supabase
@@ -442,8 +462,8 @@ export default function BomPage() {
       material_id: bom.material_id || ""
     });
 
-    // Fetch existing inclusions for this BOM (not for Accessori)
-    if (bom.level > 0 && bom.level < 3) {
+    // Fetch existing inclusions for this BOM (per Level 0, 1, 2)
+    if (bom.level < 3) {
       try {
         const { data: inclusions, error } = await supabase
           .from('bom_inclusions')
@@ -456,8 +476,8 @@ export default function BomPage() {
 
         if (error) throw error;
 
-        // Fetch all available BOMs for the lower level
-        const targetLevel = bom.level - 1;
+        // Fetch all available BOMs for the next level (children)
+        const targetLevel = bom.level + 1;
         const { data: availableBoms, error: bomError } = await supabase
           .from('boms')
           .select('id, name, version')
@@ -610,24 +630,27 @@ export default function BomPage() {
                 </Select>
               </div>
 
-              {selectedLevel > 0 && selectedLevel < 3 && (
+              {selectedLevel > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="parent_id">Parent BOM *</Label>
+                  <Label htmlFor="parent_id">Parent BOM (questo BOM fa parte di) *</Label>
                   <Select 
                     value={formData.parent_id} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select parent BOM" />
+                      <SelectValue placeholder={`Select Level ${selectedLevel - 1} parent BOM`} />
                     </SelectTrigger>
                     <SelectContent>
                       {parentBoms.map((parent) => (
                         <SelectItem key={parent.id} value={parent.id}>
-                          {parent.name}
+                          {parent.name} (Level {parent.level})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Seleziona il BOM di Level {selectedLevel - 1} di cui questo BOM fa parte
+                  </p>
                 </div>
               )}
 
@@ -704,9 +727,12 @@ export default function BomPage() {
                 />
               </div>
 
-              {selectedLevel > 0 && selectedLevel < 3 && includableBoms.length > 0 && (
+              {selectedLevel < 3 && includableBoms.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Include BOMs from Level {selectedLevel - 1}</Label>
+                  <Label>Include BOMs di Level {selectedLevel + 1} (che fanno parte di questo BOM)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Seleziona i BOM di livello inferiore che sono inclusi in questo BOM
+                  </p>
                   <div className="border rounded-md p-4 max-h-40 overflow-y-auto space-y-2">
                     {includableBoms.map((bom) => (
                       <div key={bom.id} className="flex items-center justify-between space-x-2">
