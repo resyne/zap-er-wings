@@ -27,8 +27,8 @@ export default function SupportPage() {
       color: "text-green-600"
     },
     {
-      title: "Calcolatore Costi Lavoro",
-      description: "Calcola i costi dei lavori includendo materiali e tecnici",
+      title: "Calcolatore Costi Commessa",
+      description: "Calcola i costi delle commesse includendo materiali e tecnici",
       icon: Calculator,
       href: "/support/work-cost-calculator",
       color: "text-blue-600"
