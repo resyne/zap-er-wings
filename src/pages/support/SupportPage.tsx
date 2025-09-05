@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Wrench, Users, Settings, Ticket } from "lucide-react";
+import { FileText, Wrench, Users, Settings, Ticket, Calculator } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function SupportPage() {
@@ -25,6 +25,13 @@ export default function SupportPage() {
       icon: Users,
       href: "/support/technicians",
       color: "text-green-600"
+    },
+    {
+      title: "Calcolatore Costi Lavoro",
+      description: "Calcola i costi dei lavori includendo materiali e tecnici",
+      icon: Calculator,
+      href: "/support/work-cost-calculator",
+      color: "text-blue-600"
     },
     {
       title: "Ticket",
