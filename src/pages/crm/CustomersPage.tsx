@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send } from "lucide-react";
+import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, AlertTriangle } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { EditCustomerDialog } from "@/components/crm/EditCustomerDialog";
 import { CustomerEmailComposer } from "@/components/crm/CustomerEmailComposer";
@@ -53,6 +53,13 @@ export default function CustomersPage() {
 
   const totalCustomers = filteredCustomers.length;
   const activeCustomers = filteredCustomers.filter(customer => customer.active);
+
+  // Function to check if customer profile is incomplete
+  const isProfileIncomplete = (customer: any) => {
+    const requiredFields = ['name', 'email', 'phone', 'address', 'city', 'country', 'tax_id'];
+    const missingFields = requiredFields.filter(field => !customer[field] || customer[field].trim() === '');
+    return missingFields.length > 0;
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -137,8 +144,16 @@ export default function CustomersPage() {
                   <TableCell>
                     <div className="flex items-center">
                       <Building2 className="w-4 h-4 mr-2" />
-                      <div>
-                        <span className="font-medium">{customer.name}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{customer.name}</span>
+                          {isProfileIncomplete(customer) && (
+                            <div className="flex items-center gap-1 text-amber-600" title="Anagrafica da completare">
+                              <AlertTriangle className="w-4 h-4" />
+                              <span className="text-xs font-medium">Anagrafica da completare</span>
+                            </div>
+                          )}
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           Codice: {customer.code}
                         </div>
