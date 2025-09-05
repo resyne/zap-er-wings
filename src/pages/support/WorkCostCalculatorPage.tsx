@@ -45,6 +45,14 @@ interface Technician {
   specializations: string[];
 }
 
+interface Machinery {
+  id: string;
+  name: string;
+  machinery_model: string;
+  description?: string;
+  cost?: number;
+}
+
 interface CostDraft {
   id: string;
   draft_number: string;
@@ -57,7 +65,7 @@ interface CostDraft {
 
 interface DraftItem {
   id: string;
-  type: "material" | "technician" | "custom_material";
+  type: "material" | "technician" | "custom_material" | "machinery";
   name: string;
   quantity: number;
   unit_cost: number;
@@ -67,7 +75,7 @@ interface DraftItem {
   notes?: string;
   draft_id?: string;
   material_id?: string;
-  technician_id?: string;
+  machinery_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -81,9 +89,11 @@ export default function WorkCostCalculatorPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [machinery, setMachinery] = useState<Machinery[]>([]);
   
   const [searchMaterial, setSearchMaterial] = useState("");
   const [searchTechnician, setSearchTechnician] = useState("");
+  const [searchMachinery, setSearchMachinery] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   
@@ -91,14 +101,18 @@ export default function WorkCostCalculatorPage() {
   const [showCreateDraftDialog, setShowCreateDraftDialog] = useState(false);
   const [showMaterialDialog, setShowMaterialDialog] = useState(false);
   const [showTechnicianDialog, setShowTechnicianDialog] = useState(false);
+  const [showMachineryDialog, setShowMachineryDialog] = useState(false);
   const [showNewMaterialDialog, setShowNewMaterialDialog] = useState(false);
   const [showCreateCustomerDialog, setShowCreateCustomerDialog] = useState(false);
   
   // Form states
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
+  const [selectedMachinery, setSelectedMachinery] = useState<Machinery | null>(null);
   const [materialQuantity, setMaterialQuantity] = useState<number>(1);
   const [technicianHours, setTechnicianHours] = useState<number>(1);
+  const [machineryHours, setMachineryHours] = useState<number>(1);
+  const [machineryCost, setMachineryCost] = useState<number>(0);
   
   // New draft form
   const [newDraft, setNewDraft] = useState({
@@ -175,11 +189,21 @@ export default function WorkCostCalculatorPage() {
 
       if (techniciansError) throw techniciansError;
 
+      // Load machinery (level 0 BOMs)
+      const { data: machineryData, error: machineryError } = await supabase
+        .from("boms")
+        .select("id, name, machinery_model, description")
+        .eq("level", 0)
+        .order("name");
+
+      if (machineryError) throw machineryError;
+
       setCostDrafts(draftsData || []);
       setMaterials(materialsData || []);
       setSuppliers(suppliersData || []);
       setCustomers(customersData || []);
       setTechnicians(techniciansData || []);
+      setMachinery(machineryData || []);
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -203,7 +227,7 @@ export default function WorkCostCalculatorPage() {
       if (error) throw error;
       setDraftItems((data || []).map(item => ({
         ...item,
-        type: item.type as "material" | "technician" | "custom_material"
+        type: item.type as "material" | "technician" | "custom_material" | "machinery"
       })));
     } catch (error) {
       console.error("Error loading draft items:", error);
@@ -360,6 +384,55 @@ export default function WorkCostCalculatorPage() {
     }
   };
 
+  const addMachinery = async () => {
+    if (!selectedMachinery || !currentDraft) return;
+
+    try {
+      const totalCost = machineryHours * machineryCost;
+      
+      const { data, error } = await supabase
+        .from("cost_draft_items")
+        .insert({
+          draft_id: currentDraft.id,
+          type: "machinery",
+          machinery_id: selectedMachinery.id,
+          name: `${selectedMachinery.name} (${selectedMachinery.machinery_model || 'N/A'})`,
+          quantity: machineryHours,
+          unit_cost: machineryCost,
+          total_cost: totalCost,
+          unit: "ore",
+          hours: machineryHours
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setDraftItems([...draftItems, {
+        ...data,
+        type: data.type as "material" | "technician" | "custom_material" | "machinery"
+      }]);
+      setShowMachineryDialog(false);
+      setSelectedMachinery(null);
+      setMachineryHours(1);
+      setMachineryCost(0);
+      
+      await updateDraftTotal();
+      
+      toast({
+        title: "Macchinario aggiunto",
+        description: `${selectedMachinery.name} aggiunto alla bozza`,
+      });
+    } catch (error: any) {
+      console.error("Error adding machinery:", error);
+      toast({
+        title: "Errore",
+        description: `Errore nell'aggiunta del macchinario: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const addNewMaterialToDatabase = async () => {
     if (!newMaterial.name || !newMaterial.code || newMaterial.cost <= 0 || !currentDraft) {
       toast({
@@ -506,6 +579,11 @@ export default function WorkCostCalculatorPage() {
 
   const filteredTechnicians = technicians.filter(tech =>
     `${tech.first_name} ${tech.last_name}`.toLowerCase().includes(searchTechnician.toLowerCase())
+  );
+
+  const filteredMachinery = machinery.filter(machine =>
+    machine.name.toLowerCase().includes(searchMachinery.toLowerCase()) ||
+    (machine.machinery_model && machine.machinery_model.toLowerCase().includes(searchMachinery.toLowerCase()))
   );
 
   const handleCustomerCreated = (customer: Customer) => {
@@ -844,6 +922,96 @@ export default function WorkCostCalculatorPage() {
               </DialogContent>
             </Dialog>
 
+            <Dialog open={showMachineryDialog} onOpenChange={setShowMachineryDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi Macchinario
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Aggiungi Macchinario</DialogTitle>
+                  <DialogDescription>
+                    Seleziona un macchinario dalla distinta base livello 0 e specifica ore e costo
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="search-machinery">Cerca Macchinario</Label>
+                    <Input
+                      id="search-machinery"
+                      placeholder="Cerca per nome o modello..."
+                      value={searchMachinery}
+                      onChange={(e) => setSearchMachinery(e.target.value)}
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto border rounded-md">
+                    {filteredMachinery.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">
+                        <p>Nessun macchinario trovato</p>
+                      </div>
+                    ) : (
+                      filteredMachinery.map((machine) => (
+                        <div
+                          key={machine.id}
+                          className={`p-3 cursor-pointer hover:bg-muted ${selectedMachinery?.id === machine.id ? 'bg-primary/10' : ''}`}
+                          onClick={() => setSelectedMachinery(machine)}
+                        >
+                          <div className="font-medium">{machine.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Modello: {machine.machinery_model || 'N/A'}
+                            {machine.description && (
+                              <div>Descrizione: {machine.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {selectedMachinery && (
+                    <div className="space-y-4 border-t pt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="machinery-hours">Ore di Utilizzo</Label>
+                          <Input
+                            id="machinery-hours"
+                            type="number"
+                            value={machineryHours}
+                            onChange={(e) => setMachineryHours(parseFloat(e.target.value) || 1)}
+                            min="0.1"
+                            step="0.1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="machinery-cost">Costo Orario (€)</Label>
+                          <Input
+                            id="machinery-cost"
+                            type="number"
+                            value={machineryCost}
+                            onChange={(e) => setMachineryCost(parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Costo totale: €{(machineryHours * machineryCost).toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowMachineryDialog(false)}>
+                    Annulla
+                  </Button>
+                  <Button onClick={addMachinery} disabled={!selectedMachinery || machineryCost <= 0}>
+                    Aggiungi
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={showNewMaterialDialog} onOpenChange={setShowNewMaterialDialog}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
@@ -1032,10 +1200,12 @@ export default function WorkCostCalculatorPage() {
                           <TableCell>
                             <Badge variant={
                               item.type === 'material' ? 'default' :
-                              item.type === 'technician' ? 'secondary' : 'outline'
+                              item.type === 'technician' ? 'secondary' : 
+                              item.type === 'machinery' ? 'destructive' : 'outline'
                             }>
                               {item.type === 'material' ? 'Materiale' :
-                               item.type === 'technician' ? 'Tecnico' : 'Custom'}
+                               item.type === 'technician' ? 'Tecnico' : 
+                               item.type === 'machinery' ? 'Macchinario' : 'Custom'}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">{item.name}</TableCell>
