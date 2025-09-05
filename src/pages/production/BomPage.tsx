@@ -164,16 +164,17 @@ export default function BomPage() {
   const calculateBomCost = (bom: any): number => {
     let totalCost = 0;
 
-    // Add cost from direct material (Level 2 BOMs)
-    if (bom.material?.cost) {
-      totalCost += Number(bom.material.cost);
+    // Level 2: Direct material cost
+    if (bom.level === 2 && bom.material?.cost) {
+      totalCost = Number(bom.material.cost);
     }
 
-    // Add costs from included BOMs recursively
-    if (bom.bom_inclusions) {
+    // Level 0 and 1: Sum costs from included BOMs
+    if (bom.bom_inclusions && bom.bom_inclusions.length > 0) {
       bom.bom_inclusions.forEach((inclusion: any) => {
         const includedBomCost = calculateBomCost(inclusion.included_bom);
-        totalCost += includedBomCost * (inclusion.quantity || 1);
+        const quantity = Number(inclusion.quantity) || 1;
+        totalCost += includedBomCost * quantity;
       });
     }
 
@@ -203,7 +204,17 @@ export default function BomPage() {
                 notes,
                 included_bom:boms!included_bom_id(
                   *,
-                  material:materials(id, name, code, current_stock, unit, cost)
+                  material:materials(id, name, code, current_stock, unit, cost),
+                  bom_inclusions!parent_bom_id(
+                    id,
+                    included_bom_id,
+                    quantity,
+                    notes,
+                    included_bom:boms!included_bom_id(
+                      *,
+                      material:materials(id, name, code, current_stock, unit, cost)
+                    )
+                  )
                 )
               )
             )
@@ -214,12 +225,17 @@ export default function BomPage() {
 
       if (error) throw error;
 
-      const bomsWithCount = data?.map(bom => ({
-        ...bom,
-        component_count: Array.isArray(bom.bom_items) ? bom.bom_items.length : 0,
-        inclusions: bom.bom_inclusions || [],
-        totalCost: calculateBomCost(bom)
-      })) || [];
+      const bomsWithCount = data?.map(bom => {
+        const componentCount = Array.isArray(bom.bom_items) ? bom.bom_items.length : 0;
+        const totalCost = calculateBomCost(bom);
+        
+        return {
+          ...bom,
+          component_count: componentCount,
+          inclusions: bom.bom_inclusions || [],
+          totalCost: totalCost
+        };
+      }) || [];
 
       setBoms(bomsWithCount);
     } catch (error: any) {
