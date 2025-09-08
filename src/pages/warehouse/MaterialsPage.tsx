@@ -75,7 +75,7 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
@@ -273,7 +273,7 @@ export default function MaterialsPage() {
       material.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       materialTypeLabels[material.material_type].toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesSupplier = selectedSupplier === "all" || material.supplier_id === selectedSupplier;
+    const matchesSupplier = !selectedSupplier || material.supplier_id === selectedSupplier;
     
     return matchesSearch && matchesSupplier;
   });
@@ -297,18 +297,19 @@ export default function MaterialsPage() {
           <Package2 className="h-6 w-6" />
           <h1 className="text-3xl font-bold tracking-tight">Anagrafica Materiali</h1>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              onClick={() => {
-                setEditingMaterial(null);
-                form.reset();
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nuovo Materiale
-            </Button>
-          </DialogTrigger>
+        {selectedSupplier && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                onClick={() => {
+                  setEditingMaterial(null);
+                  form.reset();
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Nuovo Materiale
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -540,32 +541,23 @@ export default function MaterialsPage() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ricerca Materiali</CardTitle>
+          <CardTitle>Selezione Fornitore</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 flex-1">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca per nome, codice, categoria o tipo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium">Fornitore:</label>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <label className="text-sm font-medium min-w-fit">Seleziona Fornitore:</label>
               <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Tutti i fornitori" />
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Scegli un fornitore..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tutti i fornitori</SelectItem>
                   {suppliers
                     .filter(supplier => supplier.id)
                     .map((supplier) => (
@@ -576,93 +568,119 @@ export default function MaterialsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {!selectedSupplier && (
+              <p className="text-sm text-muted-foreground">
+                Seleziona un fornitore per visualizzare i suoi materiali.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Elenco Materiali</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">Caricamento...</div>
-          ) : filteredMaterials.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nessun materiale trovato
+      {selectedSupplier && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ricerca Materiali</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca per nome, codice, categoria o tipo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-md"
+              />
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Codice</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Fornitore</TableHead>
-                  <TableHead>Scorte</TableHead>
-                  <TableHead>Costo</TableHead>
-                  <TableHead>Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMaterials.map((material) => (
-                  <TableRow key={material.id}>
-                    <TableCell className="font-mono">{material.code}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{material.name}</div>
-                        {material.description && (
-                          <div className="text-sm text-muted-foreground">
-                            {material.description.length > 50 
-                              ? material.description.substring(0, 50) + "..."
-                              : material.description
-                            }
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={materialTypeBadgeVariants[material.material_type]}>
-                        {materialTypeLabels[material.material_type]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{material.category || "-"}</TableCell>
-                    <TableCell>{material.suppliers?.name || "-"}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>Attuale: {material.current_stock} {material.unit}</div>
-                        <div className="text-muted-foreground">
-                          Min: {material.minimum_stock} / Max: {material.maximum_stock}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>€ {material.cost.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(material)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDelete(material.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedSupplier && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Elenco Materiali</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8">Caricamento...</div>
+            ) : filteredMaterials.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nessun materiale trovato per questo fornitore
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Codice</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Fornitore</TableHead>
+                    <TableHead>Scorte</TableHead>
+                    <TableHead>Costo</TableHead>
+                    <TableHead>Azioni</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredMaterials.map((material) => (
+                    <TableRow key={material.id}>
+                      <TableCell className="font-mono">{material.code}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{material.name}</div>
+                          {material.description && (
+                            <div className="text-sm text-muted-foreground">
+                              {material.description.length > 50 
+                                ? material.description.substring(0, 50) + "..."
+                                : material.description
+                              }
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={materialTypeBadgeVariants[material.material_type]}>
+                          {materialTypeLabels[material.material_type]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{material.category || "-"}</TableCell>
+                      <TableCell>{material.suppliers?.name || "-"}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>Attuale: {material.current_stock} {material.unit}</div>
+                          <div className="text-muted-foreground">
+                            Min: {material.minimum_stock} / Max: {material.maximum_stock}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>€ {material.cost.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(material)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDelete(material.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
