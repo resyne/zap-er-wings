@@ -32,7 +32,8 @@ import {
   Calendar,
   Mail,
   UtensilsCrossed,
-  Ticket
+  Ticket,
+  Palette
 } from "lucide-react";
 
 import {
@@ -202,6 +203,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Budget & Costi", url: "/marketing/budget", icon: DollarSign },
       { title: "Reportistica", url: "/marketing/reports", icon: PieChart },
       { title: "Archivio documenti/media", url: "/marketing/archive", icon: FileText },
+      { title: "Brandkit", url: "/marketing/brandkit", icon: Palette },
     ]
   },
   {
