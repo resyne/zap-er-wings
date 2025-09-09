@@ -1134,6 +1134,69 @@ export type Database = {
         }
         Relationships: []
       }
+      email_queue: {
+        Row: {
+          attempts: number | null
+          campaign_id: string | null
+          created_at: string | null
+          error_message: string | null
+          html_content: string
+          id: string
+          max_attempts: number | null
+          message: string
+          metadata: Json | null
+          recipient_email: string
+          recipient_name: string
+          scheduled_at: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sent_at: string | null
+          status: string | null
+          subject: string
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          campaign_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          html_content: string
+          id?: string
+          max_attempts?: number | null
+          message: string
+          metadata?: Json | null
+          recipient_email: string
+          recipient_name: string
+          scheduled_at?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject: string
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          campaign_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          html_content?: string
+          id?: string
+          max_attempts?: number | null
+          message?: string
+          metadata?: Json | null
+          recipient_email?: string
+          recipient_name?: string
+          scheduled_at?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       emails: {
         Row: {
           body: string | null
