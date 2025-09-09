@@ -27,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select('*')
       .eq('status', 'pending')
       .lte('scheduled_at', new Date().toISOString())
-      .filter('attempts', 'lt', 'max_attempts')
+      .filter('attempts', 'lt', 3) // Only get emails with less than 3 attempts
       .order('created_at', { ascending: true })
       .limit(10);
 
