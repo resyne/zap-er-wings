@@ -16,8 +16,9 @@ import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
 interface EmailCampaign {
   subject: string;
   message: string;
-  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts' | 'custom_list';
+  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts' | 'custom_list' | string;
   pipelineStage?: string;
+  customListId?: string;
   template?: {
     logo?: string;
     headerText: string;
@@ -63,6 +64,7 @@ export default function NewsletterPage() {
     all_crm_contacts: 0,
     custom_list: 0
   });
+  const [emailLists, setEmailLists] = useState<Array<{id: string, name: string, description: string, contact_count: number}>>([]);
   const [selectedCustomList, setSelectedCustomList] = useState<string>('');
   const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
   const [selectedSenderEmail, setSelectedSenderEmail] = useState<any>(null);
@@ -88,7 +90,7 @@ export default function NewsletterPage() {
     { value: 'all_partners', label: 'Tutti i Partner', icon: '🌟', description: 'Tutti i partner attivi' }
   ];
 
-  // Fetch email counts from database
+  // Fetch email counts and lists from database
   const fetchEmailCounts = async () => {
     setLoadingCounts(true);
     try {
@@ -103,6 +105,20 @@ export default function NewsletterPage() {
         .from('partners')
         .select('partner_type, acquisition_status, email')
         .not('email', 'is', null);
+
+      // Get email lists (simplified without contact count for now)
+      const { data: listsData } = await supabase
+        .from('email_lists')
+        .select('id, name, description')
+        .order('name');
+
+      // For now, set contact count to 0 - will be updated when list is selected
+      const emailListsFormatted = (listsData || []).map(list => ({
+        id: list.id,
+        name: list.name,
+        description: list.description || '',
+        contact_count: 0
+      }));
 
       const counts: EmailCounts = {
         all_crm_contacts: crmCount || 0,
@@ -126,6 +142,7 @@ export default function NewsletterPage() {
       }
 
       setEmailCounts(counts);
+      setEmailLists(emailListsFormatted);
     } catch (error) {
       console.error('Error fetching email counts:', error);
       toast({
@@ -141,6 +158,7 @@ export default function NewsletterPage() {
   useEffect(() => {
     fetchEmailCounts();
   }, []);
+
 
   const pipelineStages = [
     'lead', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost'
@@ -189,11 +207,21 @@ export default function NewsletterPage() {
         emailData.acquisition_status = 'perso';
       } else if (campaign.targetAudience === 'all_crm_contacts') {
         emailData.use_crm_contacts = true;
+      } else if (campaign.targetAudience === 'custom_list' && selectedCustomList) {
+        emailData.custom_list_id = selectedCustomList;
+      } else {
+        // Check if it's a specific email list ID
+        const list = emailLists.find(list => list.id === campaign.targetAudience);
+        if (list) {
+          emailData.custom_list_id = list.id;
+        }
       }
 
       let functionName = 'send-partner-emails';
       if (campaign.targetAudience === 'all_crm_contacts') {
         functionName = 'send-customer-emails'; // Use different function for CRM contacts
+      } else if (campaign.targetAudience === 'custom_list' || emailLists.find(list => list.id === campaign.targetAudience)) {
+        functionName = 'send-customer-emails'; // Use customer emails function for custom lists
       }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -236,6 +264,17 @@ export default function NewsletterPage() {
   };
 
   const getAudienceInfo = () => {
+    // Check if it's a custom list first
+    const list = emailLists.find(list => list.id === campaign.targetAudience);
+    if (list) {
+      return {
+        value: list.id,
+        label: list.name,
+        icon: '📋',
+        description: `Lista email personalizzata`
+      };
+    }
+    
     const option = audienceOptions.find(opt => opt.value === campaign.targetAudience);
     return option || audienceOptions[0];
   };
@@ -244,6 +283,13 @@ export default function NewsletterPage() {
     if (campaign.targetAudience === 'custom_list') {
       return selectedCustomListCount;
     }
+    
+    // Check if it's a custom list ID - for now return 0, will be calculated on send
+    const list = emailLists.find(list => list.id === campaign.targetAudience);
+    if (list) {
+      return 0; // Will be calculated when sending
+    }
+    
     return emailCounts[campaign.targetAudience] || 0;
   };
 
@@ -400,13 +446,20 @@ ${template.footerText}
                           </span>
                         </SelectItem>
                       ))}
-                      {selectedCustomList && (
-                        <SelectItem value="custom_list">
-                          <span className="flex items-center gap-2">
-                            <span>📋</span>
-                            Lista Personalizzata ({selectedCustomListCount})
-                          </span>
-                        </SelectItem>
+                      {emailLists.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-t">
+                            Liste Email Personalizzate
+                          </div>
+                          {emailLists.map((list) => (
+                            <SelectItem key={list.id} value={list.id}>
+                              <span className="flex items-center gap-2">
+                                <span>📋</span>
+                                {list.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
