@@ -232,7 +232,11 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const [openGroups, setOpenGroups] = useState<string[]>(
     navigationGroups
-      .filter(group => group.items.some(item => currentPath.startsWith(item.url.split('/')[1] || item.url)))
+      .filter(group => group.items.some(item => 
+        currentPath.startsWith(item.url.split('/')[1] || item.url) || 
+        currentPath === item.url ||
+        (item.url === '/tasks' && currentPath.startsWith('/tasks'))
+      ))
       .map(group => group.title)
   );
 
