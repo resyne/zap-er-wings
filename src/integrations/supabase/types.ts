@@ -3240,6 +3240,42 @@ export type Database = {
           },
         ]
       }
+      sender_emails: {
+        Row: {
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          is_default: boolean | null
+          is_verified: boolean | null
+          name: string
+          resend_domain_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          is_default?: boolean | null
+          is_verified?: boolean | null
+          name: string
+          resend_domain_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          is_default?: boolean | null
+          is_verified?: boolean | null
+          name?: string
+          resend_domain_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       serials: {
         Row: {
           created_at: string

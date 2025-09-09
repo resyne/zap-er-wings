@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
 import { NewsletterTemplateEditor } from "@/components/crm/NewsletterTemplateEditor";
+import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
 
 interface EmailCampaign {
   subject: string;
@@ -28,6 +29,12 @@ interface EmailCampaign {
       url: string;
       type: string;
     }>;
+  };
+  senderEmail?: {
+    id: string;
+    email: string;
+    name: string;
+    is_verified: boolean;
   };
 }
 
@@ -58,6 +65,7 @@ export default function NewsletterPage() {
   });
   const [selectedCustomList, setSelectedCustomList] = useState<string>('');
   const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
+  const [selectedSenderEmail, setSelectedSenderEmail] = useState<any>(null);
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
     message: '',
@@ -139,10 +147,19 @@ export default function NewsletterPage() {
   ];
 
   const handleSendCampaign = async () => {
-    if (!campaign.subject || !campaign.message) {
+    if (!campaign.subject || !campaign.message || !selectedSenderEmail) {
       toast({
         title: "Errore",
-        description: "Inserisci oggetto e messaggio",
+        description: "Inserisci oggetto, messaggio e seleziona email mittente",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedSenderEmail.is_verified) {
+      toast({
+        title: "Errore",
+        description: "L'email mittente deve essere verificata per poter inviare newsletter",
         variant: "destructive",
       });
       return;
@@ -155,7 +172,8 @@ export default function NewsletterPage() {
         subject: campaign.subject,
         message: getPreviewMessage(),
         is_newsletter: true,
-        template: campaign.template
+        template: campaign.template,
+        senderEmail: selectedSenderEmail
       };
 
       // Set audience filters based on target
@@ -239,6 +257,10 @@ export default function NewsletterPage() {
     setCampaign(prev => ({ ...prev, template }));
   };
 
+  const handleSenderEmailSelect = (email: any) => {
+    setSelectedSenderEmail(email);
+  };
+
   const getPreviewMessage = () => {
     const message = campaign.message
       .replace(/\{partner_name\}/g, '[Nome Partner]')
@@ -292,6 +314,10 @@ ${template.footerText}
             <Mail className="h-4 w-4" />
             Componi Newsletter
           </TabsTrigger>
+          <TabsTrigger value="emails" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Email Mittente
+          </TabsTrigger>
           <TabsTrigger value="lists" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Liste Email
@@ -316,6 +342,26 @@ ${template.footerText}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email Mittente</label>
+                  {selectedSenderEmail ? (
+                    <div className="flex items-center gap-2 p-2 border rounded">
+                      <Mail className="h-4 w-4" />
+                      <span className="font-medium">{selectedSenderEmail.name}</span>
+                      <span className="text-muted-foreground">({selectedSenderEmail.email})</span>
+                      {selectedSenderEmail.is_verified ? (
+                        <Badge variant="default" className="text-xs">Verificata</Badge>
+                      ) : (
+                        <Badge variant="destructive" className="text-xs">Non verificata</Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground p-2 border rounded border-dashed">
+                      Vai alla tab "Email Mittente" per configurare un indirizzo
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Oggetto</label>
                   <Input
@@ -389,7 +435,7 @@ Puoi usare questi placeholder:
 
                 <Button 
                   onClick={handleSendCampaign} 
-                  disabled={loading || !campaign.subject || !campaign.message || getCurrentEmailCount() === 0}
+                  disabled={loading || !campaign.subject || !campaign.message || !selectedSenderEmail || !selectedSenderEmail.is_verified || getCurrentEmailCount() === 0}
                   className="w-full"
                 >
                   {loading ? "Invio..." : `Invia Newsletter (${getCurrentEmailCount()})`}
@@ -413,7 +459,12 @@ Puoi usare questi placeholder:
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Da:</p>
-                      <p className="font-medium">Sistema CRM &lt;noreply@company.com&gt;</p>
+                      <p className="font-medium">
+                        {selectedSenderEmail ? 
+                          `${selectedSenderEmail.name} <${selectedSenderEmail.email}>` : 
+                          'Seleziona email mittente'
+                        }
+                      </p>
                     </div>
                     
                     <div>
@@ -442,6 +493,13 @@ Puoi usare questi placeholder:
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="emails" className="space-y-6">
+          <SenderEmailManager 
+            onEmailSelect={handleSenderEmailSelect}
+            selectedEmailId={selectedSenderEmail?.id}
+          />
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
