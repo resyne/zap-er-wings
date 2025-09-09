@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CalendarDays, Clock, User, Tag, FileText } from "lucide-react";
@@ -50,7 +50,7 @@ const priorityConfig = {
   urgent: { title: 'Urgente', color: 'bg-red-200 text-red-900' },
 };
 
-const categoryConfig = {
+const categoryConfig: Record<string, { title: string; color: string }> = {
   amministrazione: { title: 'Amministrazione', color: 'bg-purple-100 text-purple-800' },
   back_office: { title: 'Back Office', color: 'bg-blue-100 text-blue-800' },
   ricerca_sviluppo: { title: 'Ricerca e Sviluppo', color: 'bg-orange-100 text-orange-800' },
@@ -62,13 +62,16 @@ export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialo
   const assignedUser = task.profiles;
   const statusInfo = statusConfig[task.status];
   const priorityInfo = priorityConfig[task.priority];
-  const categoryInfo = categoryConfig[task.category];
+  const categoryInfo = categoryConfig[task.category] || { title: task.category, color: 'bg-gray-100 text-gray-800' };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
+          <DialogDescription>
+            Dettagli del task
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">
