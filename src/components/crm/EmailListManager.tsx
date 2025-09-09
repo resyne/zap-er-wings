@@ -228,18 +228,35 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+      console.log('Raw Excel data:', jsonData);
+      console.log('First row keys:', jsonData.length > 0 ? Object.keys(jsonData[0]) : []);
+
+      // Find email column by checking various possible names (case insensitive)
+      const findColumn = (row: any, possibleNames: string[]) => {
+        const keys = Object.keys(row);
+        for (const name of possibleNames) {
+          const key = keys.find(k => k.toLowerCase() === name.toLowerCase());
+          if (key && row[key]) return row[key];
+        }
+        return '';
+      };
+
       const contacts = jsonData.map((row: any) => ({
         email_list_id: currentListId,
-        first_name: row['Nome'] || row['First Name'] || row['first_name'] || '',
-        last_name: row['Cognome'] || row['Last Name'] || row['last_name'] || '',
-        company: row['Azienda'] || row['Company'] || row['company'] || '',
-        email: row['Email'] || row['email'] || row['EMAIL'] || '',
-      })).filter(contact => contact.email);
+        first_name: findColumn(row, ['Nome', 'First Name', 'first_name', 'FirstName', 'nome']),
+        last_name: findColumn(row, ['Cognome', 'Last Name', 'last_name', 'LastName', 'cognome']),
+        company: findColumn(row, ['Azienda', 'Company', 'company', 'azienda']),
+        email: findColumn(row, ['Email', 'email', 'EMAIL', 'e-mail', 'E-mail', 'e_mail']),
+      })).filter(contact => contact.email.trim());
+
+      console.log('Processed contacts:', contacts);
 
       if (contacts.length === 0) {
+        const sampleRow = jsonData.length > 0 ? jsonData[0] : {};
+        const availableColumns = Object.keys(sampleRow).join(', ');
         toast({
           title: "Errore",
-          description: "Nessun contatto valido trovato nel file",
+          description: `Nessun contatto valido trovato nel file. Colonne disponibili: ${availableColumns}`,
           variant: "destructive",
         });
         return;
