@@ -319,10 +319,12 @@ export default function NewsletterPage() {
   };
 
   const handleTemplateChange = (template: any) => {
+    console.log("Template changed:", template);
     setCampaign(prev => ({ ...prev, template }));
   };
 
   const handleTemplateSelect = (templateData: { subject: string; message: string }) => {
+    console.log("Template selected:", templateData);
     setCampaign(prev => ({ 
       ...prev, 
       subject: templateData.subject,
@@ -337,28 +339,44 @@ export default function NewsletterPage() {
   const getPreviewMessage = () => {
     const message = campaign.message
       .replace(/\{partner_name\}/g, '[Nome Partner]')
+      .replace(/\{customer_name\}/g, '[Nome Partner]')
       .replace(/\{company_name\}/g, '[Nome Azienda]');
     
     const template = campaign.template;
     if (!template) return message;
 
-    return `
-${template.logo ? `[LOGO AZIENDALE]` : ''}
+    // Generate a formatted HTML preview similar to what will be sent
+    let preview = "";
+    
+    if (template.logo) {
+      preview += `🖼️ [LOGO AZIENDALE]\n\n`;
+    }
+    
+    if (template.headerText) {
+      preview += `${template.headerText}\n`;
+      preview += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    }
+    
+    preview += `${message}\n\n`;
+    
+    if (template.attachments && template.attachments.length > 0) {
+      preview += `📎 Allegati:\n`;
+      template.attachments.forEach(att => {
+        preview += `• ${att.name}\n`;
+      });
+      preview += `\n`;
+    }
+    
+    if (template.signature) {
+      preview += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      preview += `${template.signature}\n\n`;
+    }
+    
+    if (template.footerText) {
+      preview += `${template.footerText}`;
+    }
 
-${template.headerText}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-${message}
-
-${template.signature}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-${template.attachments.length > 0 ? `📎 Allegati: ${template.attachments.map(a => a.name).join(', ')}` : ''}
-
-${template.footerText}
-    `.trim();
+    return preview.trim();
   };
 
   return (
@@ -497,20 +515,36 @@ ${template.footerText}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Messaggio</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Messaggio</label>
+                    {campaign.template && (
+                      <Badge variant="secondary" className="text-xs">
+                        📝 Template attivo
+                      </Badge>
+                    )}
+                  </div>
                   <Textarea
                     placeholder="Scrivi il tuo messaggio qui... 
                     
 Puoi usare questi placeholder:
 - {partner_name} per il nome del partner
-- {company_name} per il nome dell'azienda"
+- {company_name} per il nome dell'azienda
+
+💡 Il messaggio verrà automaticamente formattato secondo il template selezionato"
                     value={campaign.message}
                     onChange={(e) => setCampaign(prev => ({ ...prev, message: e.target.value }))}
                     rows={12}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Usa {'{partner_name}'} e {'{company_name}'} per personalizzare il messaggio
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Usa {'{partner_name}'} e {'{company_name}'} per personalizzare il messaggio
+                    </p>
+                    {campaign.template && (
+                      <p className="text-xs text-green-600">
+                        ✅ Template: {campaign.template.headerText}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <Button 
@@ -558,8 +592,15 @@ Puoi usare questi placeholder:
                     </div>
 
                     <div className="border-t pt-4">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">Messaggio:</p>
-                      <div className="whitespace-pre-wrap text-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">Anteprima Messaggio:</p>
+                        {campaign.template && (
+                          <Badge variant="outline" className="text-xs">
+                            🎨 Con Template
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="whitespace-pre-wrap text-sm p-4 bg-muted/50 rounded border">
                         {getPreviewMessage() || "Inserisci il messaggio per vedere l'anteprima..."}
                       </div>
                     </div>
