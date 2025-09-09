@@ -86,6 +86,7 @@ export function TaskKanban({ category }: TaskKanbanProps) {
 
   const fetchTasks = async () => {
     try {
+      console.log('Fetching tasks for category:', category);
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -96,9 +97,11 @@ export function TaskKanban({ category }: TaskKanbanProps) {
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('Supabase error:', error);
         throw error;
       }
 
+      console.log('Fetched tasks:', data);
       setTasks((data || []) as Task[]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
