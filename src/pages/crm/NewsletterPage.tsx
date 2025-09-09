@@ -10,12 +10,25 @@ import { Mail, Send, Users, Target, Calendar, Settings, Loader } from "lucide-re
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
+import { NewsletterTemplateEditor } from "@/components/crm/NewsletterTemplateEditor";
 
 interface EmailCampaign {
   subject: string;
   message: string;
   targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts' | 'custom_list';
   pipelineStage?: string;
+  template?: {
+    logo?: string;
+    headerText: string;
+    footerText: string;
+    signature: string;
+    attachments: Array<{
+      id: string;
+      name: string;
+      url: string;
+      type: string;
+    }>;
+  };
 }
 
 interface EmailCounts {
@@ -48,7 +61,13 @@ export default function NewsletterPage() {
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
     message: '',
-    targetAudience: 'all_partners'
+    targetAudience: 'all_partners',
+    template: {
+      headerText: "Newsletter Aziendale",
+      footerText: "© 2024 La Tua Azienda. Tutti i diritti riservati.",
+      signature: "Cordiali saluti,\nIl Team Marketing",
+      attachments: []
+    }
   });
 
   const audienceOptions = [
@@ -134,8 +153,9 @@ export default function NewsletterPage() {
     try {
       let emailData: any = {
         subject: campaign.subject,
-        message: campaign.message,
-        is_newsletter: true
+        message: getPreviewMessage(),
+        is_newsletter: true,
+        template: campaign.template
       };
 
       // Set audience filters based on target
@@ -173,7 +193,13 @@ export default function NewsletterPage() {
       setCampaign({
         subject: '',
         message: '',
-        targetAudience: 'all_partners'
+        targetAudience: 'all_partners',
+        template: {
+          headerText: "Newsletter Aziendale",
+          footerText: "© 2024 La Tua Azienda. Tutti i diritti riservati.",
+          signature: "Cordiali saluti,\nIl Team Marketing",
+          attachments: []
+        }
       });
 
       // Refresh counts
@@ -209,10 +235,35 @@ export default function NewsletterPage() {
     setCampaign(prev => ({ ...prev, targetAudience: 'custom_list' }));
   };
 
+  const handleTemplateChange = (template: any) => {
+    setCampaign(prev => ({ ...prev, template }));
+  };
+
   const getPreviewMessage = () => {
-    return campaign.message
+    const message = campaign.message
       .replace(/\{partner_name\}/g, '[Nome Partner]')
       .replace(/\{company_name\}/g, '[Nome Azienda]');
+    
+    const template = campaign.template;
+    if (!template) return message;
+
+    return `
+${template.logo ? `[LOGO AZIENDALE]` : ''}
+
+${template.headerText}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+${message}
+
+${template.signature}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+${template.attachments.length > 0 ? `📎 Allegati: ${template.attachments.map(a => a.name).join(', ')}` : ''}
+
+${template.footerText}
+    `.trim();
   };
 
   return (
@@ -394,130 +445,7 @@ Puoi usare questi placeholder:
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Destinatari Disponibili</CardTitle>
-              <CardDescription>
-                Seleziona il pubblico di destinazione per la tua newsletter
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {loadingCounts ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader className="h-6 w-6 animate-spin" />
-                    <span className="ml-2">Caricamento conteggi...</span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {audienceOptions.map((option) => (
-                      <Card 
-                        key={option.value} 
-                        className={`cursor-pointer transition-all hover:shadow-md ${
-                          campaign.targetAudience === option.value ? 'ring-2 ring-primary' : ''
-                        }`}
-                        onClick={() => setCampaign(prev => ({ ...prev, targetAudience: option.value as EmailCampaign['targetAudience'] }))}
-                      >
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <span className="text-lg">{option.icon}</span>
-                            {option.label}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between">
-                            <div className="text-2xl font-bold text-primary">
-                              {emailCounts[option.value as keyof EmailCounts]}
-                            </div>
-                            <Mail className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {option.description}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Template Predefiniti</CardTitle>
-              <CardDescription>
-                Seleziona un template per iniziare rapidamente
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  {
-                    title: "Newsletter Mensile",
-                    description: "Template per aggiornamenti mensili",
-                    template: {
-                      subject: "Newsletter Mensile - Aggiornamenti Partnership",
-                      message: `Caro {partner_name},
-
-Ecco gli aggiornamenti più importanti di questo mese per la nostra partnership con {company_name}:
-
-📈 **Novità del Prodotto:**
-- Nuove funzionalità rilasciate
-- Miglioramenti nell'interfaccia
-- Nuove opzioni disponibili
-
-🎯 **Opportunità di Business:**
-- Nuovi mercati disponibili
-- Programmi di incentivi
-- Eventi in programma
-
-Grazie per essere un partner prezioso!`
-                    }
-                  },
-                  {
-                    title: "Follow-up Prospect",
-                    description: "Template per ricontattare i prospect",
-                    template: {
-                      subject: "Follow-up Partnership - Opportunità di Collaborazione",
-                      message: `Caro {partner_name},
-
-Abbiamo notato il tuo interesse verso una possibile partnership con {company_name}.
-
-🤝 **Vogliamo aiutarti a crescere:**
-- Supporto dedicato per l'avvio
-- Materiali di training personalizzati
-- Condizioni commerciali competitive
-
-📞 **Prossimi Passi:**
-Siamo pronti a programmare una chiamata per discutere le tue esigenze.
-
-Contattaci per fissare un appuntamento.`
-                    }
-                  }
-                ].map((template, index) => (
-                  <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{template.title}</CardTitle>
-                      <CardDescription>{template.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setCampaign(prev => ({ 
-                          ...prev, 
-                          ...template.template 
-                        }))}
-                      >
-                        Usa Template
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <NewsletterTemplateEditor onTemplateChange={handleTemplateChange} />
         </TabsContent>
 
         <TabsContent value="lists" className="space-y-6">
