@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Send, Users, Target, Calendar, Settings, Loader } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Mail, Send, Users, Target, Calendar, Settings, Loader, History, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
@@ -50,10 +51,23 @@ interface EmailCounts {
   custom_list: number;
 }
 
+interface SentEmail {
+  id: string;
+  recipient_email: string;
+  recipient_name: string;
+  subject: string;
+  status: 'pending' | 'sending' | 'sent' | 'failed' | 'retrying';
+  sent_at: string | null;
+  created_at: string;
+  error_message?: string;
+}
+
 export default function NewsletterPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [loadingCounts, setLoadingCounts] = useState(true);
+  const [loadingSentEmails, setLoadingSentEmails] = useState(false);
+  const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
   const [emailCounts, setEmailCounts] = useState<EmailCounts>({
     customers_won: 0,
     customers_lost: 0,
@@ -174,8 +188,33 @@ export default function NewsletterPage() {
     }
   };
 
+  // Fetch sent emails from email_queue
+  const fetchSentEmails = async () => {
+    setLoadingSentEmails(true);
+    try {
+      const { data, error } = await supabase
+        .from('email_queue')
+        .select('id, recipient_email, recipient_name, subject, status, sent_at, created_at, error_message')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      setSentEmails((data || []) as SentEmail[]);
+    } catch (error) {
+      console.error('Error fetching sent emails:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel recupero delle email inviate",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSentEmails(false);
+    }
+  };
+
   useEffect(() => {
     fetchEmailCounts();
+    fetchSentEmails();
   }, []);
 
 
@@ -428,6 +467,10 @@ export default function NewsletterPage() {
             <Mail className="h-4 w-4" />
             Componi Newsletter
           </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Cronologia Email
+          </TabsTrigger>
           <TabsTrigger value="emails" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Email Mittente
@@ -637,6 +680,130 @@ Puoi usare questi placeholder:
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Cronologia Email Inviate
+              </CardTitle>
+              <CardDescription>
+                Visualizza tutte le email inviate ai destinatari
+              </CardDescription>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={fetchSentEmails}
+                  disabled={loadingSentEmails}
+                  className="flex items-center gap-2"
+                >
+                  {loadingSentEmails ? <Loader className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
+                  Aggiorna
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingSentEmails ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="h-6 w-6 animate-spin" />
+                  <span className="ml-2">Caricamento email...</span>
+                </div>
+              ) : sentEmails.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nessuna email inviata trovata</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Destinatario</TableHead>
+                        <TableHead>Oggetto</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Data Invio</TableHead>
+                        <TableHead>Data Creazione</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sentEmails.map((email) => (
+                        <TableRow key={email.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{email.recipient_name || email.recipient_email}</div>
+                              {email.recipient_name && (
+                                <div className="text-sm text-muted-foreground">{email.recipient_email}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[200px] truncate" title={email.subject}>
+                              {email.subject}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {email.status === 'sent' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                              {email.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
+                              {email.status === 'pending' && <Clock className="h-4 w-4 text-yellow-500" />}
+                              {email.status === 'sending' && <Loader className="h-4 w-4 text-blue-500 animate-spin" />}
+                              {email.status === 'retrying' && <Loader className="h-4 w-4 text-orange-500 animate-spin" />}
+                              <Badge 
+                                variant={
+                                  email.status === 'sent' ? 'default' : 
+                                  email.status === 'failed' ? 'destructive' : 
+                                  email.status === 'pending' ? 'secondary' :
+                                  'outline'
+                                }
+                                className="text-xs"
+                              >
+                                {email.status === 'sent' && 'Inviata'}
+                                {email.status === 'failed' && 'Fallita'}
+                                {email.status === 'pending' && 'In attesa'}
+                                {email.status === 'sending' && 'Invio...'}
+                                {email.status === 'retrying' && 'Riprova...'}
+                              </Badge>
+                            </div>
+                            {email.error_message && (
+                              <div className="text-xs text-red-500 mt-1" title={email.error_message}>
+                                {email.error_message.length > 50 ? 
+                                  `${email.error_message.substring(0, 50)}...` : 
+                                  email.error_message
+                                }
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {email.sent_at ? (
+                              <div className="text-sm">
+                                <div>{new Date(email.sent_at).toLocaleDateString('it-IT')}</div>
+                                <div className="text-muted-foreground text-xs">
+                                  {new Date(email.sent_at).toLocaleTimeString('it-IT')}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{new Date(email.created_at).toLocaleDateString('it-IT')}</div>
+                              <div className="text-muted-foreground text-xs">
+                                {new Date(email.created_at).toLocaleTimeString('it-IT')}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="emails" className="space-y-6">
