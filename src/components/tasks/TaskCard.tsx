@@ -1,22 +1,23 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, User, MoreHorizontal, Edit, Trash } from "lucide-react";
-import { format } from "date-fns";
-import { it } from "date-fns/locale";
-import { useState } from "react";
-import { EditTaskDialog } from "./EditTaskDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MoreHorizontal, Edit, Trash, CalendarDays, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { EditTaskDialog } from "./EditTaskDialog";
+import { TaskDetailsDialog } from "./TaskDetailsDialog";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 
 interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled';
+  status: 'todo' | 'in_progress' | 'completed' | 'review' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   category: string;
   assigned_to?: string;
@@ -44,8 +45,8 @@ interface TaskCardProps {
 const priorityColors = {
   low: 'bg-green-100 text-green-800 border-green-200',
   medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  high: 'bg-orange-100 text-orange-800 border-orange-200',
-  urgent: 'bg-red-100 text-red-800 border-red-200'
+  high: 'bg-red-100 text-red-800 border-red-200',
+  urgent: 'bg-red-200 text-red-900 border-red-300'
 };
 
 const priorityLabels = {
@@ -56,9 +57,10 @@ const priorityLabels = {
 };
 
 export function TaskCard({ task, onUpdate }: TaskCardProps) {
+  const { toast } = useToast();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const { toast } = useToast();
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -92,7 +94,10 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
 
   return (
     <>
-      <Card className="cursor-pointer hover:shadow-md transition-shadow bg-card border">
+      <Card 
+        className="cursor-pointer hover:shadow-md transition-shadow bg-card border"
+        onClick={() => setIsDetailsDialogOpen(true)}
+      >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <h4 className="font-medium text-sm leading-tight line-clamp-2">
@@ -100,17 +105,30 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
             </h4>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditDialogOpen(true);
+                  }}
+                >
                   <Edit className="h-4 w-4 mr-2" />
                   Modifica
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeleteDialogOpen(true);
+                  }}
                   className="text-destructive"
                 >
                   <Trash className="h-4 w-4 mr-2" />
@@ -146,7 +164,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
 
           {task.due_date && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
+              <CalendarDays className="h-3 w-3" />
               {format(new Date(task.due_date), 'dd MMM', { locale: it })}
             </div>
           )}
@@ -169,6 +187,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           {assignedUser && (
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
+                <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
               <span className="text-xs text-muted-foreground truncate">
@@ -178,6 +197,12 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           )}
         </CardContent>
       </Card>
+
+      <TaskDetailsDialog
+        task={task}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+      />
 
       <EditTaskDialog
         task={task}
@@ -189,9 +214,9 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Elimina Task</AlertDialogTitle>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
             <AlertDialogDescription>
-              Sei sicuro di voler eliminare il task "{task.title}"? Questa azione non può essere annullata.
+              Sei sicuro di voler eliminare questo task? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

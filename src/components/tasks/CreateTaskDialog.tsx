@@ -102,8 +102,6 @@ export function CreateTaskDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('HandleSubmit called');
-    
     if (!title.trim()) {
       toast({
         title: "Errore",
@@ -114,7 +112,6 @@ export function CreateTaskDialog({
     }
 
     setLoading(true);
-    console.log('Loading set to true');
 
     try {
       // Create the task
@@ -132,15 +129,11 @@ export function CreateTaskDialog({
         tags: tags.length > 0 ? tags : null,
       };
 
-      console.log('TaskData to insert:', taskData);
-
       const { data: createdTask, error } = await supabase
         .from('tasks')
         .insert(taskData)
         .select()
         .single();
-
-      console.log('Supabase response:', { createdTask, error });
 
       if (error) throw error;
 
