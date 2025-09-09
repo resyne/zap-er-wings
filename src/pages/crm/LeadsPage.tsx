@@ -105,7 +105,13 @@ export default function LeadsPage() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, email")
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          email,
+          user_roles!inner(role)
+        `)
         .order("first_name", { ascending: true });
 
       if (error) throw error;
