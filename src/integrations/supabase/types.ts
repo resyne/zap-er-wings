@@ -3183,6 +3183,53 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_tasks: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_generated_date: string | null
+          recurrence_days: number[] | null
+          recurrence_end_date: string | null
+          recurrence_interval: number
+          recurrence_type: Database["public"]["Enums"]["recurrence_type"]
+          task_template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_generated_date?: string | null
+          recurrence_days?: number[] | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number
+          recurrence_type?: Database["public"]["Enums"]["recurrence_type"]
+          task_template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_generated_date?: string | null
+          recurrence_days?: number[] | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number
+          recurrence_type?: Database["public"]["Enums"]["recurrence_type"]
+          task_template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_tasks_task_template_id_fkey"
+            columns: ["task_template_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           assigned_to: string | null
@@ -4033,6 +4080,147 @@ export type Database = {
         }
         Relationships: []
       }
+      task_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          task_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          task_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          task_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_comments: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          actual_hours: number | null
+          assigned_to: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string
+          parent_task_id: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          start_date: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          category: Database["public"]["Enums"]["task_category"]
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          parent_task_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          category?: Database["public"]["Enums"]["task_category"]
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          parent_task_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technicians: {
         Row: {
           active: boolean | null
@@ -4352,6 +4540,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_recurring_tasks: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_sales_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -4419,8 +4611,12 @@ export type Database = {
         | "Finance"
         | "Manual"
       gl_status: "draft" | "incomplete" | "posted"
+      recurrence_type: "none" | "daily" | "weekly" | "monthly" | "yearly"
       rma_status: "open" | "analysis" | "repaired" | "closed"
       serial_status: "in_test" | "approved" | "rejected"
+      task_category: "amministrazione" | "back_office" | "ricerca_sviluppo"
+      task_priority: "low" | "medium" | "high" | "urgent"
+      task_status: "todo" | "in_progress" | "review" | "completed" | "cancelled"
       wo_status: "planned" | "in_progress" | "testing" | "closed"
     }
     CompositeTypes: {
@@ -4569,8 +4765,12 @@ export const Constants = {
         "Manual",
       ],
       gl_status: ["draft", "incomplete", "posted"],
+      recurrence_type: ["none", "daily", "weekly", "monthly", "yearly"],
       rma_status: ["open", "analysis", "repaired", "closed"],
       serial_status: ["in_test", "approved", "rejected"],
+      task_category: ["amministrazione", "back_office", "ricerca_sviluppo"],
+      task_priority: ["low", "medium", "high", "urgent"],
+      task_status: ["todo", "in_progress", "review", "completed", "cancelled"],
       wo_status: ["planned", "in_progress", "testing", "closed"],
     },
   },

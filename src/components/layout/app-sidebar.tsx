@@ -33,7 +33,8 @@ import {
   Mail,
   UtensilsCrossed,
   Ticket,
-  Palette
+  Palette,
+  CheckSquare
 } from "lucide-react";
 
 import {
@@ -167,6 +168,13 @@ const navigationGroups: NavGroup[] = [
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },
       { title: "Fluida", url: "/hr/fluida", icon: Users },
       { title: "Ticket Restaurant", url: "/hr/ticket-restaurant", icon: UtensilsCrossed },
+    ]
+  },
+  {
+    title: "Planning",
+    items: [
+      { title: "Calendario", url: "/calendar", icon: Calendar },
+      { title: "Task Management", url: "/tasks", icon: CheckSquare },
     ]
   },
   {

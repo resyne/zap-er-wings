@@ -71,6 +71,7 @@ import ArchivePage from "./pages/marketing/ArchivePage";
 import BrandkitPage from "./pages/marketing/BrandkitPage";
 import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
 import IntegrationsPage from "./pages/integrations/IntegrationsPage";
+import { TasksPage } from "./pages/tasks/TasksPage";
 
 const queryClient = new QueryClient();
 
@@ -151,6 +152,7 @@ const App = () => (
                 <Route path="marketing/archive" element={<ArchivePage />} />
                 <Route path="marketing/brandkit" element={<BrandkitPage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
+                <Route path="tasks" element={<TasksPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
