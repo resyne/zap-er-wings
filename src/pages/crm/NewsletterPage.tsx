@@ -53,13 +53,15 @@ interface EmailCounts {
 
 interface SentEmail {
   id: string;
-  recipient_email: string;
-  recipient_name: string;
   subject: string;
-  status: 'pending' | 'sending' | 'sent' | 'failed' | 'retrying';
+  campaign_type: string;
+  recipients_count: number;
+  success_count: number;
+  failure_count: number;
   sent_at: string | null;
   created_at: string;
-  error_message?: string;
+  partner_type?: string;
+  region?: string;
 }
 
 export default function NewsletterPage() {
@@ -188,23 +190,23 @@ export default function NewsletterPage() {
     }
   };
 
-  // Fetch sent emails from email_queue
+  // Fetch sent campaigns from email_campaigns
   const fetchSentEmails = async () => {
     setLoadingSentEmails(true);
     try {
       const { data, error } = await supabase
-        .from('email_queue')
-        .select('id, recipient_email, recipient_name, subject, status, sent_at, created_at, error_message')
+        .from('email_campaigns')
+        .select('id, subject, campaign_type, recipients_count, success_count, failure_count, sent_at, created_at, partner_type, region')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(50);
 
       if (error) throw error;
       setSentEmails((data || []) as SentEmail[]);
     } catch (error) {
-      console.error('Error fetching sent emails:', error);
+      console.error('Error fetching sent campaigns:', error);
       toast({
         title: "Errore",
-        description: "Errore nel recupero delle email inviate",
+        description: "Errore nel recupero delle campagne email inviate",
         variant: "destructive",
       });
     } finally {
@@ -687,10 +689,10 @@ Puoi usare questi placeholder:
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="h-5 w-5" />
-                Cronologia Email Inviate
+                Cronologia Campagne Email
               </CardTitle>
               <CardDescription>
-                Visualizza tutte le email inviate ai destinatari
+                Visualizza le campagne email inviate con riepilogo destinatari
               </CardDescription>
               <div className="flex gap-2">
                 <Button 
@@ -709,92 +711,88 @@ Puoi usare questi placeholder:
               {loadingSentEmails ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader className="h-6 w-6 animate-spin" />
-                  <span className="ml-2">Caricamento email...</span>
+                  <span className="ml-2">Caricamento campagne...</span>
                 </div>
               ) : sentEmails.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nessuna email inviata trovata</p>
+                  <p>Nessuna campagna email trovata</p>
                 </div>
               ) : (
                 <div className="border rounded-lg">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Destinatario</TableHead>
                         <TableHead>Oggetto</TableHead>
-                        <TableHead>Stato</TableHead>
+                        <TableHead>Tipo Campagna</TableHead>
+                        <TableHead>Destinatari</TableHead>
+                        <TableHead>Risultati</TableHead>
                         <TableHead>Data Invio</TableHead>
-                        <TableHead>Data Creazione</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sentEmails.map((email) => (
-                        <TableRow key={email.id}>
+                      {sentEmails.map((campaign) => (
+                        <TableRow key={campaign.id}>
                           <TableCell>
-                            <div>
-                              <div className="font-medium">{email.recipient_name || email.recipient_email}</div>
-                              {email.recipient_name && (
-                                <div className="text-sm text-muted-foreground">{email.recipient_email}</div>
+                            <div className="font-medium">{campaign.subject}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {campaign.campaign_type || 'Newsletter'}
+                              </Badge>
+                              {campaign.partner_type && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {campaign.partner_type}
+                                </Badge>
+                              )}
+                              {campaign.region && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {campaign.region}
+                                </Badge>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="max-w-[200px] truncate" title={email.subject}>
-                              {email.subject}
-                            </div>
-                          </TableCell>
-                          <TableCell>
                             <div className="flex items-center gap-2">
-                              {email.status === 'sent' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                              {email.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
-                              {email.status === 'pending' && <Clock className="h-4 w-4 text-yellow-500" />}
-                              {email.status === 'sending' && <Loader className="h-4 w-4 text-blue-500 animate-spin" />}
-                              {email.status === 'retrying' && <Loader className="h-4 w-4 text-orange-500 animate-spin" />}
-                              <Badge 
-                                variant={
-                                  email.status === 'sent' ? 'default' : 
-                                  email.status === 'failed' ? 'destructive' : 
-                                  email.status === 'pending' ? 'secondary' :
-                                  'outline'
-                                }
-                                className="text-xs"
-                              >
-                                {email.status === 'sent' && 'Inviata'}
-                                {email.status === 'failed' && 'Fallita'}
-                                {email.status === 'pending' && 'In attesa'}
-                                {email.status === 'sending' && 'Invio...'}
-                                {email.status === 'retrying' && 'Riprova...'}
-                              </Badge>
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{campaign.recipients_count || 0}</span>
+                              <span className="text-sm text-muted-foreground">destinatari</span>
                             </div>
-                            {email.error_message && (
-                              <div className="text-xs text-red-500 mt-1" title={email.error_message}>
-                                {email.error_message.length > 50 ? 
-                                  `${email.error_message.substring(0, 50)}...` : 
-                                  email.error_message
-                                }
-                              </div>
-                            )}
                           </TableCell>
                           <TableCell>
-                            {email.sent_at ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                <span className="text-sm">{campaign.success_count || 0} inviate</span>
+                              </div>
+                              {(campaign.failure_count || 0) > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <XCircle className="h-4 w-4 text-red-500" />
+                                  <span className="text-sm">{campaign.failure_count} fallite</span>
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground">
+                                Tasso successo: {campaign.recipients_count ? Math.round((campaign.success_count || 0) / campaign.recipients_count * 100) : 0}%
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {campaign.sent_at ? (
                               <div className="text-sm">
-                                <div>{new Date(email.sent_at).toLocaleDateString('it-IT')}</div>
+                                <div>{new Date(campaign.sent_at).toLocaleDateString('it-IT')}</div>
                                 <div className="text-muted-foreground text-xs">
-                                  {new Date(email.sent_at).toLocaleTimeString('it-IT')}
+                                  {new Date(campaign.sent_at).toLocaleTimeString('it-IT')}
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{new Date(email.created_at).toLocaleDateString('it-IT')}</div>
-                              <div className="text-muted-foreground text-xs">
-                                {new Date(email.created_at).toLocaleTimeString('it-IT')}
+                              <div className="text-sm">
+                                <div>{new Date(campaign.created_at).toLocaleDateString('it-IT')}</div>
+                                <div className="text-muted-foreground text-xs">
+                                  {new Date(campaign.created_at).toLocaleTimeString('it-IT')}
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
