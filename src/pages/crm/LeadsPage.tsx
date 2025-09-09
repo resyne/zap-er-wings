@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -29,6 +29,7 @@ interface Lead {
   next_activity_type?: string;
   next_activity_date?: string;
   next_activity_notes?: string;
+  next_activity_assigned_to?: string;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +51,7 @@ const allStatuses = [
 ];
 
 export default function LeadsPage() {
+  const [users, setUsers] = useState<Array<{id: string, first_name: string, last_name: string, email: string}>>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,11 +72,13 @@ export default function LeadsPage() {
     next_activity_type: "",
     next_activity_date: "",
     next_activity_notes: "",
+    next_activity_assigned_to: "",
   });
   const { toast } = useToast();
 
   useEffect(() => {
     loadLeads();
+    loadUsers();
   }, []);
 
   const loadLeads = async () => {
@@ -94,6 +98,20 @@ export default function LeadsPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .order("first_name", { ascending: true });
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error: any) {
+      console.error("Error loading users:", error.message);
     }
   };
 
@@ -144,6 +162,7 @@ export default function LeadsPage() {
       next_activity_type: lead.next_activity_type || "",
       next_activity_date: lead.next_activity_date ? new Date(lead.next_activity_date).toISOString().slice(0, 16) : "",
       next_activity_notes: lead.next_activity_notes || "",
+      next_activity_assigned_to: lead.next_activity_assigned_to || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -221,6 +240,7 @@ export default function LeadsPage() {
       next_activity_type: "",
       next_activity_date: "",
       next_activity_notes: "",
+      next_activity_assigned_to: "",
     });
   };
 
@@ -557,6 +577,21 @@ export default function LeadsPage() {
                         onChange={(e) => setNewLead({...newLead, next_activity_date: e.target.value})}
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="next_activity_assigned_to">Assegna a</Label>
+                      <Select value={newLead.next_activity_assigned_to} onValueChange={(value) => setNewLead({...newLead, next_activity_assigned_to: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona utente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name} ({user.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="col-span-2">
                       <Label htmlFor="next_activity_notes">Note Attività</Label>
                       <Textarea
@@ -793,12 +828,20 @@ export default function LeadsPage() {
                                           </span>
                                         </div>
                                       )}
-                                      {lead.next_activity_notes && (
-                                        <div className="text-xs text-muted-foreground italic truncate">
-                                          {lead.next_activity_notes}
-                                        </div>
-                                      )}
-                                    </div>
+                                       {lead.next_activity_notes && (
+                                         <div className="text-xs text-muted-foreground italic truncate">
+                                           {lead.next_activity_notes}
+                                         </div>
+                                       )}
+                                       {lead.next_activity_assigned_to && (
+                                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                           <User className="h-3 w-3" />
+                                           <span>
+                                             {users.find(u => u.id === lead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === lead.next_activity_assigned_to)?.last_name}
+                                           </span>
+                                         </div>
+                                       )}
+                                     </div>
                                   </div>
                                 )}
 
@@ -1011,17 +1054,32 @@ export default function LeadsPage() {
                       <SelectItem value="quote">Preventivo</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="edit_next_activity_date">Data e Ora</Label>
-                  <Input
-                    id="edit_next_activity_date"
-                    type="datetime-local"
-                    value={newLead.next_activity_date}
-                    onChange={(e) => setNewLead({...newLead, next_activity_date: e.target.value})}
-                  />
-                </div>
-                <div className="col-span-2">
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_next_activity_date">Data e Ora</Label>
+                    <Input
+                      id="edit_next_activity_date"
+                      type="datetime-local"
+                      value={newLead.next_activity_date}
+                      onChange={(e) => setNewLead({...newLead, next_activity_date: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_next_activity_assigned_to">Assegna a</Label>
+                    <Select value={newLead.next_activity_assigned_to} onValueChange={(value) => setNewLead({...newLead, next_activity_assigned_to: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona utente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name} ({user.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
                   <Label htmlFor="edit_next_activity_notes">Note Attività</Label>
                   <Textarea
                     id="edit_next_activity_notes"
