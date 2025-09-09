@@ -376,14 +376,9 @@ export default function NewsletterPage() {
     // Now generate the proper formatted preview
     let preview = "";
     
-    if (template.logo) {
-      preview += `🖼️ [LOGO AZIENDALE]\n\n`;
-    }
+    // Logo removed as requested - no placeholder needed
     
-    if (template.headerText) {
-      preview += `${template.headerText}\n`;
-      preview += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    }
+    // Header text removed as requested
     
     preview += `${message}\n\n`;
     
