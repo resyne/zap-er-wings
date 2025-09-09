@@ -161,10 +161,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send emails to all recipients
     const emailPromises = recipients.map(async (recipient: Customer | Contact) => {
-      const personalizedMessage = message
+      let personalizedMessage = message
         .replace(/\{partner_name\}/g, recipient.name)
         .replace(/\{customer_name\}/g, recipient.name)
         .replace(/\{company_name\}/g, recipient.company_name || '');
+
+      // Clean up unwanted placeholders from message
+      personalizedMessage = personalizedMessage
+        .replace(/\[LOGO AZIENDALE\]\s*\n*/g, '')
+        .replace(/🖼️ \[LOGO AZIENDALE\]\s*\n*/g, '')
+        .replace(/━━━━━━━━━━━━━━━━━━━━━━━━\s*\n*/g, '')
+        .replace(/ZAPPER - Pro \| Assistenza e Manutenzione Programmata per ristoranti\s*\n*/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
 
       // Generate email content based on whether it's a newsletter with template
       let emailHtml = '';
@@ -215,17 +224,6 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="font-size: 12px; color: #9ca3af;">
                 Questa email è stata inviata automaticamente dal sistema di gestione clienti.
               </p>
-            </div>
-            <div style="margin-top: 20px; padding: 20px; background-color: #f9fafb; border-radius: 8px; text-align: center;">
-              <img src="https://927bac44-432a-46fc-b33f-adc680e49394.sandbox.lovable.dev/lovable-uploads/e8493046-02d3-407a-ae34-b061ef9720af.png" alt="ZAPPER Logo" style="height: 48px; margin-bottom: 12px;">
-              <div style="font-size: 12px; color: #6b7280; line-height: 1.5;">
-                <div style="font-weight: 500;">info@abbattitorizapper.it | Scafati (SA) - Italy | 08119968436</div>
-                <div style="color: #2563eb; margin-top: 4px;">
-                  <a href="https://www.abbattitorizapper.it" target="_blank" style="color: #2563eb; text-decoration: none;">
-                    www.abbattitorizapper.it
-                  </a>
-                </div>
-              </div>
             </div>
           </div>
         `;
