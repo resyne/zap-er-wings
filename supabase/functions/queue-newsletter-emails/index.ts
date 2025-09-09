@@ -249,6 +249,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Successfully queued ${totalQueued} emails for campaign ${campaignId}`);
 
+    // Create campaign record
+    try {
+      const { error: campaignError } = await supabase
+        .from('email_campaigns')
+        .insert({
+          id: campaignId,
+          subject: subject,
+          message: message,
+          campaign_type: custom_list_id ? 'Lista personalizzata' : (use_crm_contacts ? 'Contatti CRM' : 'Clienti'),
+          recipients_count: totalQueued,
+          success_count: 0,
+          failure_count: 0,
+          scheduled_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        });
+
+      if (campaignError) {
+        console.error('Error creating campaign record:', campaignError);
+      } else {
+        console.log('Campaign record created successfully');
+      }
+    } catch (campaignError) {
+      console.error('Failed to create campaign record:', campaignError);
+    }
+
     // Log the campaign
     try {
       await supabase.from('audit_logs').insert({
