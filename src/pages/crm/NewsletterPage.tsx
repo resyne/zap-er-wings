@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -6,20 +6,40 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Send, Users, Target, Calendar, Settings } from "lucide-react";
+import { Mail, Send, Users, Target, Calendar, Settings, Loader } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailCampaign {
   subject: string;
   message: string;
-  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners';
+  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts';
   pipelineStage?: string;
+}
+
+interface EmailCounts {
+  customers_won: number;
+  customers_lost: number;
+  installers: number;
+  importers: number;
+  resellers: number;
+  all_partners: number;
+  all_crm_contacts: number;
 }
 
 export default function NewsletterPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [loadingCounts, setLoadingCounts] = useState(true);
+  const [emailCounts, setEmailCounts] = useState<EmailCounts>({
+    customers_won: 0,
+    customers_lost: 0,
+    installers: 0,
+    importers: 0,
+    resellers: 0,
+    all_partners: 0,
+    all_crm_contacts: 0
+  });
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
     message: '',
@@ -27,13 +47,67 @@ export default function NewsletterPage() {
   });
 
   const audienceOptions = [
-    { value: 'customers_won', label: 'Clienti Vinti', icon: '🎯' },
-    { value: 'customers_lost', label: 'Clienti Persi', icon: '💔' },
-    { value: 'installers', label: 'Installatori', icon: '🔧' },
-    { value: 'importers', label: 'Importatori', icon: '📦' },
-    { value: 'resellers', label: 'Rivenditori', icon: '🏪' },
-    { value: 'all_partners', label: 'Tutti i Partner', icon: '🌟' }
+    { value: 'all_crm_contacts', label: 'Tutti i Contatti CRM', icon: '📧', description: 'Tutti i contatti nel sistema CRM' },
+    { value: 'customers_won', label: 'Clienti Vinti', icon: '🎯', description: 'Opportunità chiuse con successo' },
+    { value: 'customers_lost', label: 'Clienti Persi', icon: '💔', description: 'Opportunità perse o chiuse negativamente' },
+    { value: 'installers', label: 'Installatori', icon: '🔧', description: 'Partner che si occupano di installazione' },
+    { value: 'importers', label: 'Importatori', icon: '📦', description: 'Partner che importano i prodotti' },
+    { value: 'resellers', label: 'Rivenditori', icon: '🏪', description: 'Partner rivenditori' },
+    { value: 'all_partners', label: 'Tutti i Partner', icon: '🌟', description: 'Tutti i partner attivi' }
   ];
+
+  // Fetch email counts from database
+  const fetchEmailCounts = async () => {
+    setLoadingCounts(true);
+    try {
+      // Get all CRM contacts with email
+      const { count: crmCount } = await supabase
+        .from('crm_contacts')
+        .select('id', { count: 'exact' })
+        .not('email', 'is', null);
+
+      // Get partners by type with email
+      const { data: partnersData } = await supabase
+        .from('partners')
+        .select('partner_type, acquisition_status, email')
+        .not('email', 'is', null);
+
+      const counts: EmailCounts = {
+        all_crm_contacts: crmCount || 0,
+        customers_won: 0,
+        customers_lost: 0,
+        installers: 0,
+        importers: 0,
+        resellers: 0,
+        all_partners: partnersData?.length || 0
+      };
+
+      if (partnersData) {
+        partnersData.forEach(partner => {
+          if (partner.partner_type === 'installatore') counts.installers++;
+          if (partner.partner_type === 'importatore') counts.importers++;
+          if (partner.partner_type === 'rivenditore') counts.resellers++;
+          if (partner.acquisition_status === 'cliente') counts.customers_won++;
+          if (partner.acquisition_status === 'perso') counts.customers_lost++;
+        });
+      }
+
+      setEmailCounts(counts);
+    } catch (error) {
+      console.error('Error fetching email counts:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel recupero dei conteggi email",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCounts(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmailCounts();
+  }, []);
 
   const pipelineStages = [
     'lead', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost'
@@ -58,7 +132,7 @@ export default function NewsletterPage() {
         is_newsletter: true
       };
 
-      // Set audience filters
+      // Set audience filters based on target
       if (campaign.targetAudience === 'installers') {
         emailData.partner_type = 'installatore';
       } else if (campaign.targetAudience === 'importers') {
@@ -69,9 +143,16 @@ export default function NewsletterPage() {
         emailData.acquisition_status = 'cliente';
       } else if (campaign.targetAudience === 'customers_lost') {
         emailData.acquisition_status = 'perso';
+      } else if (campaign.targetAudience === 'all_crm_contacts') {
+        emailData.use_crm_contacts = true;
       }
 
-      const { data, error } = await supabase.functions.invoke('send-partner-emails', {
+      let functionName = 'send-partner-emails';
+      if (campaign.targetAudience === 'all_crm_contacts') {
+        functionName = 'send-customer-emails'; // Use different function for CRM contacts
+      }
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: emailData
       });
 
@@ -88,6 +169,9 @@ export default function NewsletterPage() {
         message: '',
         targetAudience: 'all_partners'
       });
+
+      // Refresh counts
+      fetchEmailCounts();
 
     } catch (error: any) {
       console.error('Errore invio newsletter:', error);
@@ -106,6 +190,10 @@ export default function NewsletterPage() {
     return option || audienceOptions[0];
   };
 
+  const getCurrentEmailCount = () => {
+    return emailCounts[campaign.targetAudience] || 0;
+  };
+
   const getPreviewMessage = () => {
     return campaign.message
       .replace(/\{partner_name\}/g, '[Nome Partner]')
@@ -114,11 +202,22 @@ export default function NewsletterPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Newsletter CRM</h1>
-        <p className="text-muted-foreground">
-          Gestisci e invia newsletter personalizzate ai tuoi clienti e partner
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Newsletter CRM</h1>
+          <p className="text-muted-foreground">
+            Gestisci e invia newsletter personalizzate ai tuoi clienti e partner
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={fetchEmailCounts}
+          disabled={loadingCounts}
+          className="flex items-center gap-2"
+        >
+          {loadingCounts ? <Loader className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
+          Aggiorna Conteggi
+        </Button>
       </div>
 
       <Tabs defaultValue="compose" className="space-y-4">
@@ -180,10 +279,17 @@ export default function NewsletterPage() {
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="flex items-center gap-1">
                       {getAudienceInfo().icon} {getAudienceInfo().label}
                     </Badge>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {getCurrentEmailCount()} email disponibili
+                    </Badge>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {getAudienceInfo().description}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -205,10 +311,10 @@ Puoi usare questi placeholder:
 
                 <Button 
                   onClick={handleSendCampaign} 
-                  disabled={loading || !campaign.subject || !campaign.message}
+                  disabled={loading || !campaign.subject || !campaign.message || getCurrentEmailCount() === 0}
                   className="w-full"
                 >
-                  {loading ? "Invio..." : "Invia Newsletter"}
+                  {loading ? "Invio..." : `Invia Newsletter (${getCurrentEmailCount()})`}
                 </Button>
               </CardContent>
             </Card>
@@ -261,6 +367,55 @@ Puoi usare questi placeholder:
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Destinatari Disponibili</CardTitle>
+              <CardDescription>
+                Seleziona il pubblico di destinazione per la tua newsletter
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {loadingCounts ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader className="h-6 w-6 animate-spin" />
+                    <span className="ml-2">Caricamento conteggi...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {audienceOptions.map((option) => (
+                      <Card 
+                        key={option.value} 
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          campaign.targetAudience === option.value ? 'ring-2 ring-primary' : ''
+                        }`}
+                        onClick={() => setCampaign(prev => ({ ...prev, targetAudience: option.value as EmailCampaign['targetAudience'] }))}
+                      >
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <span className="text-lg">{option.icon}</span>
+                            {option.label}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between">
+                            <div className="text-2xl font-bold text-primary">
+                              {emailCounts[option.value as keyof EmailCounts]}
+                            </div>
+                            <Mail className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {option.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Template Predefiniti</CardTitle>
