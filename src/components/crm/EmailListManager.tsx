@@ -284,9 +284,17 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
         return;
       }
 
+      // Rimuovi duplicati basati su email
+      const uniqueContacts = contacts.filter((contact, index, self) => 
+        index === self.findIndex(c => c.email.toLowerCase() === contact.email.toLowerCase())
+      );
+
+      console.log('Unique contacts after duplicate removal:', uniqueContacts);
+      console.log('Removed duplicates:', contacts.length - uniqueContacts.length);
+
       const { error } = await supabase
         .from('email_list_contacts')
-        .upsert(contacts, { onConflict: 'email_list_id,email' });
+        .upsert(uniqueContacts, { onConflict: 'email_list_id,email' });
 
       if (error) throw error;
 
@@ -294,7 +302,7 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
       fetchEmailLists();
       toast({
         title: "Successo",
-        description: `${contacts.length} contatti importati con successo`,
+        description: `${uniqueContacts.length} contatti importati con successo${contacts.length > uniqueContacts.length ? ` (${contacts.length - uniqueContacts.length} duplicati ignorati)` : ''}`,
       });
     } catch (error) {
       console.error('Error importing contacts:', error);
