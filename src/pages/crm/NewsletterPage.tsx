@@ -243,15 +243,15 @@ export default function NewsletterPage() {
         functionName = 'send-customer-emails'; // Use customer emails function for custom lists
       }
 
-      const { data, error } = await supabase.functions.invoke(functionName, {
+      const { data, error } = await supabase.functions.invoke('queue-newsletter-emails', {
         body: emailData
       });
 
       if (error) throw error;
 
       toast({
-        title: "Newsletter Inviata",
-        description: `Campaign inviata con successo a ${data.emailsSent || 0} destinatari`,
+        title: "Newsletter Accodata",
+        description: `Email accodata con successo per ${data.emailsQueued || 0} destinatari`,
       });
 
       // Reset form

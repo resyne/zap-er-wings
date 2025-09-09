@@ -27,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select('*')
       .eq('status', 'pending')
       .lte('scheduled_at', new Date().toISOString())
-      .lt('attempts', 'max_attempts')
+      .filter('attempts', 'lt', 'max_attempts')
       .order('created_at', { ascending: true })
       .limit(10);
 
