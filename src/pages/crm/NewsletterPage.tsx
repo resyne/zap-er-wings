@@ -337,7 +337,7 @@ export default function NewsletterPage() {
   };
 
   const getPreviewMessage = () => {
-    const message = campaign.message
+    let message = campaign.message
       .replace(/\{partner_name\}/g, '[Nome Partner]')
       .replace(/\{customer_name\}/g, '[Nome Partner]')
       .replace(/\{company_name\}/g, '[Nome Azienda]');
@@ -345,7 +345,35 @@ export default function NewsletterPage() {
     const template = campaign.template;
     if (!template) return message;
 
-    // Generate a formatted HTML preview similar to what will be sent
+    // Remove template-generated content from the message to avoid duplication
+    // Remove the logo placeholder text
+    message = message.replace(/\[LOGO AZIENDALE\]\s*\n\n/g, '');
+    message = message.replace(/🖼️ \[LOGO AZIENDALE\]\s*\n\n/g, '');
+    
+    // Remove header text if it appears in the message
+    if (template.headerText) {
+      message = message.replace(new RegExp(`^${template.headerText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\n`, 'gm'), '');
+    }
+    
+    // Remove separator lines
+    message = message.replace(/━━━━━━━━━━━━━━━━━━━━━━━━\s*\n/g, '');
+    
+    // Remove signature if it appears in the message
+    if (template.signature) {
+      const escapedSignature = template.signature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      message = message.replace(new RegExp(`\\n\\n${escapedSignature}\\s*\\n`, 'gm'), '');
+    }
+    
+    // Remove footer if it appears in the message  
+    if (template.footerText) {
+      const escapedFooter = template.footerText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      message = message.replace(new RegExp(`\\n\\n${escapedFooter}\\s*$`, 'gm'), '');
+    }
+
+    // Clean up extra newlines
+    message = message.replace(/\n{3,}/g, '\n\n').trim();
+
+    // Now generate the proper formatted preview
     let preview = "";
     
     if (template.logo) {
