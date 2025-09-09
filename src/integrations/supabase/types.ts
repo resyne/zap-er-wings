@@ -2234,6 +2234,57 @@ export type Database = {
           },
         ]
       }
+      newsletter_templates: {
+        Row: {
+          attachments: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          footer_text: string
+          header_text: string
+          id: string
+          is_default: boolean | null
+          logo_url: string | null
+          message: string
+          name: string
+          signature: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          footer_text?: string
+          header_text?: string
+          id?: string
+          is_default?: boolean | null
+          logo_url?: string | null
+          message: string
+          name: string
+          signature?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          footer_text?: string
+          header_text?: string
+          id?: string
+          is_default?: boolean | null
+          logo_url?: string | null
+          message?: string
+          name?: string
+          signature?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       offers: {
         Row: {
           amount: number

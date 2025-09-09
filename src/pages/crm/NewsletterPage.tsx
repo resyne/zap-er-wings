@@ -257,6 +257,14 @@ export default function NewsletterPage() {
     setCampaign(prev => ({ ...prev, template }));
   };
 
+  const handleTemplateSelect = (templateData: { subject: string; message: string }) => {
+    setCampaign(prev => ({ 
+      ...prev, 
+      subject: templateData.subject,
+      message: templateData.message
+    }));
+  };
+
   const handleSenderEmailSelect = (email: any) => {
     setSelectedSenderEmail(email);
   };
@@ -503,7 +511,10 @@ Puoi usare questi placeholder:
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
-          <NewsletterTemplateEditor onTemplateChange={handleTemplateChange} />
+          <NewsletterTemplateEditor 
+            onTemplateChange={handleTemplateChange}
+            onTemplateSelect={handleTemplateSelect}
+          />
         </TabsContent>
 
         <TabsContent value="lists" className="space-y-6">
