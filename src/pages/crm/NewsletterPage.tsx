@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Mail, Send, Users, Target, Calendar, Settings, Loader } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { EmailListManager } from "@/components/crm/EmailListManager";
 
 interface EmailCampaign {
   subject: string;
   message: string;
-  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts';
+  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts' | 'custom_list';
   pipelineStage?: string;
 }
 
@@ -25,6 +26,7 @@ interface EmailCounts {
   resellers: number;
   all_partners: number;
   all_crm_contacts: number;
+  custom_list: number;
 }
 
 export default function NewsletterPage() {
@@ -38,8 +40,11 @@ export default function NewsletterPage() {
     importers: 0,
     resellers: 0,
     all_partners: 0,
-    all_crm_contacts: 0
+    all_crm_contacts: 0,
+    custom_list: 0
   });
+  const [selectedCustomList, setSelectedCustomList] = useState<string>('');
+  const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
     message: '',
@@ -79,7 +84,8 @@ export default function NewsletterPage() {
         installers: 0,
         importers: 0,
         resellers: 0,
-        all_partners: partnersData?.length || 0
+        all_partners: partnersData?.length || 0,
+        custom_list: 0
       };
 
       if (partnersData) {
@@ -191,7 +197,16 @@ export default function NewsletterPage() {
   };
 
   const getCurrentEmailCount = () => {
+    if (campaign.targetAudience === 'custom_list') {
+      return selectedCustomListCount;
+    }
     return emailCounts[campaign.targetAudience] || 0;
+  };
+
+  const handleCustomListSelect = (listId: string, contactCount: number) => {
+    setSelectedCustomList(listId);
+    setSelectedCustomListCount(contactCount);
+    setCampaign(prev => ({ ...prev, targetAudience: 'custom_list' }));
   };
 
   const getPreviewMessage = () => {
@@ -225,6 +240,10 @@ export default function NewsletterPage() {
           <TabsTrigger value="compose" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Componi Newsletter
+          </TabsTrigger>
+          <TabsTrigger value="lists" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Liste Email
           </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -276,6 +295,14 @@ export default function NewsletterPage() {
                           </span>
                         </SelectItem>
                       ))}
+                      {selectedCustomList && (
+                        <SelectItem value="custom_list">
+                          <span className="flex items-center gap-2">
+                            <span>📋</span>
+                            Lista Personalizzata ({selectedCustomListCount})
+                          </span>
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-2 mt-2">
@@ -489,6 +516,23 @@ Contattaci per fissare un appuntamento.`
                   </Card>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="lists" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestione Liste Email</CardTitle>
+              <CardDescription>
+                Crea e gestisci liste email personalizzate per le tue campagne
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EmailListManager 
+                onListSelect={handleCustomListSelect}
+                selectedListId={selectedCustomList}
+              />
             </CardContent>
           </Card>
         </TabsContent>

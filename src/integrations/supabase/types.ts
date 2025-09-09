@@ -1069,6 +1069,71 @@ export type Database = {
         }
         Relationships: []
       }
+      email_list_contacts: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          email: string
+          email_list_id: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          email: string
+          email_list_id: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          email?: string
+          email_list_id?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_list_contacts_email_list_id_fkey"
+            columns: ["email_list_id"]
+            isOneToOne: false
+            referencedRelation: "email_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_lists: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       emails: {
         Row: {
           body: string | null
