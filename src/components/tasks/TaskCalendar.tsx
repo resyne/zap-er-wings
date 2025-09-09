@@ -58,7 +58,10 @@ export function TaskCalendar({ category }: TaskCalendarProps) {
 
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select(`
+          *,
+          profiles:assigned_to(first_name, last_name, email)
+        `)
         .eq('category', category as any)
         .or(`due_date.gte.${startDate.toISOString()},due_date.lte.${endDate.toISOString()}`)
         .order('due_date', { ascending: true });
