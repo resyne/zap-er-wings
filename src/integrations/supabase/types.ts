@@ -1905,6 +1905,9 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          next_activity_date: string | null
+          next_activity_notes: string | null
+          next_activity_type: string | null
           notes: string | null
           phone: string | null
           pipeline: string | null
@@ -1920,6 +1923,9 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          next_activity_date?: string | null
+          next_activity_notes?: string | null
+          next_activity_type?: string | null
           notes?: string | null
           phone?: string | null
           pipeline?: string | null
@@ -1935,6 +1941,9 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          next_activity_date?: string | null
+          next_activity_notes?: string | null
+          next_activity_type?: string | null
           notes?: string | null
           phone?: string | null
           pipeline?: string | null

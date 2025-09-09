@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -26,6 +26,9 @@ interface Lead {
   pipeline?: string;
   notes?: string;
   assigned_to?: string;
+  next_activity_type?: string;
+  next_activity_date?: string;
+  next_activity_notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +67,9 @@ export default function LeadsPage() {
     status: "new",
     pipeline: "ZAPPER",
     notes: "",
+    next_activity_type: "",
+    next_activity_date: "",
+    next_activity_notes: "",
   });
   const { toast } = useToast();
 
@@ -96,7 +102,8 @@ export default function LeadsPage() {
       const leadData = {
         ...newLead,
         value: newLead.value ? parseFloat(newLead.value) : null,
-        pipeline: newLead.pipeline || selectedPipeline
+        pipeline: newLead.pipeline || selectedPipeline,
+        next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null
       };
       
       const { error } = await supabase
@@ -134,6 +141,9 @@ export default function LeadsPage() {
       status: lead.status,
       pipeline: lead.pipeline || "",
       notes: lead.notes || "",
+      next_activity_type: lead.next_activity_type || "",
+      next_activity_date: lead.next_activity_date ? new Date(lead.next_activity_date).toISOString().slice(0, 16) : "",
+      next_activity_notes: lead.next_activity_notes || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -144,7 +154,8 @@ export default function LeadsPage() {
     try {
       const leadData = {
         ...newLead,
-        value: newLead.value ? parseFloat(newLead.value) : null
+        value: newLead.value ? parseFloat(newLead.value) : null,
+        next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null
       };
       
       const { error } = await supabase
@@ -207,6 +218,9 @@ export default function LeadsPage() {
       status: "new",
       pipeline: selectedPipeline,
       notes: "",
+      next_activity_type: "",
+      next_activity_date: "",
+      next_activity_notes: "",
     });
   };
 
@@ -515,6 +529,46 @@ export default function LeadsPage() {
                     rows={3}
                   />
                 </div>
+                <div className="col-span-2 border-t pt-4">
+                  <h4 className="font-medium mb-3">Prossima Attività</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="next_activity_type">Tipo Attività</Label>
+                      <Select value={newLead.next_activity_type} onValueChange={(value) => setNewLead({...newLead, next_activity_type: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="call">Chiamata</SelectItem>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="meeting">Incontro</SelectItem>
+                          <SelectItem value="demo">Demo</SelectItem>
+                          <SelectItem value="follow_up">Follow-up</SelectItem>
+                          <SelectItem value="quote">Preventivo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="next_activity_date">Data e Ora</Label>
+                      <Input
+                        id="next_activity_date"
+                        type="datetime-local"
+                        value={newLead.next_activity_date}
+                        onChange={(e) => setNewLead({...newLead, next_activity_date: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="next_activity_notes">Note Attività</Label>
+                      <Textarea
+                        id="next_activity_notes"
+                        value={newLead.next_activity_notes}
+                        onChange={(e) => setNewLead({...newLead, next_activity_notes: e.target.value})}
+                        placeholder="Note per la prossima attività..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -703,42 +757,86 @@ export default function LeadsPage() {
                                    </div>
                                  )}
                                </div>
-                               
-                               {/* Footer con valore e fonte */}
-                               <div className="flex items-center justify-between border-t pt-2">
-                                 <div className="flex items-center gap-2">
-                                   {lead.value && (
-                                     <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
-                                       €{lead.value.toLocaleString()}
-                                     </span>
-                                   )}
-                                 </div>
-                                 <div className="flex items-center gap-2">
-                                   {lead.source && (
-                                     <Badge variant="outline" className="text-xs">
-                                       {lead.source === "zapier" ? (
-                                         <div className="flex items-center gap-1">
-                                           <Zap className="h-3 w-3" />
-                                           <span>Zapier</span>
-                                         </div>
-                                       ) : (
-                                         lead.source === "social_media" ? "Social" :
-                                         lead.source === "website" ? "Web" :
-                                         lead.source === "referral" ? "Referral" :
-                                         lead.source === "cold_call" ? "Cold Call" :
-                                         lead.source === "trade_show" ? "Fiera" :
-                                         "Altro"
-                                       )}
-                                     </Badge>
-                                   )}
-                                   <div 
-                                     {...provided.dragHandleProps}
-                                     className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-muted"
-                                   >
-                                     <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                   </div>
+                                
+                                {/* Prossima attività */}
+                                {(lead.next_activity_type || lead.next_activity_date) && (
+                                  <div className="border-t pt-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Calendar className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                                      <span className="text-xs font-medium text-blue-600">Prossima attività</span>
+                                    </div>
+                                    <div className="ml-5 space-y-1">
+                                      {lead.next_activity_type && (
+                                        <div className="text-xs text-muted-foreground">
+                                          <span className="font-medium">
+                                            {lead.next_activity_type === "call" ? "Chiamata" :
+                                             lead.next_activity_type === "email" ? "Email" :
+                                             lead.next_activity_type === "meeting" ? "Incontro" :
+                                             lead.next_activity_type === "demo" ? "Demo" :
+                                             lead.next_activity_type === "follow_up" ? "Follow-up" :
+                                             lead.next_activity_type === "quote" ? "Preventivo" :
+                                             lead.next_activity_type}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {lead.next_activity_date && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Clock className="h-3 w-3" />
+                                          <span>
+                                            {new Date(lead.next_activity_date).toLocaleDateString('it-IT', {
+                                              day: '2-digit',
+                                              month: '2-digit',
+                                              year: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {lead.next_activity_notes && (
+                                        <div className="text-xs text-muted-foreground italic truncate">
+                                          {lead.next_activity_notes}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
+                                )}
+
+                                {/* Footer con valore e fonte */}
+                                <div className="flex items-center justify-between border-t pt-2">
+                                  <div className="flex items-center gap-2">
+                                    {lead.value && (
+                                      <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
+                                        €{lead.value.toLocaleString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {lead.source && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {lead.source === "zapier" ? (
+                                          <div className="flex items-center gap-1">
+                                            <Zap className="h-3 w-3" />
+                                            <span>Zapier</span>
+                                          </div>
+                                        ) : (
+                                          lead.source === "social_media" ? "Social" :
+                                          lead.source === "website" ? "Web" :
+                                          lead.source === "referral" ? "Referral" :
+                                          lead.source === "cold_call" ? "Cold Call" :
+                                          lead.source === "trade_show" ? "Fiera" :
+                                          "Altro"
+                                        )}
+                                      </Badge>
+                                    )}
+                                    <div 
+                                      {...provided.dragHandleProps}
+                                      className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-muted"
+                                    >
+                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                   </div>
+                                 </div>
 
                                 {/* Bottoni Vinto/Perso */}
                                 {lead.status === "negotiation" && (
@@ -894,6 +992,46 @@ export default function LeadsPage() {
                 placeholder="Note aggiuntive sul lead..."
                 rows={3}
               />
+            </div>
+            <div className="col-span-2 border-t pt-4">
+              <h4 className="font-medium mb-3">Prossima Attività</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_next_activity_type">Tipo Attività</Label>
+                  <Select value={newLead.next_activity_type} onValueChange={(value) => setNewLead({...newLead, next_activity_type: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="call">Chiamata</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="meeting">Incontro</SelectItem>
+                      <SelectItem value="demo">Demo</SelectItem>
+                      <SelectItem value="follow_up">Follow-up</SelectItem>
+                      <SelectItem value="quote">Preventivo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit_next_activity_date">Data e Ora</Label>
+                  <Input
+                    id="edit_next_activity_date"
+                    type="datetime-local"
+                    value={newLead.next_activity_date}
+                    onChange={(e) => setNewLead({...newLead, next_activity_date: e.target.value})}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit_next_activity_notes">Note Attività</Label>
+                  <Textarea
+                    id="edit_next_activity_notes"
+                    value={newLead.next_activity_notes}
+                    onChange={(e) => setNewLead({...newLead, next_activity_notes: e.target.value})}
+                    placeholder="Note per la prossima attività..."
+                    rows={2}
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
