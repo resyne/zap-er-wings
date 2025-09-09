@@ -120,6 +120,25 @@ export default function NewsletterPage() {
         contact_count: 0
       }));
 
+      // Get contact counts for each list
+      if (listsData && listsData.length > 0) {
+        for (const list of listsData) {
+          try {
+            const { count } = await supabase
+              .from('email_list_contacts')
+              .select('id', { count: 'exact' })
+              .eq('email_list_id', list.id);
+            
+            const listIndex = emailListsFormatted.findIndex(l => l.id === list.id);
+            if (listIndex !== -1) {
+              emailListsFormatted[listIndex].contact_count = count || 0;
+            }
+          } catch (error) {
+            console.error('Error fetching count for list', list.id, error);
+          }
+        }
+      }
+
       const counts: EmailCounts = {
         all_crm_contacts: crmCount || 0,
         customers_won: 0,
@@ -284,10 +303,10 @@ export default function NewsletterPage() {
       return selectedCustomListCount;
     }
     
-    // Check if it's a custom list ID - for now return 0, will be calculated on send
+    // Check if it's a custom list ID - use the count from state
     const list = emailLists.find(list => list.id === campaign.targetAudience);
     if (list) {
-      return 0; // Will be calculated when sending
+      return list.contact_count;
     }
     
     return emailCounts[campaign.targetAudience] || 0;
@@ -455,7 +474,7 @@ ${template.footerText}
                             <SelectItem key={list.id} value={list.id}>
                               <span className="flex items-center gap-2">
                                 <span>📋</span>
-                                {list.name}
+                                {list.name} ({list.contact_count})
                               </span>
                             </SelectItem>
                           ))}
