@@ -366,38 +366,42 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="templates" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Template Salvati
-          </TabsTrigger>
           <TabsTrigger value="design" className="flex items-center gap-2">
             <Edit className="h-4 w-4" />
             Design Template
           </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Template Salvati
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="templates" className="space-y-6">
+        <TabsContent value="design" className="space-y-6">
+          {/* Save Template Section */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Template Salvati</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Save className="h-5 w-5" />
+                    Salva Template
+                  </CardTitle>
                   <CardDescription>
-                    Seleziona un template esistente o creane uno nuovo
+                    Salva il design corrente come nuovo template riutilizzabile
                   </CardDescription>
                 </div>
                 <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nuovo Template
+                      <Save className="h-4 w-4 mr-2" />
+                      Salva come Template
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
                       <DialogTitle>Salva Nuovo Template</DialogTitle>
                       <DialogDescription>
-                        Crea un nuovo template personalizzato per le tue newsletter
+                        Salva il design corrente come template riutilizzabile per le tue newsletter
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
@@ -451,100 +455,13 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
               </div>
             </CardHeader>
             <CardContent>
-              {loadingTemplates ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                  <p className="mt-2 text-muted-foreground">Caricamento template...</p>
-                </div>
-              ) : savedTemplates.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Nessun template salvato</p>
-                  <p className="text-sm text-muted-foreground">Crea il tuo primo template personalizzato</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {savedTemplates.map((savedTemplate) => (
-                    <Card 
-                      key={savedTemplate.id} 
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedTemplate?.id === savedTemplate.id ? 'ring-2 ring-primary' : ''
-                      }`}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-base flex items-center gap-2">
-                              {savedTemplate.is_default && (
-                                <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                              )}
-                              {savedTemplate.name}
-                            </CardTitle>
-                            {savedTemplate.description && (
-                              <CardDescription className="text-xs mt-1">
-                                {savedTemplate.description}
-                              </CardDescription>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground">Oggetto:</p>
-                          <p className="text-sm truncate">{savedTemplate.subject}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground">Messaggio:</p>
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {savedTemplate.message.substring(0, 100)}...
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={() => loadTemplate(savedTemplate)}
-                            className="flex-1"
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Usa
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setPreviewTemplate(savedTemplate);
-                              setPreviewDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => duplicateTemplate(savedTemplate)}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          {!savedTemplate.is_default && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => deleteTemplate(savedTemplate.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+              <div className="text-sm text-muted-foreground">
+                <p>Dopo aver personalizzato il design del template qui sotto, usa il pulsante "Salva come Template" per renderlo riutilizzabile.</p>
+                <p className="mt-1">Il template includerà automaticamente tutte le impostazioni di design correnti.</p>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="design" className="space-y-6">
           {/* Logo Section */}
           <Card>
             <CardHeader>
@@ -757,6 +674,108 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
                   {template.footerText}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Template Salvati</CardTitle>
+              <CardDescription>
+                Seleziona un template esistente da utilizzare
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingTemplates ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-2 text-muted-foreground">Caricamento template...</p>
+                </div>
+              ) : savedTemplates.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nessun template salvato</p>
+                  <p className="text-sm text-muted-foreground">Vai alla tab "Design Template" per creare il tuo primo template</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {savedTemplates.map((savedTemplate) => (
+                    <Card 
+                      key={savedTemplate.id} 
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedTemplate?.id === savedTemplate.id ? 'ring-2 ring-primary' : ''
+                      }`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              {savedTemplate.is_default && (
+                                <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                              )}
+                              {savedTemplate.name}
+                            </CardTitle>
+                            {savedTemplate.description && (
+                              <CardDescription className="text-xs mt-1">
+                                {savedTemplate.description}
+                              </CardDescription>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Oggetto:</p>
+                          <p className="text-sm truncate">{savedTemplate.subject}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Messaggio:</p>
+                          <p className="text-sm text-muted-foreground line-clamp-3">
+                            {savedTemplate.message.substring(0, 100)}...
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => loadTemplate(savedTemplate)}
+                            className="flex-1"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Usa
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setPreviewTemplate(savedTemplate);
+                              setPreviewDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => duplicateTemplate(savedTemplate)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          {!savedTemplate.is_default && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteTemplate(savedTemplate.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
