@@ -88,14 +88,7 @@ export function TaskKanban({ category }: TaskKanbanProps) {
     try {
       const { data, error } = await supabase
         .from('tasks')
-        .select(`
-          *,
-          profiles!tasks_assigned_to_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('category', category as any)
         .order('created_at', { ascending: false });
 
