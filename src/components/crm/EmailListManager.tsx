@@ -220,13 +220,35 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
     const file = event.target.files?.[0];
     if (!file || !currentListId) return;
 
+    console.log('File selected:', file.name, file.type, file.size);
+
     try {
       setLoading(true);
+      
+      // Check if file is Excel format
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('sheet');
+      console.log('Is Excel file?', isExcel);
+      
+      if (!isExcel) {
+        toast({
+          title: "Errore",
+          description: "Per favore carica un file Excel (.xlsx o .xls)",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       const data = await file.arrayBuffer();
+      console.log('File buffer size:', data.byteLength);
+      
       const workbook = XLSX.read(data);
+      console.log('Workbook sheets:', workbook.SheetNames);
+      
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      console.log('Total rows in Excel:', jsonData.length);
 
       console.log('Raw Excel data:', jsonData);
       console.log('First row keys:', jsonData.length > 0 ? Object.keys(jsonData[0]) : []);
@@ -276,9 +298,10 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
       });
     } catch (error) {
       console.error('Error importing contacts:', error);
+      console.error('Error details:', error);
       toast({
         title: "Errore",
-        description: "Impossibile importare i contatti",
+        description: `Impossibile importare i contatti: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
         variant: "destructive",
       });
     } finally {
