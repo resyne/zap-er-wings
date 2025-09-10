@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, X, Plus } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
+import { CalendarIcon, X, Plus, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +61,8 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
   const [actualHours, setActualHours] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -79,8 +82,10 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
       setActualHours(task.actual_hours?.toString() || "");
       setTags(task.tags || []);
       setTagInput("");
+      setFiles([]);
       
       fetchProfiles();
+      fetchTaskFiles();
     }
   }, [open, task]);
 
@@ -98,6 +103,21 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
     }
   };
 
+  const fetchTaskFiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('task_files')
+        .select('*')
+        .eq('task_id', task.id)
+        .order('created_at');
+
+      if (error) throw error;
+      setExistingFiles(data || []);
+    } catch (error) {
+      console.error('Error fetching task files:', error);
+    }
+  };
+
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
@@ -107,6 +127,66 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
 
   const removeTag = (tagToRemove: string) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const downloadFile = async (file: any) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('task-files')
+        .download(file.file_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile scaricare il file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteFile = async (file: any) => {
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('task-files')
+        .remove([file.file_path]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('task_files')
+        .delete()
+        .eq('id', file.id);
+
+      if (dbError) throw dbError;
+
+      // Update local state
+      setExistingFiles(existingFiles.filter(f => f.id !== file.id));
+
+      toast({
+        title: "File eliminato",
+        description: "Il file è stato eliminato con successo",
+      });
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il file",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,6 +232,44 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
         .eq('id', task.id);
 
       if (error) throw error;
+
+      // Upload new files if any
+      if (files.length > 0) {
+        for (const file of files) {
+          try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `${task.id}/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from('task-files')
+              .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Record file in database
+            const { error: fileRecordError } = await supabase
+              .from('task_files')
+              .insert({
+                task_id: task.id,
+                file_name: file.name,
+                file_path: filePath,
+                file_size: file.size,
+                content_type: file.type,
+                uploaded_by: updateData.assigned_to || task.assigned_to
+              });
+
+            if (fileRecordError) throw fileRecordError;
+          } catch (fileError) {
+            console.error('Error uploading file:', fileError);
+            toast({
+              title: "Attenzione",
+              description: `Errore caricamento file ${file.name}`,
+              variant: "destructive",
+            });
+          }
+        }
+      }
 
       toast({
         title: "Task aggiornato",
@@ -373,6 +491,60 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Existing Files */}
+            {existingFiles.length > 0 && (
+              <div className="space-y-3">
+                <Label>File esistenti</Label>
+                <div className="space-y-2">
+                  {existingFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {file.file_size ? Math.round(file.file_size / 1024) + ' KB' : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => downloadFile(file)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteFile(file)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New File Upload */}
+            <div className="space-y-3">
+              <Label>Nuovi allegati</Label>
+              <FileUpload
+                value={files}
+                onChange={setFiles}
+                maxFiles={5}
+                acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']}
+              />
             </div>
           </div>
 

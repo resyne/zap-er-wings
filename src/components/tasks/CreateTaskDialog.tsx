@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { FileUpload } from "@/components/ui/file-upload";
 import { CalendarIcon, X, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -53,6 +54,7 @@ export function CreateTaskDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -148,6 +150,44 @@ export function CreateTaskDialog({
 
       if (error) throw error;
 
+      // Upload files if any
+      if (files.length > 0) {
+        for (const file of files) {
+          try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `${createdTask.id}/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from('task-files')
+              .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Record file in database
+            const { error: fileRecordError } = await supabase
+              .from('task_files')
+              .insert({
+                task_id: createdTask.id,
+                file_name: file.name,
+                file_path: filePath,
+                file_size: file.size,
+                content_type: file.type,
+                uploaded_by: user.id
+              });
+
+            if (fileRecordError) throw fileRecordError;
+          } catch (fileError) {
+            console.error('Error uploading file:', fileError);
+            toast({
+              title: "Attenzione",
+              description: `Errore caricamento file ${file.name}`,
+              variant: "destructive",
+            });
+          }
+        }
+      }
+
       // If it's a recurring task, create the recurring configuration
       if (isRecurring && createdTask) {
         const recurringData = {
@@ -189,6 +229,7 @@ export function CreateTaskDialog({
       setEstimatedHours("");
       setTags([]);
       setTagInput("");
+      setFiles([]);
       setIsRecurring(false);
       setRecurrenceType('weekly');
       setRecurrenceInterval(1);
@@ -399,6 +440,17 @@ export function CreateTaskDialog({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* File Upload */}
+          <div className="space-y-3">
+            <Label>Allegati</Label>
+            <FileUpload
+              value={files}
+              onChange={setFiles}
+              maxFiles={5}
+              acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']}
+            />
           </div>
 
           {/* Recurring Task Configuration */}
