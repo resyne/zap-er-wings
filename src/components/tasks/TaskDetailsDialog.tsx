@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarDays, Clock, User, Tag, FileText } from "lucide-react";
+import { CalendarDays, Clock, User, Tag, FileText, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { EditTaskDialog } from "./EditTaskDialog";
 
 interface Task {
   id: string;
@@ -33,6 +36,7 @@ interface TaskDetailsDialogProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTaskUpdated?: () => void;
 }
 
 const statusConfig = {
@@ -56,7 +60,9 @@ const categoryConfig: Record<string, { title: string; color: string }> = {
   ricerca_sviluppo: { title: 'Ricerca e Sviluppo', color: 'bg-orange-100 text-orange-800' },
 };
 
-export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialogProps) {
+export function TaskDetailsDialog({ task, open, onOpenChange, onTaskUpdated }: TaskDetailsDialogProps) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
   if (!task) return null;
 
   const assignedUser = task.profiles;
@@ -64,7 +70,13 @@ export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialo
   const priorityInfo = priorityConfig[task.priority];
   const categoryInfo = categoryConfig[task.category] || { title: task.category, color: 'bg-gray-100 text-gray-800' };
 
+  const handleEditClick = () => {
+    setIsEditDialogOpen(true);
+    onOpenChange(false); // Chiudi il dialog dei dettagli
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
@@ -74,6 +86,13 @@ export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialo
           </DialogDescription>
         </DialogHeader>
         
+        {/* Edit Button */}
+        <div className="flex justify-end pb-4">
+          <Button onClick={handleEditClick} variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-2" />
+            Modifica Task
+          </Button>
+        </div>
         <div className="space-y-6">
           {/* Status, Priority, Category */}
           <div className="flex flex-wrap gap-2">
@@ -221,5 +240,17 @@ export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialo
         </div>
       </DialogContent>
     </Dialog>
+    
+    {/* Edit Dialog */}
+    <EditTaskDialog
+      task={task}
+      open={isEditDialogOpen}
+      onOpenChange={setIsEditDialogOpen}
+      onTaskUpdated={() => {
+        onTaskUpdated?.();
+        setIsEditDialogOpen(false);
+      }}
+    />
+    </>
   );
 }

@@ -202,6 +202,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
         task={task}
         open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
+        onTaskUpdated={onUpdate}
       />
 
       <EditTaskDialog
