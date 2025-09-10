@@ -72,185 +72,176 @@ export function TaskDetailsDialog({ task, open, onOpenChange, onTaskUpdated }: T
 
   const handleEditClick = () => {
     setIsEditDialogOpen(true);
-    onOpenChange(false); // Chiudi il dialog dei dettagli
+    onOpenChange(false);
   };
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
-          <DialogDescription>
-            Dettagli del task
-          </DialogDescription>
-        </DialogHeader>
-        
-        {/* Edit Button */}
-        <div className="flex justify-end pb-4">
-          <Button onClick={handleEditClick} variant="outline" size="sm">
-            <Edit className="h-4 w-4 mr-2" />
-            Modifica Task
-          </Button>
-        </div>
-        <div className="space-y-6">
-          {/* Status, Priority, Category */}
-          <div className="flex flex-wrap gap-2">
-            <Badge className={statusInfo.color}>
-              {statusInfo.title}
-            </Badge>
-            <Badge className={priorityInfo.color}>
-              Priorità: {priorityInfo.title}
-            </Badge>
-            <Badge className={categoryInfo.color}>
-              {categoryInfo.title}
-            </Badge>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
+            <DialogDescription>
+              Dettagli del task
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex justify-end pb-4">
+            <Button onClick={handleEditClick} variant="outline" size="sm">
+              <Edit className="h-4 w-4 mr-2" />
+              Modifica Task
+            </Button>
           </div>
-
-          {/* Description */}
-          {task.description && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                Descrizione
-              </div>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.description}</p>
+          
+          <div className="space-y-6">
+            <div className="flex flex-wrap gap-2">
+              <Badge className={statusInfo.color}>
+                {statusInfo.title}
+              </Badge>
+              <Badge className={priorityInfo.color}>
+                Priorità: {priorityInfo.title}
+              </Badge>
+              <Badge className={categoryInfo.color}>
+                {categoryInfo.title}
+              </Badge>
             </div>
-          )}
 
-          {/* Assigned User */}
-          {assignedUser && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <User className="h-4 w-4" />
-                Assegnato a
+            {task.description && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  Descrizione
+                </div>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.description}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
-                  <AvatarFallback className="text-xs">
-                    {assignedUser.first_name?.[0]}{assignedUser.last_name?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm">
-                  {assignedUser.first_name} {assignedUser.last_name}
-                </span>
+            )}
+
+            {assignedUser && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  Assegnato a
+                </div>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
+                    <AvatarFallback className="text-xs">
+                      {assignedUser.first_name?.[0]}{assignedUser.last_name?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">
+                    {assignedUser.first_name} {assignedUser.last_name}
+                  </span>
+                </div>
               </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {task.start_date && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <CalendarDays className="h-4 w-4" />
+                    Data inizio
+                  </div>
+                  <p className="text-sm">
+                    {format(new Date(task.start_date), 'dd MMMM yyyy', { locale: it })}
+                  </p>
+                </div>
+              )}
+              
+              {task.due_date && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <CalendarDays className="h-4 w-4" />
+                    Scadenza
+                  </div>
+                  <p className={`text-sm ${
+                    new Date(task.due_date) < new Date() && task.status !== 'completed'
+                      ? 'text-red-600 font-medium'
+                      : ''
+                  }`}>
+                    {format(new Date(task.due_date), 'dd MMMM yyyy', { locale: it })}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {task.start_date && (
+            {(task.estimated_hours || task.actual_hours) && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  Ore
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {task.estimated_hours && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Stimate</p>
+                      <p className="text-sm">{task.estimated_hours}h</p>
+                    </div>
+                  )}
+                  {task.actual_hours && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Effettive</p>
+                      <p className="text-sm">{task.actual_hours}h</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {task.tags && task.tags.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Tag className="h-4 w-4" />
+                  Tag
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {task.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {task.completed_at && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                   <CalendarDays className="h-4 w-4" />
-                  Data inizio
+                  Completato il
                 </div>
                 <p className="text-sm">
-                  {format(new Date(task.start_date), 'dd MMMM yyyy', { locale: it })}
+                  {format(new Date(task.completed_at), 'dd MMMM yyyy HH:mm', { locale: it })}
                 </p>
               </div>
             )}
-            
-            {task.due_date && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <CalendarDays className="h-4 w-4" />
-                  Scadenza
+
+            <div className="pt-4 border-t space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
+                <div>
+                  <p className="font-medium">Creato il</p>
+                  <p>{format(new Date(task.created_at), 'dd/MM/yyyy HH:mm', { locale: it })}</p>
                 </div>
-                <p className={`text-sm ${
-                  new Date(task.due_date) < new Date() && task.status !== 'completed'
-                    ? 'text-red-600 font-medium'
-                    : ''
-                }`}>
-                  {format(new Date(task.due_date), 'dd MMMM yyyy', { locale: it })}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Hours */}
-          {(task.estimated_hours || task.actual_hours) && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                Ore
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {task.estimated_hours && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Stimate</p>
-                    <p className="text-sm">{task.estimated_hours}h</p>
-                  </div>
-                )}
-                {task.actual_hours && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Effettive</p>
-                    <p className="text-sm">{task.actual_hours}h</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tags */}
-          {task.tags && task.tags.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Tag className="h-4 w-4" />
-                Tag
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {task.tags.map((tag, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Completion Date */}
-          {task.completed_at && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <CalendarDays className="h-4 w-4" />
-                Completato il
-              </div>
-              <p className="text-sm">
-                {format(new Date(task.completed_at), 'dd MMMM yyyy HH:mm', { locale: it })}
-              </p>
-            </div>
-          )}
-
-          {/* Timestamps */}
-          <div className="pt-4 border-t space-y-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
-              <div>
-                <p className="font-medium">Creato il</p>
-                <p>{format(new Date(task.created_at), 'dd/MM/yyyy HH:mm', { locale: it })}</p>
-              </div>
-              <div>
-                <p className="font-medium">Modificato il</p>
-                <p>{format(new Date(task.updated_at), 'dd/MM/yyyy HH:mm', { locale: it })}</p>
+                <div>
+                  <p className="font-medium">Modificato il</p>
+                  <p>{format(new Date(task.updated_at), 'dd/MM/yyyy HH:mm', { locale: it })}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-    
-    {/* Edit Dialog */}
-    <EditTaskDialog
-      task={task}
-      open={isEditDialogOpen}
-      onOpenChange={setIsEditDialogOpen}
-      onTaskUpdated={() => {
-        onTaskUpdated?.();
-        setIsEditDialogOpen(false);
-      }}
-    />
+        </DialogContent>
+      </Dialog>
+      
+      <EditTaskDialog
+        task={task}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onTaskUpdated={() => {
+          onTaskUpdated?.();
+          setIsEditDialogOpen(false);
+        }}
+      />
     </>
   );
 }
