@@ -24,6 +24,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("🚀 Avvio sincronizzazione contatti...");
+    
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -38,93 +40,117 @@ const handler = async (req: Request): Promise<Response> => {
       duplicates: 0
     };
 
-    // 1. Sincronizza contatti dalle liste email
-    console.log("Sincronizzando contatti dalle liste email...");
-    const { data: emailListContacts, error: emailError } = await supabaseClient
-      .from('email_list_contacts')
-      .select(`
-        email,
-        first_name,
-        last_name,
-        company,
-        email_lists!inner(name)
-      `);
+    console.log("📧 Sincronizzando contatti dalle liste email...");
+    try {
+      // Prima prendiamo tutte le liste email
+      const { data: emailLists, error: listsError } = await supabaseClient
+        .from('email_lists')
+        .select('id, name');
+        
+      if (listsError) {
+        console.error("❌ Errore nel recuperare le liste email:", listsError);
+      } else {
+        // Poi prendiamo tutti i contatti delle liste
+        const { data: emailListContacts, error: emailError } = await supabaseClient
+          .from('email_list_contacts')
+          .select('*');
 
-    if (!emailError && emailListContacts) {
-      for (const contact of emailListContacts) {
-        if (contact.email) {
-          const listName = contact.email_lists?.name || 'Lista Email';
-          syncedContacts.push({
-            email: contact.email.toLowerCase(),
-            first_name: contact.first_name,
-            last_name: contact.last_name,
-            company_name: contact.company,
-            tags: [listName],
-            lead_source: 'Lista Email'
-          });
-          stats.emailLists++;
+        if (!emailError && emailListContacts && emailLists) {
+          for (const contact of emailListContacts) {
+            if (contact.email && contact.email.trim()) {
+              // Trova il nome della lista
+              const emailList = emailLists.find(list => list.id === contact.email_list_id);
+              const listName = emailList ? emailList.name : 'Lista Email';
+              
+              syncedContacts.push({
+                email: contact.email.toLowerCase().trim(),
+                first_name: contact.first_name || '',
+                last_name: contact.last_name || '',
+                company_name: contact.company || '',
+                tags: [listName],
+                lead_source: 'Lista Email'
+              });
+              stats.emailLists++;
+            }
+          }
+          console.log(`✅ ${stats.emailLists} contatti dalle liste email`);
+        } else if (emailError) {
+          console.error("❌ Errore sincronizzazione liste email:", emailError);
         }
       }
+    } catch (error) {
+      console.log("⚠️ Tabelle email non trovate, saltando...");
     }
 
-    // 2. Sincronizza lead
-    console.log("Sincronizzando lead...");
-    const { data: leads, error: leadsError } = await supabaseClient
-      .from('leads')
-      .select('*');
+    console.log("🎯 Sincronizzando lead...");
+    try {
+      const { data: leads, error: leadsError } = await supabaseClient
+        .from('leads')
+        .select('*');
 
-    if (!leadsError && leads) {
-      for (const lead of leads) {
-        if (lead.email) {
-          const tags = ['Lead'];
-          if (lead.pipeline) tags.push(lead.pipeline);
-          if (lead.status) tags.push(lead.status);
+      if (!leadsError && leads) {
+        for (const lead of leads) {
+          if (lead.email && lead.email.trim()) {
+            const tags = ['Lead'];
+            if (lead.pipeline) tags.push(lead.pipeline);
+            if (lead.status) tags.push(lead.status);
 
-          syncedContacts.push({
-            email: lead.email.toLowerCase(),
-            first_name: lead.contact_name?.split(' ')[0],
-            last_name: lead.contact_name?.split(' ').slice(1).join(' '),
-            company_name: lead.company_name,
-            phone: lead.phone,
-            tags: tags,
-            lead_source: lead.source || 'Lead'
-          });
-          stats.leads++;
+            syncedContacts.push({
+              email: lead.email.toLowerCase().trim(),
+              first_name: lead.contact_name?.split(' ')[0] || '',
+              last_name: lead.contact_name?.split(' ').slice(1).join(' ') || '',
+              company_name: lead.company_name || '',
+              phone: lead.phone || '',
+              tags: tags,
+              lead_source: lead.source || 'Lead'
+            });
+            stats.leads++;
+          }
         }
+        console.log(`✅ ${stats.leads} lead sincronizzati`);
+      } else if (leadsError) {
+        console.error("❌ Errore sincronizzazione lead:", leadsError);
       }
+    } catch (error) {
+      console.log("⚠️ Tabella leads non trovata, saltando...");
     }
 
-    // 3. Sincronizza partner
-    console.log("Sincronizzando partner...");
-    const { data: partners, error: partnersError } = await supabaseClient
-      .from('partners')
-      .select('*');
+    console.log("🤝 Sincronizzando partner...");
+    try {
+      const { data: partners, error: partnersError } = await supabaseClient
+        .from('partners')
+        .select('*');
 
-    if (!partnersError && partners) {
-      for (const partner of partners) {
-        if (partner.email) {
-          const tags = ['Partner'];
-          if (partner.partner_type) tags.push(partner.partner_type);
-          if (partner.acquisition_status) tags.push(partner.acquisition_status);
-          if (partner.region) tags.push(partner.region);
+      if (!partnersError && partners) {
+        for (const partner of partners) {
+          if (partner.email && partner.email.trim()) {
+            const tags = ['Partner'];
+            if (partner.partner_type) tags.push(partner.partner_type);
+            if (partner.acquisition_status) tags.push(partner.acquisition_status);
+            if (partner.region) tags.push(partner.region);
 
-          syncedContacts.push({
-            email: partner.email.toLowerCase(),
-            first_name: partner.contact_name?.split(' ')[0],
-            last_name: partner.contact_name?.split(' ').slice(1).join(' '),
-            company_name: partner.company_name,
-            phone: partner.phone,
-            mobile: partner.mobile,
-            tags: tags,
-            lead_source: 'Partner'
-          });
-          stats.partners++;
+            syncedContacts.push({
+              email: partner.email.toLowerCase().trim(),
+              first_name: partner.contact_name?.split(' ')[0] || '',
+              last_name: partner.contact_name?.split(' ').slice(1).join(' ') || '',
+              company_name: partner.company_name || '',
+              phone: partner.phone || '',
+              mobile: partner.mobile || '',
+              tags: tags,
+              lead_source: 'Partner'
+            });
+            stats.partners++;
+          }
         }
+        console.log(`✅ ${stats.partners} partner sincronizzati`);
+      } else if (partnersError) {
+        console.error("❌ Errore sincronizzazione partner:", partnersError);
       }
+    } catch (error) {
+      console.log("⚠️ Tabella partners non trovata, saltando...");
     }
 
-    // 4. Rimuovi duplicati e unisci i tag
-    console.log("Rimuovendo duplicati e unendo i tag...");
+    console.log("🔄 Rimuovendo duplicati e unendo i tag...");
     const contactsMap = new Map<string, ContactToSync>();
 
     for (const contact of syncedContacts) {
@@ -151,8 +177,7 @@ const handler = async (req: Request): Promise<Response> => {
     const uniqueContacts = Array.from(contactsMap.values());
     stats.total = uniqueContacts.length;
 
-    // 5. Inserisci o aggiorna i contatti in crm_contacts
-    console.log(`Inserendo ${uniqueContacts.length} contatti unici in CRM...`);
+    console.log(`💾 Inserendo ${uniqueContacts.length} contatti unici in CRM...`);
     
     if (uniqueContacts.length > 0) {
       const { data, error: insertError } = await supabaseClient
@@ -163,12 +188,13 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       if (insertError) {
-        console.error('Errore inserimento contatti:', insertError);
+        console.error('❌ Errore inserimento contatti:', insertError);
         throw insertError;
       }
+      console.log("✅ Contatti inseriti con successo!");
     }
 
-    // 6. Log dell'attività
+    // Log dell'attività
     await supabaseClient
       .from('audit_logs')
       .insert({
@@ -180,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       });
 
-    console.log("Sincronizzazione completata:", stats);
+    console.log("🎉 Sincronizzazione completata:", stats);
 
     return new Response(JSON.stringify({
       success: true,
@@ -195,10 +221,11 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
   } catch (error: any) {
-    console.error("Errore durante la sincronizzazione:", error);
+    console.error("💥 Errore durante la sincronizzazione:", error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message,
+      details: error
     }), {
       status: 500,
       headers: {
