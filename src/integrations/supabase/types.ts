@@ -586,6 +586,7 @@ export type Database = {
           sdi_code: string | null
           shipping_address: string | null
           synced_at: string | null
+          tags: string[] | null
           updated_at: string
         }
         Insert: {
@@ -607,6 +608,7 @@ export type Database = {
           sdi_code?: string | null
           shipping_address?: string | null
           synced_at?: string | null
+          tags?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -628,6 +630,7 @@ export type Database = {
           sdi_code?: string | null
           shipping_address?: string | null
           synced_at?: string | null
+          tags?: string[] | null
           updated_at?: string
         }
         Relationships: [

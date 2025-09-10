@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
 import { NewsletterTemplateEditor } from "@/components/crm/NewsletterTemplateEditor";
 import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
+import { ContactManager } from "@/components/crm/ContactManager";
 
 interface EmailCampaign {
   subject: string;
@@ -477,8 +478,12 @@ export default function NewsletterPage() {
             <Mail className="h-4 w-4" />
             Email Mittente
           </TabsTrigger>
-          <TabsTrigger value="lists" className="flex items-center gap-2">
+          <TabsTrigger value="contacts" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
+            Contatti
+          </TabsTrigger>
+          <TabsTrigger value="lists" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
             Liste Email
           </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
@@ -802,6 +807,10 @@ Puoi usare questi placeholder:
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="contacts" className="space-y-6">
+          <ContactManager />
         </TabsContent>
 
         <TabsContent value="emails" className="space-y-6">
