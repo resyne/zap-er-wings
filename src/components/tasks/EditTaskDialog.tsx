@@ -227,7 +227,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
         category,
         status,
         priority,
-        assigned_to: assignedTo || null,
+        assigned_to: assignedTo === "unassigned" ? null : assignedTo || null,
         start_date: startDate?.toISOString() || null,
         due_date: dueDate?.toISOString() || null,
         estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
@@ -399,7 +399,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
                     <SelectValue placeholder="Seleziona utente..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="unassigned">Nessuno</SelectItem>
                     {profiles.map((profile) => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.first_name} {profile.last_name}
