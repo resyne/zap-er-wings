@@ -4609,6 +4609,10 @@ export type Database = {
           quote_id: string
         }[]
       }
+      get_user_site_origin: {
+        Args: { user_uuid: string }
+        Returns: string
+      }
       has_minimum_role: {
         Args: {
           _min_role: Database["public"]["Enums"]["app_role"]
@@ -4625,6 +4629,10 @@ export type Database = {
       }
       is_admin_user: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_same_site_user: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
       user_created_quote: {
