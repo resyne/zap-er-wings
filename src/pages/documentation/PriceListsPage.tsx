@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Download, Upload, Trash2, DollarSign } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const languages = [
   { code: "it", name: "Italiano", flag: "🇮🇹" },
@@ -19,25 +20,86 @@ interface Document {
   language: string;
   size: string;
   uploadDate: string;
+  storage_path: string;
+  url: string;
 }
 
 export default function PriceListsPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("it");
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const onDrop = (acceptedFiles: File[]) => {
-    acceptedFiles.forEach((file) => {
-      const newDoc: Document = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        language: selectedLanguage,
-        size: (file.size / 1024 / 1024).toFixed(2) + " MB",
-        uploadDate: new Date().toLocaleDateString("it-IT")
-      };
-      
-      setDocuments(prev => [...prev, newDoc]);
-      toast.success(`Listino caricato - ${languages.find(l => l.code === selectedLanguage)?.name}`);
-    });
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    try {
+      const { data: files, error } = await supabase.storage
+        .from('company-documents')
+        .list('price-lists/', {
+          limit: 100,
+          offset: 0
+        });
+
+      if (error) throw error;
+
+      if (files) {
+        const docs: Document[] = await Promise.all(
+          files
+            .filter(file => file.name !== '.emptyFolderPlaceholder')
+            .map(async (file) => {
+              const { data } = supabase.storage
+                .from('company-documents')
+                .getPublicUrl(`price-lists/${file.name}`);
+
+              // Extract language from filename if available
+              const nameParts = file.name.split('_');
+              const language = nameParts.length > 1 ? nameParts[0] : 'it';
+
+              return {
+                id: file.id || Date.now().toString(),
+                name: file.name,
+                language: language,
+                size: `${(file.metadata?.size || 0 / 1024 / 1024).toFixed(2)} MB`,
+                uploadDate: new Date(file.created_at || '').toLocaleDateString("it-IT"),
+                storage_path: `price-lists/${file.name}`,
+                url: data.publicUrl
+              };
+            })
+        );
+        setDocuments(docs);
+      }
+    } catch (error) {
+      console.error('Errore caricamento documenti:', error);
+      toast.error("Errore nel caricamento dei documenti");
+    }
+  };
+
+  const onDrop = async (acceptedFiles: File[]) => {
+    setLoading(true);
+    
+    for (const file of acceptedFiles) {
+      try {
+        // Create filename with language prefix
+        const filename = `${selectedLanguage}_${Date.now()}_${file.name}`;
+        const filePath = `price-lists/${filename}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('company-documents')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        toast.success(`Listino caricato - ${languages.find(l => l.code === selectedLanguage)?.name}`);
+      } catch (error) {
+        console.error('Errore upload:', error);
+        toast.error(`Errore nel caricamento di ${file.name}`);
+      }
+    }
+    
+    setLoading(false);
+    loadDocuments(); // Ricarica la lista
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -51,9 +113,42 @@ export default function PriceListsPage() {
     }
   });
 
-  const deleteDocument = (id: string) => {
-    setDocuments(prev => prev.filter(doc => doc.id !== id));
-    toast.success("Documento eliminato");
+  const deleteDocument = async (doc: Document) => {
+    try {
+      const { error } = await supabase.storage
+        .from('company-documents')
+        .remove([doc.storage_path]);
+
+      if (error) throw error;
+
+      toast.success("Documento eliminato");
+      loadDocuments(); // Ricarica la lista
+    } catch (error) {
+      console.error('Errore eliminazione:', error);
+      toast.error("Errore nell'eliminazione del documento");
+    }
+  };
+
+  const downloadDocument = async (doc: Document) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('company-documents')
+        .download(doc.storage_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Errore download:', error);
+      toast.error("Errore nel download del documento");
+    }
   };
 
   const filteredDocuments = documents.filter(doc => doc.language === selectedLanguage);
@@ -97,17 +192,19 @@ export default function PriceListsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div
+            <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
               isDragActive 
                 ? "border-primary bg-primary/5" 
                 : "border-border hover:border-primary/50"
-            }`}
+            } ${loading ? "opacity-50 pointer-events-none" : ""}`}
           >
             <input {...getInputProps()} />
             <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            {isDragActive ? (
+            {loading ? (
+              <p className="text-primary">Caricamento in corso...</p>
+            ) : isDragActive ? (
               <p className="text-primary">Rilascia i file qui...</p>
             ) : (
               <div>
@@ -158,10 +255,10 @@ export default function PriceListsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => downloadDocument(doc)}>
                       <Download className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => deleteDocument(doc.id)}>
+                    <Button size="sm" variant="outline" onClick={() => deleteDocument(doc)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
