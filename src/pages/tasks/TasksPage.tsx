@@ -8,7 +8,7 @@ import { TaskKanban } from "@/components/tasks/TaskKanban";
 import { TaskCalendar } from "@/components/tasks/TaskCalendar";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 
-type TaskCategory = 'amministrazione' | 'back_office' | 'ricerca_sviluppo';
+type TaskCategory = 'amministrazione' | 'back_office' | 'ricerca_sviluppo' | 'tecnico';
 type ViewMode = 'kanban' | 'calendar';
 
 export function TasksPage() {
