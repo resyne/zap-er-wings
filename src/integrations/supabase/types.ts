@@ -4614,7 +4614,11 @@ export type Database = {
       recurrence_type: "none" | "daily" | "weekly" | "monthly" | "yearly"
       rma_status: "open" | "analysis" | "repaired" | "closed"
       serial_status: "in_test" | "approved" | "rejected"
-      task_category: "amministrazione" | "back_office" | "ricerca_sviluppo"
+      task_category:
+        | "amministrazione"
+        | "back_office"
+        | "ricerca_sviluppo"
+        | "tecnico"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "review" | "completed" | "cancelled"
       wo_status: "planned" | "in_progress" | "testing" | "closed"
@@ -4768,7 +4772,12 @@ export const Constants = {
       recurrence_type: ["none", "daily", "weekly", "monthly", "yearly"],
       rma_status: ["open", "analysis", "repaired", "closed"],
       serial_status: ["in_test", "approved", "rejected"],
-      task_category: ["amministrazione", "back_office", "ricerca_sviluppo"],
+      task_category: [
+        "amministrazione",
+        "back_office",
+        "ricerca_sviluppo",
+        "tecnico",
+      ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "review", "completed", "cancelled"],
       wo_status: ["planned", "in_progress", "testing", "closed"],

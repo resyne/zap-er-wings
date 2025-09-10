@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultCategory?: 'amministrazione' | 'back_office' | 'ricerca_sviluppo';
+  defaultCategory?: 'amministrazione' | 'back_office' | 'ricerca_sviluppo' | 'tecnico';
   defaultStatus?: 'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled';
   defaultDueDate?: Date;
   onTaskAdded?: () => void;
@@ -44,7 +44,7 @@ export function CreateTaskDialog({
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState(defaultCategory);
+  const [category, setCategory] = useState<'amministrazione' | 'back_office' | 'ricerca_sviluppo' | 'tecnico'>(defaultCategory);
   const [status, setStatus] = useState(defaultStatus);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [assignedTo, setAssignedTo] = useState("");
@@ -248,9 +248,10 @@ export function CreateTaskDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="amministrazione">Amministrazione</SelectItem>
-                    <SelectItem value="back_office">Back-office</SelectItem>
-                    <SelectItem value="ricerca_sviluppo">Ricerca & Sviluppo</SelectItem>
+                     <SelectItem value="amministrazione">Amministrazione</SelectItem>
+                     <SelectItem value="back_office">Back-office</SelectItem>
+                     <SelectItem value="ricerca_sviluppo">Ricerca & Sviluppo</SelectItem>
+                     <SelectItem value="tecnico">Tecnico</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -34,6 +34,12 @@ export function TasksPage() {
       title: 'Ricerca & Sviluppo',
       description: 'Innovazione e sviluppo prodotti',
       color: 'bg-purple-500'
+    },
+    {
+      key: 'tecnico' as TaskCategory,
+      title: 'Tecnico',
+      description: 'Attività tecniche e manutenzione',
+      color: 'bg-orange-500'
     }
   ];
 
@@ -77,7 +83,7 @@ export function TasksPage() {
       </div>
 
       <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value as TaskCategory)}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           {categories.map((category) => (
             <TabsTrigger key={category.key} value={category.key} className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
