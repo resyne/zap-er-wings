@@ -182,10 +182,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (uniqueContacts.length > 0) {
       const { data, error: insertError } = await supabaseClient
         .from('crm_contacts')
-        .upsert(uniqueContacts, { 
-          onConflict: 'email',
-          ignoreDuplicates: false 
-        });
+        .insert(uniqueContacts)
+        .select();
 
       if (insertError) {
         console.error('❌ Errore inserimento contatti:', insertError);

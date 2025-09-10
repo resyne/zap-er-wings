@@ -362,12 +362,6 @@ export function ContactManager() {
                     Aggiungi
                   </Button>
                 </DialogTrigger>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Aggiungi
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Aggiungi Contatto</DialogTitle>
