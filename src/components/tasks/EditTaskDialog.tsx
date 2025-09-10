@@ -68,24 +68,36 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
 
   const { toast } = useToast();
 
+  // Add console log to debug
+  console.log('EditTaskDialog rendered with task:', task, 'open:', open);
+
   useEffect(() => {
     if (open && task) {
-      setTitle(task.title);
-      setDescription(task.description || "");
-      setCategory(task.category as any);
-      setStatus(task.status);
-      setPriority(task.priority);
-      setAssignedTo(task.assigned_to || "");
-      setStartDate(task.start_date ? new Date(task.start_date) : undefined);
-      setDueDate(task.due_date ? new Date(task.due_date) : undefined);
-      setEstimatedHours(task.estimated_hours?.toString() || "");
-      setActualHours(task.actual_hours?.toString() || "");
-      setTags(task.tags || []);
-      setTagInput("");
-      setFiles([]);
-      
-      fetchProfiles();
-      fetchTaskFiles();
+      try {
+        setTitle(task.title || "");
+        setDescription(task.description || "");
+        setCategory((task.category as any) || 'amministrazione');
+        setStatus(task.status || 'todo');
+        setPriority(task.priority || 'medium');
+        setAssignedTo(task.assigned_to || "");
+        setStartDate(task.start_date ? new Date(task.start_date) : undefined);
+        setDueDate(task.due_date ? new Date(task.due_date) : undefined);
+        setEstimatedHours(task.estimated_hours?.toString() || "");
+        setActualHours(task.actual_hours?.toString() || "");
+        setTags(task.tags || []);
+        setTagInput("");
+        setFiles([]);
+        
+        fetchProfiles().catch(console.error);
+        fetchTaskFiles().catch(console.error);
+      } catch (error) {
+        console.error('Error initializing task data:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nel caricamento dei dati del task",
+          variant: "destructive",
+        });
+      }
     }
   }, [open, task]);
 
@@ -104,6 +116,11 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
   };
 
   const fetchTaskFiles = async () => {
+    if (!task?.id) {
+      console.warn('No task ID available for fetching files');
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('task_files')
@@ -289,6 +306,11 @@ export function EditTaskDialog({ task, open, onOpenChange, onTaskUpdated }: Edit
       setLoading(false);
     }
   };
+
+  // Don't render if task is not available
+  if (!task) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
