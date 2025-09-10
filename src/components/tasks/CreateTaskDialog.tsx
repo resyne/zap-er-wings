@@ -114,6 +114,13 @@ export function CreateTaskDialog({
     setLoading(true);
 
     try {
+      console.log('Creating task with user ID:', user?.id);
+      
+      // Ensure we have a valid user
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       // Create the task
       const taskData = {
         title: title.trim(),
@@ -122,18 +129,22 @@ export function CreateTaskDialog({
         status,
         priority,
         assigned_to: assignedTo || null,
-        created_by: user?.id,
+        created_by: user.id, // Ensure this is always set
         start_date: startDate?.toISOString() || null,
         due_date: dueDate?.toISOString() || null,
         estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
         tags: tags.length > 0 ? tags : null,
       };
 
+      console.log('Task data to insert:', taskData);
+
       const { data: createdTask, error } = await supabase
         .from('tasks')
         .insert(taskData)
         .select()
         .single();
+
+      console.log('Insert result:', { createdTask, error });
 
       if (error) throw error;
 
