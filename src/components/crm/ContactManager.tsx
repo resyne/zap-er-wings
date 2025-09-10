@@ -99,7 +99,7 @@ export function ContactManager() {
     }
 
     // Filtro per tag
-    if (selectedTag) {
+    if (selectedTag && selectedTag !== 'all') {
       filtered = filtered.filter(contact => 
         contact.tags && contact.tags.includes(selectedTag)
       );
@@ -306,7 +306,7 @@ export function ContactManager() {
                   <SelectValue placeholder="Filtra per tag" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tutti i tag</SelectItem>
+                  <SelectItem value="all">Tutti i tag</SelectItem>
                   {availableTags.map(tag => (
                     <SelectItem key={tag} value={tag}>{tag}</SelectItem>
                   ))}
@@ -461,7 +461,7 @@ export function ContactManager() {
           {/* Statistiche */}
           <div className="flex gap-4 text-sm text-muted-foreground">
             <span>Totale: {filteredContacts.length} contatti</span>
-            {selectedTag && <span>Tag "{selectedTag}": {filteredContacts.length} contatti</span>}
+            {selectedTag && selectedTag !== 'all' && <span>Tag "{selectedTag}": {filteredContacts.length} contatti</span>}
           </div>
 
           {/* Tabella Contatti */}
