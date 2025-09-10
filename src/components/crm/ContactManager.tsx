@@ -84,6 +84,36 @@ export function ContactManager() {
     }
   };
 
+  const handleSyncContacts = async () => {
+    try {
+      setLoading(true);
+      toast({
+        title: "Sincronizzazione in corso...",
+        description: "Sto sincronizzando i contatti dalle liste email, lead e partner",
+      });
+
+      const { data, error } = await supabase.functions.invoke('sync-contacts');
+
+      if (error) throw error;
+
+      await fetchContacts(); // Ricarica i contatti
+
+      toast({
+        title: "Sincronizzazione completata",
+        description: `${data.stats.total} contatti sincronizzati (${data.stats.emailLists} da liste, ${data.stats.leads} lead, ${data.stats.partners} partner)`,
+      });
+    } catch (error) {
+      console.error('Error syncing contacts:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante la sincronizzazione dei contatti",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filterContacts = () => {
     let filtered = contacts;
 
@@ -315,7 +345,23 @@ export function ContactManager() {
             </div>
             
             <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleSyncContacts}
+                disabled={loading}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Sincronizza Contatti
+              </Button>
+              
               <Dialog open={showAddContactDialog} onOpenChange={setShowAddContactDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Aggiungi
+                  </Button>
+                </DialogTrigger>
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
