@@ -81,6 +81,9 @@ export function TaskKanban({ category }: TaskKanbanProps) {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('Category changed to:', category);
+    setTasks([]); // Clear existing tasks first
+    setLoading(true);
     fetchTasks();
   }, [category]);
 
