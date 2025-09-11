@@ -25,6 +25,35 @@ export const useDocuments = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Helper: recursively list all files in a folder (includes subfolders)
+  const listAllFilesInFolder = async (folder: string) => {
+    const results: any[] = [];
+
+    const walk = async (prefix: string) => {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .list(prefix, { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+
+      if (error) throw error;
+
+      for (const item of data || []) {
+        const isFile = !!(item as any)?.metadata && (item as any).metadata.size !== undefined;
+        if (isFile) {
+          // Ensure we keep the full path in the name so downstream logic works
+          const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+          results.push({ ...item, name: fullPath });
+        } else {
+          // Treat as folder and walk into it
+          const nextPrefix = prefix ? `${prefix}/${item.name}` : item.name;
+          await walk(nextPrefix);
+        }
+      }
+    };
+
+    await walk(folder);
+    return results;
+  };
+
   const loadDocuments = async () => {
     console.log('🔍 useDocuments: Starting to load documents...');
     
@@ -38,36 +67,35 @@ export const useDocuments = () => {
 
       console.log('🔍 useDocuments: Attempting to load from Supabase storage...');
       
-      // Load documents from Supabase storage - check both root and specific folders
+      // Load documents from Supabase storage - root and recursively in blast-chillers
       const { data: storageFiles, error: storageError } = await supabase.storage
         .from('documents')
         .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
 
-      // Also check blast-chillers subfolder specifically
-      const { data: blastChillersFiles, error: blastChillersError } = await supabase.storage
-        .from('documents')
-        .list('blast-chillers', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+      // Recursively fetch all files inside blast-chillers (including subfolders)
+      let blastChillersFiles: any[] | null = null;
+      let blastChillersError: any = null;
+      try {
+        blastChillersFiles = await listAllFilesInFolder('blast-chillers');
+      } catch (e) {
+        blastChillersError = e;
+      }
 
-      console.log('🔍 useDocuments: Storage response:', { storageFiles, storageError });
-      console.log('🔍 useDocuments: Blast chillers folder response:', { blastChillersFiles, blastChillersError });
+      console.log('🔍 useDocuments: Storage response (root):', { storageFiles, storageError });
+      console.log('🔍 useDocuments: Blast chillers recursive response:', { count: blastChillersFiles?.length ?? 0, blastChillersError });
 
       if (storageError && blastChillersError) {
         console.error('Error loading storage files:', storageError, blastChillersError);
         toast.error('Errore durante il caricamento dei documenti dallo storage');
       } else {
-        // Combine files from root and blast-chillers folder
-        const allStorageFiles = [...(storageFiles || [])];
-        
-        // Add blast-chillers files with proper path prefix
+        // Combine files from root and all blast-chillers subpaths
+        const allStorageFiles: any[] = [...(storageFiles || [])];
+
         if (blastChillersFiles && !blastChillersError) {
-          const blastChillersWithPath = blastChillersFiles.map(file => ({
-            ...file,
-            name: `blast-chillers/${file.name}`,
-            folder: 'blast-chillers'
-          }));
-          allStorageFiles.push(...blastChillersWithPath);
+          // blastChillersFiles already contain full path in name
+          allStorageFiles.push(...blastChillersFiles);
         }
-        
+
         console.log('🔍 useDocuments: Found', allStorageFiles.length, 'files in storage total');
         
         if (allStorageFiles.length > 0) {
