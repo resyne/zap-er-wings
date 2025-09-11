@@ -26,18 +26,24 @@ export const useDocuments = () => {
   const [loading, setLoading] = useState(false);
 
   const loadDocuments = async () => {
+    console.log('🔍 useDocuments: Starting to load documents...');
     setLoading(true);
     try {
       const allDocuments: DocumentItem[] = [];
 
+      console.log('🔍 useDocuments: Attempting to load from Supabase storage...');
       // Load documents from Supabase storage
       const { data: storageFiles, error: storageError } = await supabase.storage
         .from('documents')
         .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
 
+      console.log('🔍 useDocuments: Storage response:', { storageFiles, storageError });
+
       if (storageError) {
         console.error('Error loading storage files:', storageError);
+        toast.error('Errore durante il caricamento dei documenti dallo storage');
       } else if (storageFiles) {
+        console.log('🔍 useDocuments: Found', storageFiles.length, 'files in storage');
         // Convert storage files to DocumentItem format
         const storageDocuments: DocumentItem[] = storageFiles.map(file => {
           // Determine document type based on file name patterns
@@ -87,11 +93,15 @@ export const useDocuments = () => {
           };
         });
 
+        console.log('🔍 useDocuments: Converted storage documents:', storageDocuments);
         allDocuments.push(...storageDocuments);
       }
 
+      console.log('🔍 useDocuments: Total documents before fallback:', allDocuments.length);
+
       // Add some static example documents if no real documents are found
       if (allDocuments.length === 0) {
+        console.log('🔍 useDocuments: No real documents found, adding static examples...');
         const staticDocs: DocumentItem[] = [
           {
             id: 'tech_1',
@@ -117,6 +127,7 @@ export const useDocuments = () => {
         allDocuments.push(...staticDocs);
       }
 
+      console.log('🔍 useDocuments: Final documents array:', allDocuments);
       setDocuments(allDocuments);
     } catch (error) {
       console.error('Error loading documents:', error);

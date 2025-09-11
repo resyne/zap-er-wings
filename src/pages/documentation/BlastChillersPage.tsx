@@ -42,8 +42,14 @@ export default function BlastChillersPage() {
 
   // Load documents from useDocuments hook
   useEffect(() => {
-    console.log('BlastChillersPage loaded, documents available:', documents.length);
-  }, [documents]);
+    console.log('🔍 BlastChillersPage: useDocuments hook result:', { 
+      totalDocuments: allDocuments.length, 
+      filteredDocuments: documents.length,
+      loading
+    });
+    console.log('🔍 BlastChillersPage: All documents:', allDocuments);
+    console.log('🔍 BlastChillersPage: Filtered documents for Abbattitori:', documents);
+  }, [documents, allDocuments, loading]);
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) {
