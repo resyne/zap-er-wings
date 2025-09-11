@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+// import { supabase } from "@/integrations/supabase/client"; // Temporarily disabled due to RLS issues
 import { toast } from "sonner";
 
 export interface DocumentItem {
