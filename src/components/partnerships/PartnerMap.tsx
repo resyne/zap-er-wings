@@ -55,56 +55,98 @@ export const PartnerMap: React.FC<PartnerMapProps> = ({ partners }) => {
     if (!map.current) return;
 
     partners.forEach(partner => {
-      if (partner.latitude && partner.longitude) {
-        // Create a custom marker element with color based on status
-        const markerElement = document.createElement('div');
-        markerElement.className = 'custom-marker';
-        
-        // Use green for active importers, default primary color for others
-        const markerColor = (partner.acquisition_status === 'attivo' || partner.acquisition_status === 'active') 
-          ? 'hsl(142, 76%, 36%)' // Green color for active
-          : 'hsl(var(--primary))';
-        
-        markerElement.style.cssText = `
-          width: 30px;
-          height: 30px;
-          background: ${markerColor};
-          border: 2px solid white;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        `;
-        
-        const icon = document.createElement('div');
-        icon.innerHTML = '📍';
-        icon.style.fontSize = '12px';
-        markerElement.appendChild(icon);
+      const hasCoords = partner.latitude !== undefined && partner.longitude !== undefined && partner.latitude !== null && partner.longitude !== null;
+      if (!hasCoords) return;
 
-        // Create popup
-        const popup = new mapboxgl.Popup({ offset: 25 })
-          .setHTML(`
-            <div style="padding: 8px;">
-              <h3 style="margin: 0 0 4px 0; font-weight: bold;">
-                ${partner.first_name} ${partner.last_name}
-              </h3>
-              <p style="margin: 0 0 4px 0; font-size: 14px; color: #666;">
-                ${partner.company_name}
-              </p>
-              <p style="margin: 0; font-size: 12px; color: #888;">
-                ${partner.address}
-              </p>
-            </div>
-          `);
+      let lat = Number(partner.latitude);
+      let lng = Number(partner.longitude);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return;
 
-        // Add marker to map
-        new mapboxgl.Marker(markerElement)
-          .setLngLat([partner.longitude, partner.latitude])
-          .setPopup(popup)
-          .addTo(map.current!);
+      // Fix impossible ranges by attempting a swap when appropriate
+      const isInGlobalRange = (lat >= -90 && lat <= 90) && (lng >= -180 && lng <= 180);
+      if (!isInGlobalRange) {
+        const swappedLat = Number(partner.longitude);
+        const swappedLng = Number(partner.latitude);
+        if ((swappedLat >= -90 && swappedLat <= 90) && (swappedLng >= -180 && swappedLng <= 180)) {
+          console.warn('Swapped lat/lng due to out-of-range values for partner:', partner);
+          lat = swappedLat;
+          lng = swappedLng;
+        } else {
+          console.warn('Skipping marker due to invalid coordinates:', partner);
+          return;
+        }
       }
+
+      // Italy-specific sanity check based on address content
+      const addr = (partner.address || '').toLowerCase();
+      const looksItalian = addr.includes('italia') || addr.includes('italy') || addr.includes(', it') || addr.endsWith(' it') || addr.includes(' it ');
+      if (looksItalian) {
+        const latInItaly = lat >= 35 && lat <= 48;
+        const lngInItaly = lng >= 6 && lng <= 19;
+        if (!(latInItaly && lngInItaly)) {
+          // If swapped values would be in Italy, use them
+          const swappedLat2 = lng;
+          const swappedLng2 = lat;
+          const swappedLatInItaly = swappedLat2 >= 35 && swappedLat2 <= 48;
+          const swappedLngInItaly = swappedLng2 >= 6 && swappedLng2 <= 19;
+          if (swappedLatInItaly && swappedLngInItaly) {
+            console.warn('Swapped lat/lng for Italian address outside bounds:', partner);
+            lat = swappedLat2;
+            lng = swappedLng2;
+          } else {
+            console.warn('Italian address has coordinates outside Italy bounds:', { partner, lat, lng });
+          }
+        }
+      }
+
+      // Create a custom marker element with color based on status
+      const markerElement = document.createElement('div');
+      markerElement.className = 'custom-marker';
+
+      // Use green for active importers, default primary color for others
+      const markerColor = (partner.acquisition_status === 'attivo' || partner.acquisition_status === 'active') 
+        ? 'hsl(142, 76%, 36%)' // Green color for active
+        : 'hsl(var(--primary))';
+
+      markerElement.style.cssText = `
+        width: 30px;
+        height: 30px;
+        background: ${markerColor};
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+
+      const icon = document.createElement('div');
+      icon.innerHTML = '📍';
+      icon.style.fontSize = '12px';
+      markerElement.appendChild(icon);
+
+      // Create popup
+      const popup = new mapboxgl.Popup({ offset: 25 })
+        .setHTML(`
+          <div style="padding: 8px;">
+            <h3 style="margin: 0 0 4px 0; font-weight: bold;">
+              ${partner.first_name} ${partner.last_name}
+            </h3>
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #666;">
+              ${partner.company_name}
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #888;">
+              ${partner.address}
+            </p>
+          </div>
+        `);
+
+      // Add marker to map using normalized [lng, lat]
+      new mapboxgl.Marker(markerElement)
+        .setLngLat([lng, lat])
+        .setPopup(popup)
+        .addTo(map.current!);
     });
   };
 
