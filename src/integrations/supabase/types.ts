@@ -4612,6 +4612,10 @@ export type Database = {
           quote_id: string
         }[]
       }
+      get_user_role_simple: {
+        Args: { user_uuid?: string }
+        Returns: string
+      }
       get_user_site_origin: {
         Args: { user_uuid: string }
         Returns: string
@@ -4636,6 +4640,10 @@ export type Database = {
       }
       is_same_site_user: {
         Args: { target_user_id: string }
+        Returns: boolean
+      }
+      is_user_admin: {
+        Args: { user_uuid?: string }
         Returns: boolean
       }
       user_created_quote: {
