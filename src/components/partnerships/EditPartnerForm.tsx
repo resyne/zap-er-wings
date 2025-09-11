@@ -61,16 +61,25 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
 
   const geocodeAddress = async (address: string, country?: string): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      // Create a more specific search query including country if available
-      const searchQuery = country && country.trim() !== '' 
-        ? `${address}, ${country}` 
-        : address;
+      // Create a more specific search query with proper country context
+      let searchQuery = address;
+      let countryCode = 'it'; // Default to Italy
       
-      console.log('Geocoding address:', searchQuery);
+      // Add country context if available
+      if (country && country.trim() !== '') {
+        searchQuery = `${address}, ${country}`;
+        countryCode = getCountryCode(country);
+      } else {
+        // Default to Italy for Italian addresses - be more explicit
+        searchQuery = `${address}, Italy`;
+        countryCode = 'it';
+      }
       
-      // Try Mapbox Geocoding first (more reliable)
+      console.log('Geocoding address:', searchQuery, 'with country code:', countryCode);
+      
+      // Try Mapbox Geocoding first with country restriction
       const mapboxToken = 'pk.eyJ1IjoiemFwcGVyLWl0YWx5IiwiYSI6ImNtZXRyZHppNjAyMHMyanBmaDVjaXRqNGkifQ.a-m1oX08G8vNi9s6uzNr7Q';
-      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${mapboxToken}&limit=1&types=address,place`;
+      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${mapboxToken}&limit=1&types=address,place&country=${countryCode}`;
       
       const mapboxResponse = await fetch(mapboxUrl);
       console.log('Mapbox geocoding response status:', mapboxResponse.status);
@@ -81,21 +90,26 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
         
         if (mapboxData.features && mapboxData.features.length > 0) {
           const [lng, lat] = mapboxData.features[0].center;
+          
+          // Additional validation: ensure coordinates are in reasonable range for the expected country
           const coordinates = {
             latitude: lat,
             longitude: lng
           };
-          console.log('Found Mapbox coordinates:', coordinates);
-          return coordinates;
+          
+          // Basic validation for European coordinates (Italy and surrounding countries)
+          if (countryCode === 'it' && (lat < 35 || lat > 48 || lng < 6 || lng > 19)) {
+            console.warn('Coordinates seem outside Italy bounds, trying fallback:', coordinates);
+          } else {
+            console.log('Found valid Mapbox coordinates:', coordinates);
+            return coordinates;
+          }
         }
       }
       
       // Fallback to Nominatim if Mapbox fails  
       console.log('Trying Nominatim as fallback...');
-      const countryCode = getCountryCode(country);
-      const nominatimUrl = countryCode 
-        ? `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&countrycodes=${countryCode}`
-        : `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&countrycodes=${countryCode}`;
         
       const nominatimResponse = await fetch(nominatimUrl, {
         headers: {
@@ -110,11 +124,21 @@ export const EditPartnerForm: React.FC<EditPartnerFormProps> = ({
         console.log('Nominatim data:', nominatimData);
         
         if (nominatimData && nominatimData.length > 0) {
+          const lat = parseFloat(nominatimData[0].lat);
+          const lng = parseFloat(nominatimData[0].lon);
+          
           const coordinates = {
-            latitude: parseFloat(nominatimData[0].lat),
-            longitude: parseFloat(nominatimData[0].lon)
+            latitude: lat,
+            longitude: lng
           };
-          console.log('Found Nominatim coordinates:', coordinates);
+          
+          // Additional validation for Nominatim results too
+          if (countryCode === 'it' && (lat < 35 || lat > 48 || lng < 6 || lng > 19)) {
+            console.warn('Nominatim coordinates seem outside Italy bounds:', coordinates);
+            return null; // Don't use invalid coordinates
+          }
+          
+          console.log('Found valid Nominatim coordinates:', coordinates);
           return coordinates;
         }
       }
