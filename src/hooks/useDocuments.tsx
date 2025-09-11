@@ -88,59 +88,47 @@ export const useDocuments = () => {
         console.error('Error loading storage files:', storageError, blastChillersError);
         toast.error('Errore durante il caricamento dei documenti dallo storage');
       } else {
-        // Combine files from root and all blast-chillers subpaths
-        const allStorageFiles: any[] = [...(storageFiles || [])];
-
-        if (blastChillersFiles && !blastChillersError) {
-          // blastChillersFiles already contain full path in name
-          allStorageFiles.push(...blastChillersFiles);
-        }
+        // Use recursive listing only (avoids duplicates and captures nested site folders)
+        const allStorageFiles: any[] = [...(blastChillersFiles || [])];
 
         console.log('🔍 useDocuments: Found', allStorageFiles.length, 'files in storage total');
         
         if (allStorageFiles.length > 0) {
         // Convert storage files to DocumentItem format
         const storageDocuments: DocumentItem[] = allStorageFiles.map(file => {
-          // Determine document type based on file name patterns and folder
+          // Determine document type based on file path patterns and folder
           let type: DocumentItem['type'] = 'technical';
           let category = 'Varie';
           let language = 'it';
 
-          const fileName = file.name.toLowerCase();
-          const isInBlastChillersFolder = fileName.includes('blast-chillers');
-          
-          // If file is in blast-chillers folder, automatically categorize as Abbattitori
+          const filePath = file.name.toLowerCase();
+          const isInBlastChillersFolder = /(^|\/)blast-chillers(\/|$)/.test(filePath);
+
           if (isInBlastChillersFolder) {
             category = 'Abbattitori';
             type = 'technical';
           } else {
             // Determine type and category for other files
-            if (fileName.includes('listino') || fileName.includes('price')) {
+            if (filePath.includes('listino') || filePath.includes('price')) {
               type = 'price-list';
               category = 'Listini';
-            } else if (fileName.includes('manuale') || fileName.includes('manual')) {
+            } else if (filePath.includes('manuale') || filePath.includes('manual')) {
               type = 'manual';
               category = 'Manuali';
-            } else if (fileName.includes('certificazion') || fileName.includes('compliance') || fileName.includes('conformita')) {
+            } else if (filePath.includes('certificazion') || filePath.includes('compliance') || filePath.includes('conformita')) {
               type = 'compliance';
               category = 'Conformità';
-            } else if (fileName.includes('abbattitor') || fileName.includes('blast') || fileName.includes('chiller')) {
-              category = 'Abbattitori';
-            } else if (fileName.includes('forno') || fileName.includes('oven') || fileName.includes('pizza')) {
+            } else if (filePath.includes('forno') || filePath.includes('oven') || filePath.includes('pizza')) {
               category = 'Forni';
-            } else if (fileName.includes('zapper') || fileName.includes('pro')) {
-              // I file ZapperPRO sono documenti tecnici per abbattitori
-              category = 'Abbattitori';
-              type = 'technical';
             }
           }
 
           // Determine language
-          if (fileName.includes('_en') || fileName.includes('english')) {
+          if (filePath.includes('_en') || filePath.includes('english')) {
             language = 'en';
-          } else if (fileName.includes('_es') || fileName.includes('spanish')) {
+          } else if (filePath.includes('_es') || filePath.includes('spanish')) {
             language = 'es';
-          } else if (fileName.includes('_fr') || fileName.includes('french')) {
+          } else if (filePath.includes('_fr') || filePath.includes('french')) {
             language = 'fr';
           }
 
@@ -153,7 +141,7 @@ export const useDocuments = () => {
             type,
             language,
             size: sizeInMB,
-            uploadDate: new Date(file.created_at).toLocaleDateString("it-IT"),
+            uploadDate: new Date(file.created_at).toLocaleDateString('it-IT'),
             storage_path: file.name,
             url: file.name
           };
