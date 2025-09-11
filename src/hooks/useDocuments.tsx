@@ -37,45 +37,74 @@ export const useDocuments = () => {
       const allDocuments: DocumentItem[] = [];
 
       console.log('🔍 useDocuments: Attempting to load from Supabase storage...');
-      // Load documents from Supabase storage
+      
+      // Load documents from Supabase storage - check both root and specific folders
       const { data: storageFiles, error: storageError } = await supabase.storage
         .from('documents')
-        .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+
+      // Also check blast-chillers subfolder specifically
+      const { data: blastChillersFiles, error: blastChillersError } = await supabase.storage
+        .from('documents')
+        .list('blast-chillers', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
 
       console.log('🔍 useDocuments: Storage response:', { storageFiles, storageError });
+      console.log('🔍 useDocuments: Blast chillers folder response:', { blastChillersFiles, blastChillersError });
 
-      if (storageError) {
-        console.error('Error loading storage files:', storageError);
+      if (storageError && blastChillersError) {
+        console.error('Error loading storage files:', storageError, blastChillersError);
         toast.error('Errore durante il caricamento dei documenti dallo storage');
-      } else if (storageFiles) {
-        console.log('🔍 useDocuments: Found', storageFiles.length, 'files in storage');
+      } else {
+        // Combine files from root and blast-chillers folder
+        const allStorageFiles = [...(storageFiles || [])];
+        
+        // Add blast-chillers files with proper path prefix
+        if (blastChillersFiles && !blastChillersError) {
+          const blastChillersWithPath = blastChillersFiles.map(file => ({
+            ...file,
+            name: `blast-chillers/${file.name}`,
+            folder: 'blast-chillers'
+          }));
+          allStorageFiles.push(...blastChillersWithPath);
+        }
+        
+        console.log('🔍 useDocuments: Found', allStorageFiles.length, 'files in storage total');
+        
+        if (allStorageFiles.length > 0) {
         // Convert storage files to DocumentItem format
-        const storageDocuments: DocumentItem[] = storageFiles.map(file => {
-          // Determine document type based on file name patterns
+        const storageDocuments: DocumentItem[] = allStorageFiles.map(file => {
+          // Determine document type based on file name patterns and folder
           let type: DocumentItem['type'] = 'technical';
           let category = 'Varie';
           let language = 'it';
 
           const fileName = file.name.toLowerCase();
+          const isInBlastChillersFolder = fileName.includes('blast-chillers/');
           
-          // Determine type
-          if (fileName.includes('listino') || fileName.includes('price')) {
-            type = 'price-list';
-            category = 'Listini';
-          } else if (fileName.includes('manuale') || fileName.includes('manual')) {
-            type = 'manual';
-            category = 'Manuali';
-          } else if (fileName.includes('certificazion') || fileName.includes('compliance') || fileName.includes('conformita')) {
-            type = 'compliance';
-            category = 'Conformità';
-          } else if (fileName.includes('abbattitor') || fileName.includes('blast') || fileName.includes('chiller')) {
-            category = 'Abbattitori';
-          } else if (fileName.includes('forno') || fileName.includes('oven') || fileName.includes('pizza')) {
-            category = 'Forni';
-          } else if (fileName.includes('zapper') || fileName.includes('pro')) {
-            // I file ZapperPRO sono documenti tecnici per abbattitori
+          // If file is in blast-chillers folder, automatically categorize as Abbattitori
+          if (isInBlastChillersFolder) {
             category = 'Abbattitori';
             type = 'technical';
+          } else {
+            // Determine type and category for other files
+            if (fileName.includes('listino') || fileName.includes('price')) {
+              type = 'price-list';
+              category = 'Listini';
+            } else if (fileName.includes('manuale') || fileName.includes('manual')) {
+              type = 'manual';
+              category = 'Manuali';
+            } else if (fileName.includes('certificazion') || fileName.includes('compliance') || fileName.includes('conformita')) {
+              type = 'compliance';
+              category = 'Conformità';
+            } else if (fileName.includes('abbattitor') || fileName.includes('blast') || fileName.includes('chiller')) {
+              category = 'Abbattitori';
+            } else if (fileName.includes('forno') || fileName.includes('oven') || fileName.includes('pizza')) {
+              category = 'Forni';
+            } else if (fileName.includes('zapper') || fileName.includes('pro')) {
+              // I file ZapperPRO sono documenti tecnici per abbattitori
+              category = 'Abbattitori';
+              type = 'technical';
+            }
           }
 
           // Determine language
@@ -104,6 +133,7 @@ export const useDocuments = () => {
 
         console.log('🔍 useDocuments: Converted storage documents:', storageDocuments);
         allDocuments.push(...storageDocuments);
+        }
       }
 
       console.log('🔍 useDocuments: Total documents before fallback:', allDocuments.length);
