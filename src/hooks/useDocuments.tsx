@@ -65,13 +65,17 @@ export const useDocuments = () => {
           } else if (fileName.includes('manuale') || fileName.includes('manual')) {
             type = 'manual';
             category = 'Manuali';
-          } else if (fileName.includes('certificazion') || fileName.includes('compliance')) {
+          } else if (fileName.includes('certificazion') || fileName.includes('compliance') || fileName.includes('conformita')) {
             type = 'compliance';
             category = 'Conformità';
-          } else if (fileName.includes('abbattitor') || fileName.includes('blast')) {
+          } else if (fileName.includes('abbattitor') || fileName.includes('blast') || fileName.includes('chiller')) {
             category = 'Abbattitori';
-          } else if (fileName.includes('forno') || fileName.includes('oven')) {
+          } else if (fileName.includes('forno') || fileName.includes('oven') || fileName.includes('pizza')) {
             category = 'Forni';
+          } else if (fileName.includes('zapper') || fileName.includes('pro')) {
+            // I file ZapperPRO sono documenti tecnici per abbattitori
+            category = 'Abbattitori';
+            type = 'technical';
           }
 
           // Determine language
