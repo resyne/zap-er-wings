@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-// import { supabase } from "@/integrations/supabase/client"; // Temporarily disabled due to RLS issues
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export interface DocumentItem {
@@ -30,111 +30,92 @@ export const useDocuments = () => {
     try {
       const allDocuments: DocumentItem[] = [];
 
-      // Using static documents due to RLS policy issues
-      const staticDocs: DocumentItem[] = [
-        {
-          id: 'tech_1',
-          name: 'Scheda Tecnica Forni Professional Serie FP.pdf',
-          category: 'Forni',
-          type: 'technical',
-          language: 'it',
-          size: '2.1 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/forni-professional.pdf'
-        },
-        {
-          id: 'tech_2',
-          name: 'Scheda Tecnica Forni Compact Serie FC.pdf',
-          category: 'Forni',
-          type: 'technical',
-          language: 'it',
-          size: '1.9 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/forni-compact.pdf'
-        },
-        {
-          id: 'tech_3',
-          name: 'Scheda Tecnica Abbattitori Blast Serie AB.pdf',
-          category: 'Abbattitori',
-          type: 'technical',
-          language: 'it',
-          size: '1.8 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/abbattitori-blast.pdf'
-        },
-        {
-          id: 'tech_4',
-          name: 'Scheda Tecnica Abbattitori Rapid Serie AR.pdf',
-          category: 'Abbattitori',
-          type: 'technical',
-          language: 'it',
-          size: '2.2 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/abbattitori-rapid.pdf'
-        },
-        {
-          id: 'price_1',
-          name: 'Listino Prezzi 2024 Italia.pdf',
-          category: 'Listini',
-          type: 'price-list',
-          language: 'it',
-          size: '3.2 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/listino-2024-it.pdf'
-        },
-        {
-          id: 'price_2',
-          name: 'Price List 2024 Europe.pdf',
-          category: 'Listini',
-          type: 'price-list',
-          language: 'en',
-          size: '3.1 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/pricelist-2024-en.pdf'
-        },
-        {
-          id: 'manual_1',
-          name: 'Manuale Installazione Forni.pdf',
-          category: 'Manuali',
-          type: 'manual',
-          language: 'it',
-          size: '4.5 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/manuale-installazione-forni.pdf'
-        },
-        {
-          id: 'manual_2',
-          name: 'Manuale Manutenzione Abbattitori.pdf',
-          category: 'Manuali',
-          type: 'manual',
-          language: 'it',
-          size: '3.8 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/manuale-manutenzione-abbattitori.pdf'
-        },
-        {
-          id: 'comp_1',
-          name: 'Certificazioni CE Conformità.pdf',
-          category: 'Conformità',
-          type: 'compliance',
-          language: 'it',
-          size: '1.2 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/certificazioni-ce.pdf'
-        },
-        {
-          id: 'comp_2',
-          name: 'Certificazioni NSF Igiene Alimentare.pdf',
-          category: 'Conformità',
-          type: 'compliance',
-          language: 'it',
-          size: '0.9 MB',
-          uploadDate: new Date().toLocaleDateString("it-IT"),
-          url: '/docs/certificazioni-nsf.pdf'
-        }
-      ];
+      // Load documents from Supabase storage
+      const { data: storageFiles, error: storageError } = await supabase.storage
+        .from('documents')
+        .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
 
-      allDocuments.push(...staticDocs);
+      if (storageError) {
+        console.error('Error loading storage files:', storageError);
+      } else if (storageFiles) {
+        // Convert storage files to DocumentItem format
+        const storageDocuments: DocumentItem[] = storageFiles.map(file => {
+          // Determine document type based on file name patterns
+          let type: DocumentItem['type'] = 'technical';
+          let category = 'Varie';
+          let language = 'it';
+
+          const fileName = file.name.toLowerCase();
+          
+          // Determine type
+          if (fileName.includes('listino') || fileName.includes('price')) {
+            type = 'price-list';
+            category = 'Listini';
+          } else if (fileName.includes('manuale') || fileName.includes('manual')) {
+            type = 'manual';
+            category = 'Manuali';
+          } else if (fileName.includes('certificazion') || fileName.includes('compliance')) {
+            type = 'compliance';
+            category = 'Conformità';
+          } else if (fileName.includes('abbattitor') || fileName.includes('blast')) {
+            category = 'Abbattitori';
+          } else if (fileName.includes('forno') || fileName.includes('oven')) {
+            category = 'Forni';
+          }
+
+          // Determine language
+          if (fileName.includes('_en') || fileName.includes('english')) {
+            language = 'en';
+          } else if (fileName.includes('_es') || fileName.includes('spanish')) {
+            language = 'es';
+          } else if (fileName.includes('_fr') || fileName.includes('french')) {
+            language = 'fr';
+          }
+
+          const sizeInMB = file.metadata?.size ? (file.metadata.size / 1024 / 1024).toFixed(1) + ' MB' : 'N/A';
+
+          return {
+            id: file.id || file.name,
+            name: file.name,
+            category,
+            type,
+            language,
+            size: sizeInMB,
+            uploadDate: new Date(file.created_at).toLocaleDateString("it-IT"),
+            storage_path: file.name,
+            url: file.name
+          };
+        });
+
+        allDocuments.push(...storageDocuments);
+      }
+
+      // Add some static example documents if no real documents are found
+      if (allDocuments.length === 0) {
+        const staticDocs: DocumentItem[] = [
+          {
+            id: 'tech_1',
+            name: 'Scheda Tecnica Forni Professional Serie FP.pdf',
+            category: 'Forni',
+            type: 'technical',
+            language: 'it',
+            size: '2.1 MB',
+            uploadDate: new Date().toLocaleDateString("it-IT"),
+            url: '/docs/forni-professional.pdf'
+          },
+          {
+            id: 'tech_2',
+            name: 'Scheda Tecnica Abbattitori Blast Serie AB.pdf',
+            category: 'Abbattitori',
+            type: 'technical',
+            language: 'it',
+            size: '1.8 MB',
+            uploadDate: new Date().toLocaleDateString("it-IT"),
+            url: '/docs/abbattitori-blast.pdf'
+          }
+        ];
+        allDocuments.push(...staticDocs);
+      }
 
       setDocuments(allDocuments);
     } catch (error) {

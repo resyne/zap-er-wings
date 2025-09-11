@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Download, Upload, Trash2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-// import { supabase } from "@/integrations/supabase/client"; // Temporarily disabled due to RLS issues
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocuments } from "@/hooks/useDocuments";
 
@@ -46,23 +46,110 @@ export default function BlastChillersPage() {
   }, [documents]);
 
   const onDrop = async (acceptedFiles: File[]) => {
-    console.log('File upload disabled due to RLS issues');
-    toast.error("Caricamento file temporaneamente disabilitato");
+    if (!user) {
+      toast.error("Devi essere autenticato per caricare file");
+      return;
+    }
+
+    for (const file of acceptedFiles) {
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${file.name}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`Errore nel caricamento di ${file.name}`);
+        } else {
+          toast.success(`${file.name} caricato con successo`);
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        toast.error(`Errore nel caricamento di ${file.name}`);
+      }
+    }
+    
+    // Reload documents after upload
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
   };
 
   const deleteDocument = async (documentId: string) => {
-    console.log('File deletion disabled due to RLS issues');
-    toast.error("Eliminazione file temporaneamente disabilitata");
+    if (!user) {
+      toast.error("Devi essere autenticato per eliminare file");
+      return;
+    }
+
+    const doc = documents.find(d => d.id === documentId);
+    if (!doc?.storage_path) {
+      toast.error("Impossibile eliminare questo documento");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.storage
+        .from('documents')
+        .remove([doc.storage_path]);
+
+      if (error) {
+        console.error('Delete error:', error);
+        toast.error("Errore nell'eliminazione del documento");
+      } else {
+        toast.success("Documento eliminato con successo");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast.error("Errore nell'eliminazione del documento");
+    }
   };
 
   const handleDocumentClick = async (document: any) => {
-    console.log('Document preview disabled due to RLS issues');
-    toast.error("Anteprima documento temporaneamente disabilitata");
+    if (document.storage_path) {
+      downloadDocument(document);
+    } else {
+      toast.info("Questo è un documento di esempio, anteprima non disponibile");
+    }
   };
 
   const downloadDocument = async (document: any) => {
-    // For now, just show a message since we're using static data
-    toast.info("Download non disponibile per i documenti di esempio");
+    if (!document.storage_path) {
+      toast.info("Download non disponibile per i documenti di esempio");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(document.storage_path);
+
+      if (error) {
+        console.error('Download error:', error);
+        toast.error("Errore nel download del documento");
+        return;
+      }
+
+      // Create blob and download
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = document.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success("Download avviato");
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast.error("Errore nel download del documento");
+    }
   };
 
   const filteredDocuments = documents.filter(doc => 
