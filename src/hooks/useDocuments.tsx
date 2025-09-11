@@ -76,7 +76,7 @@ export const useDocuments = () => {
       let blastChillersFiles: any[] | null = null;
       let blastChillersError: any = null;
       try {
-        blastChillersFiles = await listAllFilesInFolder('blast-chillers');
+        blastChillersFiles = await listAllFilesInFolder('');
       } catch (e) {
         blastChillersError = e;
       }
@@ -107,7 +107,7 @@ export const useDocuments = () => {
           let language = 'it';
 
           const fileName = file.name.toLowerCase();
-          const isInBlastChillersFolder = fileName.includes('blast-chillers/');
+          const isInBlastChillersFolder = fileName.includes('blast-chillers');
           
           // If file is in blast-chillers folder, automatically categorize as Abbattitori
           if (isInBlastChillersFolder) {
