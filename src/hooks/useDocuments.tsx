@@ -27,6 +27,11 @@ export const useDocuments = () => {
 
   const loadDocuments = async () => {
     console.log('🔍 useDocuments: Starting to load documents...');
+    
+    // Check authentication status
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('🔍 useDocuments: Auth status:', { user: user?.id, authError });
+    
     setLoading(true);
     try {
       const allDocuments: DocumentItem[] = [];
