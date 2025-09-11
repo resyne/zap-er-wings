@@ -7,7 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useDocuments } from "@/hooks/useDocuments";
+import { PDFPreview } from "@/components/ui/pdf-preview";
 
 const categories = [
   "Braceria", "Pizzeria", "Panificio", "Tostatura Caffe", 
@@ -34,128 +34,249 @@ interface TechnicalDocument {
 export default function BlastChillersPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("it");
+  const [documents, setDocuments] = useState<TechnicalDocument[]>([]);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
-  const { documents: allDocuments, loading } = useDocuments();
+  const [pdfPreview, setPdfPreview] = useState<{
+    open: boolean;
+    fileName: string;
+    fileUrl: string;
+    document: TechnicalDocument | null;
+  }>({
+    open: false,
+    fileName: "",
+    fileUrl: "",
+    document: null,
+  });
 
-  // Filter documents for blast chillers category
-  const documents = allDocuments.filter(doc => doc.category === 'Abbattitori');
-
-  // Load documents from useDocuments hook
+  // Load documents from Supabase Storage on component mount
   useEffect(() => {
-    console.log('🔍 BlastChillersPage: useDocuments hook result:', { 
-      totalDocuments: allDocuments.length, 
-      filteredDocuments: documents.length,
-      loading
-    });
-    console.log('🔍 BlastChillersPage: All documents:', allDocuments);
-    console.log('🔍 BlastChillersPage: Filtered documents for Abbattitori:', documents);
-  }, [documents, allDocuments, loading]);
+    console.log('Component mounted, loading documents...');
+    console.log('Current user:', user);
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    try {
+      console.log('Loading documents from storage...');
+      console.log('User authenticated:', !!user);
+      
+      const { data: files, error } = await supabase.storage
+        .from('company-documents')
+        .list('blast-chillers/', {
+          limit: 100,
+          offset: 0,
+        });
+
+      console.log('Storage list response:', { files, error });
+
+      if (error) {
+        console.error('Error loading documents:', error);
+        toast.error(`Errore caricamento documenti: ${error.message}`);
+        return;
+      }
+
+      const documentsData: TechnicalDocument[] = files?.map(file => {
+        // Extract metadata from filename: category_language_originalname
+        const parts = file.name.split('_');
+        const category = parts[0] || 'Varie';
+        const language = parts[1] || 'it';
+        const originalName = parts.slice(2).join('_') || file.name;
+
+        console.log('Processing file:', { 
+          originalName: file.name, 
+          category, 
+          language, 
+          displayName: originalName 
+        });
+
+        return {
+          id: file.id || file.name,
+          name: originalName,
+          category: category,
+          language: language,
+          size: file.metadata?.size ? (file.metadata.size / 1024 / 1024).toFixed(2) + " MB" : "N/A",
+          uploadDate: new Date(file.updated_at || file.created_at || '').toLocaleDateString("it-IT"),
+          storage_path: `blast-chillers/${file.name}`
+        };
+      }) || [];
+
+      console.log('Processed documents:', documentsData);
+      setDocuments(documentsData);
+    } catch (error) {
+      console.error('Unexpected error loading documents:', error);
+      toast.error('Errore durante il caricamento dei documenti');
+    }
+  };
 
   const onDrop = async (acceptedFiles: File[]) => {
-    if (!user) {
-      toast.error("Devi essere autenticato per caricare file");
+    console.log('Starting file upload process...', acceptedFiles.length, 'files');
+    
+    if (!selectedCategory) {
+      console.error('No category selected');
+      toast.error("Seleziona prima una categoria");
       return;
     }
+
+    if (!user) {
+      console.error('No user logged in');
+      toast.error("Devi essere loggato per caricare documenti");
+      return;
+    }
+
+    console.log('User authenticated:', user.id);
+    console.log('Selected category:', selectedCategory);
+    console.log('Selected language:', selectedLanguage);
+
+    setLoading(true);
 
     for (const file of acceptedFiles) {
       try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${file.name}`;
+        console.log('Processing file:', file.name, 'size:', file.size, 'type:', file.type);
         
-        const { error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(fileName, file);
+        // Sanitize filename by removing spaces and special characters
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        console.log('Sanitized filename:', sanitizedName);
+        
+        // Create filename with metadata: category_language_originalname
+        const fileName = `${selectedCategory}_${selectedLanguage}_${sanitizedName}`;
+        const filePath = `blast-chillers/${fileName}`;
+        
+        console.log('Final file path:', filePath);
+
+        // Upload file to Supabase Storage
+        console.log('Attempting upload to Supabase Storage...');
+        const { data, error: uploadError } = await supabase.storage
+          .from('company-documents')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        console.log('Upload response data:', data);
+        console.log('Upload error:', uploadError);
 
         if (uploadError) {
-          console.error('Upload error:', uploadError);
-          toast.error(`Errore nel caricamento di ${file.name}`);
-        } else {
-          toast.success(`${file.name} caricato con successo`);
+          console.error('Upload error details:', uploadError);
+          toast.error(`Errore caricamento ${file.name}: ${uploadError.message}`);
+          continue;
         }
+
+        console.log('File uploaded successfully:', fileName);
+        toast.success(`Documento ${file.name} caricato in ${selectedCategory} - ${languages.find(l => l.code === selectedLanguage)?.name}`);
       } catch (error) {
-        console.error('Error uploading file:', error);
-        toast.error(`Errore nel caricamento di ${file.name}`);
+        console.error('Unexpected error uploading file:', error);
+        toast.error(`Errore durante il caricamento di ${file.name}`);
       }
     }
-    
-    // Reload documents after upload
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000);
+
+    setLoading(false);
+    console.log('Reloading documents after upload...');
+    // Reload documents to show the newly uploaded ones
+    await loadDocuments();
   };
 
-  const deleteDocument = async (documentId: string) => {
-    if (!user) {
-      toast.error("Devi essere autenticato per eliminare file");
-      return;
-    }
-
-    const doc = documents.find(d => d.id === documentId);
-    if (!doc?.storage_path) {
-      toast.error("Impossibile eliminare questo documento");
+  const deleteDocument = async (document: TechnicalDocument) => {
+    if (!document.storage_path) {
+      toast.error("Percorso file non trovato");
       return;
     }
 
     try {
+      setLoading(true);
+      
       const { error } = await supabase.storage
-        .from('documents')
-        .remove([doc.storage_path]);
+        .from('company-documents')
+        .remove([document.storage_path]);
 
       if (error) {
         console.error('Delete error:', error);
-        toast.error("Errore nell'eliminazione del documento");
-      } else {
-        toast.success("Documento eliminato con successo");
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        toast.error(`Errore eliminazione: ${error.message}`);
+        return;
       }
+
+      toast.success("Documento eliminato");
+      // Reload documents to reflect the deletion
+      await loadDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
-      toast.error("Errore nell'eliminazione del documento");
+      toast.error("Errore durante l'eliminazione");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDocumentClick = async (document: any) => {
-    if (document.storage_path) {
-      downloadDocument(document);
+  const handleDocumentClick = async (document: TechnicalDocument) => {
+    // For PDF files, show preview first
+    if (document.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const { data, error } = await supabase.storage
+          .from('company-documents')
+          .download(document.storage_path!);
+
+        if (error) throw error;
+
+        const url = window.URL.createObjectURL(data);
+        setPdfPreview({
+          open: true,
+          fileName: document.name,
+          fileUrl: url,
+          document: document,
+        });
+      } catch (error: any) {
+        console.error('Error loading PDF:', error);
+        toast.error("Errore durante il caricamento del PDF: " + error.message);
+      }
     } else {
-      toast.info("Questo è un documento di esempio, anteprima non disponibile");
+      // For non-PDF files, download directly
+      downloadDocument(document);
     }
   };
 
-  const downloadDocument = async (document: any) => {
+  const downloadDocument = async (document: TechnicalDocument) => {
     if (!document.storage_path) {
-      toast.info("Download non disponibile per i documenti di esempio");
+      toast.error("Percorso file non trovato");
       return;
     }
 
     try {
       const { data, error } = await supabase.storage
-        .from('documents')
+        .from('company-documents')
         .download(document.storage_path);
 
       if (error) {
         console.error('Download error:', error);
-        toast.error("Errore nel download del documento");
+        toast.error(`Errore download: ${error.message}`);
         return;
       }
 
-      // Create blob and download
+      // Create download link
       const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
+      const a = window.document.createElement('a');
       a.href = url;
       a.download = document.name;
-      document.body.appendChild(a);
+      window.document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      window.document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
       toast.success("Download avviato");
     } catch (error) {
       console.error('Error downloading document:', error);
-      toast.error("Errore nel download del documento");
+      toast.error("Errore durante il download");
     }
+  };
+
+  const handleClosePdfPreview = () => {
+    if (pdfPreview.fileUrl) {
+      window.URL.revokeObjectURL(pdfPreview.fileUrl);
+    }
+    setPdfPreview({
+      open: false,
+      fileName: "",
+      fileUrl: "",
+      document: null,
+    });
   };
 
   const filteredDocuments = documents.filter(doc => 
@@ -279,17 +400,20 @@ export default function BlastChillersPage() {
             </p>
           ) : (
             <div className="space-y-3">
-               {filteredDocuments.map((doc) => (
+              {filteredDocuments.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                   <div 
                     className="flex items-center gap-3 flex-1 cursor-pointer"
                     onClick={() => handleDocumentClick(doc)}
-                    title="Clicca per maggiori informazioni"
+                    title={doc.name.toLowerCase().endsWith('.pdf') ? 'Clicca per aprire anteprima PDF' : 'Clicca per scaricare file'}
                   >
                     <FileText className="w-8 h-8 text-primary" />
                     <div>
                       <h4 className="font-medium text-foreground hover:text-primary transition-colors">
                         {doc.name}
+                        {doc.name.toLowerCase().endsWith('.pdf') && (
+                          <span className="ml-2 text-xs text-primary">(Clicca per anteprima)</span>
+                        )}
                       </h4>
                       <div className="flex gap-2 mt-1">
                         <Badge variant="secondary" className="text-xs">{doc.category}</Badge>
@@ -307,29 +431,41 @@ export default function BlastChillersPage() {
                       variant="outline" 
                       onClick={(e) => {
                         e.stopPropagation();
-                        downloadDocument(doc);
+                        handleDocumentClick(doc);
                       }}
                       disabled={loading}
-                      title="Download file"
+                      title={doc.name.toLowerCase().endsWith('.pdf') ? 'Anteprima PDF' : 'Scarica file'}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={() => deleteDocument(doc.id)}
+                      onClick={() => deleteDocument(doc)}
                       disabled={loading}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-               ))}
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* PDF Preview Dialog */}
+      <PDFPreview
+        open={pdfPreview.open}
+        onOpenChange={handleClosePdfPreview}
+        fileName={pdfPreview.fileName}
+        fileUrl={pdfPreview.fileUrl}
+        onDownload={() => {
+          if (pdfPreview.document) {
+            downloadDocument(pdfPreview.document);
+          }
+        }}
+      />
     </div>
   );
 }

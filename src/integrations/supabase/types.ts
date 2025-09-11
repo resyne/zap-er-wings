@@ -4379,33 +4379,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_page_restrictions: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          is_restricted: boolean | null
-          page_path: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          is_restricted?: boolean | null
-          page_path: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          is_restricted?: boolean | null
-          page_path?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -4639,10 +4612,6 @@ export type Database = {
           quote_id: string
         }[]
       }
-      get_user_role_simple: {
-        Args: { user_uuid?: string }
-        Returns: string
-      }
       get_user_site_origin: {
         Args: { user_uuid: string }
         Returns: string
@@ -4667,10 +4636,6 @@ export type Database = {
       }
       is_same_site_user: {
         Args: { target_user_id: string }
-        Returns: boolean
-      }
-      is_user_admin: {
-        Args: { user_uuid?: string }
         Returns: boolean
       }
       user_created_quote: {

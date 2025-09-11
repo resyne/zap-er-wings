@@ -25,142 +25,71 @@ export const useDocuments = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Helper: recursively list all files in a folder (includes subfolders)
-  const listAllFilesInFolder = async (folder: string) => {
-    const results: any[] = [];
-
-    const walk = async (prefix: string) => {
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .list(prefix, { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
-
-      if (error) throw error;
-
-      for (const item of data || []) {
-        const isFile = !!(item as any)?.metadata && (item as any).metadata.size !== undefined;
-        if (isFile) {
-          // Ensure we keep the full path in the name so downstream logic works
-          const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-          results.push({ ...item, name: fullPath });
-        } else {
-          // Treat as folder and walk into it
-          const nextPrefix = prefix ? `${prefix}/${item.name}` : item.name;
-          await walk(nextPrefix);
-        }
-      }
-    };
-
-    await walk(folder);
-    return results;
-  };
-
   const loadDocuments = async () => {
-    console.log('🔍 useDocuments: Starting to load documents...');
-    
-    // Check authentication status
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('🔍 useDocuments: Auth status:', { user: user?.id, authError });
-    
     setLoading(true);
     try {
       const allDocuments: DocumentItem[] = [];
 
-      console.log('🔍 useDocuments: Attempting to load from Supabase storage...');
-      
-      // Load documents from Supabase storage - root and recursively in blast-chillers
-      const { data: storageFiles, error: storageError } = await supabase.storage
-        .from('documents')
-        .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+      // Load documents from different storage buckets
+      const buckets = [
+        { name: 'blast-chillers', type: 'technical' as const, category: 'Abbattitori' },
+        { name: 'ovens', type: 'technical' as const, category: 'Forni' },
+        { name: 'manuals', type: 'manual' as const, category: 'Manuali' },
+        { name: 'price-lists', type: 'price-list' as const, category: 'Listini' },
+        { name: 'compliance', type: 'compliance' as const, category: 'Conformità' }
+      ];
 
-      // Recursively fetch all files inside blast-chillers (including subfolders)
-      let blastChillersFiles: any[] | null = null;
-      let blastChillersError: any = null;
-      try {
-        blastChillersFiles = await listAllFilesInFolder('');
-      } catch (e) {
-        blastChillersError = e;
-      }
+      for (const bucket of buckets) {
+        try {
+          const { data: files, error } = await supabase.storage
+            .from('company-documents')
+            .list(`${bucket.name}/`, {
+              limit: 100,
+              offset: 0,
+            });
 
-      console.log('🔍 useDocuments: Storage response (root):', { storageFiles, storageError });
-      console.log('🔍 useDocuments: Blast chillers recursive response:', { count: blastChillersFiles?.length ?? 0, blastChillersError });
+          if (error) {
+            console.error(`Error loading documents from ${bucket.name}:`, error);
+            continue;
+          }
 
-      if (storageError && blastChillersError) {
-        console.error('Error loading storage files:', storageError, blastChillersError);
-        toast.error('Errore durante il caricamento dei documenti dallo storage');
-      } else {
-        // Use recursive listing only (avoids duplicates and captures nested site folders)
-        const allStorageFiles: any[] = [...(blastChillersFiles || [])];
+          const bucketDocuments: DocumentItem[] = files?.map(file => {
+            // Extract metadata from filename: category_language_originalname or just originalname
+            const parts = file.name.split('_');
+            let category = bucket.category;
+            let language = 'it';
+            let originalName = file.name;
 
-        console.log('🔍 useDocuments: Found', allStorageFiles.length, 'files in storage total');
-        
-        if (allStorageFiles.length > 0) {
-        // Convert storage files to DocumentItem format
-        const storageDocuments: DocumentItem[] = allStorageFiles.map(file => {
-          // Determine document type based on file path patterns and folder
-          let type: DocumentItem['type'] = 'technical';
-          let category = 'Varie';
-          let language = 'it';
-
-          const filePath = file.name.toLowerCase();
-          const isInBlastChillersFolder = /(^|\/)blast-chillers(\/|$)/.test(filePath);
-
-          if (isInBlastChillersFolder) {
-            category = 'Abbattitori';
-            type = 'technical';
-          } else {
-            // Determine type and category for other files
-            if (filePath.includes('listino') || filePath.includes('price')) {
-              type = 'price-list';
-              category = 'Listini';
-            } else if (filePath.includes('manuale') || filePath.includes('manual')) {
-              type = 'manual';
-              category = 'Manuali';
-            } else if (filePath.includes('certificazion') || filePath.includes('compliance') || filePath.includes('conformita')) {
-              type = 'compliance';
-              category = 'Conformità';
-            } else if (filePath.includes('forno') || filePath.includes('oven') || filePath.includes('pizza')) {
-              category = 'Forni';
+            if (parts.length >= 3) {
+              category = parts[0] || bucket.category;
+              language = parts[1] || 'it';
+              originalName = parts.slice(2).join('_') || file.name;
             }
-          }
 
-          // Determine language
-          if (filePath.includes('_en') || filePath.includes('english')) {
-            language = 'en';
-          } else if (filePath.includes('_es') || filePath.includes('spanish')) {
-            language = 'es';
-          } else if (filePath.includes('_fr') || filePath.includes('french')) {
-            language = 'fr';
-          }
+            return {
+              id: `${bucket.name}_${file.id || file.name}`,
+              name: originalName,
+              category: category,
+              type: bucket.type,
+              language: language,
+              size: file.metadata?.size ? (file.metadata.size / 1024 / 1024).toFixed(2) + " MB" : "N/A",
+              uploadDate: new Date(file.updated_at || file.created_at || '').toLocaleDateString("it-IT"),
+              storage_path: `${bucket.name}/${file.name}`
+            };
+          }) || [];
 
-          const sizeInMB = file.metadata?.size ? (file.metadata.size / 1024 / 1024).toFixed(1) + ' MB' : 'N/A';
-
-          return {
-            id: file.id || file.name,
-            name: file.name,
-            category,
-            type,
-            language,
-            size: sizeInMB,
-            uploadDate: new Date(file.created_at).toLocaleDateString('it-IT'),
-            storage_path: file.name,
-            url: file.name
-          };
-        });
-
-        console.log('🔍 useDocuments: Converted storage documents:', storageDocuments);
-        allDocuments.push(...storageDocuments);
+          allDocuments.push(...bucketDocuments);
+        } catch (error) {
+          console.error(`Error processing bucket ${bucket.name}:`, error);
         }
       }
 
-      console.log('🔍 useDocuments: Total documents before fallback:', allDocuments.length);
-
-      // Add some static example documents if no real documents are found
+      // Add some fallback documents if storage is empty
       if (allDocuments.length === 0) {
-        console.log('🔍 useDocuments: No real documents found, adding static examples...');
-        const staticDocs: DocumentItem[] = [
+        const fallbackDocs: DocumentItem[] = [
           {
-            id: 'tech_1',
-            name: 'Scheda Tecnica Forni Professional Serie FP.pdf',
+            id: 'fallback_1',
+            name: 'Scheda Tecnica Forni Professional.pdf',
             category: 'Forni',
             type: 'technical',
             language: 'it',
@@ -169,20 +98,39 @@ export const useDocuments = () => {
             url: '/docs/forni-professional.pdf'
           },
           {
-            id: 'tech_2',
-            name: 'Scheda Tecnica Abbattitori Blast Serie AB.pdf',
+            id: 'fallback_2',
+            name: 'Scheda Tecnica Abbattitori Blast.pdf',
             category: 'Abbattitori',
             type: 'technical',
             language: 'it',
             size: '1.8 MB',
             uploadDate: new Date().toLocaleDateString("it-IT"),
             url: '/docs/abbattitori-blast.pdf'
+          },
+          {
+            id: 'fallback_3',
+            name: 'Listino Prezzi 2024.pdf',
+            category: 'Listini',
+            type: 'price-list',
+            language: 'it',
+            size: '3.2 MB',
+            uploadDate: new Date().toLocaleDateString("it-IT"),
+            url: '/docs/listino-2024.pdf'
+          },
+          {
+            id: 'fallback_4',
+            name: 'Manuale Installazione.pdf',
+            category: 'Manuali',
+            type: 'manual',
+            language: 'it',
+            size: '4.5 MB',
+            uploadDate: new Date().toLocaleDateString("it-IT"),
+            url: '/docs/manuale-installazione.pdf'
           }
         ];
-        allDocuments.push(...staticDocs);
+        allDocuments.push(...fallbackDocs);
       }
 
-      console.log('🔍 useDocuments: Final documents array:', allDocuments);
       setDocuments(allDocuments);
     } catch (error) {
       console.error('Error loading documents:', error);
