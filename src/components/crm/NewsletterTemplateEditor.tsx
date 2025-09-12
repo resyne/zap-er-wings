@@ -570,17 +570,24 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Allegati
+                {selectedTemplate && (
+                  <Badge variant="outline" className="ml-2">
+                    Template: {selectedTemplate.name}
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 Aggiungi documenti come allegati alla newsletter
+                {selectedTemplate && " (puoi aggiungere allegati anche ai template salvati)"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                <div className="text-center p-6 border-2 border-dashed rounded-lg">
+                <div className="text-center p-6 border-2 border-dashed rounded-lg hover:border-primary/50 transition-colors">
                   <Plus className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm font-medium">Aggiungi allegati</p>
                   <p className="text-xs text-muted-foreground">PDF, DOC, XLS, IMG fino a 10MB</p>
+                  {uploading && <p className="text-xs text-primary mt-1">Caricamento in corso...</p>}
                 </div>
                 <FileUpload
                   onChange={handleDocumentUpload}
