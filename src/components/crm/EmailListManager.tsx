@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Plus, Upload, Users, Mail } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, Plus, Upload, Users, Mail, Loader } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -29,6 +31,273 @@ interface EmailList {
 interface EmailListManagerProps {
   onListSelect: (listId: string, contactCount: number) => void;
   selectedListId?: string;
+}
+
+interface FilterOptions {
+  partner_type?: string;
+  acquisition_status?: string;
+  excludedCountries?: string[];
+  region?: string;
+  active_only?: boolean;
+}
+
+interface SystemFiltersManagerProps {
+  onFilterSelect: (type: 'customers' | 'crm_contacts' | 'partners', filters?: FilterOptions, count?: number) => void;
+  selectedType?: string;
+  selectedFilters?: FilterOptions;
+}
+
+function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }: SystemFiltersManagerProps) {
+  const [filterCounts, setFilterCounts] = useState({
+    customers: 0,
+    crm_contacts: 0,
+    partners: 0
+  });
+  const [currentFilters, setCurrentFilters] = useState<FilterOptions>(selectedFilters || {});
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchFilterCounts();
+  }, [currentFilters]);
+
+  const fetchFilterCounts = async () => {
+    setLoading(true);
+    try {
+      // Count customers
+      let customerQuery = supabase
+        .from('customers')
+        .select('id', { count: 'exact' });
+      
+      if (currentFilters.active_only) {
+        customerQuery = customerQuery.eq('active', true);
+      }
+
+      const { count: customerCount } = await customerQuery;
+
+      // Count CRM contacts
+      const { count: crmCount } = await supabase
+        .from('crm_contacts')
+        .select('id', { count: 'exact' });
+
+      // Count partners with filters
+      let partnerQuery = supabase
+        .from('partners')
+        .select('id', { count: 'exact' });
+
+      if (currentFilters.partner_type) {
+        partnerQuery = partnerQuery.eq('partner_type', currentFilters.partner_type);
+      }
+      if (currentFilters.acquisition_status) {
+        partnerQuery = partnerQuery.eq('acquisition_status', currentFilters.acquisition_status);
+      }
+      if (currentFilters.excludedCountries && currentFilters.excludedCountries.length > 0) {
+        currentFilters.excludedCountries.forEach(country => {
+          partnerQuery = partnerQuery.neq('country', country);
+        });
+      }
+      if (currentFilters.region) {
+        partnerQuery = partnerQuery.ilike('region', `%${currentFilters.region}%`);
+      }
+
+      const { count: partnerCount } = await partnerQuery;
+
+      setFilterCounts({
+        customers: customerCount || 0,
+        crm_contacts: crmCount || 0,
+        partners: partnerCount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching filter counts:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare i conteggi",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addExcludedCountry = (country: string) => {
+    if (country && !currentFilters.excludedCountries?.includes(country)) {
+      const updated = {
+        ...currentFilters,
+        excludedCountries: [...(currentFilters.excludedCountries || []), country]
+      };
+      setCurrentFilters(updated);
+    }
+  };
+
+  const removeExcludedCountry = (country: string) => {
+    const updated = {
+      ...currentFilters,
+      excludedCountries: currentFilters.excludedCountries?.filter(c => c !== country) || []
+    };
+    setCurrentFilters(updated);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Seleziona Destinatari</h3>
+        
+        {/* System Lists */}
+        <div className="grid gap-4">
+          <Card 
+            className={`cursor-pointer transition-colors ${
+              selectedType === 'customers' ? 'ring-2 ring-primary' : ''
+            }`}
+            onClick={() => onFilterSelect('customers', currentFilters, filterCounts.customers)}
+          >
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-medium">Clienti</h4>
+                  <p className="text-sm text-muted-foreground">Tutti i clienti nel sistema</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{filterCounts.customers} email</Badge>
+                  <Users className="h-4 w-4" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className={`cursor-pointer transition-colors ${
+              selectedType === 'crm_contacts' ? 'ring-2 ring-primary' : ''
+            }`}
+            onClick={() => onFilterSelect('crm_contacts', {}, filterCounts.crm_contacts)}
+          >
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-medium">Contatti CRM</h4>
+                  <p className="text-sm text-muted-foreground">Tutti i contatti dal CRM</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{filterCounts.crm_contacts} email</Badge>
+                  <Users className="h-4 w-4" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className={`cursor-pointer transition-colors ${
+              selectedType === 'partners' ? 'ring-2 ring-primary' : ''
+            }`}
+          >
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-medium">Partner</h4>
+                    <p className="text-sm text-muted-foreground">Partner con filtri personalizzabili</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{filterCounts.partners} email</Badge>
+                    <Users className="h-4 w-4" />
+                  </div>
+                </div>
+
+                {/* Partner Filters */}
+                <div className="space-y-3 border-t pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Tipo Partner</Label>
+                      <Select
+                        value={currentFilters.partner_type || ''}
+                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, partner_type: value || undefined }))}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Tutti" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Tutti</SelectItem>
+                          <SelectItem value="installer">Installatori</SelectItem>
+                          <SelectItem value="importer">Importatori</SelectItem>
+                          <SelectItem value="reseller">Rivenditori</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Stato Acquisizione</Label>
+                      <Select
+                        value={currentFilters.acquisition_status || ''}
+                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, acquisition_status: value || undefined }))}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Tutti" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Tutti</SelectItem>
+                          <SelectItem value="acquired">Acquisiti</SelectItem>
+                          <SelectItem value="in_progress">In Corso</SelectItem>
+                          <SelectItem value="not_acquired">Non Acquisiti</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Regione</Label>
+                    <Input
+                      placeholder="Cerca per regione..."
+                      value={currentFilters.region || ''}
+                      onChange={(e) => setCurrentFilters(prev => ({ ...prev, region: e.target.value || undefined }))}
+                      className="h-8"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Escludi Paesi</Label>
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {currentFilters.excludedCountries?.map((country) => (
+                        <Badge key={country} variant="secondary" className="text-xs">
+                          {country}
+                          <button
+                            onClick={() => removeExcludedCountry(country)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Aggiungi paese da escludere..."
+                        className="h-8"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const input = e.currentTarget;
+                            addExcludedCountry(input.value);
+                            input.value = '';
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => onFilterSelect('partners', currentFilters, filterCounts.partners)}
+                    disabled={loading}
+                  >
+                    {loading ? <Loader className="h-4 w-4 animate-spin" /> : 'Seleziona Partner'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function EmailListManager({ onListSelect, selectedListId }: EmailListManagerProps) {
@@ -320,6 +589,12 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
 
   return (
     <div className="space-y-4">
+      <SystemFiltersManager 
+        onFilterSelect={() => {}} 
+        selectedType="" 
+        selectedFilters={{}} 
+      />
+      
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Liste Email Personalizzate</h3>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
