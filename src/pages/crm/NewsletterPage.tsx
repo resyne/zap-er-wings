@@ -92,6 +92,7 @@ export default function NewsletterPage() {
   const [emailLists, setEmailLists] = useState<Array<{id: string, name: string, description: string, contact_count: number}>>([]);
   const [selectedCustomList, setSelectedCustomList] = useState<string>('');
   const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
+  const [partnerFilterCount, setPartnerFilterCount] = useState<number>(0);
   const [selectedSenderEmail, setSelectedSenderEmail] = useState<any>(null);
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
@@ -230,6 +231,42 @@ export default function NewsletterPage() {
     fetchSentEmails();
   }, []);
 
+  // Effect to update partner filter count when filters change
+  useEffect(() => {
+    if (campaign.targetAudience === 'partners') {
+      fetchPartnerFilterCount();
+    }
+  }, [campaign.targetAudience, campaign.partnerFilters]);
+
+  const fetchPartnerFilterCount = async () => {
+    try {
+      let query = supabase
+        .from('partners')
+        .select('id', { count: 'exact' })
+        .not('email', 'is', null);
+
+      // Apply filters
+      if (campaign.partnerFilters?.partner_type) {
+        query = query.eq('partner_type', campaign.partnerFilters.partner_type);
+      }
+      if (campaign.partnerFilters?.acquisition_status) {
+        query = query.eq('acquisition_status', campaign.partnerFilters.acquisition_status);
+      }
+      if (campaign.partnerFilters?.country) {
+        query = query.eq('country', campaign.partnerFilters.country);
+      }
+      if (campaign.partnerFilters?.region) {
+        query = query.ilike('region', `%${campaign.partnerFilters.region}%`);
+      }
+
+      const { count } = await query;
+      setPartnerFilterCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching partner filter count:', error);
+      setPartnerFilterCount(0);
+    }
+  };
+
 
   const pipelineStages = [
     'lead', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost'
@@ -367,6 +404,11 @@ export default function NewsletterPage() {
   const getCurrentEmailCount = () => {
     if (campaign.targetAudience === 'custom_list') {
       return selectedCustomListCount;
+    }
+    
+    // Check if it's partners with custom filters
+    if (campaign.targetAudience === 'partners') {
+      return partnerFilterCount;
     }
     
     // Check if it's a custom list ID - use the count from state
@@ -668,12 +710,90 @@ export default function NewsletterPage() {
                             <SelectItem value="Francia">🇫🇷 Francia</SelectItem>
                             <SelectItem value="Germania">🇩🇪 Germania</SelectItem>
                             <SelectItem value="Spagna">🇪🇸 Spagna</SelectItem>
+                            <SelectItem value="Portogallo">🇵🇹 Portogallo</SelectItem>
                             <SelectItem value="Regno Unito">🇬🇧 Regno Unito</SelectItem>
+                            <SelectItem value="Irlanda">🇮🇪 Irlanda</SelectItem>
+                            <SelectItem value="Paesi Bassi">🇳🇱 Paesi Bassi</SelectItem>
+                            <SelectItem value="Belgio">🇧🇪 Belgio</SelectItem>
+                            <SelectItem value="Lussemburgo">🇱🇺 Lussemburgo</SelectItem>
+                            <SelectItem value="Svizzera">🇨🇭 Svizzera</SelectItem>
+                            <SelectItem value="Austria">🇦🇹 Austria</SelectItem>
+                            <SelectItem value="Polonia">🇵🇱 Polonia</SelectItem>
+                            <SelectItem value="Repubblica Ceca">🇨🇿 Repubblica Ceca</SelectItem>
+                            <SelectItem value="Slovacchia">🇸🇰 Slovacchia</SelectItem>
+                            <SelectItem value="Ungheria">🇭🇺 Ungheria</SelectItem>
+                            <SelectItem value="Slovenia">🇸🇮 Slovenia</SelectItem>
+                            <SelectItem value="Croazia">🇭🇷 Croazia</SelectItem>
+                            <SelectItem value="Serbia">🇷🇸 Serbia</SelectItem>
+                            <SelectItem value="Bosnia ed Erzegovina">🇧🇦 Bosnia ed Erzegovina</SelectItem>
+                            <SelectItem value="Montenegro">🇲🇪 Montenegro</SelectItem>
+                            <SelectItem value="Macedonia del Nord">🇲🇰 Macedonia del Nord</SelectItem>
+                            <SelectItem value="Albania">🇦🇱 Albania</SelectItem>
+                            <SelectItem value="Grecia">🇬🇷 Grecia</SelectItem>
+                            <SelectItem value="Bulgaria">🇧🇬 Bulgaria</SelectItem>
+                            <SelectItem value="Romania">🇷🇴 Romania</SelectItem>
+                            <SelectItem value="Moldova">🇲🇩 Moldova</SelectItem>
+                            <SelectItem value="Ucraina">🇺🇦 Ucraina</SelectItem>
+                            <SelectItem value="Bielorussia">🇧🇾 Bielorussia</SelectItem>
+                            <SelectItem value="Lituania">🇱🇹 Lituania</SelectItem>
+                            <SelectItem value="Lettonia">🇱🇻 Lettonia</SelectItem>
+                            <SelectItem value="Estonia">🇪🇪 Estonia</SelectItem>
+                            <SelectItem value="Finlandia">🇫🇮 Finlandia</SelectItem>
+                            <SelectItem value="Svezia">🇸🇪 Svezia</SelectItem>
+                            <SelectItem value="Norvegia">🇳🇴 Norvegia</SelectItem>
+                            <SelectItem value="Danimarca">🇩🇰 Danimarca</SelectItem>
+                            <SelectItem value="Islanda">🇮🇸 Islanda</SelectItem>
+                            <SelectItem value="Russia">🇷🇺 Russia</SelectItem>
+                            <SelectItem value="Turchia">🇹🇷 Turchia</SelectItem>
+                            <SelectItem value="Cipro">🇨🇾 Cipro</SelectItem>
+                            <SelectItem value="Malta">🇲🇹 Malta</SelectItem>
                             <SelectItem value="Stati Uniti">🇺🇸 Stati Uniti</SelectItem>
                             <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
-                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                            <SelectItem value="Messico">🇲🇽 Messico</SelectItem>
                             <SelectItem value="Brasile">🇧🇷 Brasile</SelectItem>
+                            <SelectItem value="Argentina">🇦🇷 Argentina</SelectItem>
+                            <SelectItem value="Cile">🇨🇱 Cile</SelectItem>
+                            <SelectItem value="Colombia">🇨🇴 Colombia</SelectItem>
+                            <SelectItem value="Peru">🇵🇪 Peru</SelectItem>
+                            <SelectItem value="Ecuador">🇪🇨 Ecuador</SelectItem>
+                            <SelectItem value="Uruguay">🇺🇾 Uruguay</SelectItem>
+                            <SelectItem value="Paraguay">🇵🇾 Paraguay</SelectItem>
+                            <SelectItem value="Bolivia">🇧🇴 Bolivia</SelectItem>
+                            <SelectItem value="Venezuela">🇻🇪 Venezuela</SelectItem>
+                            <SelectItem value="Guyana">🇬🇾 Guyana</SelectItem>
+                            <SelectItem value="Suriname">🇸🇷 Suriname</SelectItem>
                             <SelectItem value="Giappone">🇯🇵 Giappone</SelectItem>
+                            <SelectItem value="Corea del Sud">🇰🇷 Corea del Sud</SelectItem>
+                            <SelectItem value="Cina">🇨🇳 Cina</SelectItem>
+                            <SelectItem value="Taiwan">🇹🇼 Taiwan</SelectItem>
+                            <SelectItem value="Hong Kong">🇭🇰 Hong Kong</SelectItem>
+                            <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
+                            <SelectItem value="Malesia">🇲🇾 Malesia</SelectItem>
+                            <SelectItem value="Thailandia">🇹🇭 Thailandia</SelectItem>
+                            <SelectItem value="Vietnam">🇻🇳 Vietnam</SelectItem>
+                            <SelectItem value="Filippine">🇵🇭 Filippine</SelectItem>
+                            <SelectItem value="Indonesia">🇮🇩 Indonesia</SelectItem>
+                            <SelectItem value="India">🇮🇳 India</SelectItem>
+                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                            <SelectItem value="Nuova Zelanda">🇳🇿 Nuova Zelanda</SelectItem>
+                            <SelectItem value="Sud Africa">🇿🇦 Sud Africa</SelectItem>
+                            <SelectItem value="Egitto">🇪🇬 Egitto</SelectItem>
+                            <SelectItem value="Marocco">🇲🇦 Marocco</SelectItem>
+                            <SelectItem value="Tunisia">🇹🇳 Tunisia</SelectItem>
+                            <SelectItem value="Algeria">🇩🇿 Algeria</SelectItem>
+                            <SelectItem value="Libia">🇱🇾 Libia</SelectItem>
+                            <SelectItem value="Nigeria">🇳🇬 Nigeria</SelectItem>
+                            <SelectItem value="Kenya">🇰🇪 Kenya</SelectItem>
+                            <SelectItem value="Ghana">🇬🇭 Ghana</SelectItem>
+                            <SelectItem value="Emirati Arabi Uniti">🇦🇪 Emirati Arabi Uniti</SelectItem>
+                            <SelectItem value="Arabia Saudita">🇸🇦 Arabia Saudita</SelectItem>
+                            <SelectItem value="Qatar">🇶🇦 Qatar</SelectItem>
+                            <SelectItem value="Kuwait">🇰🇼 Kuwait</SelectItem>
+                            <SelectItem value="Bahrain">🇧🇭 Bahrain</SelectItem>
+                            <SelectItem value="Oman">🇴🇲 Oman</SelectItem>
+                            <SelectItem value="Israele">🇮🇱 Israele</SelectItem>
+                            <SelectItem value="Libano">🇱🇧 Libano</SelectItem>
+                            <SelectItem value="Giordania">🇯🇴 Giordania</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
