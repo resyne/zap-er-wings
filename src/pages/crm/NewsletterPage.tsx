@@ -24,7 +24,7 @@ interface EmailCampaign {
   partnerFilters?: {
     partner_type?: string;
     acquisition_status?: string;
-    country?: string;
+    countries?: string[];
     region?: string;
   };
   template?: {
@@ -252,8 +252,8 @@ export default function NewsletterPage() {
       if (campaign.partnerFilters?.acquisition_status) {
         query = query.eq('acquisition_status', campaign.partnerFilters.acquisition_status);
       }
-      if (campaign.partnerFilters?.country) {
-        query = query.eq('country', campaign.partnerFilters.country);
+      if (campaign.partnerFilters?.countries && campaign.partnerFilters.countries.length > 0) {
+        query = query.in('country', campaign.partnerFilters.countries);
       }
       if (campaign.partnerFilters?.region) {
         query = query.ilike('region', `%${campaign.partnerFilters.region}%`);
@@ -325,8 +325,8 @@ export default function NewsletterPage() {
         if (campaign.partnerFilters.acquisition_status) {
           emailData.acquisition_status = campaign.partnerFilters.acquisition_status;
         }
-        if (campaign.partnerFilters.country) {
-          emailData.country = campaign.partnerFilters.country;
+        if (campaign.partnerFilters.countries && campaign.partnerFilters.countries.length > 0) {
+          emailData.countries = campaign.partnerFilters.countries;
         }
         if (campaign.partnerFilters.region) {
           emailData.region = campaign.partnerFilters.region;
@@ -693,19 +693,78 @@ export default function NewsletterPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-medium">Paese</label>
-                        <Select
-                          value={campaign.partnerFilters?.country || 'all'}
-                          onValueChange={(value) => setCampaign(prev => ({
-                            ...prev,
-                            partnerFilters: { ...prev.partnerFilters, country: value === 'all' ? undefined : value }
-                          }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Tutti i paesi" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Tutti i paesi</SelectItem>
+                        <label className="text-xs font-medium">Paesi</label>
+                        <div className="space-y-2">
+                          {/* Selected countries display */}
+                          {campaign.partnerFilters?.countries && campaign.partnerFilters.countries.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {campaign.partnerFilters.countries.map((country) => (
+                                <Badge 
+                                  key={country} 
+                                  variant="secondary" 
+                                  className="text-xs flex items-center gap-1"
+                                >
+                                  {country}
+                                  <button
+                                    onClick={() => {
+                                      setCampaign(prev => ({
+                                        ...prev,
+                                        partnerFilters: {
+                                          ...prev.partnerFilters,
+                                          countries: prev.partnerFilters?.countries?.filter(c => c !== country) || []
+                                        }
+                                      }));
+                                    }}
+                                    className="ml-1 hover:bg-destructive/20 rounded-full"
+                                  >
+                                    ×
+                                  </button>
+                                </Badge>
+                              ))}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setCampaign(prev => ({
+                                    ...prev,
+                                    partnerFilters: {
+                                      ...prev.partnerFilters,
+                                      countries: []
+                                    }
+                                  }));
+                                }}
+                                className="text-xs h-6 px-2"
+                              >
+                                Cancella tutti
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {/* Country selection dropdown */}
+                          <Select
+                            onValueChange={(value) => {
+                              if (value && value !== "all") {
+                                setCampaign(prev => {
+                                  const currentCountries = prev.partnerFilters?.countries || [];
+                                  if (!currentCountries.includes(value)) {
+                                    return {
+                                      ...prev,
+                                      partnerFilters: { 
+                                        ...prev.partnerFilters, 
+                                        countries: [...currentCountries, value]
+                                      }
+                                    };
+                                  }
+                                  return prev;
+                                });
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Aggiungi paese" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="all">🌍 Seleziona un paese</SelectItem>
                             <SelectItem value="Italia">🇮🇹 Italia</SelectItem>
                             <SelectItem value="Francia">🇫🇷 Francia</SelectItem>
                             <SelectItem value="Germania">🇩🇪 Germania</SelectItem>
@@ -795,7 +854,8 @@ export default function NewsletterPage() {
                             <SelectItem value="Libano">🇱🇧 Libano</SelectItem>
                             <SelectItem value="Giordania">🇯🇴 Giordania</SelectItem>
                           </SelectContent>
-                        </Select>
+                         </Select>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
