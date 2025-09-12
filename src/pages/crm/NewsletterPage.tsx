@@ -24,7 +24,7 @@ interface EmailCampaign {
   partnerFilters?: {
     partner_type?: string;
     acquisition_status?: string;
-    countries?: string[];
+    excludedCountries?: string[];
     region?: string;
   };
   template?: {
@@ -252,8 +252,8 @@ export default function NewsletterPage() {
       if (campaign.partnerFilters?.acquisition_status) {
         query = query.eq('acquisition_status', campaign.partnerFilters.acquisition_status);
       }
-      if (campaign.partnerFilters?.countries && campaign.partnerFilters.countries.length > 0) {
-        query = query.in('country', campaign.partnerFilters.countries);
+      if (campaign.partnerFilters?.excludedCountries && campaign.partnerFilters.excludedCountries.length > 0) {
+        query = query.not('country', 'in', campaign.partnerFilters.excludedCountries);
       }
       if (campaign.partnerFilters?.region) {
         query = query.ilike('region', `%${campaign.partnerFilters.region}%`);
@@ -325,8 +325,8 @@ export default function NewsletterPage() {
         if (campaign.partnerFilters.acquisition_status) {
           emailData.acquisition_status = campaign.partnerFilters.acquisition_status;
         }
-        if (campaign.partnerFilters.countries && campaign.partnerFilters.countries.length > 0) {
-          emailData.countries = campaign.partnerFilters.countries;
+        if (campaign.partnerFilters.excludedCountries && campaign.partnerFilters.excludedCountries.length > 0) {
+          emailData.excludedCountries = campaign.partnerFilters.excludedCountries;
         }
         if (campaign.partnerFilters.region) {
           emailData.region = campaign.partnerFilters.region;
@@ -693,12 +693,12 @@ export default function NewsletterPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-medium">Paesi</label>
+                        <label className="text-xs font-medium">Escludi Paesi</label>
                         <div className="space-y-2">
-                          {/* Selected countries display */}
-                          {campaign.partnerFilters?.countries && campaign.partnerFilters.countries.length > 0 && (
+                          {/* Excluded countries display */}
+                          {campaign.partnerFilters?.excludedCountries && campaign.partnerFilters.excludedCountries.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {campaign.partnerFilters.countries.map((country) => (
+                              {campaign.partnerFilters.excludedCountries.map((country) => (
                                 <Badge 
                                   key={country} 
                                   variant="secondary" 
@@ -711,7 +711,7 @@ export default function NewsletterPage() {
                                         ...prev,
                                         partnerFilters: {
                                           ...prev.partnerFilters,
-                                          countries: prev.partnerFilters?.countries?.filter(c => c !== country) || []
+                                          excludedCountries: prev.partnerFilters?.excludedCountries?.filter(c => c !== country) || []
                                         }
                                       }));
                                     }}
@@ -729,13 +729,13 @@ export default function NewsletterPage() {
                                     ...prev,
                                     partnerFilters: {
                                       ...prev.partnerFilters,
-                                      countries: []
+                                      excludedCountries: []
                                     }
                                   }));
                                 }}
                                 className="text-xs h-6 px-2"
                               >
-                                Cancella tutti
+                                Rimuovi tutti
                               </Button>
                             </div>
                           )}
@@ -745,13 +745,13 @@ export default function NewsletterPage() {
                             onValueChange={(value) => {
                               if (value && value !== "all") {
                                 setCampaign(prev => {
-                                  const currentCountries = prev.partnerFilters?.countries || [];
-                                  if (!currentCountries.includes(value)) {
+                                  const currentExcluded = prev.partnerFilters?.excludedCountries || [];
+                                  if (!currentExcluded.includes(value)) {
                                     return {
                                       ...prev,
                                       partnerFilters: { 
                                         ...prev.partnerFilters, 
-                                        countries: [...currentCountries, value]
+                                        excludedCountries: [...currentExcluded, value]
                                       }
                                     };
                                   }
@@ -761,10 +761,10 @@ export default function NewsletterPage() {
                             }}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Aggiungi paese" />
+                              <SelectValue placeholder="Escludi paese" />
                             </SelectTrigger>
                             <SelectContent>
-                            <SelectItem value="all">🌍 Seleziona un paese</SelectItem>
+                            <SelectItem value="all">🌍 Seleziona paese da escludere</SelectItem>
                             <SelectItem value="Italia">🇮🇹 Italia</SelectItem>
                             <SelectItem value="Francia">🇫🇷 Francia</SelectItem>
                             <SelectItem value="Germania">🇩🇪 Germania</SelectItem>
