@@ -18,9 +18,15 @@ import { ContactManager } from "@/components/crm/ContactManager";
 interface EmailCampaign {
   subject: string;
   message: string;
-  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts' | 'custom_list' | string;
+  targetAudience: 'customers_won' | 'customers_lost' | 'installers' | 'importers' | 'resellers' | 'all_partners' | 'all_crm_contacts' | 'custom_list' | 'partners' | string;
   pipelineStage?: string;
   customListId?: string;
+  partnerFilters?: {
+    partner_type?: string;
+    acquisition_status?: string;
+    country?: string;
+    region?: string;
+  };
   template?: {
     logo?: string;
     headerText: string;
@@ -50,6 +56,7 @@ interface EmailCounts {
   all_partners: number;
   all_crm_contacts: number;
   custom_list: number;
+  partners: number;
 }
 
 interface SentEmail {
@@ -79,7 +86,8 @@ export default function NewsletterPage() {
     resellers: 0,
     all_partners: 0,
     all_crm_contacts: 0,
-    custom_list: 0
+    custom_list: 0,
+    partners: 0
   });
   const [emailLists, setEmailLists] = useState<Array<{id: string, name: string, description: string, contact_count: number}>>([]);
   const [selectedCustomList, setSelectedCustomList] = useState<string>('');
@@ -104,7 +112,8 @@ export default function NewsletterPage() {
     { value: 'installers', label: 'Installatori', icon: '🔧', description: 'Partner che si occupano di installazione' },
     { value: 'importers', label: 'Importatori', icon: '📦', description: 'Partner che importano i prodotti' },
     { value: 'resellers', label: 'Rivenditori', icon: '🏪', description: 'Partner rivenditori' },
-    { value: 'all_partners', label: 'Tutti i Partner', icon: '🌟', description: 'Tutti i partner attivi' }
+    { value: 'all_partners', label: 'Tutti i Partner', icon: '🌟', description: 'Tutti i partner attivi' },
+    { value: 'partners', label: 'Partner Personalizzati', icon: '🎯', description: 'Seleziona partner con filtri specifici' }
   ];
 
   // Fetch email counts and lists from database
@@ -164,7 +173,8 @@ export default function NewsletterPage() {
         importers: 0,
         resellers: 0,
         all_partners: partnersData?.length || 0,
-        custom_list: 0
+        custom_list: 0,
+        partners: partnersData?.length || 0
       };
 
       if (partnersData) {
@@ -270,6 +280,20 @@ export default function NewsletterPage() {
         emailData.use_crm_contacts = true;
       } else if (campaign.targetAudience === 'custom_list' && selectedCustomList) {
         emailData.custom_list_id = selectedCustomList;
+      } else if (campaign.targetAudience === 'partners' && campaign.partnerFilters) {
+        // Apply custom partner filters
+        if (campaign.partnerFilters.partner_type) {
+          emailData.partner_type = campaign.partnerFilters.partner_type;
+        }
+        if (campaign.partnerFilters.acquisition_status) {
+          emailData.acquisition_status = campaign.partnerFilters.acquisition_status;
+        }
+        if (campaign.partnerFilters.country) {
+          emailData.country = campaign.partnerFilters.country;
+        }
+        if (campaign.partnerFilters.region) {
+          emailData.region = campaign.partnerFilters.region;
+        }
       } else {
         // Check if it's a specific email list ID
         const list = emailLists.find(list => list.id === campaign.targetAudience);
@@ -573,6 +597,101 @@ export default function NewsletterPage() {
                       )}
                     </SelectContent>
                   </Select>
+
+                  {/* Partner Filters */}
+                  {campaign.targetAudience === 'partners' && (
+                    <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <h4 className="font-medium text-sm">Filtri Partner</h4>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium">Tipo Partner</label>
+                          <Select
+                            value={campaign.partnerFilters?.partner_type || ''}
+                            onValueChange={(value) => setCampaign(prev => ({
+                              ...prev,
+                              partnerFilters: { ...prev.partnerFilters, partner_type: value || undefined }
+                            }))}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Tutti" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Tutti i tipi</SelectItem>
+                              <SelectItem value="installatore">🔧 Installatori</SelectItem>
+                              <SelectItem value="importatore">📦 Importatori</SelectItem>
+                              <SelectItem value="rivenditore">🏪 Rivenditori</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium">Fase Acquisizione</label>
+                          <Select
+                            value={campaign.partnerFilters?.acquisition_status || ''}
+                            onValueChange={(value) => setCampaign(prev => ({
+                              ...prev,
+                              partnerFilters: { ...prev.partnerFilters, acquisition_status: value || undefined }
+                            }))}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Tutte" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Tutte le fasi</SelectItem>
+                              <SelectItem value="prospect">🎯 Prospect</SelectItem>
+                              <SelectItem value="contatto">📞 Contatto</SelectItem>
+                              <SelectItem value="negoziazione">💬 Negoziazione</SelectItem>
+                              <SelectItem value="contratto">📋 Contratto</SelectItem>
+                              <SelectItem value="attivo">✅ Attivo</SelectItem>
+                              <SelectItem value="inattivo">❌ Inattivo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Paese</label>
+                        <Select
+                          value={campaign.partnerFilters?.country || ''}
+                          onValueChange={(value) => setCampaign(prev => ({
+                            ...prev,
+                            partnerFilters: { ...prev.partnerFilters, country: value || undefined }
+                          }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tutti i paesi" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Tutti i paesi</SelectItem>
+                            <SelectItem value="Italia">🇮🇹 Italia</SelectItem>
+                            <SelectItem value="Francia">🇫🇷 Francia</SelectItem>
+                            <SelectItem value="Germania">🇩🇪 Germania</SelectItem>
+                            <SelectItem value="Spagna">🇪🇸 Spagna</SelectItem>
+                            <SelectItem value="Regno Unito">🇬🇧 Regno Unito</SelectItem>
+                            <SelectItem value="Stati Uniti">🇺🇸 Stati Uniti</SelectItem>
+                            <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
+                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                            <SelectItem value="Brasile">🇧🇷 Brasile</SelectItem>
+                            <SelectItem value="Giappone">🇯🇵 Giappone</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Regione (Opzionale)</label>
+                        <Input
+                          placeholder="es. Lombardia, Toscana..."
+                          value={campaign.partnerFilters?.region || ''}
+                          onChange={(e) => setCampaign(prev => ({
+                            ...prev,
+                            partnerFilters: { ...prev.partnerFilters, region: e.target.value || undefined }
+                          }))}
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="secondary" className="flex items-center gap-1">
                       {getAudienceInfo().icon} {getAudienceInfo().label}
