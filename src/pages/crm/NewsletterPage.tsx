@@ -607,17 +607,17 @@ export default function NewsletterPage() {
                         <div className="space-y-2">
                           <label className="text-xs font-medium">Tipo Partner</label>
                           <Select
-                            value={campaign.partnerFilters?.partner_type || ''}
+                            value={campaign.partnerFilters?.partner_type || 'all'}
                             onValueChange={(value) => setCampaign(prev => ({
                               ...prev,
-                              partnerFilters: { ...prev.partnerFilters, partner_type: value || undefined }
+                              partnerFilters: { ...prev.partnerFilters, partner_type: value === 'all' ? undefined : value }
                             }))}
                           >
                             <SelectTrigger className="h-8">
                               <SelectValue placeholder="Tutti" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Tutti i tipi</SelectItem>
+                              <SelectItem value="all">Tutti i tipi</SelectItem>
                               <SelectItem value="installatore">🔧 Installatori</SelectItem>
                               <SelectItem value="importatore">📦 Importatori</SelectItem>
                               <SelectItem value="rivenditore">🏪 Rivenditori</SelectItem>
@@ -628,17 +628,17 @@ export default function NewsletterPage() {
                         <div className="space-y-2">
                           <label className="text-xs font-medium">Fase Acquisizione</label>
                           <Select
-                            value={campaign.partnerFilters?.acquisition_status || ''}
+                            value={campaign.partnerFilters?.acquisition_status || 'all'}
                             onValueChange={(value) => setCampaign(prev => ({
                               ...prev,
-                              partnerFilters: { ...prev.partnerFilters, acquisition_status: value || undefined }
+                              partnerFilters: { ...prev.partnerFilters, acquisition_status: value === 'all' ? undefined : value }
                             }))}
                           >
                             <SelectTrigger className="h-8">
                               <SelectValue placeholder="Tutte" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Tutte le fasi</SelectItem>
+                              <SelectItem value="all">Tutte le fasi</SelectItem>
                               <SelectItem value="prospect">🎯 Prospect</SelectItem>
                               <SelectItem value="contatto">📞 Contatto</SelectItem>
                               <SelectItem value="negoziazione">💬 Negoziazione</SelectItem>
@@ -653,17 +653,17 @@ export default function NewsletterPage() {
                       <div className="space-y-2">
                         <label className="text-xs font-medium">Paese</label>
                         <Select
-                          value={campaign.partnerFilters?.country || ''}
+                          value={campaign.partnerFilters?.country || 'all'}
                           onValueChange={(value) => setCampaign(prev => ({
                             ...prev,
-                            partnerFilters: { ...prev.partnerFilters, country: value || undefined }
+                            partnerFilters: { ...prev.partnerFilters, country: value === 'all' ? undefined : value }
                           }))}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Tutti i paesi" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Tutti i paesi</SelectItem>
+                            <SelectItem value="all">Tutti i paesi</SelectItem>
                             <SelectItem value="Italia">🇮🇹 Italia</SelectItem>
                             <SelectItem value="Francia">🇫🇷 Francia</SelectItem>
                             <SelectItem value="Germania">🇩🇪 Germania</SelectItem>
