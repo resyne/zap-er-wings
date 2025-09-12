@@ -240,6 +240,8 @@ export default function NewsletterPage() {
 
   const fetchPartnerFilterCount = async () => {
     try {
+      console.log('Fetching partner filter count with filters:', campaign.partnerFilters);
+      
       let query = supabase
         .from('partners')
         .select('id', { count: 'exact' })
@@ -248,18 +250,28 @@ export default function NewsletterPage() {
       // Apply filters
       if (campaign.partnerFilters?.partner_type) {
         query = query.eq('partner_type', campaign.partnerFilters.partner_type);
+        console.log('Applied partner_type filter:', campaign.partnerFilters.partner_type);
       }
       if (campaign.partnerFilters?.acquisition_status) {
         query = query.eq('acquisition_status', campaign.partnerFilters.acquisition_status);
+        console.log('Applied acquisition_status filter:', campaign.partnerFilters.acquisition_status);
       }
       if (campaign.partnerFilters?.excludedCountries && campaign.partnerFilters.excludedCountries.length > 0) {
-        query = query.not('country', 'in', campaign.partnerFilters.excludedCountries);
+        // Exclude specific countries
+        campaign.partnerFilters.excludedCountries.forEach(country => {
+          query = query.neq('country', country);
+          console.log('Excluding country:', country);
+        });
       }
       if (campaign.partnerFilters?.region) {
         query = query.ilike('region', `%${campaign.partnerFilters.region}%`);
+        console.log('Applied region filter:', campaign.partnerFilters.region);
       }
 
-      const { count } = await query;
+      const { count, error } = await query;
+      console.log('Partner filter query result - count:', count, 'error:', error);
+
+      if (error) throw error;
       setPartnerFilterCount(count || 0);
     } catch (error) {
       console.error('Error fetching partner filter count:', error);
