@@ -11,16 +11,19 @@ import { useToast } from "@/hooks/use-toast";
 interface BrandAsset {
   id: string;
   name: string;
-  type: "logo";
+  type: "color" | "icon" | "logo";
   file?: File;
   url?: string;
   description?: string;
+  colorValue?: string; // For color palette items
 }
 
 interface Brand {
   id: string;
   name: string;
-  assets: BrandAsset[];
+  colorPalette: BrandAsset[];
+  icons: BrandAsset[];
+  logos: BrandAsset[];
 }
 
 const BrandkitPage = () => {
@@ -31,22 +34,30 @@ const BrandkitPage = () => {
     {
       id: "zapper",
       name: "ZAPPER",
-      assets: []
+      colorPalette: [],
+      icons: [],
+      logos: []
     },
     {
       id: "zapper-pro",
       name: "ZAPPER Pro",
-      assets: []
+      colorPalette: [],
+      icons: [],
+      logos: []
     },
     {
       id: "vesuviano",
       name: "Vesuviano",
-      assets: []
+      colorPalette: [],
+      icons: [],
+      logos: []
     },
     {
       id: "vesuvio-buono",
       name: "VesuvioBuono",
-      assets: []
+      colorPalette: [],
+      icons: [],
+      logos: []
     }
   ]);
 
@@ -54,37 +65,49 @@ const BrandkitPage = () => {
     if (!result.destination) return;
 
     const { source, destination } = result;
+    const [sourceBrandId, sourceSection] = source.droppableId.split('-');
+    const [destBrandId, destSection] = destination.droppableId.split('-');
     
     if (source.droppableId === destination.droppableId) {
-      // Reorder within the same brand
+      // Reorder within the same section
       setBrands(prev => prev.map(brand => {
-        if (brand.id === source.droppableId) {
-          const newAssets = Array.from(brand.assets);
+        if (brand.id === sourceBrandId) {
+          const section = sourceSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
+          const newAssets = Array.from(brand[section]);
           const [reorderedAsset] = newAssets.splice(source.index, 1);
           newAssets.splice(destination.index, 0, reorderedAsset);
-          return { ...brand, assets: newAssets };
+          return { ...brand, [section]: newAssets };
         }
         return brand;
       }));
     } else {
-      // Move asset between brands
+      // Move asset between sections or brands
       setBrands(prev => {
-        const sourceBrand = prev.find(b => b.id === source.droppableId);
-        const destBrand = prev.find(b => b.id === destination.droppableId);
+        const sourceBrand = prev.find(b => b.id === sourceBrandId);
+        const destBrand = prev.find(b => b.id === destBrandId);
         
         if (!sourceBrand || !destBrand) return prev;
         
-        const sourceAssets = Array.from(sourceBrand.assets);
-        const destAssets = Array.from(destBrand.assets);
+        const sourceSection_ = sourceSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
+        const destSection_ = destSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
+        
+        const sourceAssets = Array.from(sourceBrand[sourceSection_]);
+        const destAssets = Array.from(destBrand[destSection_]);
         const [movedAsset] = sourceAssets.splice(source.index, 1);
+        
+        // Update asset type when moving between sections
+        if (sourceSection !== destSection) {
+          movedAsset.type = destSection as "color" | "icon" | "logo";
+        }
+        
         destAssets.splice(destination.index, 0, movedAsset);
         
         return prev.map(brand => {
-          if (brand.id === source.droppableId) {
-            return { ...brand, assets: sourceAssets };
+          if (brand.id === sourceBrandId) {
+            return { ...brand, [sourceSection_]: sourceAssets };
           }
-          if (brand.id === destination.droppableId) {
-            return { ...brand, assets: destAssets };
+          if (brand.id === destBrandId) {
+            return { ...brand, [destSection_]: destAssets };
           }
           return brand;
         });
@@ -92,51 +115,52 @@ const BrandkitPage = () => {
       
       toast({
         title: "Asset spostato",
-        description: "L'asset è stato spostato nel nuovo brand.",
+        description: "L'asset è stato spostato nella nuova sezione.",
       });
     }
   }, [toast]);
 
-  const handleFileUpload = useCallback((brandId: string, files: FileList | null) => {
+  const handleFileUpload = useCallback((brandId: string, section: "colorPalette" | "icons" | "logos", files: FileList | null) => {
     if (!files) return;
     
     Array.from(files).forEach(file => {
-      // Only accept image files for logos
+      // Only accept image files
       if (!file.type.startsWith("image/")) {
         toast({
           title: "Formato non supportato",
-          description: "Sono accettati solo file immagine per i loghi.",
+          description: "Sono accettati solo file immagine.",
           variant: "destructive"
         });
         return;
       }
 
+      const assetType = section === "colorPalette" ? "color" : section === "icons" ? "icon" : "logo";
       const newAsset: BrandAsset = {
         id: `${brandId}-${Date.now()}-${Math.random()}`,
         name: file.name,
-        type: "logo",
+        type: assetType,
         file,
         url: URL.createObjectURL(file)
       };
       
       setBrands(prev => prev.map(brand => 
         brand.id === brandId 
-          ? { ...brand, assets: [...brand.assets, newAsset] }
+          ? { ...brand, [section]: [...brand[section], newAsset] }
           : brand
       ));
     });
     
     toast({
-      title: "Loghi caricati",
-      description: `${files.length} logo caricati con successo.`,
+      title: "File caricati",
+      description: `${files.length} file caricati con successo.`,
     });
   }, [toast]);
 
 
-  const handleDeleteAsset = useCallback((brandId: string, assetId: string) => {
+  const handleDeleteAsset = useCallback((brandId: string, section: "colorPalette" | "icons" | "logos", assetId: string) => {
     setBrands(prev => prev.map(brand => 
       brand.id === brandId 
-        ? { ...brand, assets: brand.assets.filter(asset => asset.id !== assetId) }
+        ? { ...brand, [section]: brand[section].filter(asset => asset.id !== assetId) }
         : brand
     ));
     
@@ -164,7 +188,9 @@ const BrandkitPage = () => {
 
   const filteredBrands = brands.filter(brand => 
     brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    brand.assets.some(asset => asset.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    [...brand.colorPalette, ...brand.icons, ...brand.logos].some(asset => 
+      asset.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
 
   return (
@@ -189,56 +215,59 @@ const BrandkitPage = () => {
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-          {filteredBrands.map((brand) => (
-            <Card key={brand.id} className={`h-fit ${getBrandColor(brand.id)}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                  {brand.name}
-                  <Badge variant="secondary" className="text-xs">
-                    {brand.assets.length} logo{brand.assets.length !== 1 ? 's' : ''}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredBrands.map((brand) => {
+            const totalAssets = brand.colorPalette.length + brand.icons.length + brand.logos.length;
+            
+            const renderSection = (
+              sectionName: string,
+              sectionKey: "colorPalette" | "icons" | "logos",
+              assets: BrandAsset[],
+              placeholder: string
+            ) => (
+              <div key={sectionKey} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-700">{sectionName}</h4>
+                  <Badge variant="outline" className="text-xs">
+                    {assets.length}
                   </Badge>
-                </CardTitle>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                {/* Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+                </div>
+                
+                {/* Upload Area for this section */}
+                <div className="border border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
                   <input
                     type="file"
                     multiple
                     accept="image/*,.svg"
-                    onChange={(e) => handleFileUpload(brand.id, e.target.files)}
+                    onChange={(e) => handleFileUpload(brand.id, sectionKey, e.target.files)}
                     className="hidden"
-                    id={`file-upload-${brand.id}`}
+                    id={`file-upload-${brand.id}-${sectionKey}`}
                   />
-                  <label htmlFor={`file-upload-${brand.id}`} className="cursor-pointer block">
-                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 font-medium">Carica loghi</p>
-                    <p className="text-xs text-gray-500">PNG, JPG, SVG supportati</p>
+                  <label htmlFor={`file-upload-${brand.id}-${sectionKey}`} className="cursor-pointer block">
+                    <Upload className="h-4 w-4 text-gray-400 mx-auto mb-1" />
+                    <p className="text-xs text-gray-600">Carica {sectionName.toLowerCase()}</p>
                   </label>
                 </div>
 
                 {/* Assets Droppable Area */}
-                <Droppable droppableId={brand.id}>
+                <Droppable droppableId={`${brand.id}-${sectionKey}`}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`min-h-[100px] rounded-lg border-2 border-dashed p-2 space-y-2 transition-colors ${
+                      className={`min-h-[80px] rounded-lg border border-dashed p-2 space-y-2 transition-colors ${
                         snapshot.isDraggingOver 
                           ? "border-blue-400 bg-blue-50" 
                           : "border-gray-200 bg-white"
                       }`}
                     >
-                      {brand.assets.length === 0 && (
-                        <p className="text-center text-gray-400 text-sm py-8">
-                          Nessun logo caricato<br />
-                          <span className="text-xs">Carica i tuoi loghi o trascinali qui</span>
+                      {assets.length === 0 && (
+                        <p className="text-center text-gray-400 text-xs py-4">
+                          {placeholder}
                         </p>
                       )}
                       
-                      {brand.assets.map((asset, index) => (
+                      {assets.map((asset, index) => (
                         <Draggable key={asset.id} draggableId={asset.id} index={index}>
                           {(provided, snapshot) => (
                             <div
@@ -249,9 +278,9 @@ const BrandkitPage = () => {
                                 snapshot.isDragging ? "shadow-lg rotate-1" : "hover:shadow-md"
                               }`}
                             >
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
                                 {asset.url && (
-                                  <div className="w-10 h-10 rounded border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  <div className="w-8 h-8 rounded border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
                                     <img 
                                       src={asset.url} 
                                       alt={asset.name}
@@ -263,11 +292,11 @@ const BrandkitPage = () => {
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium truncate" title={asset.name}>
+                                  <div className="text-xs font-medium truncate" title={asset.name}>
                                     {asset.name}
                                   </div>
-                                  <div className="text-xs text-gray-500">
-                                    Logo • {asset.file?.size ? `${(asset.file.size / 1024).toFixed(1)} KB` : 'File'}
+                                  <div className="text-[10px] text-gray-500">
+                                    {asset.file?.size ? `${(asset.file.size / 1024).toFixed(1)} KB` : 'File'}
                                   </div>
                                 </div>
                               </div>
@@ -279,10 +308,10 @@ const BrandkitPage = () => {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handlePreviewAsset(asset)}
-                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
                                       title="Anteprima"
                                     >
-                                      <Eye className="h-4 w-4" />
+                                      <Eye className="h-3 w-3" />
                                     </Button>
                                     <Button
                                       variant="ghost"
@@ -293,21 +322,21 @@ const BrandkitPage = () => {
                                         link.download = asset.name;
                                         link.click();
                                       }}
-                                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
                                       title="Scarica"
                                     >
-                                      <Download className="h-4 w-4" />
+                                      <Download className="h-3 w-3" />
                                     </Button>
                                   </>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeleteAsset(brand.id, asset.id)}
-                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                                  onClick={() => handleDeleteAsset(brand.id, sectionKey, asset.id)}
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
                                   title="Elimina"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
@@ -318,9 +347,28 @@ const BrandkitPage = () => {
                     </div>
                   )}
                 </Droppable>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+
+            return (
+              <Card key={brand.id} className={`h-fit ${getBrandColor(brand.id)}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                    {brand.name}
+                    <Badge variant="secondary" className="text-xs">
+                      {totalAssets} asset{totalAssets !== 1 ? 's' : ''}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  {renderSection("Color Palette", "colorPalette", brand.colorPalette, "Nessun colore caricato")}
+                  {renderSection("Icone", "icons", brand.icons, "Nessuna icona caricata")}
+                  {renderSection("Loghi", "logos", brand.logos, "Nessun logo caricato")}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </DragDropContext>
     </div>
