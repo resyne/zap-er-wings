@@ -98,7 +98,11 @@ const BrandkitPage = () => {
   };
 
   const handleDragEnd = useCallback(async (result: DropResult) => {
-    if (!result.destination) return;
+    console.log('Drag end result:', result);
+    if (!result.destination) {
+      console.log('No destination, drag cancelled');
+      return;
+    }
 
     const { source, destination } = result;
     const [sourceBrandId, sourceSection] = source.droppableId.split('-');
@@ -354,7 +358,11 @@ const BrandkitPage = () => {
         </div>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext 
+        onDragEnd={handleDragEnd}
+        onDragStart={() => console.log('Drag started')}
+        onDragUpdate={() => console.log('Drag updating')}
+      >
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredBrands.map((brand) => {
             const totalAssets = brand.colorPalette.length + brand.icons.length + brand.logos.length;
