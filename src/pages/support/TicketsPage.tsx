@@ -7,7 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, AlertCircle, CheckCircle, Clock, X } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, Search, AlertCircle, CheckCircle, Clock, X, Trash2, Eye, Paperclip } from "lucide-react";
+import { toast } from "sonner";
 
 // Mock data for tickets
 const mockTickets = [
@@ -20,7 +23,8 @@ const mockTickets = [
     priority: "high",
     customer: "Ristorante Da Mario",
     created_at: "2024-01-15",
-    assigned_to: "Marco Rossi"
+    assigned_to: "Marco Rossi",
+    attachments: ["forno_foto1.jpg", "diagnostica.pdf"]
   },
   {
     id: "2", 
@@ -31,7 +35,8 @@ const mockTickets = [
     priority: "medium",
     customer: "Pizzeria Bella Napoli",
     created_at: "2024-01-14",
-    assigned_to: "Luca Bianchi"
+    assigned_to: "Luca Bianchi",
+    attachments: ["perdita_acqua.jpg"]
   },
   {
     id: "3",
@@ -42,7 +47,8 @@ const mockTickets = [
     priority: "low",
     customer: "Hotel Grand Palace",
     created_at: "2024-01-10",
-    assigned_to: "Anna Verdi"
+    assigned_to: "Anna Verdi",
+    attachments: []
   }
 ];
 
@@ -65,6 +71,9 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,6 +84,37 @@ export default function TicketsPage() {
     
     return matchesSearch && matchesStatus && matchesPriority;
   });
+
+  const handleDeleteTicket = (ticketId: string) => {
+    setTickets(tickets.filter(ticket => ticket.id !== ticketId));
+    toast.success("Ticket eliminato con successo");
+  };
+
+  const handleViewTicket = (ticket: any) => {
+    setSelectedTicket(ticket);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleCreateTicket = () => {
+    // In a real app, this would make an API call
+    const newTicket = {
+      id: Date.now().toString(),
+      number: `TCK-2024-${String(tickets.length + 1).padStart(3, '0')}`,
+      title: "Nuovo ticket",
+      description: "Descrizione del nuovo ticket",
+      status: "open",
+      priority: "medium",
+      customer: "Cliente Test",
+      created_at: new Date().toISOString().split('T')[0],
+      assigned_to: "Da assegnare",
+      attachments: uploadedFiles.map(file => file.name)
+    };
+    
+    setTickets([...tickets, newTicket]);
+    setUploadedFiles([]);
+    setIsCreateDialogOpen(false);
+    toast.success("Ticket creato con successo");
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -147,12 +187,22 @@ export default function TicketsPage() {
                   rows={4}
                 />
               </div>
+              <div>
+                <Label>Allega File</Label>
+                <FileUpload
+                  value={uploadedFiles}
+                  onChange={setUploadedFiles}
+                  maxFiles={5}
+                  acceptedFileTypes={["image/*", ".pdf", ".doc", ".docx"]}
+                  className="mt-2"
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 Annulla
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(false)}>
+              <Button onClick={handleCreateTicket}>
                 Crea Ticket
               </Button>
             </div>
@@ -208,21 +258,65 @@ export default function TicketsPage() {
           const StatusIcon = statusConfig[ticket.status as keyof typeof statusConfig].icon;
           
           return (
-            <Card key={ticket.id} className="hover:shadow-md transition-shadow">
+            <Card key={ticket.id} className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <div className="flex-1">
+                  <div className="flex-1" onClick={() => handleViewTicket(ticket)}>
                     <div className="flex items-center gap-3 mb-2">
                       <CardTitle className="text-lg">{ticket.title}</CardTitle>
                       <Badge variant="outline" className="text-xs">
                         {ticket.number}
                       </Badge>
+                      {ticket.attachments && ticket.attachments.length > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Paperclip className="w-3 h-3 mr-1" />
+                          {ticket.attachments.length}
+                        </Badge>
+                      )}
                     </div>
                     <CardDescription className="text-sm">
                       {ticket.description}
                     </CardDescription>
                   </div>
                   <div className="flex flex-col gap-2 items-end">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewTicket(ticket);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Sei sicuro di voler eliminare il ticket "{ticket.title}"? 
+                              Questa azione non può essere annullata.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annulla</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteTicket(ticket.id)}>
+                              Elimina
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                     <Badge className={statusConfig[ticket.status as keyof typeof statusConfig].color}>
                       <StatusIcon className="w-3 h-3 mr-1" />
                       {statusConfig[ticket.status as keyof typeof statusConfig].label}
@@ -252,6 +346,84 @@ export default function TicketsPage() {
           <p className="text-muted-foreground">Nessun ticket trovato con i filtri selezionati.</p>
         </div>
       )}
+
+      {/* Dialog Dettagli Ticket */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Badge variant="outline">{selectedTicket?.number}</Badge>
+              {selectedTicket?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Dettagli completi del ticket di assistenza
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTicket && (
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Cliente</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.customer}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Assegnato a</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.assigned_to}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Stato</Label>
+                  <div className="mt-1">
+                    <Badge className={statusConfig[selectedTicket.status as keyof typeof statusConfig].color}>
+                      {statusConfig[selectedTicket.status as keyof typeof statusConfig].label}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Priorità</Label>
+                  <div className="mt-1">
+                    <Badge variant="outline" className={priorityConfig[selectedTicket.priority as keyof typeof priorityConfig].color}>
+                      {priorityConfig[selectedTicket.priority as keyof typeof priorityConfig].label}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Data Creazione</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.created_at}</p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Descrizione</Label>
+                <div className="mt-1 p-3 bg-muted rounded-md">
+                  <p className="text-sm">{selectedTicket.description}</p>
+                </div>
+              </div>
+
+              {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">File Allegati</Label>
+                  <div className="mt-2 space-y-2">
+                    {selectedTicket.attachments.map((attachment: string, index: number) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                        <Paperclip className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm">{attachment}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+              Chiudi
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
