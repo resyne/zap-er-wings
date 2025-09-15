@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,15 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, Download, Search, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BrandAsset {
   id: string;
   name: string;
   type: "color" | "icon" | "logo";
-  file?: File;
-  url?: string;
-  description?: string;
-  colorValue?: string; // For color palette items
+  file_url: string;
+  file_size?: number;
+  mime_type?: string;
+  created_at?: string;
 }
 
 interface Brand {
@@ -29,37 +30,72 @@ interface Brand {
 const BrandkitPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  
-  const [brands, setBrands] = useState<Brand[]>([
-    {
-      id: "zapper",
-      name: "ZAPPER",
-      colorPalette: [],
-      icons: [],
-      logos: []
-    },
-    {
-      id: "zapper-pro",
-      name: "ZAPPER Pro",
-      colorPalette: [],
-      icons: [],
-      logos: []
-    },
-    {
-      id: "vesuviano",
-      name: "Vesuviano",
-      colorPalette: [],
-      icons: [],
-      logos: []
-    },
-    {
-      id: "vesuvio-buono",
-      name: "VesuvioBuono",
-      colorPalette: [],
-      icons: [],
-      logos: []
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const brandNames = ["ZAPPER", "ZAPPER Pro", "Vesuviano", "VesuvioBuono"];
+
+  // Load brand assets from database
+  useEffect(() => {
+    loadBrandAssets();
+  }, []);
+
+  const loadBrandAssets = async () => {
+    try {
+      const { data: assets, error } = await supabase
+        .from('brand_assets')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Group assets by brand and type
+      const brandMap: Record<string, Brand> = {};
+      
+      brandNames.forEach(brandName => {
+        brandMap[brandName] = {
+          id: brandName.toLowerCase().replace(/\s+/g, '-'),
+          name: brandName,
+          colorPalette: [],
+          icons: [],
+          logos: []
+        };
+      });
+
+      assets?.forEach(asset => {
+        if (brandMap[asset.brand_name]) {
+          const brandAsset: BrandAsset = {
+            id: asset.id,
+            name: asset.asset_name,
+            type: asset.asset_type as "color" | "icon" | "logo",
+            file_url: asset.file_url,
+            file_size: asset.file_size,
+            mime_type: asset.mime_type,
+            created_at: asset.created_at
+          };
+
+          if (asset.asset_type === 'color') {
+            brandMap[asset.brand_name].colorPalette.push(brandAsset);
+          } else if (asset.asset_type === 'icon') {
+            brandMap[asset.brand_name].icons.push(brandAsset);
+          } else if (asset.asset_type === 'logo') {
+            brandMap[asset.brand_name].logos.push(brandAsset);
+          }
+        }
+      });
+
+      setBrands(Object.values(brandMap));
+    } catch (error) {
+      console.error('Error loading brand assets:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare gli asset del brand.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   const handleDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
@@ -120,10 +156,12 @@ const BrandkitPage = () => {
     }
   }, [toast]);
 
-  const handleFileUpload = useCallback((brandId: string, section: "colorPalette" | "icons" | "logos", files: FileList | null) => {
+  const handleFileUpload = useCallback(async (brandName: string, section: "colorPalette" | "icons" | "logos", files: FileList | null) => {
     if (!files) return;
     
-    Array.from(files).forEach(file => {
+    const assetType = section === "colorPalette" ? "color" : section === "icons" ? "icon" : "logo";
+    
+    for (const file of Array.from(files)) {
       // Only accept image files
       if (!file.type.startsWith("image/")) {
         toast({
@@ -131,44 +169,100 @@ const BrandkitPage = () => {
           description: "Sono accettati solo file immagine.",
           variant: "destructive"
         });
-        return;
+        continue;
       }
 
-      const assetType = section === "colorPalette" ? "color" : section === "icons" ? "icon" : "logo";
-      const newAsset: BrandAsset = {
-        id: `${brandId}-${Date.now()}-${Math.random()}`,
-        name: file.name,
-        type: assetType,
-        file,
-        url: URL.createObjectURL(file)
-      };
+      try {
+        // Upload file to Supabase storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${brandName.toLowerCase()}/${assetType}/${Date.now()}-${Math.random()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('brand-assets')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('brand-assets')
+          .getPublicUrl(fileName);
+
+        // Save to database
+        const { data: assetData, error: dbError } = await supabase
+          .from('brand_assets')
+          .insert({
+            brand_name: brandName,
+            asset_type: assetType,
+            asset_name: file.name,
+            file_url: publicUrl,
+            file_size: file.size,
+            mime_type: file.type
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+
+        // Reload assets
+        await loadBrandAssets();
+        
+        toast({
+          title: "File caricato",
+          description: `${file.name} caricato con successo.`,
+        });
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        toast({
+          title: "Errore upload",
+          description: `Impossibile caricare ${file.name}.`,
+          variant: "destructive"
+        });
+      }
+    }
+  }, [toast, loadBrandAssets]);
+
+
+  const handleDeleteAsset = useCallback(async (brandName: string, section: "colorPalette" | "icons" | "logos", assetId: string) => {
+    try {
+      // Find the asset to get file path
+      const brand = brands.find(b => b.name === brandName);
+      if (!brand) return;
       
-      setBrands(prev => prev.map(brand => 
-        brand.id === brandId 
-          ? { ...brand, [section]: [...brand[section], newAsset] }
-          : brand
-      ));
-    });
-    
-    toast({
-      title: "File caricati",
-      description: `${files.length} file caricati con successo.`,
-    });
-  }, [toast]);
+      const allAssets = [...brand.colorPalette, ...brand.icons, ...brand.logos];
+      const asset = allAssets.find(a => a.id === assetId);
+      if (!asset) return;
 
+      // Delete from storage
+      const filePath = asset.file_url.split('/').slice(-3).join('/'); // Extract path after bucket name
+      await supabase.storage
+        .from('brand-assets')
+        .remove([filePath]);
 
-  const handleDeleteAsset = useCallback((brandId: string, section: "colorPalette" | "icons" | "logos", assetId: string) => {
-    setBrands(prev => prev.map(brand => 
-      brand.id === brandId 
-        ? { ...brand, [section]: brand[section].filter(asset => asset.id !== assetId) }
-        : brand
-    ));
-    
-    toast({
-      title: "Asset eliminato",
-      description: "L'asset è stato rimosso dal brand.",
-    });
-  }, [toast]);
+      // Delete from database
+      const { error } = await supabase
+        .from('brand_assets')
+        .delete()
+        .eq('id', assetId);
+
+      if (error) throw error;
+
+      // Reload assets
+      await loadBrandAssets();
+      
+      toast({
+        title: "Asset eliminato",
+        description: "L'asset è stato rimosso dal brand.",
+      });
+    } catch (error) {
+      console.error('Error deleting asset:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare l'asset.",
+        variant: "destructive"
+      });
+    }
+  }, [brands, loadBrandAssets, toast]);
 
   const getBrandColor = (brandId: string) => {
     const colors = {
@@ -181,8 +275,8 @@ const BrandkitPage = () => {
   };
 
   const handlePreviewAsset = useCallback((asset: BrandAsset) => {
-    if (asset.url) {
-      window.open(asset.url, '_blank');
+    if (asset.file_url) {
+      window.open(asset.file_url, '_blank');
     }
   }, []);
 
@@ -192,6 +286,19 @@ const BrandkitPage = () => {
       asset.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Caricamento asset del brand...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -239,7 +346,7 @@ const BrandkitPage = () => {
                     type="file"
                     multiple
                     accept="image/*,.svg"
-                    onChange={(e) => handleFileUpload(brand.id, sectionKey, e.target.files)}
+                    onChange={(e) => handleFileUpload(brand.name, sectionKey, e.target.files)}
                     className="hidden"
                     id={`file-upload-${brand.id}-${sectionKey}`}
                   />
@@ -279,10 +386,10 @@ const BrandkitPage = () => {
                               }`}
                             >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
-                                {asset.url && (
+                                {asset.file_url && (
                                   <div className="w-8 h-8 rounded border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
                                     <img 
-                                      src={asset.url} 
+                                      src={asset.file_url} 
                                       alt={asset.name}
                                       className="w-full h-full object-contain"
                                       onError={(e) => {
@@ -296,13 +403,13 @@ const BrandkitPage = () => {
                                     {asset.name}
                                   </div>
                                   <div className="text-[10px] text-gray-500">
-                                    {asset.file?.size ? `${(asset.file.size / 1024).toFixed(1)} KB` : 'File'}
+                                    {asset.file_size ? `${(asset.file_size / 1024).toFixed(1)} KB` : 'File'}
                                   </div>
                                 </div>
                               </div>
                               
                               <div className="flex items-center gap-1">
-                                {asset.url && (
+                                {asset.file_url && (
                                   <>
                                     <Button
                                       variant="ghost"
@@ -318,7 +425,7 @@ const BrandkitPage = () => {
                                       size="sm"
                                       onClick={() => {
                                         const link = document.createElement('a');
-                                        link.href = asset.url!;
+                                        link.href = asset.file_url;
                                         link.download = asset.name;
                                         link.click();
                                       }}
@@ -332,7 +439,7 @@ const BrandkitPage = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeleteAsset(brand.id, sectionKey, asset.id)}
+                                  onClick={() => handleDeleteAsset(brand.name, sectionKey, asset.id)}
                                   className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
                                   title="Elimina"
                                 >

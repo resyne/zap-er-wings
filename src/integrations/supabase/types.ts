@@ -188,6 +188,42 @@ export type Database = {
           },
         ]
       }
+      brand_assets: {
+        Row: {
+          asset_name: string
+          asset_type: string
+          brand_name: string
+          created_at: string
+          file_size: number | null
+          file_url: string
+          id: string
+          mime_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset_name: string
+          asset_type: string
+          brand_name: string
+          created_at?: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset_name?: string
+          asset_type?: string
+          brand_name?: string
+          created_at?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       budget: {
         Row: {
           account_id: string
