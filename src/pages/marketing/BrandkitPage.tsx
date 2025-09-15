@@ -5,16 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Download, Search, Plus, Trash2, Palette } from "lucide-react";
+import { Upload, Download, Search, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BrandAsset {
   id: string;
   name: string;
-  type: "logo" | "color" | "font" | "image" | "document";
+  type: "logo";
   file?: File;
   url?: string;
-  color?: string;
   description?: string;
 }
 
@@ -102,10 +101,20 @@ const BrandkitPage = () => {
     if (!files) return;
     
     Array.from(files).forEach(file => {
+      // Only accept image files for logos
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Formato non supportato",
+          description: "Sono accettati solo file immagine per i loghi.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const newAsset: BrandAsset = {
         id: `${brandId}-${Date.now()}-${Math.random()}`,
         name: file.name,
-        type: file.type.startsWith("image/") ? "image" : "document",
+        type: "logo",
         file,
         url: URL.createObjectURL(file)
       };
@@ -118,33 +127,11 @@ const BrandkitPage = () => {
     });
     
     toast({
-      title: "File caricati",
-      description: `${files.length} file caricati con successo.`,
+      title: "Loghi caricati",
+      description: `${files.length} logo caricati con successo.`,
     });
   }, [toast]);
 
-  const handleAddColor = useCallback((brandId: string, color: string, name: string) => {
-    if (!color || !name) return;
-    
-    const newAsset: BrandAsset = {
-      id: `${brandId}-color-${Date.now()}`,
-      name,
-      type: "color",
-      color,
-      description: `Colore ${name}`
-    };
-    
-    setBrands(prev => prev.map(brand => 
-      brand.id === brandId 
-        ? { ...brand, assets: [...brand.assets, newAsset] }
-        : brand
-    ));
-    
-    toast({
-      title: "Colore aggiunto",
-      description: `Colore ${name} aggiunto al brand.`,
-    });
-  }, [toast]);
 
   const handleDeleteAsset = useCallback((brandId: string, assetId: string) => {
     setBrands(prev => prev.map(brand => 
@@ -169,13 +156,11 @@ const BrandkitPage = () => {
     return colors[brandId as keyof typeof colors] || "bg-gray-50 border-gray-200";
   };
 
-  const getAssetIcon = (type: string) => {
-    switch (type) {
-      case "color": return <Palette className="h-4 w-4" />;
-      case "image": return <Upload className="h-4 w-4" />;
-      default: return <Upload className="h-4 w-4" />;
+  const handlePreviewAsset = useCallback((asset: BrandAsset) => {
+    if (asset.url) {
+      window.open(asset.url, '_blank');
     }
-  };
+  }, []);
 
   const filteredBrands = brands.filter(brand => 
     brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -187,7 +172,7 @@ const BrandkitPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Brandkit</h1>
-          <p className="text-gray-600 mt-2">Gestisci le risorse di brand con drag & drop</p>
+          <p className="text-gray-600 mt-2">Gestisci i loghi dei tuoi brand</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -211,59 +196,27 @@ const BrandkitPage = () => {
                 <CardTitle className="text-lg font-semibold flex items-center justify-between">
                   {brand.name}
                   <Badge variant="secondary" className="text-xs">
-                    {brand.assets.length} asset{brand.assets.length !== 1 ? 's' : ''}
+                    {brand.assets.length} logo{brand.assets.length !== 1 ? 's' : ''}
                   </Badge>
                 </CardTitle>
               </CardHeader>
               
               <CardContent className="space-y-4">
                 {/* Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
                   <input
                     type="file"
                     multiple
-                    accept="image/*,.pdf,.svg,.ai,.eps"
+                    accept="image/*,.svg"
                     onChange={(e) => handleFileUpload(brand.id, e.target.files)}
                     className="hidden"
                     id={`file-upload-${brand.id}`}
                   />
-                  <label htmlFor={`file-upload-${brand.id}`} className="cursor-pointer">
+                  <label htmlFor={`file-upload-${brand.id}`} className="cursor-pointer block">
                     <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Carica file</p>
-                    <p className="text-xs text-gray-500">PNG, JPG, SVG, PDF</p>
+                    <p className="text-sm text-gray-600 font-medium">Carica loghi</p>
+                    <p className="text-xs text-gray-500">PNG, JPG, SVG supportati</p>
                   </label>
-                </div>
-
-                {/* Color Picker */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Aggiungi colore</Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      className="w-8 h-8 rounded border"
-                      onChange={(e) => {
-                        const colorName = prompt("Nome del colore:");
-                        if (colorName) {
-                          handleAddColor(brand.id, e.target.value, colorName);
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const colorName = prompt("Nome del colore:");
-                        const color = prompt("Codice colore (hex):");
-                        if (colorName && color) {
-                          handleAddColor(brand.id, color, colorName);
-                        }
-                      }}
-                      className="flex-1"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Colore
-                    </Button>
-                  </div>
                 </div>
 
                 {/* Assets Droppable Area */}
@@ -279,8 +232,9 @@ const BrandkitPage = () => {
                       }`}
                     >
                       {brand.assets.length === 0 && (
-                        <p className="text-center text-gray-400 text-sm py-4">
-                          Trascina qui gli asset
+                        <p className="text-center text-gray-400 text-sm py-8">
+                          Nessun logo caricato<br />
+                          <span className="text-xs">Carica i tuoi loghi o trascinali qui</span>
                         </p>
                       )}
                       
@@ -295,43 +249,65 @@ const BrandkitPage = () => {
                                 snapshot.isDragging ? "shadow-lg rotate-1" : "hover:shadow-md"
                               }`}
                             >
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                {asset.type === "color" ? (
-                                  <div 
-                                    className="w-4 h-4 rounded border border-gray-300 flex-shrink-0"
-                                    style={{ backgroundColor: asset.color }}
-                                  />
-                                ) : (
-                                  getAssetIcon(asset.type)
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                {asset.url && (
+                                  <div className="w-10 h-10 rounded border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                    <img 
+                                      src={asset.url} 
+                                      alt={asset.name}
+                                      className="w-full h-full object-contain"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
                                 )}
-                                <span className="text-sm truncate" title={asset.name}>
-                                  {asset.name}
-                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate" title={asset.name}>
+                                    {asset.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Logo • {asset.file?.size ? `${(asset.file.size / 1024).toFixed(1)} KB` : 'File'}
+                                  </div>
+                                </div>
                               </div>
                               
                               <div className="flex items-center gap-1">
                                 {asset.url && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      const link = document.createElement('a');
-                                      link.href = asset.url!;
-                                      link.download = asset.name;
-                                      link.click();
-                                    }}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handlePreviewAsset(asset)}
+                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                      title="Anteprima"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = asset.url!;
+                                        link.download = asset.name;
+                                        link.click();
+                                      }}
+                                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                      title="Scarica"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  </>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDeleteAsset(brand.id, asset.id)}
-                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                                  title="Elimina"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
