@@ -332,17 +332,19 @@ const BrandAssetManager = () => {
               )}
               
               {sectionAssets.map((asset, index) => (
-                <Draggable key={asset.id} draggableId={asset.id} index={index}>
+                <Draggable key={asset.id} draggableId={asset.id} index={index} disableInteractiveElementBlocking>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      {...provided.dragHandleProps}
                       className={`p-4 rounded-lg border bg-white shadow-sm flex items-center justify-between transition-all hover:shadow-md ${
                         snapshot.isDragging ? "shadow-lg rotate-1 scale-105" : ""
                       }`}
                     >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div 
+                        {...provided.dragHandleProps}
+                        className="flex items-center gap-4 flex-1 min-w-0 cursor-grab active:cursor-grabbing"
+                      >
                         {asset.file_url && (
                           <div className="w-12 h-12 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
                             <img 
@@ -365,13 +367,16 @@ const BrandAssetManager = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 ml-4">
                         {asset.file_url && (
                           <>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handlePreviewAsset(asset)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreviewAsset(asset);
+                              }}
                               className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
                               title="Anteprima"
                             >
@@ -380,7 +385,8 @@ const BrandAssetManager = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const link = document.createElement('a');
                                 link.href = asset.file_url;
                                 link.download = asset.name;
@@ -396,7 +402,10 @@ const BrandAssetManager = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteAsset(asset.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAsset(asset.id);
+                          }}
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
                           title="Elimina"
                         >
