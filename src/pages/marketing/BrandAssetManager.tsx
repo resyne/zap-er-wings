@@ -169,12 +169,23 @@ const BrandAssetManager = () => {
   }, [toast, assets]);
 
   const handleFileUpload = useCallback(async (section: "colorPalette" | "icons" | "logos", files: FileList | null) => {
-    if (!files || !brandName) return;
+    console.log('🔄 Starting file upload for section:', section);
+    console.log('🔄 Files:', files?.length || 0);
+    console.log('🔄 Brand name:', brandName);
+    
+    if (!files || !brandName) {
+      console.error('❌ Missing files or brand name');
+      return;
+    }
     
     const assetType = section === "colorPalette" ? "color" : section === "icons" ? "icon" : "logo";
+    console.log('🔄 Asset type:', assetType);
     
     for (const file of Array.from(files)) {
+      console.log('🔄 Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+      
       if (!file.type.startsWith("image/")) {
+        console.warn('⚠️ Invalid file type:', file.type);
         toast({
           title: "Formato non supportato",
           description: "Sono accettati solo file immagine.",
@@ -186,17 +197,25 @@ const BrandAssetManager = () => {
       try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${brandName.toLowerCase()}/${assetType}/${Date.now()}-${Math.random()}.${fileExt}`;
+        console.log('🔄 Upload path:', fileName);
         
+        console.log('🔄 Starting storage upload...');
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('brand-assets')
           .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('❌ Storage upload error:', uploadError);
+          throw uploadError;
+        }
+        console.log('✅ Storage upload successful:', uploadData);
 
         const { data: { publicUrl } } = supabase.storage
           .from('brand-assets')
           .getPublicUrl(fileName);
+        console.log('🔄 Public URL:', publicUrl);
 
+        console.log('🔄 Inserting into database...');
         const { data: assetData, error: dbError } = await supabase
           .from('brand_assets')
           .insert({
@@ -210,7 +229,11 @@ const BrandAssetManager = () => {
           .select()
           .single();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+          console.error('❌ Database insert error:', dbError);
+          throw dbError;
+        }
+        console.log('✅ Database insert successful:', assetData);
 
         await loadBrandAssets();
         
@@ -218,11 +241,12 @@ const BrandAssetManager = () => {
           title: "File caricato",
           description: `${file.name} caricato con successo.`,
         });
+        console.log('✅ Upload completed for:', file.name);
       } catch (error) {
-        console.error('Error uploading file:', error);
+        console.error('❌ Upload error for file:', file.name, error);
         toast({
           title: "Errore upload",
-          description: `Impossibile caricare ${file.name}.`,
+          description: `Impossibile caricare ${file.name}. ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
           variant: "destructive"
         });
       }
