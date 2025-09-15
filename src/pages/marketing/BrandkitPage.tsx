@@ -97,7 +97,7 @@ const BrandkitPage = () => {
     }
   };
 
-  const handleDragEnd = useCallback((result: DropResult) => {
+  const handleDragEnd = useCallback(async (result: DropResult) => {
     if (!result.destination) return;
 
     const { source, destination } = result;
@@ -105,7 +105,7 @@ const BrandkitPage = () => {
     const [destBrandId, destSection] = destination.droppableId.split('-');
     
     if (source.droppableId === destination.droppableId) {
-      // Reorder within the same section
+      // Reorder within the same section - no DB update needed for order
       setBrands(prev => prev.map(brand => {
         if (brand.id === sourceBrandId) {
           const section = sourceSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
@@ -117,44 +117,77 @@ const BrandkitPage = () => {
         return brand;
       }));
     } else {
-      // Move asset between sections or brands
-      setBrands(prev => {
-        const sourceBrand = prev.find(b => b.id === sourceBrandId);
-        const destBrand = prev.find(b => b.id === destBrandId);
-        
-        if (!sourceBrand || !destBrand) return prev;
-        
-        const sourceSection_ = sourceSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
-        const destSection_ = destSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
-        
-        const sourceAssets = Array.from(sourceBrand[sourceSection_]);
-        const destAssets = Array.from(destBrand[destSection_]);
-        const [movedAsset] = sourceAssets.splice(source.index, 1);
-        
-        // Update asset type when moving between sections
-        if (sourceSection !== destSection) {
-          movedAsset.type = destSection as "color" | "icon" | "logo";
-        }
-        
-        destAssets.splice(destination.index, 0, movedAsset);
-        
-        return prev.map(brand => {
-          if (brand.id === sourceBrandId) {
-            return { ...brand, [sourceSection_]: sourceAssets };
-          }
-          if (brand.id === destBrandId) {
-            return { ...brand, [destSection_]: destAssets };
-          }
-          return brand;
-        });
-      });
+      // Move asset between sections or brands - update DB
+      const sourceBrand = brands.find(b => b.id === sourceBrandId);
+      const destBrand = brands.find(b => b.id === destBrandId);
       
-      toast({
-        title: "Asset spostato",
-        description: "L'asset è stato spostato nella nuova sezione.",
-      });
+      if (!sourceBrand || !destBrand) return;
+      
+      const sourceSection_ = sourceSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
+      const destSection_ = destSection as keyof Pick<Brand, 'colorPalette' | 'icons' | 'logos'>;
+      
+      const sourceAssets = Array.from(sourceBrand[sourceSection_]);
+      const movedAsset = sourceAssets[source.index];
+      
+      if (!movedAsset) return;
+      
+      try {
+        // Update asset in database
+        const newAssetType = destSection === "colorPalette" ? "color" : destSection === "icons" ? "icon" : "logo";
+        
+        const { error } = await supabase
+          .from('brand_assets')
+          .update({
+            brand_name: destBrand.name,
+            asset_type: newAssetType
+          })
+          .eq('id', movedAsset.id);
+
+        if (error) throw error;
+
+        // Update local state
+        setBrands(prev => {
+          const sourceBrand = prev.find(b => b.id === sourceBrandId);
+          const destBrand = prev.find(b => b.id === destBrandId);
+          
+          if (!sourceBrand || !destBrand) return prev;
+          
+          const sourceAssets = Array.from(sourceBrand[sourceSection_]);
+          const destAssets = Array.from(destBrand[destSection_]);
+          const [movedAsset] = sourceAssets.splice(source.index, 1);
+          
+          // Update asset type when moving between sections
+          if (sourceSection !== destSection) {
+            movedAsset.type = destSection as "color" | "icon" | "logo";
+          }
+          
+          destAssets.splice(destination.index, 0, movedAsset);
+          
+          return prev.map(brand => {
+            if (brand.id === sourceBrandId) {
+              return { ...brand, [sourceSection_]: sourceAssets };
+            }
+            if (brand.id === destBrandId) {
+              return { ...brand, [destSection_]: destAssets };
+            }
+            return brand;
+          });
+        });
+        
+        toast({
+          title: "Asset spostato",
+          description: "L'asset è stato spostato nella nuova sezione.",
+        });
+      } catch (error) {
+        console.error('Error updating asset:', error);
+        toast({
+          title: "Errore",
+          description: "Impossibile spostare l'asset.",
+          variant: "destructive"
+        });
+      }
     }
-  }, [toast]);
+  }, [toast, brands]);
 
   const handleFileUpload = useCallback(async (brandName: string, section: "colorPalette" | "icons" | "logos", files: FileList | null) => {
     if (!files) return;
