@@ -69,6 +69,7 @@ import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPa
 import EmailPage from "./pages/communication/EmailPage";
 import ArchivePage from "./pages/marketing/ArchivePage";
 import BrandkitPage from "./pages/marketing/BrandkitPage";
+import BrandAssetManager from "./pages/marketing/BrandAssetManager";
 import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
 import IntegrationsPage from "./pages/integrations/IntegrationsPage";
 import { TasksPage } from "./pages/tasks/TasksPage";
@@ -151,6 +152,7 @@ const App = () => (
                 <Route path="support/tickets" element={<TicketsPage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />
                 <Route path="marketing/brandkit" element={<BrandkitPage />} />
+                <Route path="marketing/brandkit/:brandId" element={<BrandAssetManager />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="tasks" element={<TasksPage />} />
                 <Route path="settings" element={<SettingsPage />} />
