@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,48 +9,34 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/ui/file-upload";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, AlertCircle, CheckCircle, Clock, X, Trash2, Eye, Paperclip } from "lucide-react";
+import { Plus, Search, AlertCircle, CheckCircle, Clock, X, Trash2, Eye, Paperclip, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-// Mock data for tickets
-const mockTickets = [
-  {
-    id: "1",
-    number: "TCK-2024-001",
-    title: "Problema con forno a convezione",
-    description: "Il forno non raggiunge la temperatura impostata",
-    status: "open",
-    priority: "high",
-    customer: "Ristorante Da Mario",
-    created_at: "2024-01-15",
-    assigned_to: "Marco Rossi",
-    attachments: ["forno_foto1.jpg", "diagnostica.pdf"]
-  },
-  {
-    id: "2", 
-    number: "TCK-2024-002",
-    title: "Abbattitore che perde acqua",
-    description: "Si forma una pozza d'acqua sotto l'abbattitore",
-    status: "in_progress",
-    priority: "medium",
-    customer: "Pizzeria Bella Napoli",
-    created_at: "2024-01-14",
-    assigned_to: "Luca Bianchi",
-    attachments: ["perdita_acqua.jpg"]
-  },
-  {
-    id: "3",
-    number: "TCK-2024-003", 
-    title: "Manutenzione programmata",
-    description: "Controllo semestrale di tutti gli impianti",
-    status: "resolved",
-    priority: "low",
-    customer: "Hotel Grand Palace",
-    created_at: "2024-01-10",
-    assigned_to: "Anna Verdi",
-    attachments: []
-  }
-];
+type User = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+};
+
+type Ticket = {
+  id: string;
+  number: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  customer_name: string;
+  customer_id?: string | null;
+  assigned_to?: string | null;
+  created_at: string;
+  updated_at: string;
+  attachments: string[] | null;
+  watchers?: string[];
+  assigned_user?: User | null;
+};
 
 const statusConfig = {
   open: { label: "Aperto", color: "bg-red-100 text-red-800", icon: AlertCircle },
@@ -66,18 +52,87 @@ const priorityConfig = {
 };
 
 export default function TicketsPage() {
-  const [tickets, setTickets] = useState(mockTickets);
+  const { user } = useAuth();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+  const [selectedWatchers, setSelectedWatchers] = useState<string[]>([]);
+  const [formData, setFormData] = useState({
+    title: "",
+    customer: "",
+    priority: "medium",
+    description: ""
+  });
+
+  // Load users and tickets on component mount
+  useEffect(() => {
+    loadUsers();
+    loadTickets();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .order('first_name');
+      
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast.error('Errore nel caricamento degli utenti');
+    }
+  };
+
+  const loadTickets = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select(`
+          *,
+          assigned_user:profiles!tickets_assigned_to_fkey(id, first_name, last_name, email)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Get watchers separately
+      const ticketIds = data?.map(t => t.id) || [];
+      const { data: watchersData } = await supabase
+        .from('ticket_watchers')
+        .select('ticket_id, user_id')
+        .in('ticket_id', ticketIds);
+      
+      const watchersMap = (watchersData || []).reduce((acc, watcher) => {
+        if (!acc[watcher.ticket_id]) acc[watcher.ticket_id] = [];
+        acc[watcher.ticket_id].push(watcher.user_id);
+        return acc;
+      }, {} as Record<string, string[]>);
+      
+      const formattedTickets: Ticket[] = data?.map(ticket => ({
+        ...ticket,
+        watchers: watchersMap[ticket.id] || [],
+        assigned_user: ticket.assigned_user as User | null
+      })) || [];
+      
+      setTickets(formattedTickets);
+    } catch (error) {
+      console.error('Error loading tickets:', error);
+      toast.error('Errore nel caricamento dei ticket');
+    }
+  };
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ticket.number.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
@@ -85,35 +140,87 @@ export default function TicketsPage() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const handleDeleteTicket = (ticketId: string) => {
-    setTickets(tickets.filter(ticket => ticket.id !== ticketId));
-    toast.success("Ticket eliminato con successo");
+  const handleDeleteTicket = async (ticketId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .delete()
+        .eq('id', ticketId);
+      
+      if (error) throw error;
+      
+      setTickets(tickets.filter(ticket => ticket.id !== ticketId));
+      toast.success("Ticket eliminato con successo");
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      toast.error('Errore nell\'eliminazione del ticket');
+    }
   };
 
-  const handleViewTicket = (ticket: any) => {
+  const handleViewTicket = (ticket: Ticket) => {
     setSelectedTicket(ticket);
     setIsDetailsDialogOpen(true);
   };
 
-  const handleCreateTicket = () => {
-    // In a real app, this would make an API call
-    const newTicket = {
-      id: Date.now().toString(),
-      number: `TCK-2024-${String(tickets.length + 1).padStart(3, '0')}`,
-      title: "Nuovo ticket",
-      description: "Descrizione del nuovo ticket",
-      status: "open",
-      priority: "medium",
-      customer: "Cliente Test",
-      created_at: new Date().toISOString().split('T')[0],
-      assigned_to: "Da assegnare",
-      attachments: uploadedFiles.map(file => file.name)
-    };
-    
-    setTickets([...tickets, newTicket]);
-    setUploadedFiles([]);
-    setIsCreateDialogOpen(false);
-    toast.success("Ticket creato con successo");
+  const handleCreateTicket = async () => {
+    if (!formData.title || !formData.customer) {
+      toast.error('Inserisci almeno titolo e cliente');
+      return;
+    }
+
+    try {
+      // Create ticket (number will be auto-generated by trigger)
+      const { data: ticketData, error: ticketError } = await supabase
+        .from('tickets')
+        .insert({
+          title: formData.title,
+          description: formData.description || null,
+          customer_name: formData.customer,
+          priority: formData.priority,
+          assigned_to: selectedAssignee || null,
+          attachments: uploadedFiles.map(file => file.name)
+        } as any)
+        .select()
+        .single();
+
+      if (ticketError) throw ticketError;
+
+      // Add watchers
+      if (selectedWatchers.length > 0) {
+        const watcherInserts = selectedWatchers.map(userId => ({
+          ticket_id: ticketData.id,
+          user_id: userId
+        }));
+
+        const { error: watchersError } = await supabase
+          .from('ticket_watchers')
+          .insert(watcherInserts);
+
+        if (watchersError) throw watchersError;
+      }
+
+      // Reset form
+      setFormData({ title: "", customer: "", priority: "medium", description: "" });
+      setSelectedAssignee("");
+      setSelectedWatchers([]);
+      setUploadedFiles([]);
+      setIsCreateDialogOpen(false);
+      
+      // Reload tickets
+      loadTickets();
+      toast.success("Ticket creato con successo");
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      toast.error('Errore nella creazione del ticket');
+    }
+  };
+
+  const toggleWatcher = (userId: string) => {
+    setSelectedWatchers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   return (
@@ -144,17 +251,28 @@ export default function TicketsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="title">Titolo</Label>
-                  <Input id="title" placeholder="Titolo del problema" />
+                  <Input 
+                    id="title" 
+                    placeholder="Titolo del problema"
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="customer">Cliente</Label>
-                  <Input id="customer" placeholder="Nome cliente" />
+                  <Input 
+                    id="customer" 
+                    placeholder="Nome cliente"
+                    value={formData.customer}
+                    onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
+                  />
                 </div>
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="priority">Priorità</Label>
-                  <Select>
+                  <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona priorità" />
                     </SelectTrigger>
@@ -167,26 +285,61 @@ export default function TicketsPage() {
                 </div>
                 <div>
                   <Label htmlFor="assigned">Assegnato a</Label>
-                  <Select>
+                  <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona tecnico" />
+                      <SelectValue placeholder="Seleziona utente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="marco">Marco Rossi</SelectItem>
-                      <SelectItem value="luca">Luca Bianchi</SelectItem>
-                      <SelectItem value="anna">Anna Verdi</SelectItem>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
+              <div>
+                <Label className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Watcher (utenti che monitoreranno il ticket)
+                </Label>
+                <div className="mt-2 max-h-32 overflow-y-auto border rounded-md p-2 space-y-2">
+                  {users.map((user) => (
+                    <div key={user.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`watcher-${user.id}`}
+                        checked={selectedWatchers.includes(user.id)}
+                        onChange={() => toggleWatcher(user.id)}
+                        className="rounded"
+                      />
+                      <Label htmlFor={`watcher-${user.id}`} className="text-sm font-normal cursor-pointer">
+                        {user.first_name} {user.last_name} ({user.email})
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                {selectedWatchers.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedWatchers.length} utente{selectedWatchers.length > 1 ? 'i' : ''} selezionat{selectedWatchers.length > 1 ? 'i' : 'o'}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="description">Descrizione</Label>
                 <Textarea 
                   id="description" 
                   placeholder="Descrizione dettagliata del problema"
                   rows={4}
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
+              
               <div>
                 <Label>Allega File</Label>
                 <FileUpload
@@ -330,10 +483,20 @@ export default function TicketsPage() {
               <CardContent className="pt-0">
                 <div className="flex justify-between items-center text-sm text-muted-foreground">
                   <div className="flex gap-4">
-                    <span><strong>Cliente:</strong> {ticket.customer}</span>
-                    <span><strong>Assegnato a:</strong> {ticket.assigned_to}</span>
+                    <span><strong>Cliente:</strong> {ticket.customer_name}</span>
+                    <span><strong>Assegnato a:</strong> {
+                      ticket.assigned_user 
+                        ? `${ticket.assigned_user.first_name} ${ticket.assigned_user.last_name}`
+                        : 'Da assegnare'
+                    }</span>
+                    {ticket.watchers && ticket.watchers.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {ticket.watchers.length} watcher{ticket.watchers.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
-                  <span>{ticket.created_at}</span>
+                  <span>{new Date(ticket.created_at).toLocaleDateString()}</span>
                 </div>
               </CardContent>
             </Card>
@@ -364,13 +527,38 @@ export default function TicketsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Cliente</Label>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.customer}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.customer_name}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Assegnato a</Label>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.assigned_to}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedTicket.assigned_user 
+                      ? `${selectedTicket.assigned_user.first_name} ${selectedTicket.assigned_user.last_name}`
+                      : 'Da assegnare'
+                    }
+                  </p>
                 </div>
               </div>
+
+              {selectedTicket.watchers && selectedTicket.watchers.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Watchers ({selectedTicket.watchers.length})
+                  </Label>
+                  <div className="mt-2 space-y-1">
+                    {selectedTicket.watchers.map((watcherId: string) => {
+                      const watcher = users.find(u => u.id === watcherId);
+                      return watcher ? (
+                        <div key={watcherId} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <UserPlus className="w-3 h-3" />
+                          {watcher.first_name} {watcher.last_name} ({watcher.email})
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -391,7 +579,9 @@ export default function TicketsPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Data Creazione</Label>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedTicket.created_at}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {new Date(selectedTicket.created_at).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
 

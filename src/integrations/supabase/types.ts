@@ -4373,6 +4373,105 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_watchers: {
+        Row: {
+          created_at: string
+          id: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_watchers_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          assigned_to: string | null
+          attachments: string[] | null
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name: string
+          description: string | null
+          id: string
+          number: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          attachments?: string[] | null
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name: string
+          description?: string | null
+          id?: string
+          number: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          attachments?: string[] | null
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name?: string
+          description?: string | null
+          id?: string
+          number?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_email_configs: {
         Row: {
           created_at: string
@@ -4663,6 +4762,10 @@ export type Database = {
         Returns: string
       }
       generate_shipping_order_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_ticket_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
