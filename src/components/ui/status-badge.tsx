@@ -20,13 +20,15 @@ const statusColors = {
   in_production: "bg-info text-info-foreground",
   shipped: "bg-warning text-warning-foreground", 
   delivered: "bg-success text-success-foreground",
-  closed: "bg-muted text-muted-foreground",
   
   // Work Order statuses  
+  planned: "bg-muted text-muted-foreground",
   new: "bg-info text-info-foreground",
   scheduled: "bg-warning text-warning-foreground",
   in_progress: "bg-primary text-primary-foreground",
+  testing: "bg-warning text-warning-foreground",
   completed: "bg-success text-success-foreground",
+  closed: "bg-muted text-muted-foreground",
   billable: "bg-warning text-warning-foreground",
   
   // Lead statuses
