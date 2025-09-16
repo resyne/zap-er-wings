@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, Send, Users, Target, Calendar, Settings, Loader, History, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Mail, Send, Users, Target, Calendar, Settings, Loader, History, CheckCircle2, XCircle, Clock, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
@@ -520,6 +520,66 @@ export default function NewsletterPage() {
     }));
   };
 
+  const generateEmailPreview = () => {
+    const template = campaign.template || {
+      headerText: '',
+      footerText: '',
+      signature: '',
+      attachments: []
+    };
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        ${template.logo ? `
+          <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
+            <img src="${template.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
+          </div>
+        ` : ''}
+        
+        ${template.headerText ? `
+          <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">${template.headerText}</h1>
+          </div>
+        ` : ''}
+        
+        <div style="padding: 30px;">
+          ${campaign.subject ? `
+            <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
+              ${campaign.subject}
+            </h2>
+          ` : '<h2 style="color: #9ca3af; margin-top: 0; margin-bottom: 20px; font-size: 20px;">Oggetto dell\'email...</h2>'}
+          
+          <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
+            ${campaign.message ? campaign.message.replace(/\n/g, '<br>') : '<p style="color: #9ca3af;">Contenuto del messaggio...</p>'}
+          </div>
+          
+          ${template.attachments && template.attachments.length > 0 ? `
+            <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+              <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
+              ${template.attachments.map((att: any) => `
+                <div style="margin: 8px 0;">
+                  <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          
+          ${template.signature ? `
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
+              <div style="white-space: pre-line;">${template.signature}</div>
+            </div>
+          ` : ''}
+        </div>
+        
+        ${template.footerText ? `
+          <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
+            ${template.footerText}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('it-IT');
   };
@@ -579,7 +639,7 @@ export default function NewsletterPage() {
 
         {/* Compose Tab - Redesigned */}
         <TabsContent value="compose" className="space-y-6">
-          <div className="grid gap-6 xl:grid-cols-4">
+          <div className="grid gap-6 xl:grid-cols-5">
             {/* Main Compose Area */}
             <div className="xl:col-span-3">
               <Card className="h-fit">
@@ -664,6 +724,32 @@ export default function NewsletterPage() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Email Preview */}
+            <div className="xl:col-span-1">
+              <div className="space-y-4 sticky top-6">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Anteprima Email
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Come apparirà l'email ai destinatari
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="border rounded-lg p-2 bg-gray-50 max-h-96 overflow-y-auto">
+                      <div 
+                        className="bg-white rounded shadow-sm text-xs"
+                        dangerouslySetInnerHTML={{ __html: generateEmailPreview() }}
+                        style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '125%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Sidebar - Recipients */}
