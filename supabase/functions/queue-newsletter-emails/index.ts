@@ -38,8 +38,11 @@ const handler = async (req: Request): Promise<Response> => {
       active_only = true,
       city, 
       country,
-      subject, 
+      subject,
       message,
+      sender_email,
+      sender_name,
+      template,
       is_newsletter = false,
       template,
       senderEmail,
@@ -54,8 +57,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Queue email request received:', { 
       active_only, city, country, subject, use_crm_contacts, use_partners, 
-      partner_type, acquisition_status, region, excluded_countries, custom_list_id 
+      partner_type, acquisition_status, region, excluded_countries, custom_list_id,
+      sender_email, sender_name, template
     });
+
+    // Create sender email object
+    const senderEmail = sender_email ? { email: sender_email, name: sender_name } : null;
 
     let recipients: Array<any> = [];
 
@@ -265,7 +272,7 @@ const handler = async (req: Request): Promise<Response> => {
         sender_email: senderEmail?.email || null,
         sender_name: senderEmail?.name || null,
         campaign_id: campaignId,
-         metadata: {
+        metadata: {
            campaign_type: custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
            active_only,
            city,

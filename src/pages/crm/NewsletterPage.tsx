@@ -444,7 +444,8 @@ export default function NewsletterPage() {
         subject: campaign.subject,
         message: campaign.message,
         sender_email: selectedSenderEmail.email,
-        sender_name: selectedSenderEmail.name
+        sender_name: selectedSenderEmail.name,
+        template: campaign.template
       };
 
       if (campaign.targetAudience === 'custom_list' && campaign.customListId) {
