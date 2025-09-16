@@ -639,64 +639,47 @@ export default function NewsletterPage() {
 
         {/* Compose Tab - Redesigned */}
         <TabsContent value="compose" className="space-y-6">
-          <div className="grid gap-6 xl:grid-cols-5">
-            {/* Main Compose Area */}
-            <div className="xl:col-span-3">
+          <div className="grid gap-6 xl:grid-cols-2">
+            {/* Main Content Area */}
+            <div className="space-y-6">
+              {/* Main Compose Area */}
               <Card className="h-fit">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-lg">Nuova Newsletter</CardTitle>
                       <CardDescription>
-                        Componi il contenuto della tua newsletter
+                        Crea e invia newsletter personalizzate ai tuoi contatti
                       </CardDescription>
                     </div>
-                    <Badge variant="outline" className="bg-background">
+                    <Badge variant="outline" className="text-xs">
                       {getCurrentEmailCount()} destinatari
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Sender Email Selection */}
-                  {selectedSenderEmail && (
-                    <div className="p-3 bg-muted/50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Mittente: </span>
-                          <span className="font-medium">{selectedSenderEmail.name}</span>
-                          <span className="text-muted-foreground"> &lt;{selectedSenderEmail.email}&gt;</span>
-                        </div>
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          Verificato
-                        </Badge>
-                      </div>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Oggetto</label>
+                      <Input
+                        placeholder="Oggetto della newsletter..."
+                        value={campaign.subject}
+                        onChange={(e) => setCampaign(prev => ({ ...prev, subject: e.target.value }))}
+                        className="w-full"
+                      />
                     </div>
-                  )}
 
-                  {/* Subject */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Oggetto *</label>
-                    <Input
-                      placeholder="Inserisci l'oggetto della newsletter..."
-                      value={campaign.subject}
-                      onChange={(e) => setCampaign(prev => ({ ...prev, subject: e.target.value }))}
-                      className="text-base"
-                    />
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Messaggio</label>
+                      <Textarea
+                        placeholder="Scrivi il tuo messaggio qui..."
+                        className="min-h-[200px] resize-none"
+                        value={campaign.message}
+                        onChange={(e) => setCampaign(prev => ({ ...prev, message: e.target.value }))}
+                      />
+                    </div>
                   </div>
 
-                  {/* Message */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Messaggio *</label>
-                    <Textarea
-                      placeholder="Scrivi il contenuto della newsletter qui..."
-                      value={campaign.message}
-                      onChange={(e) => setCampaign(prev => ({ ...prev, message: e.target.value }))}
-                      rows={12}
-                      className="text-base resize-none"
-                    />
-                  </div>
-
-                  {/* Send Button */}
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="text-sm text-muted-foreground">
                       {!selectedSenderEmail && (
@@ -724,61 +707,55 @@ export default function NewsletterPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
-            {/* Email Preview */}
-            <div className="xl:col-span-1">
-              <div className="space-y-4 sticky top-6">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Anteprima Email
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      Come apparirà l'email ai destinatari
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border rounded-lg p-2 bg-gray-50 max-h-96 overflow-y-auto">
-                      <div 
-                        className="bg-white rounded shadow-sm text-xs"
-                        dangerouslySetInnerHTML={{ __html: generateEmailPreview() }}
-                        style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '125%' }}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Sidebar - Recipients */}
-            <div className="xl:col-span-1">
-              <div className="space-y-4 sticky top-6">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Destinatari</CardTitle>
-                    <CardDescription className="text-xs">
-                      Seleziona chi riceverà la newsletter
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <SystemFiltersManager 
-                      onFilterSelect={handleSystemFilterSelect}
-                      selectedType={campaign.targetAudience}
-                      selectedFilters={campaign.systemFilters}
+              {/* Recipients Section - Now Below Compose */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Destinatari</CardTitle>
+                  <CardDescription className="text-xs">
+                    Seleziona chi riceverà la newsletter
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <SystemFiltersManager 
+                    onFilterSelect={handleSystemFilterSelect}
+                    selectedType={campaign.targetAudience}
+                    selectedFilters={campaign.systemFilters}
+                  />
+                  
+                  <div className="pt-4 border-t">
+                    <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
+                    <EmailListManager 
+                      onListSelect={handleCustomListSelect}
+                      selectedListId={campaign.targetAudience === 'custom_list' ? selectedCustomList : undefined}
                     />
-                    
-                    <div className="pt-4 border-t">
-                      <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
-                      <EmailListManager 
-                        onListSelect={handleCustomListSelect}
-                        selectedListId={campaign.targetAudience === 'custom_list' ? selectedCustomList : undefined}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Email Preview - Right Column */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Anteprima Email
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Come apparirà l'email ai destinatari
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg p-2 bg-gray-50 max-h-96 overflow-y-auto">
+                    <div 
+                      className="bg-white rounded shadow-sm text-xs"
+                      dangerouslySetInnerHTML={{ __html: generateEmailPreview() }}
+                      style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '125%' }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </TabsContent>
