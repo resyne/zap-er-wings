@@ -234,14 +234,14 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
                     <div>
                       <label className="text-xs font-medium">Tipo Partner</label>
                       <Select
-                        value={currentFilters.partner_type || ''}
-                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, partner_type: value || undefined }))}
+                        value={currentFilters.partner_type || 'all'}
+                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, partner_type: value === 'all' ? undefined : value }))}
                       >
                         <SelectTrigger className="h-8">
                           <SelectValue placeholder="Tutti" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tutti</SelectItem>
+                          <SelectItem value="all">Tutti</SelectItem>
                           <SelectItem value="installer">Installatori</SelectItem>
                           <SelectItem value="importer">Importatori</SelectItem>
                           <SelectItem value="reseller">Rivenditori</SelectItem>
@@ -252,14 +252,14 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
                     <div>
                       <label className="text-xs font-medium">Stato Acquisizione</label>
                       <Select
-                        value={currentFilters.acquisition_status || ''}
-                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, acquisition_status: value || undefined }))}
+                        value={currentFilters.acquisition_status || 'all'}
+                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, acquisition_status: value === 'all' ? undefined : value }))}
                       >
                         <SelectTrigger className="h-8">
                           <SelectValue placeholder="Tutti" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tutti</SelectItem>
+                          <SelectItem value="all">Tutti</SelectItem>
                           <SelectItem value="acquired">Acquisiti</SelectItem>
                           <SelectItem value="in_progress">In Corso</SelectItem>
                           <SelectItem value="not_acquired">Non Acquisiti</SelectItem>
