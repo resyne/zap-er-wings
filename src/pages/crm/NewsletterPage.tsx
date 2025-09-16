@@ -504,10 +504,18 @@ export default function NewsletterPage() {
     }
   };
 
-  const handleTemplateSelect = (template: any) => {
+  const handleTemplateSelect = (template: { subject: string; message: string }) => {
     setCampaign(prev => ({
       ...prev,
-      template: template
+      subject: template.subject,
+      message: template.message
+    }));
+  };
+
+  const handleTemplateChange = (templateConfig: any) => {
+    setCampaign(prev => ({
+      ...prev,
+      template: templateConfig
     }));
   };
 
@@ -722,7 +730,7 @@ export default function NewsletterPage() {
             </CardHeader>
             <CardContent>
               <NewsletterTemplateEditor 
-                onTemplateChange={() => {}} 
+                onTemplateChange={handleTemplateChange} 
                 onTemplateSelect={handleTemplateSelect} 
               />
             </CardContent>

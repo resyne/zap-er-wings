@@ -80,10 +80,19 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setSavedTemplates((data || []).map(template => ({
+      
+      const templates = (data || []).map(template => ({
         ...template,
         attachments: Array.isArray(template.attachments) ? template.attachments : []
-      })));
+      }));
+      
+      setSavedTemplates(templates);
+      
+      // Carica automaticamente il template di default se esiste
+      const defaultTemplate = templates.find(t => t.is_default);
+      if (defaultTemplate && !selectedTemplate) {
+        loadTemplate(defaultTemplate);
+      }
     } catch (error) {
       console.error('Error fetching templates:', error);
       toast({
