@@ -92,7 +92,17 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
       setLoading(true);
       
       const domain = extractDomain(newEmail.email);
-      console.log('Adding sender email:', { email: newEmail.email, name: newEmail.name, domain });
+      
+      // Check if email already exists and is verified
+      const existingEmail = senderEmails.find(e => e.email === newEmail.email);
+      let isVerified = false;
+      
+      if (existingEmail) {
+        isVerified = existingEmail.is_verified;
+        console.log(`Email ${newEmail.email} already exists, verified: ${isVerified}`);
+      }
+      
+      console.log('Adding sender email:', { email: newEmail.email, name: newEmail.name, domain, isVerified });
       
       const { data, error } = await supabase
         .from('sender_emails')
@@ -100,7 +110,7 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
           email: newEmail.email,
           name: newEmail.name,
           domain,
-          is_verified: false,
+          is_verified: isVerified, // Use existing verification status
           is_default: senderEmails.length === 0 // First email becomes default
         })
         .select()
@@ -119,23 +129,25 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
 
       toast({
         title: "Email aggiunta",
-        description: "Indirizzo email mittente aggiunto con successo",
+        description: isVerified 
+          ? "Indirizzo email mittente aggiunto (già verificato)" 
+          : "Indirizzo email mittente aggiunto",
       });
 
-      // Verify domain with Resend (don't fail if this fails)
-      try {
-        await verifyDomainWithResend(data.id, domain);
-      } catch (verifyError) {
-        console.warn('Domain verification failed, but email was added:', verifyError);
+      // Only verify domain if not already verified
+      if (!isVerified) {
+        try {
+          await verifyDomainWithResend(data.id, domain);
+        } catch (verifyError) {
+          console.warn('Domain verification failed, but email was added:', verifyError);
+        }
       }
     } catch (error: any) {
       console.error('Error adding sender email:', error);
       
       let errorMessage = "Errore nell'aggiunta dell'indirizzo email";
       
-      if (error.code === '23505') {
-        errorMessage = "Questo indirizzo email è già stato aggiunto";
-      } else if (error.message) {
+      if (error.message) {
         errorMessage = error.message;
       }
       
@@ -249,6 +261,70 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
     }
   };
 
+  const cleanupDuplicates = async () => {
+    try {
+      setLoading(true);
+      
+      // Group emails by email address
+      const emailGroups = senderEmails.reduce((acc, email) => {
+        if (!acc[email.email]) {
+          acc[email.email] = [];
+        }
+        acc[email.email].push(email);
+        return acc;
+      }, {} as Record<string, SenderEmail[]>);
+      
+      // For each email address, keep only the verified one or the most recent
+      const toDelete: string[] = [];
+      
+      Object.values(emailGroups).forEach(group => {
+        if (group.length > 1) {
+          // Sort by verified status (verified first) then by date (newest first)
+          group.sort((a, b) => {
+            if (a.is_verified !== b.is_verified) {
+              return b.is_verified ? 1 : -1;
+            }
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
+          
+          // Mark all but the first (best) one for deletion
+          toDelete.push(...group.slice(1).map(email => email.id));
+        }
+      });
+      
+      if (toDelete.length > 0) {
+        const { error } = await supabase
+          .from('sender_emails')
+          .delete()
+          .in('id', toDelete);
+          
+        if (error) throw error;
+        
+        // Update local state
+        setSenderEmails(prev => prev.filter(email => !toDelete.includes(email.id)));
+        
+        toast({
+          title: "Duplicati rimossi",
+          description: `Rimossi ${toDelete.length} indirizzi email duplicati`,
+        });
+      } else {
+        toast({
+          title: "Nessun duplicato",
+          description: "Non sono stati trovati indirizzi email duplicati",
+        });
+      }
+    } catch (error) {
+      console.error('Error cleaning duplicates:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella rimozione dei duplicati",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -275,14 +351,26 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
               Gestisci gli indirizzi email da cui inviare le newsletter
             </CardDescription>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Aggiungi Email
+          <div className="flex gap-2">
+            {senderEmails.length > 1 && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={cleanupDuplicates}
+                disabled={loading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Pulisci Duplicati
               </Button>
-            </DialogTrigger>
-            <DialogContent>
+            )}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi Email
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
               <DialogHeader>
                 <DialogTitle>Aggiungi Email Mittente</DialogTitle>
                 <DialogDescription>
@@ -313,6 +401,7 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
