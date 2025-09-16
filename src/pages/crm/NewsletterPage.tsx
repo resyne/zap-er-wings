@@ -164,162 +164,142 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Seleziona Destinatari</h3>
-        
-        {/* System Lists */}
-        <div className="grid gap-4">
-          <Card 
-            className={`cursor-pointer transition-colors ${
-              selectedType === 'customers' ? 'ring-2 ring-primary' : ''
-            }`}
-            onClick={() => onFilterSelect('customers', currentFilters, filterCounts.customers)}
-          >
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-medium">Clienti</h4>
-                  <p className="text-sm text-muted-foreground">Tutti i clienti nel sistema</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{filterCounts.customers} email</Badge>
-                  <Users className="h-4 w-4" />
-                </div>
+    <div className="space-y-3">
+      {/* System Lists - Compact */}
+      <div className="space-y-2">
+        {/* Customers */}
+        <div 
+          className={`p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 ${
+            selectedType === 'customers' ? 'ring-2 ring-primary bg-primary/5' : ''
+          }`}
+          onClick={() => onFilterSelect('customers', currentFilters, filterCounts.customers)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span className="text-sm font-medium">Clienti</span>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {filterCounts.customers}
+            </Badge>
+          </div>
+        </div>
+
+        {/* CRM Contacts */}
+        <div 
+          className={`p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 ${
+            selectedType === 'crm_contacts' ? 'ring-2 ring-primary bg-primary/5' : ''
+          }`}
+          onClick={() => onFilterSelect('crm_contacts', {}, filterCounts.crm_contacts)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span className="text-sm font-medium">Contatti CRM</span>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {filterCounts.crm_contacts}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Partners */}
+        <div 
+          className={`rounded-lg border transition-all ${
+            selectedType === 'partners' ? 'ring-2 ring-primary bg-primary/5' : ''
+          }`}
+        >
+          <div className="p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                <span className="text-sm font-medium">Partner</span>
               </div>
-            </CardContent>
-          </Card>
+              <Badge variant="secondary" className="text-xs">
+                {filterCounts.partners}
+              </Badge>
+            </div>
 
-          <Card 
-            className={`cursor-pointer transition-colors ${
-              selectedType === 'crm_contacts' ? 'ring-2 ring-primary' : ''
-            }`}
-            onClick={() => onFilterSelect('crm_contacts', {}, filterCounts.crm_contacts)}
-          >
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-medium">Contatti CRM</h4>
-                  <p className="text-sm text-muted-foreground">Tutti i contatti dal CRM</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{filterCounts.crm_contacts} email</Badge>
-                  <Users className="h-4 w-4" />
-                </div>
+            {/* Partner Filters - Compact */}
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-1 gap-2">
+                <Select
+                  value={currentFilters.partner_type || 'all'}
+                  onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, partner_type: value === 'all' ? undefined : value }))}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue placeholder="Tipo Partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i tipi</SelectItem>
+                    <SelectItem value="installer">Installatori</SelectItem>
+                    <SelectItem value="importer">Importatori</SelectItem>
+                    <SelectItem value="reseller">Rivenditori</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={currentFilters.acquisition_status || 'all'}
+                  onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, acquisition_status: value === 'all' ? undefined : value }))}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue placeholder="Stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti gli stati</SelectItem>
+                    <SelectItem value="acquired">Acquisiti</SelectItem>
+                    <SelectItem value="in_progress">In Corso</SelectItem>
+                    <SelectItem value="not_acquired">Non Acquisiti</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card 
-            className={`cursor-pointer transition-colors ${
-              selectedType === 'partners' ? 'ring-2 ring-primary' : ''
-            }`}
-          >
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="font-medium">Partner</h4>
-                    <p className="text-sm text-muted-foreground">Partner con filtri personalizzabili</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{filterCounts.partners} email</Badge>
-                    <Users className="h-4 w-4" />
-                  </div>
-                </div>
+              <Input
+                placeholder="Regione..."
+                value={currentFilters.region || ''}
+                onChange={(e) => setCurrentFilters(prev => ({ ...prev, region: e.target.value || undefined }))}
+                className="h-7 text-xs"
+              />
 
-                {/* Partner Filters */}
-                <div className="space-y-3 border-t pt-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium">Tipo Partner</label>
-                      <Select
-                        value={currentFilters.partner_type || 'all'}
-                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, partner_type: value === 'all' ? undefined : value }))}
+              {currentFilters.excludedCountries && currentFilters.excludedCountries.length > 0 && (
+                <div className="flex gap-1 flex-wrap">
+                  {currentFilters.excludedCountries.map((country: string) => (
+                    <Badge key={country} variant="outline" className="text-xs px-1 py-0">
+                      {country}
+                      <button
+                        onClick={() => removeExcludedCountry(country)}
+                        className="ml-1 hover:text-destructive"
                       >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Tutti" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tutti</SelectItem>
-                          <SelectItem value="installer">Installatori</SelectItem>
-                          <SelectItem value="importer">Importatori</SelectItem>
-                          <SelectItem value="reseller">Rivenditori</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-medium">Stato Acquisizione</label>
-                      <Select
-                        value={currentFilters.acquisition_status || 'all'}
-                        onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, acquisition_status: value === 'all' ? undefined : value }))}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Tutti" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tutti</SelectItem>
-                          <SelectItem value="acquired">Acquisiti</SelectItem>
-                          <SelectItem value="in_progress">In Corso</SelectItem>
-                          <SelectItem value="not_acquired">Non Acquisiti</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium">Regione</label>
-                    <Input
-                      placeholder="Cerca per regione..."
-                      value={currentFilters.region || ''}
-                      onChange={(e) => setCurrentFilters(prev => ({ ...prev, region: e.target.value || undefined }))}
-                      className="h-8"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium">Escludi Paesi</label>
-                    <div className="flex gap-2 mb-2 flex-wrap">
-                      {currentFilters.excludedCountries?.map((country: string) => (
-                        <Badge key={country} variant="secondary" className="text-xs">
-                          {country}
-                          <button
-                            onClick={() => removeExcludedCountry(country)}
-                            className="ml-1 hover:text-destructive"
-                          >
-                            ×
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Aggiungi paese da escludere..."
-                        className="h-8"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const input = e.currentTarget;
-                            addExcludedCountry(input.value);
-                            input.value = '';
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <Button 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => onFilterSelect('partners', currentFilters, filterCounts.partners)}
-                    disabled={loading}
-                  >
-                    {loading ? <Loader className="h-4 w-4 animate-spin" /> : 'Seleziona Partner'}
-                  </Button>
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              )}
+
+              <Input
+                placeholder="Escludi paese..."
+                className="h-7 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const input = e.currentTarget;
+                    addExcludedCountry(input.value);
+                    input.value = '';
+                  }
+                }}
+              />
+
+              <Button 
+                size="sm" 
+                className="w-full h-7 text-xs"
+                onClick={() => onFilterSelect('partners', currentFilters, filterCounts.partners)}
+                disabled={loading}
+                variant={selectedType === 'partners' ? 'default' : 'outline'}
+              >
+                {loading ? <Loader className="h-3 w-3 animate-spin" /> : 'Seleziona'}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -545,122 +525,178 @@ export default function NewsletterPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Newsletter & Email Marketing</h1>
-          <p className="text-muted-foreground">
-            Gestisci liste email e invia newsletter ai tuoi contatti
-          </p>
+    <div className="container mx-auto p-6 max-w-7xl">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Mail className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Email Marketing</h1>
+            <p className="text-sm text-muted-foreground">
+              Gestisci e invia newsletter ai tuoi contatti
+            </p>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="compose" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="compose" className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Componi Newsletter
-          </TabsTrigger>
-          <TabsTrigger value="lists" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Gestione Liste
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Template
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            Cronologia
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Impostazioni
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="compose" className="space-y-6">
+        <div className="border-b">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-none lg:flex">
+            <TabsTrigger value="compose" className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              <span className="hidden sm:inline">Componi</span>
+            </TabsTrigger>
+            <TabsTrigger value="lists" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Liste</span>
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">Template</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              <span className="hidden sm:inline">Cronologia</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Impostazioni</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
+        {/* Compose Tab - Redesigned */}
         <TabsContent value="compose" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    Componi Newsletter
-                  </CardTitle>
-                  <CardDescription>
-                    Crea e invia una newsletter ai tuoi contatti selezionati
-                  </CardDescription>
+          <div className="grid gap-6 xl:grid-cols-4">
+            {/* Main Compose Area */}
+            <div className="xl:col-span-3">
+              <Card className="h-fit">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Nuova Newsletter</CardTitle>
+                      <CardDescription>
+                        Componi il contenuto della tua newsletter
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="bg-background">
+                      {getCurrentEmailCount()} destinatari
+                    </Badge>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Oggetto</label>
+                <CardContent className="space-y-6">
+                  {/* Sender Email Selection */}
+                  {selectedSenderEmail && (
+                    <div className="p-3 bg-muted/50 rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Mittente: </span>
+                          <span className="font-medium">{selectedSenderEmail.name}</span>
+                          <span className="text-muted-foreground"> &lt;{selectedSenderEmail.email}&gt;</span>
+                        </div>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          Verificato
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subject */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Oggetto *</label>
                     <Input
-                      placeholder="Oggetto della newsletter..."
+                      placeholder="Inserisci l'oggetto della newsletter..."
                       value={campaign.subject}
                       onChange={(e) => setCampaign(prev => ({ ...prev, subject: e.target.value }))}
+                      className="text-base"
                     />
                   </div>
 
-                  <div>
-                    <label className="text-sm font-medium">Messaggio</label>
+                  {/* Message */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Messaggio *</label>
                     <Textarea
-                      placeholder="Contenuto della newsletter..."
+                      placeholder="Scrivi il contenuto della newsletter qui..."
                       value={campaign.message}
                       onChange={(e) => setCampaign(prev => ({ ...prev, message: e.target.value }))}
-                      rows={8}
+                      rows={12}
+                      className="text-base resize-none"
                     />
                   </div>
 
+                  {/* Send Button */}
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="text-sm text-muted-foreground">
-                      Email selezionate: <span className="font-medium">{getCurrentEmailCount()}</span>
+                      {!selectedSenderEmail && (
+                        <span className="text-amber-600">⚠️ Seleziona un mittente nelle impostazioni</span>
+                      )}
                     </div>
                     <Button 
                       onClick={sendNewsletter} 
-                      disabled={loading || getCurrentEmailCount() === 0}
-                      className="flex items-center gap-2"
+                      disabled={loading || getCurrentEmailCount() === 0 || !selectedSenderEmail || !campaign.subject || !campaign.message}
+                      size="lg"
+                      className="min-w-[140px]"
                     >
                       {loading ? (
-                        <Loader className="h-4 w-4 animate-spin" />
+                        <>
+                          <Loader className="h-4 w-4 animate-spin mr-2" />
+                          Invio...
+                        </>
                       ) : (
-                        <Send className="h-4 w-4" />
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Invia Newsletter
+                        </>
                       )}
-                      Invia Newsletter
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="space-y-6">
-              <SystemFiltersManager 
-                onFilterSelect={handleSystemFilterSelect}
-                selectedType={campaign.targetAudience}
-                selectedFilters={campaign.systemFilters}
-              />
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Liste Personalizzate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <EmailListManager 
-                    onListSelect={handleCustomListSelect}
-                    selectedListId={campaign.targetAudience === 'custom_list' ? selectedCustomList : undefined}
-                  />
-                </CardContent>
-              </Card>
+            {/* Sidebar - Recipients */}
+            <div className="xl:col-span-1">
+              <div className="space-y-4 sticky top-6">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Destinatari</CardTitle>
+                    <CardDescription className="text-xs">
+                      Seleziona chi riceverà la newsletter
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <SystemFiltersManager 
+                      onFilterSelect={handleSystemFilterSelect}
+                      selectedType={campaign.targetAudience}
+                      selectedFilters={campaign.systemFilters}
+                    />
+                    
+                    <div className="pt-4 border-t">
+                      <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
+                      <EmailListManager 
+                        onListSelect={handleCustomListSelect}
+                        selectedListId={campaign.targetAudience === 'custom_list' ? selectedCustomList : undefined}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </TabsContent>
 
+        {/* Other Tabs - Simplified */}
         <TabsContent value="lists">
           <Card>
             <CardHeader>
-              <CardTitle>Gestione Liste Email</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Gestione Liste Email
+              </CardTitle>
               <CardDescription>
-                Gestisci le tue liste email personalizzate e importa contatti
+                Crea, modifica e gestisci le tue liste di contatti personalizzate
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -675,9 +711,12 @@ export default function NewsletterPage() {
         <TabsContent value="templates">
           <Card>
             <CardHeader>
-              <CardTitle>Template Newsletter</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Template Newsletter
+              </CardTitle>
               <CardDescription>
-                Crea e gestisci template per le tue newsletter
+                Crea e gestisci template riutilizzabili per le tue newsletter
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -692,49 +731,63 @@ export default function NewsletterPage() {
         <TabsContent value="history">
           <Card>
             <CardHeader>
-              <CardTitle>Cronologia Newsletter</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Cronologia Invii
+              </CardTitle>
               <CardDescription>
-                Visualizza tutte le newsletter inviate
+                Visualizza lo storico di tutte le newsletter inviate
               </CardDescription>
             </CardHeader>
             <CardContent>
               {loadingSentEmails ? (
-                <div className="flex justify-center py-8">
-                  <Loader className="h-8 w-8 animate-spin" />
+                <div className="flex justify-center py-12">
+                  <div className="text-center">
+                    <Loader className="h-8 w-8 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Caricamento cronologia...</p>
+                  </div>
+                </div>
+              ) : sentEmails.length === 0 ? (
+                <div className="text-center py-12">
+                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Nessuna newsletter inviata</h3>
+                  <p className="text-muted-foreground">Le newsletter inviate appariranno qui</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Stato</TableHead>
-                      <TableHead>Oggetto</TableHead>
-                      <TableHead>Tipo Campagna</TableHead>
-                      <TableHead>Destinatari</TableHead>
-                      <TableHead>Successo</TableHead>
-                      <TableHead>Errori</TableHead>
-                      <TableHead>Data Invio</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sentEmails.map((email) => (
-                      <TableRow key={email.id}>
-                        <TableCell>
-                          {getStatusIcon(email.success_count, email.failure_count, email.recipients_count)}
-                        </TableCell>
-                        <TableCell className="font-medium">{email.subject}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{email.campaign_type}</Badge>
-                        </TableCell>
-                        <TableCell>{email.recipients_count}</TableCell>
-                        <TableCell className="text-green-600">{email.success_count}</TableCell>
-                        <TableCell className="text-red-600">{email.failure_count}</TableCell>
-                        <TableCell>
-                          {email.sent_at ? formatDate(email.sent_at) : formatDate(email.created_at)}
-                        </TableCell>
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">Stato</TableHead>
+                        <TableHead>Oggetto</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-center">Destinatari</TableHead>
+                        <TableHead className="text-center">Successo</TableHead>
+                        <TableHead className="text-center">Errori</TableHead>
+                        <TableHead>Data Invio</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {sentEmails.map((email) => (
+                        <TableRow key={email.id}>
+                          <TableCell>
+                            {getStatusIcon(email.success_count, email.failure_count, email.recipients_count)}
+                          </TableCell>
+                          <TableCell className="font-medium">{email.subject}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{email.campaign_type}</Badge>
+                          </TableCell>
+                          <TableCell className="text-center">{email.recipients_count}</TableCell>
+                          <TableCell className="text-center text-green-600 font-medium">{email.success_count}</TableCell>
+                          <TableCell className="text-center text-red-600 font-medium">{email.failure_count}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {email.sent_at ? formatDate(email.sent_at) : formatDate(email.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -744,9 +797,12 @@ export default function NewsletterPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Email Mittenti</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Email Mittenti
+                </CardTitle>
                 <CardDescription>
-                  Gestisci gli indirizzi email mittenti verificati
+                  Gestisci e verifica gli indirizzi email mittenti
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -759,9 +815,12 @@ export default function NewsletterPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Gestione Contatti</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Gestione Contatti
+                </CardTitle>
                 <CardDescription>
-                  Importa e gestisci i tuoi contatti
+                  Importa e organizza i tuoi contatti
                 </CardDescription>
               </CardHeader>
               <CardContent>
