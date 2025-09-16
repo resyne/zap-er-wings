@@ -177,7 +177,7 @@ export default function TicketsPage() {
           description: formData.description || null,
           customer_name: formData.customer,
           priority: formData.priority,
-          assigned_to: selectedAssignee || null,
+          assigned_to: selectedAssignee === 'none' ? null : selectedAssignee || null,
           attachments: uploadedFiles.map(file => file.name)
         } as any)
         .select()
@@ -201,7 +201,7 @@ export default function TicketsPage() {
 
       // Reset form
       setFormData({ title: "", customer: "", priority: "medium", description: "" });
-      setSelectedAssignee("");
+      setSelectedAssignee("none");
       setSelectedWatchers([]);
       setUploadedFiles([]);
       setIsCreateDialogOpen(false);
@@ -290,7 +290,7 @@ export default function TicketsPage() {
                       <SelectValue placeholder="Seleziona utente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="none">Nessuno</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.first_name} {user.last_name}

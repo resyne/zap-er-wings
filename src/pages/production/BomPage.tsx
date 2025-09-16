@@ -107,7 +107,7 @@ export default function BomPage() {
   const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("all");
   const [bomDetails, setBomDetails] = useState<any>(null);
   const { toast } = useToast();
 
@@ -138,7 +138,7 @@ export default function BomPage() {
       material_id: ""
     });
     setSelectedLevel(0);
-    setSelectedSupplierId("");
+    setSelectedSupplierId("all");
     setIncludableBoms([]);
   };
 
@@ -185,7 +185,7 @@ export default function BomPage() {
         .eq('active', true);
 
       // Filter by supplier if selected
-      if (selectedSupplierId) {
+      if (selectedSupplierId && selectedSupplierId !== 'all') {
         query = query.eq('supplier_id', selectedSupplierId);
       }
 
@@ -658,7 +658,7 @@ export default function BomPage() {
                         <SelectValue placeholder="All suppliers" />
                       </SelectTrigger>
                       <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
-                        <SelectItem value="">All suppliers</SelectItem>
+                        <SelectItem value="all">All suppliers</SelectItem>
                         {suppliers.map((supplier) => (
                           <SelectItem key={supplier.id} value={supplier.id}>
                             {supplier.name} ({supplier.code})
@@ -686,7 +686,7 @@ export default function BomPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      {selectedSupplierId ? 
+                      {selectedSupplierId && selectedSupplierId !== 'all' ? 
                         `Showing materials from selected supplier (${materials.length} items)` :
                         `Showing all materials (${materials.length} items)`
                       }
