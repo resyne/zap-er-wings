@@ -44,7 +44,6 @@ const handler = async (req: Request): Promise<Response> => {
       sender_name,
       template,
       is_newsletter = false,
-      template,
       senderEmail,
       use_crm_contacts = false,
       use_partners = false,
