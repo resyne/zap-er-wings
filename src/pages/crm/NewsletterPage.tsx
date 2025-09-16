@@ -457,6 +457,7 @@ export default function NewsletterPage() {
       } else if (campaign.targetAudience === 'partners') {
         requestData = {
           ...requestData,
+          use_partners: true,
           partner_type: campaign.systemFilters?.partner_type,
           acquisition_status: campaign.systemFilters?.acquisition_status,
           region: campaign.systemFilters?.region,

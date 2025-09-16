@@ -20,6 +20,11 @@ interface QueueEmailRequest {
   template?: any;
   senderEmail?: any;
   use_crm_contacts?: boolean;
+  use_partners?: boolean;
+  partner_type?: string;
+  acquisition_status?: string;
+  region?: string;
+  excluded_countries?: string[];
   custom_list_id?: string;
 }
 
@@ -39,10 +44,18 @@ const handler = async (req: Request): Promise<Response> => {
       template,
       senderEmail,
       use_crm_contacts = false,
+      use_partners = false,
+      partner_type,
+      acquisition_status,
+      region,
+      excluded_countries = [],
       custom_list_id
     }: QueueEmailRequest = await req.json();
 
-    console.log('Queue email request received:', { active_only, city, country, subject, use_crm_contacts, custom_list_id });
+    console.log('Queue email request received:', { 
+      active_only, city, country, subject, use_crm_contacts, use_partners, 
+      partner_type, acquisition_status, region, excluded_countries, custom_list_id 
+    });
 
     let recipients: Array<any> = [];
 
@@ -64,6 +77,43 @@ const handler = async (req: Request): Promise<Response> => {
         name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Cliente',
         email: contact.email,
         company_name: contact.company || ''
+      }));
+    }
+    // Handle partners
+    else if (use_partners) {
+      console.log('Fetching partners with filters:', { partner_type, acquisition_status, region, excluded_countries });
+      
+      let query = supabase
+        .from('partners')
+        .select('id, first_name, last_name, email, company_name, partner_type, acquisition_status, region, country')
+        .not('email', 'is', null);
+
+      if (partner_type) {
+        query = query.eq('partner_type', partner_type);
+      }
+      if (acquisition_status) {
+        query = query.eq('acquisition_status', acquisition_status);
+      }
+      if (region) {
+        query = query.ilike('region', `%${region}%`);
+      }
+      if (excluded_countries && excluded_countries.length > 0) {
+        excluded_countries.forEach(country => {
+          query = query.neq('country', country);
+        });
+      }
+
+      const { data: partners, error: partnersError } = await query;
+
+      if (partnersError) {
+        console.error('Error fetching partners:', partnersError);
+        throw partnersError;
+      }
+
+      recipients = (partners || []).map(partner => ({
+        name: `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || partner.company_name || 'Partner',
+        email: partner.email,
+        company_name: partner.company_name || ''
       }));
     }
     // Handle CRM contacts
@@ -215,16 +265,21 @@ const handler = async (req: Request): Promise<Response> => {
         sender_email: senderEmail?.email || null,
         sender_name: senderEmail?.name || null,
         campaign_id: campaignId,
-        metadata: {
-          campaign_type: custom_list_id ? 'custom_list' : (use_crm_contacts ? 'crm_contacts' : 'customer'),
-          active_only,
-          city,
-          country,
-          custom_list_id,
-          use_crm_contacts,
-          is_newsletter,
-          template: template || null
-        }
+         metadata: {
+           campaign_type: custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
+           active_only,
+           city,
+           country,
+           custom_list_id,
+           use_crm_contacts,
+           use_partners,
+           partner_type,
+           acquisition_status,
+           region,
+           excluded_countries,
+           is_newsletter,
+           template: template || null
+         }
       };
     });
 
@@ -257,7 +312,7 @@ const handler = async (req: Request): Promise<Response> => {
           id: campaignId,
           subject: subject,
           message: message,
-          campaign_type: custom_list_id ? 'Lista personalizzata' : (use_crm_contacts ? 'Contatti CRM' : 'Clienti'),
+          campaign_type: custom_list_id ? 'Lista personalizzata' : (use_partners ? 'Partner' : (use_crm_contacts ? 'Contatti CRM' : 'Clienti')),
           recipients_count: totalQueued,
           success_count: 0,
           failure_count: 0,
@@ -279,18 +334,23 @@ const handler = async (req: Request): Promise<Response> => {
       await supabase.from('audit_logs').insert({
         table_name: 'email_campaigns',
         action: 'QUEUE',
-        new_values: {
-          campaign_id: campaignId,
-          campaign_type: custom_list_id ? 'custom_list' : (use_crm_contacts ? 'crm_contacts' : 'customer'),
-          active_only,
-          city,
-          country,
-          custom_list_id,
-          use_crm_contacts,
-          subject,
-          recipients_count: recipients.length,
-          queued_at: new Date().toISOString()
-        }
+         new_values: {
+           campaign_id: campaignId,
+           campaign_type: custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
+           active_only,
+           city,
+           country,
+           custom_list_id,
+           use_crm_contacts,
+           use_partners,
+           partner_type,
+           acquisition_status,
+           region,
+           excluded_countries,
+           subject,
+           recipients_count: recipients.length,
+           queued_at: new Date().toISOString()
+         }
       });
     } catch (logError) {
       console.error('Failed to log email campaign:', logError);

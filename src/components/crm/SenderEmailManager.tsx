@@ -89,7 +89,11 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
     }
 
     try {
+      setLoading(true);
+      
       const domain = extractDomain(newEmail.email);
+      console.log('Adding sender email:', { email: newEmail.email, name: newEmail.name, domain });
+      
       const { data, error } = await supabase
         .from('sender_emails')
         .insert({
@@ -102,7 +106,12 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+
+      console.log('Sender email added successfully:', data);
 
       setSenderEmails(prev => [data, ...prev]);
       setNewEmail({ email: '', name: '' });
@@ -113,15 +122,30 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
         description: "Indirizzo email mittente aggiunto con successo",
       });
 
-      // Verify domain with Resend
-      await verifyDomainWithResend(data.id, domain);
-    } catch (error) {
+      // Verify domain with Resend (don't fail if this fails)
+      try {
+        await verifyDomainWithResend(data.id, domain);
+      } catch (verifyError) {
+        console.warn('Domain verification failed, but email was added:', verifyError);
+      }
+    } catch (error: any) {
       console.error('Error adding sender email:', error);
+      
+      let errorMessage = "Errore nell'aggiunta dell'indirizzo email";
+      
+      if (error.code === '23505') {
+        errorMessage = "Questo indirizzo email è già stato aggiunto";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Errore",
-        description: "Errore nell'aggiunta dell'indirizzo email",
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
