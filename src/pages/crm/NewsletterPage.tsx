@@ -87,12 +87,6 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
     fetchFilterCounts();
   }, [currentFilters]);
 
-  // Auto-update partner selection when filters change and partners are selected
-  useEffect(() => {
-    if (selectedType === 'partners') {
-      onFilterSelect('partners', currentFilters, filterCounts.partners);
-    }
-  }, [currentFilters, filterCounts.partners]);
 
   const fetchFilterCounts = async () => {
     setLoading(true);
@@ -165,20 +159,28 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
 
   const addExcludedCountry = (country: string) => {
     if (country && !currentFilters.excludedCountries?.includes(country)) {
-      const updated = {
+      const newFilters = {
         ...currentFilters,
         excludedCountries: [...(currentFilters.excludedCountries || []), country]
       };
-      setCurrentFilters(updated);
+      setCurrentFilters(newFilters);
+      if (selectedType === 'partners') {
+        // Update selection immediately when filters change
+        setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
+      }
     }
   };
 
   const removeExcludedCountry = (country: string) => {
-    const updated = {
+    const newFilters = {
       ...currentFilters,
       excludedCountries: currentFilters.excludedCountries?.filter(c => c !== country) || []
     };
-    setCurrentFilters(updated);
+    setCurrentFilters(newFilters);
+    if (selectedType === 'partners') {
+      // Update selection immediately when filters change
+      setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
+    }
   };
 
   return (
@@ -226,7 +228,10 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
           className={`rounded-lg border transition-all cursor-pointer ${
             selectedType === 'partners' ? 'ring-2 ring-primary bg-primary/5' : ''
           }`}
-          onClick={() => onFilterSelect('partners', currentFilters, filterCounts.partners)}
+          onClick={() => {
+            console.log('Partner section clicked, current filters:', currentFilters);
+            onFilterSelect('partners', currentFilters, filterCounts.partners);
+          }}
         >
           <div className="p-3 space-y-3">
             <div className="flex items-center justify-between">
@@ -244,7 +249,14 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
               <div className="grid grid-cols-1 gap-2">
                 <Select
                   value={currentFilters.partner_type || 'all'}
-                  onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, partner_type: value === 'all' ? undefined : value }))}
+                  onValueChange={(value) => {
+                    const newFilters = { ...currentFilters, partner_type: value === 'all' ? undefined : value };
+                    setCurrentFilters(newFilters);
+                    if (selectedType === 'partners') {
+                      // Update selection immediately when filters change
+                      setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
+                    }
+                  }}
                 >
                   <SelectTrigger className="h-7 text-xs">
                     <SelectValue placeholder="Tipo Partner" />
@@ -259,7 +271,14 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
 
                 <Select
                   value={currentFilters.acquisition_status || 'all'}
-                  onValueChange={(value) => setCurrentFilters(prev => ({ ...prev, acquisition_status: value === 'all' ? undefined : value }))}
+                  onValueChange={(value) => {
+                    const newFilters = { ...currentFilters, acquisition_status: value === 'all' ? undefined : value };
+                    setCurrentFilters(newFilters);
+                    if (selectedType === 'partners') {
+                      // Update selection immediately when filters change
+                      setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
+                    }
+                  }}
                 >
                   <SelectTrigger className="h-7 text-xs">
                     <SelectValue placeholder="Stato" />
@@ -275,7 +294,14 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
               <Input
                 placeholder="Regione..."
                 value={currentFilters.region || ''}
-                onChange={(e) => setCurrentFilters(prev => ({ ...prev, region: e.target.value || undefined }))}
+                onChange={(e) => {
+                  const newFilters = { ...currentFilters, region: e.target.value || undefined };
+                  setCurrentFilters(newFilters);
+                  if (selectedType === 'partners') {
+                    // Update selection immediately when filters change
+                    setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 300);
+                  }
+                }}
                 className="h-7 text-xs"
               />
 
