@@ -61,7 +61,7 @@ export default function PriceListsPage() {
                 id: file.id || Date.now().toString(),
                 name: file.name,
                 language: language,
-                size: `${(file.metadata?.size || 0 / 1024 / 1024).toFixed(2)} MB`,
+                size: `${((file.metadata?.size || 0) / 1024 / 1024).toFixed(2)} MB`,
                 uploadDate: new Date(file.created_at || '').toLocaleDateString("it-IT"),
                 storage_path: `price-lists/${file.name}`,
                 url: data.publicUrl
@@ -81,20 +81,34 @@ export default function PriceListsPage() {
     
     for (const file of acceptedFiles) {
       try {
+        console.log(`Starting upload for file: ${file.name}, size: ${file.size} bytes`);
+        
+        // Check file size (20MB limit)
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        if (file.size > maxSize) {
+          throw new Error(`File troppo grande. Massimo 20MB consentiti. File corrente: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        }
+
         // Create filename with language prefix
         const filename = `${selectedLanguage}_${Date.now()}_${file.name}`;
         const filePath = `price-lists/${filename}`;
+
+        console.log(`Uploading to path: ${filePath}`);
 
         const { error: uploadError } = await supabase.storage
           .from('company-documents')
           .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw new Error(`Errore upload: ${uploadError.message}`);
+        }
 
         toast.success(`Listino caricato - ${languages.find(l => l.code === selectedLanguage)?.name}`);
-      } catch (error) {
+        console.log(`Successfully uploaded: ${filename}`);
+      } catch (error: any) {
         console.error('Errore upload:', error);
-        toast.error(`Errore nel caricamento di ${file.name}`);
+        toast.error(`Errore nel caricamento di ${file.name}: ${error.message || 'Errore sconosciuto'}`);
       }
     }
     
