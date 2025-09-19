@@ -650,9 +650,37 @@ export default function NewsletterPage() {
         {/* Compose Tab - Redesigned */}
         <TabsContent value="compose" className="space-y-6">
           <div className="grid gap-6 xl:grid-cols-2">
-            {/* Main Content Area */}
+            {/* Left Column */}
             <div className="space-y-6">
-              {/* Main Compose Area */}
+              {/* Recipients Selection Section */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Destinatari</CardTitle>
+                  <CardDescription className="text-xs">
+                    Seleziona chi riceverà la newsletter
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <SystemFiltersManager 
+                    onFilterSelect={handleSystemFilterSelect}
+                    selectedType={campaign.targetAudience}
+                    selectedFilters={campaign.systemFilters}
+                  />
+                  
+                  <div className="pt-4 border-t">
+                    <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
+                    <EmailListManager 
+                      onListSelect={handleCustomListSelect}
+                      selectedListId={campaign.targetAudience === 'custom_list' ? campaign.customListId : undefined}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Compose Area */}
               <Card className="h-fit">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
@@ -668,6 +696,29 @@ export default function NewsletterPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Recipients Summary */}
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">
+                          {campaign.targetAudience === 'customers' && 'Clienti'}
+                          {campaign.targetAudience === 'crm_contacts' && 'Contatti CRM'}
+                          {campaign.targetAudience === 'partners' && 'Partner'}
+                          {campaign.targetAudience === 'custom_list' && 'Lista Personalizzata'}
+                        </span>
+                        {campaign.targetAudience === 'custom_list' && selectedCustomList && (
+                          <span className="text-xs text-muted-foreground">
+                            ({emailLists.find(l => l.id === selectedCustomList)?.name})
+                          </span>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {getCurrentEmailCount()} destinatari
+                      </Badge>
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Oggetto</label>
@@ -718,34 +769,7 @@ export default function NewsletterPage() {
                 </CardContent>
               </Card>
 
-              {/* Recipients Section - Now Below Compose */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Destinatari</CardTitle>
-                  <CardDescription className="text-xs">
-                    Seleziona chi riceverà la newsletter
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <SystemFiltersManager 
-                    onFilterSelect={handleSystemFilterSelect}
-                    selectedType={campaign.targetAudience}
-                    selectedFilters={campaign.systemFilters}
-                  />
-                  
-                  <div className="pt-4 border-t">
-                    <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
-                   <EmailListManager 
-                     onListSelect={handleCustomListSelect}
-                     selectedListId={campaign.targetAudience === 'custom_list' ? campaign.customListId : undefined}
-                   />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Email Preview - Right Column */}
-            <div className="space-y-4">
+              {/* Email Preview */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
