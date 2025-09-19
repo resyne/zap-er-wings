@@ -104,8 +104,16 @@ export default function PriceListsPage() {
           throw new Error(`File troppo grande. Massimo 20MB consentiti. File corrente: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
         }
 
+        // Sanitize filename by removing special characters
+        const sanitizedName = file.name
+          .replace(/[®™©]/g, '') // Remove trademark symbols
+          .replace(/[^\w\s.-]/g, '') // Remove other special characters except dots, hyphens, spaces
+          .replace(/\s+/g, '_') // Replace spaces with underscores
+          .replace(/_+/g, '_') // Replace multiple underscores with single
+          .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+
         // Create filename with language prefix
-        const filename = `${selectedLanguage}_${Date.now()}_${file.name}`;
+        const filename = `${selectedLanguage}_${Date.now()}_${sanitizedName}`;
         const filePath = `price-lists/${filename}`;
 
         console.log(`Uploading to path: ${filePath}`);
