@@ -92,7 +92,7 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
     if (selectedType === 'partners') {
       onFilterSelect('partners', currentFilters, filterCounts.partners);
     }
-  }, [currentFilters, filterCounts.partners, selectedType]);
+  }, [currentFilters, filterCounts.partners]);
 
   const fetchFilterCounts = async () => {
     setLoading(true);
@@ -114,26 +114,37 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
         .select('id', { count: 'exact' });
 
       // Count partners with filters
+      console.log('Applying partner filters:', currentFilters);
       let partnerQuery = supabase
         .from('partners')
         .select('id', { count: 'exact' });
 
       if (currentFilters.partner_type) {
+        console.log('Filtering by partner_type:', currentFilters.partner_type);
         partnerQuery = partnerQuery.eq('partner_type', currentFilters.partner_type);
       }
       if (currentFilters.acquisition_status) {
+        console.log('Filtering by acquisition_status:', currentFilters.acquisition_status);
         partnerQuery = partnerQuery.eq('acquisition_status', currentFilters.acquisition_status);
       }
       if (currentFilters.excludedCountries && currentFilters.excludedCountries.length > 0) {
+        console.log('Excluding countries:', currentFilters.excludedCountries);
         currentFilters.excludedCountries.forEach(country => {
           partnerQuery = partnerQuery.neq('country', country);
         });
       }
       if (currentFilters.region) {
+        console.log('Filtering by region:', currentFilters.region);
         partnerQuery = partnerQuery.ilike('region', `%${currentFilters.region}%`);
       }
 
-      const { count: partnerCount } = await partnerQuery;
+      const { count: partnerCount, error: partnerError } = await partnerQuery;
+      
+      if (partnerError) {
+        console.error('Partner query error:', partnerError);
+      } else {
+        console.log('Partner count result:', partnerCount);
+      }
 
       setFilterCounts({
         customers: customerCount || 0,
@@ -240,9 +251,9 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutti i tipi</SelectItem>
-                    <SelectItem value="installer">Installatori</SelectItem>
-                    <SelectItem value="importer">Importatori</SelectItem>
-                    <SelectItem value="reseller">Rivenditori</SelectItem>
+                    <SelectItem value="installatore">Installatori</SelectItem>
+                    <SelectItem value="importatore">Importatori</SelectItem>
+                    <SelectItem value="rivenditore">Rivenditori</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -255,9 +266,8 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutti gli stati</SelectItem>
-                    <SelectItem value="acquired">Acquisiti</SelectItem>
-                    <SelectItem value="in_progress">In Corso</SelectItem>
-                    <SelectItem value="not_acquired">Non Acquisiti</SelectItem>
+                    <SelectItem value="attivo">Attivi</SelectItem>
+                    <SelectItem value="prospect">Prospect</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
