@@ -87,6 +87,13 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
     fetchFilterCounts();
   }, [currentFilters]);
 
+  // Auto-update partner selection when filters change and partners are selected
+  useEffect(() => {
+    if (selectedType === 'partners') {
+      onFilterSelect('partners', currentFilters, filterCounts.partners);
+    }
+  }, [currentFilters, filterCounts.partners, selectedType]);
+
   const fetchFilterCounts = async () => {
     setLoading(true);
     try {
@@ -205,9 +212,10 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
 
         {/* Partners */}
         <div 
-          className={`rounded-lg border transition-all ${
+          className={`rounded-lg border transition-all cursor-pointer ${
             selectedType === 'partners' ? 'ring-2 ring-primary bg-primary/5' : ''
           }`}
+          onClick={() => onFilterSelect('partners', currentFilters, filterCounts.partners)}
         >
           <div className="p-3 space-y-3">
             <div className="flex items-center justify-between">
@@ -221,7 +229,7 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
             </div>
 
             {/* Partner Filters - Compact */}
-            <div className="space-y-2 text-xs">
+            <div className="space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
               <div className="grid grid-cols-1 gap-2">
                 <Select
                   value={currentFilters.partner_type || 'all'}
@@ -288,16 +296,6 @@ function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }:
                   }
                 }}
               />
-
-              <Button 
-                size="sm" 
-                className="w-full h-7 text-xs"
-                onClick={() => onFilterSelect('partners', currentFilters, filterCounts.partners)}
-                disabled={loading}
-                variant={selectedType === 'partners' ? 'default' : 'outline'}
-              >
-                {loading ? <Loader className="h-3 w-3 animate-spin" /> : 'Seleziona'}
-              </Button>
             </div>
           </div>
         </div>
