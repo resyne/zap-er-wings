@@ -405,6 +405,10 @@ export default function NewsletterPage() {
       ...prev,
       [type]: count || 0
     }));
+    
+    // Clear custom list selection when selecting system filters
+    setSelectedCustomList('');
+    setSelectedCustomListCount(0);
   };
 
   const handleCustomListSelect = (listId: string, contactCount: number) => {
@@ -416,6 +420,12 @@ export default function NewsletterPage() {
     }));
     setSelectedCustomList(listId);
     setSelectedCustomListCount(contactCount);
+    
+    // Update email counts to reflect custom list selection
+    setEmailCounts(prev => ({
+      ...prev,
+      custom_list: contactCount
+    }));
   };
 
   const sendNewsletter = async () => {
@@ -725,10 +735,10 @@ export default function NewsletterPage() {
                   
                   <div className="pt-4 border-t">
                     <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
-                    <EmailListManager 
-                      onListSelect={handleCustomListSelect}
-                      selectedListId={campaign.targetAudience === 'custom_list' ? selectedCustomList : undefined}
-                    />
+                   <EmailListManager 
+                     onListSelect={handleCustomListSelect}
+                     selectedListId={campaign.targetAudience === 'custom_list' ? campaign.customListId : undefined}
+                   />
                   </div>
                 </CardContent>
               </Card>
