@@ -35,6 +35,7 @@ export default function PriceListsPage() {
 
   const loadDocuments = async () => {
     try {
+      console.log('Loading documents from company-documents bucket...');
       const { data: files, error } = await supabase.storage
         .from('company-documents')
         .list('price-lists/', {
@@ -42,33 +43,47 @@ export default function PriceListsPage() {
           offset: 0
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error listing files:', error);
+        throw error;
+      }
+
+      console.log('Files found:', files?.length || 0);
 
       if (files) {
         const docs: Document[] = await Promise.all(
           files
             .filter(file => file.name !== '.emptyFolderPlaceholder')
             .map(async (file) => {
-              const { data } = supabase.storage
-                .from('company-documents')
-                .getPublicUrl(`price-lists/${file.name}`);
+              try {
+                const { data } = supabase.storage
+                  .from('company-documents')
+                  .getPublicUrl(`price-lists/${file.name}`);
 
-              // Extract language from filename if available
-              const nameParts = file.name.split('_');
-              const language = nameParts.length > 1 ? nameParts[0] : 'it';
+                // Extract language from filename if available
+                const nameParts = file.name.split('_');
+                const language = nameParts.length > 1 ? nameParts[0] : 'it';
 
-              return {
-                id: file.id || Date.now().toString(),
-                name: file.name,
-                language: language,
-                size: `${((file.metadata?.size || 0) / 1024 / 1024).toFixed(2)} MB`,
-                uploadDate: new Date(file.created_at || '').toLocaleDateString("it-IT"),
-                storage_path: `price-lists/${file.name}`,
-                url: data.publicUrl
-              };
+                return {
+                  id: file.id || Date.now().toString(),
+                  name: file.name,
+                  language: language,
+                  size: `${((file.metadata?.size || 0) / 1024 / 1024).toFixed(2)} MB`,
+                  uploadDate: new Date(file.created_at || '').toLocaleDateString("it-IT"),
+                  storage_path: `price-lists/${file.name}`,
+                  url: data.publicUrl
+                };
+              } catch (docError) {
+                console.error(`Error processing file ${file.name}:`, docError);
+                return null;
+              }
             })
         );
-        setDocuments(docs);
+        
+        // Filter out null entries from failed document processing
+        const validDocs = docs.filter(doc => doc !== null) as Document[];
+        setDocuments(validDocs);
+        console.log('Documents loaded successfully:', validDocs.length);
       }
     } catch (error) {
       console.error('Errore caricamento documenti:', error);
