@@ -207,6 +207,10 @@ const handler = async (req: Request): Promise<Response> => {
             ` : ''}
             
             <div style="padding: 30px;">
+              <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
+                ${subject}
+              </h2>
+              
               <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
                 ${personalizedMessage.replace(/\n/g, '<br>')}
               </div>
