@@ -73,6 +73,7 @@ import BrandAssetManager from "./pages/marketing/BrandAssetManager";
 import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
 import IntegrationsPage from "./pages/integrations/IntegrationsPage";
 import { TasksPage } from "./pages/tasks/TasksPage";
+import ContentCreationPage from "./pages/marketing/ContentCreationPage";
 
 const queryClient = new QueryClient();
 
@@ -151,6 +152,7 @@ const App = () => (
                 <Route path="support/work-cost-calculator" element={<WorkCostCalculatorPage />} />
                 <Route path="support/tickets" element={<TicketsPage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />
+                <Route path="marketing/content-creation" element={<ContentCreationPage />} />
                 <Route path="marketing/brandkit" element={<BrandkitPage />} />
                 <Route path="marketing/brandkit/:brandId" element={<BrandAssetManager />} />
                 <Route path="integrations" element={<IntegrationsPage />} />

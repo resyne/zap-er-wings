@@ -208,6 +208,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Cruscotto KPI", url: "/marketing/dashboard", icon: BarChart3 },
       { title: "Campagne", url: "/marketing/campaigns", icon: Target },
+      { title: "Content Creation", url: "/marketing/content-creation", icon: CheckSquare },
       { title: "Canali", url: "/marketing/channels", icon: Zap },
       { title: "Budget & Costi", url: "/marketing/budget", icon: DollarSign },
       { title: "Reportistica", url: "/marketing/reports", icon: PieChart },
