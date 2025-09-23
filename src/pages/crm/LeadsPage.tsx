@@ -72,7 +72,7 @@ export default function LeadsPage() {
     next_activity_type: "",
     next_activity_date: "",
     next_activity_notes: "",
-    next_activity_assigned_to: "",
+    next_activity_assigned_to: null,
   });
   const { toast } = useToast();
 
@@ -122,7 +122,8 @@ export default function LeadsPage() {
         ...newLead,
         value: newLead.value ? parseFloat(newLead.value) : null,
         pipeline: newLead.pipeline || selectedPipeline,
-        next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null
+        next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null,
+        next_activity_assigned_to: newLead.next_activity_assigned_to || null
       };
       
       const { error } = await supabase
@@ -241,7 +242,7 @@ export default function LeadsPage() {
       next_activity_type: "",
       next_activity_date: "",
       next_activity_notes: "",
-      next_activity_assigned_to: "",
+      next_activity_assigned_to: null,
     });
   };
 
