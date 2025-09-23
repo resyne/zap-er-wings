@@ -18,7 +18,8 @@ interface QueueEmailRequest {
   message: string;
   is_newsletter?: boolean;
   template?: any;
-  senderEmail?: any;
+  sender_email?: string;
+  sender_name?: string;
   use_crm_contacts?: boolean;
   use_partners?: boolean;
   partner_type?: string;
@@ -44,7 +45,6 @@ const handler = async (req: Request): Promise<Response> => {
       sender_name,
       template,
       is_newsletter = false,
-      senderEmail,
       use_crm_contacts = false,
       use_partners = false,
       partner_type,
