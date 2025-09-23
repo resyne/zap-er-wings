@@ -193,35 +193,47 @@ const handler = async (req: Request): Promise<Response> => {
     const generateEmailHtml = (recipient: any, personalizedMessage: string) => {
       if (is_newsletter && template) {
         return `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            ${template.logo ? `<div style="text-align: center; margin-bottom: 30px;"><img src="${template.logo}" alt="Logo" style="max-height: 80px;"></div>` : ''}
-            
-            <h2 style="color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
-              ${template.headerText || 'Newsletter'}
-            </h2>
-            
-            <div style="line-height: 1.6; color: #374151; margin: 30px 0;">
-              ${personalizedMessage.replace(/\n/g, '<br>')}
-            </div>
-            
-            ${template.attachments && template.attachments.length > 0 ? `
-              <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
-                <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
-                ${template.attachments.map((att: any) => `
-                  <div style="margin: 8px 0;">
-                    <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
-                  </div>
-                `).join('')}
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            ${template.logo ? `
+              <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
+                <img src="${template.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
               </div>
             ` : ''}
             
-            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
-              <div style="white-space: pre-line;">${template.signature || 'Cordiali saluti,\nIl Team'}</div>
+            ${template.headerText ? `
+              <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">${template.headerText}</h1>
+              </div>
+            ` : ''}
+            
+            <div style="padding: 30px;">
+              <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
+                ${personalizedMessage.replace(/\n/g, '<br>')}
+              </div>
+              
+              ${template.attachments && template.attachments.length > 0 ? `
+                <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+                  <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
+                  ${template.attachments.map((att: any) => `
+                    <div style="margin: 8px 0;">
+                      <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              
+              ${template.signature ? `
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
+                  <div style="white-space: pre-line;">${template.signature}</div>
+                </div>
+              ` : ''}
             </div>
             
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 12px; text-align: center;">
-              ${template.footerText || '© 2024. Tutti i diritti riservati.'}
-            </div>
+            ${template.footerText ? `
+              <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
+                ${template.footerText}
+              </div>
+            ` : ''}
           </div>
         `;
       } else {
