@@ -7,6 +7,7 @@ import { Plus, Calendar, Kanban } from "lucide-react";
 import { TaskKanban } from "@/components/tasks/TaskKanban";
 import { TaskCalendar } from "@/components/tasks/TaskCalendar";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
+import { WeeklyRecurringTasks } from "@/components/tasks/WeeklyRecurringTasks";
 
 type TaskCategory = 'amministrazione' | 'back_office' | 'ricerca_sviluppo' | 'tecnico';
 type ViewMode = 'kanban' | 'calendar';
@@ -106,6 +107,8 @@ export function TasksPage() {
               </CardHeader>
             </Card>
 
+            <WeeklyRecurringTasks category={category.key} />
+            
             {viewMode === 'kanban' ? (
               <TaskKanban category={category.key} />
             ) : (
