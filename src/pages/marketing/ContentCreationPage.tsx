@@ -111,10 +111,16 @@ export default function ContentCreationPage() {
     e.preventDefault();
     
     try {
+      // Prepare data with proper null handling for dates
+      const submitData = {
+        ...formData,
+        due_date: formData.due_date || null
+      };
+
       if (editingContent) {
         const { error } = await supabase
           .from('marketing_content')
-          .update(formData)
+          .update(submitData)
           .eq('id', editingContent.id);
 
         if (error) throw error;
@@ -126,7 +132,7 @@ export default function ContentCreationPage() {
       } else {
         const { error } = await supabase
           .from('marketing_content')
-          .insert([formData]);
+          .insert([submitData]);
 
         if (error) throw error;
         
