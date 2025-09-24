@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
 import { NewsletterTemplateEditor } from "@/components/crm/NewsletterTemplateEditor";
 import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
-import { ContactManager } from "@/components/crm/ContactManager";
+
 
 interface EmailCampaign {
   subject: string;
@@ -549,11 +549,12 @@ export default function NewsletterPage() {
     }
   };
 
-  const handleTemplateSelect = (template: { subject: string; message: string }) => {
+  const handleTemplateSelect = (template: { subject: string; message: string; template?: any }) => {
     setCampaign(prev => ({
       ...prev,
       subject: template.subject,
-      message: template.message
+      message: template.message,
+      template: template.template || prev.template
     }));
   };
 
@@ -657,7 +658,7 @@ export default function NewsletterPage() {
 
       <Tabs defaultValue="compose" className="space-y-6">
         <div className="border-b">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
             <TabsTrigger value="compose" className="flex items-center gap-2">
               <Send className="h-4 w-4" />
               <span className="hidden sm:inline">Componi</span>
@@ -665,10 +666,6 @@ export default function NewsletterPage() {
             <TabsTrigger value="lists" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Liste</span>
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              <span className="hidden sm:inline">Template</span>
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
@@ -849,25 +846,6 @@ export default function NewsletterPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="templates">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Template Newsletter
-              </CardTitle>
-              <CardDescription>
-                Crea e gestisci template riutilizzabili per le tue newsletter
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <NewsletterTemplateEditor 
-                onTemplateChange={handleTemplateChange} 
-                onTemplateSelect={handleTemplateSelect} 
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="history">
           <Card>
@@ -935,7 +913,7 @@ export default function NewsletterPage() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -943,7 +921,7 @@ export default function NewsletterPage() {
                   Email Mittenti
                 </CardTitle>
                 <CardDescription>
-                  Gestisci e verifica gli indirizzi email mittenti
+                  Gestisci e verifica gli indirizzi email mittenti per l'invio delle newsletter
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -957,15 +935,18 @@ export default function NewsletterPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Gestione Contatti
+                  <Target className="h-5 w-5" />
+                  Template Newsletter
                 </CardTitle>
                 <CardDescription>
-                  Importa e organizza i tuoi contatti
+                  Crea e gestisci template riutilizzabili per le tue newsletter
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ContactManager />
+                <NewsletterTemplateEditor 
+                  onTemplateChange={handleTemplateChange} 
+                  onTemplateSelect={handleTemplateSelect} 
+                />
               </CardContent>
             </Card>
           </div>
