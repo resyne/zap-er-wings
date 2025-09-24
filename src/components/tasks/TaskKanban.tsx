@@ -29,6 +29,8 @@ interface Task {
   tags?: string[];
   created_at: string;
   updated_at: string;
+  is_recurring?: boolean;
+  recurring_day?: number;
   profiles?: {
     first_name?: string;
     last_name?: string;
@@ -75,6 +77,7 @@ const statusConfig = {
 
 export function TaskKanban({ category }: TaskKanbanProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [recurringTasks, setRecurringTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createDialogStatus, setCreateDialogStatus] = useState<'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled'>('todo');
@@ -90,19 +93,70 @@ export function TaskKanban({ category }: TaskKanbanProps) {
   const fetchTasks = async () => {
     try {
       console.log('Fetching tasks for category:', category);
-      const { data, error } = await supabase
+      
+      // Fetch regular tasks
+      const { data: regularTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('category', category as any)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
+      if (tasksError) throw tasksError;
 
-      console.log('Fetched tasks:', data);
-      setTasks((data || []) as Task[]);
+      // Fetch recurring tasks
+      const { data: recurringData, error: recurringError } = await supabase
+        .from('recurring_tasks')
+        .select(`
+          *,
+          tasks!recurring_tasks_task_template_id_fkey (
+            title,
+            description,
+            category,
+            estimated_hours,
+            priority,
+            tags
+          )
+        `)
+        .eq('recurrence_type', 'weekly')
+        .eq('is_active', true)
+        .eq('tasks.category', category as any);
+
+      if (recurringError) throw recurringError;
+
+      // Transform recurring tasks for display
+      const weekDays = [
+        { value: 1, label: 'Lunedì', short: 'Lun' },
+        { value: 2, label: 'Martedì', short: 'Mar' },
+        { value: 3, label: 'Mercoledì', short: 'Mer' },
+        { value: 4, label: 'Giovedì', short: 'Gio' },
+        { value: 5, label: 'Venerdì', short: 'Ven' }
+      ];
+
+      const transformedRecurring = recurringData?.map(item => {
+        const day = item.recurrence_days?.[0] || 1;
+        const dayInfo = weekDays.find(d => d.value === day);
+        
+        return {
+          id: `recurring-${item.id}`,
+          title: `🔄 ${item.tasks?.title || ''} (${dayInfo?.short})`,
+          description: item.tasks?.description || '',
+          status: 'todo' as const,
+          priority: item.tasks?.priority || 'medium',
+          category: item.tasks?.category,
+          estimated_hours: item.tasks?.estimated_hours,
+          tags: item.tasks?.tags || [],
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          is_recurring: true,
+          recurring_day: day
+        };
+      }) || [];
+
+      console.log('Fetched tasks:', regularTasks);
+      console.log('Fetched recurring tasks:', transformedRecurring);
+      
+      setTasks((regularTasks || []) as Task[]);
+      setRecurringTasks(transformedRecurring as Task[]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast({
@@ -172,7 +226,9 @@ export function TaskKanban({ category }: TaskKanbanProps) {
   };
 
   const getTasksByStatus = (status: Task['status']) => {
-    return tasks.filter(task => task.status === status);
+    const regularTasks = tasks.filter(task => task.status === status);
+    const recurring = status === 'todo' ? recurringTasks : [];
+    return [...regularTasks, ...recurring];
   };
 
   if (loading) {
@@ -237,18 +293,27 @@ export function TaskKanban({ category }: TaskKanbanProps) {
                         }`}
                       >
                         {statusTasks.map((task, index) => (
-                          <Draggable key={task.id} draggableId={task.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`${snapshot.isDragging ? 'rotate-2' : ''}`}
-                              >
+                          <div key={task.id} className="space-y-3">
+                            {task.is_recurring ? (
+                              // Recurring tasks are not draggable
+                              <div className="opacity-75">
                                 <TaskCard task={task} onUpdate={handleTaskUpdated} />
                               </div>
+                            ) : (
+                              <Draggable draggableId={task.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`${snapshot.isDragging ? 'rotate-2' : ''}`}
+                                  >
+                                    <TaskCard task={task} onUpdate={handleTaskUpdated} />
+                                  </div>
+                                )}
+                              </Draggable>
                             )}
-                          </Draggable>
+                          </div>
                         ))}
                         {provided.placeholder}
                       </div>

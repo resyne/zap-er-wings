@@ -20,7 +20,7 @@ interface RecurringTask {
   title: string;
   description?: string;
   category: TaskCategory;
-  days: number[];
+  day: number; // Single day instead of array
   estimated_hours?: number;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   is_active: boolean;
@@ -43,7 +43,7 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    days: [] as number[],
+    day: 0, // Single day
     estimated_hours: '',
     priority: 'medium' as const
   });
@@ -80,7 +80,7 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
         title: item.tasks?.title || '',
         description: item.tasks?.description || '',
         category: item.tasks?.category as TaskCategory,
-        days: item.recurrence_days || [],
+        day: item.recurrence_days?.[0] || 1, // Take first day from array
         estimated_hours: item.tasks?.estimated_hours,
         priority: item.tasks?.priority || 'medium',
         is_active: item.is_active
@@ -99,20 +99,18 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
     }
   };
 
-  const toggleDay = (day: number) => {
+  const selectDay = (day: number) => {
     setNewTask(prev => ({
       ...prev,
-      days: prev.days.includes(day) 
-        ? prev.days.filter(d => d !== day)
-        : [...prev.days, day].sort()
+      day: day
     }));
   };
 
   const handleSubmit = async () => {
-    if (!newTask.title.trim() || newTask.days.length === 0) {
+    if (!newTask.title.trim() || newTask.day === 0) {
       toast({
         title: "Errore",
-        description: "Inserisci un titolo e seleziona almeno un giorno",
+        description: "Inserisci un titolo e seleziona un giorno",
         variant: "destructive"
       });
       return;
@@ -142,7 +140,7 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
           task_template_id: templateTask.id,
           recurrence_type: 'weekly',
           recurrence_interval: 1,
-          recurrence_days: newTask.days,
+          recurrence_days: [newTask.day], // Single day in array
           is_active: true
         });
 
@@ -157,7 +155,7 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
       setNewTask({
         title: '',
         description: '',
-        days: [],
+        day: 0,
         estimated_hours: '',
         priority: 'medium'
       });
@@ -266,14 +264,14 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Giorni della settimana:</label>
+              <label className="text-sm font-medium">Giorno della settimana:</label>
               <div className="flex gap-2">
                 {weekDays.map(day => (
                   <Button
                     key={day.value}
-                    variant={newTask.days.includes(day.value) ? "default" : "outline"}
+                    variant={newTask.day === day.value ? "default" : "outline"}
                     size="sm"
-                    onClick={() => toggleDay(day.value)}
+                    onClick={() => selectDay(day.value)}
                     className="flex-1"
                   >
                     {day.short}
@@ -339,14 +337,12 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
                 )}
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
-                    {task.days.map(day => {
-                      const dayInfo = weekDays.find(d => d.value === day);
-                      return (
-                        <Badge key={day} variant="secondary" className="text-xs">
-                          {dayInfo?.short}
-                        </Badge>
-                      );
-                    })}
+                    {/* Show single day */}
+                    {weekDays.find(d => d.value === task.day) && (
+                      <Badge variant="secondary" className="text-xs">
+                        {weekDays.find(d => d.value === task.day)?.short}
+                      </Badge>
+                    )}
                   </div>
                   {task.estimated_hours && (
                     <Badge variant="outline" className="text-xs">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash, CalendarDays, Clock } from "lucide-react";
+import { MoreHorizontal, Edit, Trash, CalendarDays, Clock, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EditTaskDialog } from "./EditTaskDialog";
@@ -30,6 +30,8 @@ interface Task {
   tags?: string[];
   created_at: string;
   updated_at: string;
+  is_recurring?: boolean;
+  recurring_day?: number;
   profiles?: {
     first_name?: string;
     last_name?: string;
@@ -95,47 +97,56 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
   return (
     <>
       <Card 
-        className="cursor-pointer hover:shadow-md transition-shadow bg-card border"
-        onClick={() => setIsDetailsDialogOpen(true)}
+        className={`cursor-pointer hover:shadow-md transition-shadow bg-card border ${
+          task.is_recurring ? 'border-l-4 border-l-blue-500' : ''
+        }`}
+        onClick={() => !task.is_recurring && setIsDetailsDialogOpen(true)}
       >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
-            <h4 className="font-medium text-sm leading-tight line-clamp-2">
-              {task.title}
-            </h4>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 w-6 p-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsEditDialogOpen(true);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Modifica
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsDeleteDialogOpen(true);
-                  }}
-                  className="text-destructive"
-                >
-                  <Trash className="h-4 w-4 mr-2" />
-                  Elimina
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-start gap-2 flex-1">
+              {task.is_recurring && (
+                <RotateCcw className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              )}
+              <h4 className="font-medium text-sm leading-tight line-clamp-2">
+                {task.title}
+              </h4>
+            </div>
+            {!task.is_recurring && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditDialogOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifica
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDeleteDialogOpen(true);
+                    }}
+                    className="text-destructive"
+                  >
+                    <Trash className="h-4 w-4 mr-2" />
+                    Elimina
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           
           {task.description && (
@@ -162,7 +173,14 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
             )}
           </div>
 
-          {task.due_date && (
+          {task.is_recurring && (
+            <div className="flex items-center gap-1 text-xs text-blue-600">
+              <RotateCcw className="h-3 w-3" />
+              Task ricorrente settimanale
+            </div>
+          )}
+
+          {!task.is_recurring && task.due_date && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <CalendarDays className="h-3 w-3" />
               {format(new Date(task.due_date), 'dd MMM', { locale: it })}
@@ -198,36 +216,40 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
         </CardContent>
       </Card>
 
-      <TaskDetailsDialog
-        task={task}
-        open={isDetailsDialogOpen}
-        onOpenChange={setIsDetailsDialogOpen}
-        onTaskUpdated={onUpdate}
-      />
+      {!task.is_recurring && (
+        <>
+          <TaskDetailsDialog
+            task={task}
+            open={isDetailsDialogOpen}
+            onOpenChange={setIsDetailsDialogOpen}
+            onTaskUpdated={onUpdate}
+          />
 
-      <EditTaskDialog
-        task={task}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        onTaskUpdated={onUpdate}
-      />
+          <EditTaskDialog
+            task={task}
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            onTaskUpdated={onUpdate}
+          />
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sei sicuro di voler eliminare questo task? Questa azione non può essere annullata.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Elimina
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Sei sicuro di voler eliminare questo task? Questa azione non può essere annullata.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Elimina
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </>
   );
 }
