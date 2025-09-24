@@ -56,12 +56,13 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
     try {
       setLoading(true);
       
-      // Fetch recurring tasks with their template tasks
+      // Fetch recurring tasks with their template tasks, filtered by category
       const { data, error } = await supabase
         .from('recurring_tasks')
         .select(`
           *,
           tasks!recurring_tasks_task_template_id_fkey (
+            id,
             title,
             description,
             category,
@@ -70,21 +71,22 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
           )
         `)
         .eq('recurrence_type', 'weekly')
-        .eq('is_active', true)
-        .eq('tasks.category', category);
+        .eq('is_active', true);
 
       if (error) throw error;
 
-      const recurringTasks = data?.map(item => ({
-        id: item.id,
-        title: item.tasks?.title || '',
-        description: item.tasks?.description || '',
-        category: item.tasks?.category as TaskCategory,
-        day: item.recurrence_days?.[0] || 1, // Take first day from array
-        estimated_hours: item.tasks?.estimated_hours,
-        priority: item.tasks?.priority || 'medium',
-        is_active: item.is_active
-      })) || [];
+      // Filter by category and map the data
+      const recurringTasks = data?.filter(item => item.tasks?.category === category)
+        .map(item => ({
+          id: item.id,
+          title: item.tasks?.title || '',
+          description: item.tasks?.description || '',
+          category: item.tasks?.category as TaskCategory,
+          day: item.recurrence_days?.[0] || 1, // Take first day from array
+          estimated_hours: item.tasks?.estimated_hours,
+          priority: item.tasks?.priority || 'medium',
+          is_active: item.is_active
+        })) || [];
 
       setTasks(recurringTasks);
     } catch (error) {

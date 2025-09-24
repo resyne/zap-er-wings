@@ -109,6 +109,7 @@ export function TaskKanban({ category }: TaskKanbanProps) {
         .select(`
           *,
           tasks!recurring_tasks_task_template_id_fkey (
+            id,
             title,
             description,
             category,
@@ -118,8 +119,7 @@ export function TaskKanban({ category }: TaskKanbanProps) {
           )
         `)
         .eq('recurrence_type', 'weekly')
-        .eq('is_active', true)
-        .eq('tasks.category', category as any);
+        .eq('is_active', true);
 
       if (recurringError) throw recurringError;
 
@@ -132,25 +132,27 @@ export function TaskKanban({ category }: TaskKanbanProps) {
         { value: 5, label: 'Venerdì', short: 'Ven' }
       ];
 
-      const transformedRecurring = recurringData?.map(item => {
-        const day = item.recurrence_days?.[0] || 1;
-        const dayInfo = weekDays.find(d => d.value === day);
-        
-        return {
-          id: `recurring-${item.id}`,
-          title: `🔄 ${item.tasks?.title || ''} (${dayInfo?.short})`,
-          description: item.tasks?.description || '',
-          status: 'todo' as const,
-          priority: item.tasks?.priority || 'medium',
-          category: item.tasks?.category,
-          estimated_hours: item.tasks?.estimated_hours,
-          tags: item.tasks?.tags || [],
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          is_recurring: true,
-          recurring_day: day
-        };
-      }) || [];
+      // Filter by category and transform recurring tasks
+      const transformedRecurring = recurringData?.filter(item => item.tasks?.category === category)
+        .map(item => {
+          const day = item.recurrence_days?.[0] || 1;
+          const dayInfo = weekDays.find(d => d.value === day);
+          
+          return {
+            id: `recurring-${item.id}`,
+            title: `🔄 ${item.tasks?.title || ''} (${dayInfo?.short})`,
+            description: item.tasks?.description || '',
+            status: 'todo' as const,
+            priority: item.tasks?.priority || 'medium',
+            category: item.tasks?.category,
+            estimated_hours: item.tasks?.estimated_hours,
+            tags: item.tasks?.tags || [],
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            is_recurring: true,
+            recurring_day: day
+          };
+        }) || [];
 
       console.log('Fetched tasks:', regularTasks);
       console.log('Fetched recurring tasks:', transformedRecurring);
