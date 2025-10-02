@@ -270,6 +270,7 @@ export default function MaterialsPage() {
   const filteredMaterials = materials.filter(material => {
     const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       materialTypeLabels[material.material_type].toLowerCase().includes(searchTerm.toLowerCase());
     
