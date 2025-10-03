@@ -30,7 +30,7 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
   const [senderEmails, setSenderEmails] = useState<SenderEmail[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState<string | null>(null);
-  const [newEmail, setNewEmail] = useState({ email: '', name: '' });
+  const [newEmail, setNewEmail] = useState({ email: '' });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchSenderEmails = async () => {
@@ -70,10 +70,10 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
   };
 
   const handleAddEmail = async () => {
-    if (!newEmail.email || !newEmail.name) {
+    if (!newEmail.email) {
       toast({
         title: "Errore",
-        description: "Inserisci email e nome",
+        description: "Inserisci l'indirizzo email",
         variant: "destructive",
       });
       return;
@@ -102,13 +102,13 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
         console.log(`Email ${newEmail.email} already exists, verified: ${isVerified}`);
       }
       
-      console.log('Adding sender email:', { email: newEmail.email, name: newEmail.name, domain, isVerified });
+      console.log('Adding sender email:', { email: newEmail.email, domain, isVerified });
       
       const { data, error } = await supabase
         .from('sender_emails')
         .insert({
           email: newEmail.email,
-          name: newEmail.name,
+          name: newEmail.email.split('@')[0], // Use email prefix as default name
           domain,
           is_verified: isVerified, // Use existing verification status
           is_default: senderEmails.length === 0 // First email becomes default
@@ -124,7 +124,7 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
       console.log('Sender email added successfully:', data);
 
       setSenderEmails(prev => [data, ...prev]);
-      setNewEmail({ email: '', name: '' });
+      setNewEmail({ email: '' });
       setDialogOpen(false);
 
       toast({
@@ -386,14 +386,9 @@ export const SenderEmailManager = ({ onEmailSelect, selectedEmailId }: SenderEma
                     value={newEmail.email}
                     onChange={(e) => setNewEmail(prev => ({ ...prev, email: e.target.value }))}
                   />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Nome Mittente</label>
-                  <Input
-                    placeholder="Newsletter Aziendale"
-                    value={newEmail.name}
-                    onChange={(e) => setNewEmail(prev => ({ ...prev, name: e.target.value }))}
-                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Il nome del mittente può essere personalizzato quando invii la newsletter
+                  </p>
                 </div>
                 <Button onClick={handleAddEmail} className="w-full">
                   Aggiungi Email

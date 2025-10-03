@@ -355,6 +355,7 @@ export default function NewsletterPage() {
   const [selectedCustomList, setSelectedCustomList] = useState<string>('');
   const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
   const [selectedSenderEmail, setSelectedSenderEmail] = useState<any>(null);
+  const [senderName, setSenderName] = useState<string>('');
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
     message: '',
@@ -488,7 +489,7 @@ export default function NewsletterPage() {
         subject: campaign.subject,
         message: campaign.message,
         sender_email: selectedSenderEmail.email,
-        sender_name: selectedSenderEmail.name,
+        sender_name: senderName || selectedSenderEmail.name,
         template: campaign.template
       };
 
@@ -751,6 +752,21 @@ export default function NewsletterPage() {
                   </div>
 
                   <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Nome Mittente</label>
+                      <Input
+                        placeholder="Es. Newsletter Aziendale"
+                        value={senderName}
+                        onChange={(e) => setSenderName(e.target.value)}
+                        className="w-full"
+                      />
+                      {selectedSenderEmail && !senderName && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Predefinito: {selectedSenderEmail.name}
+                        </p>
+                      )}
+                    </div>
+
                     <div>
                       <label className="text-sm font-medium mb-2 block">Oggetto</label>
                       <Input
