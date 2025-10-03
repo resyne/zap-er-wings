@@ -94,9 +94,10 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     { step: 3, title: "Composizione", description: "Scrivi oggetto e messaggio" }
   ];
 
-  // Fetch saved templates on mount
+  // Fetch saved templates and sender emails on mount
   useEffect(() => {
     fetchSavedTemplates();
+    fetchSenderEmails();
   }, []);
 
   const fetchSavedTemplates = async () => {
@@ -199,7 +200,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
 
   const canProceed = () => {
     if (currentStep === 1) {
-      return template.signature.trim() !== "";
+      return template.signature.trim() !== "" && selectedSenderEmail !== null && senderName.trim() !== "";
     }
     if (currentStep === 2) {
       if (targetAudience === 'custom_list') {
@@ -208,7 +209,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
       return true;
     }
     if (currentStep === 3) {
-      return selectedSenderEmail !== null && subject.trim() !== "" && message.trim() !== "";
+      return subject.trim() !== "" && message.trim() !== "";
     }
     return false;
   };
@@ -216,9 +217,6 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const handleNext = async () => {
     if (currentStep === 2) {
       await fetchRecipientCount();
-    }
-    if (currentStep === 3) {
-      await fetchSenderEmails();
     }
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
@@ -379,6 +377,55 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
               {/* Manual Template Fields */}
               <div className="space-y-4">
                 <div className="text-sm font-medium">Personalizza Template</div>
+                
+                {/* Sender Email Selection */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-primary/5 rounded-lg">
+                  <div>
+                    <label className="text-sm font-medium">Email Mittente *</label>
+                    {loadingSenders ? (
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                        <span className="text-xs text-muted-foreground">Caricamento...</span>
+                      </div>
+                    ) : senderEmails.length === 0 ? (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Nessuna email mittente configurata. Vai in Impostazioni per aggiungerne una.
+                      </p>
+                    ) : (
+                      <Select
+                        value={selectedSenderEmail?.id || ""}
+                        onValueChange={(value) => {
+                          const sender = senderEmails.find(s => s.id === value);
+                          if (sender) {
+                            setSelectedSenderEmail(sender);
+                            setSenderName(sender.name);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona mittente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {senderEmails.map(sender => (
+                            <SelectItem key={sender.id} value={sender.id}>
+                              {sender.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Nome Mittente *</label>
+                    <Input
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="Nome visualizzato"
+                      disabled={!selectedSenderEmail}
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-sm font-medium">Logo (URL)</label>
                   <Input
@@ -513,10 +560,15 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
           {/* Step 3: Composizione */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              {/* Riepilogo Template */}
+              {/* Riepilogo Template e Mittente */}
               <div className="p-4 bg-muted/50 rounded-lg">
-                <div className="text-sm font-medium mb-2">Template Selezionato</div>
-                <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="text-sm font-medium mb-2">Template e Mittente</div>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <div className="p-2 bg-background rounded border">
+                    <div className="font-medium text-foreground mb-1">Mittente</div>
+                    <div>{selectedSenderEmail?.email}</div>
+                    <div className="text-xs">Nome: {senderName}</div>
+                  </div>
                   {template.logo && (
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Logo:</span>
@@ -563,41 +615,6 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
 
               {/* Mittente e Oggetto */}
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Email Mittente *</label>
-                    <Select
-                      value={selectedSenderEmail?.id || ""}
-                      onValueChange={(value) => {
-                        const sender = senderEmails.find(s => s.id === value);
-                        if (sender) {
-                          setSelectedSenderEmail(sender);
-                          setSenderName(sender.name);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona mittente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {senderEmails.map(sender => (
-                          <SelectItem key={sender.id} value={sender.id}>
-                            {sender.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Nome Mittente *</label>
-                    <Input
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="Nome visualizzato"
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label className="text-sm font-medium">Oggetto *</label>
                   <Input
