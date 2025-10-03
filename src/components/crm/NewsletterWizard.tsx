@@ -512,67 +512,124 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
 
           {/* Step 3: Composizione */}
           {currentStep === 3 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Email Mittente *</label>
-                  <Select
-                    value={selectedSenderEmail?.id || ""}
-                    onValueChange={(value) => {
-                      const sender = senderEmails.find(s => s.id === value);
-                      if (sender) {
-                        setSelectedSenderEmail(sender);
-                        setSenderName(sender.name);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona mittente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {senderEmails.map(sender => (
-                        <SelectItem key={sender.id} value={sender.id}>
-                          {sender.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div className="space-y-6">
+              {/* Riepilogo Template */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="text-sm font-medium mb-2">Template Selezionato</div>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {template.logo && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Logo:</span>
+                      <img src={template.logo} alt="Logo" className="h-8 object-contain" />
+                    </div>
+                  )}
+                  {template.headerText && (
+                    <div>
+                      <span className="font-medium">Header:</span> {template.headerText}
+                    </div>
+                  )}
+                  {template.signature && (
+                    <div>
+                      <span className="font-medium">Firma:</span> {template.signature.split('\n')[0]}...
+                    </div>
+                  )}
+                  {template.footerText && (
+                    <div>
+                      <span className="font-medium">Footer:</span> {template.footerText}
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              {/* Riepilogo Destinatari */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="text-sm font-medium mb-2">Destinatari</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {targetAudience === 'customers' && 'Clienti'}
+                    {targetAudience === 'crm_contacts' && 'Contatti CRM'}
+                    {targetAudience === 'partners' && 'Partner'}
+                    {targetAudience === 'custom_list' && (
+                      <>
+                        {emailLists.find(l => l.id === customListId)?.name || 'Lista personalizzata'}
+                      </>
+                    )}
+                  </div>
+                  {recipientCount > 0 && (
+                    <Badge variant="secondary">{recipientCount} destinatari</Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Mittente e Oggetto */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Email Mittente *</label>
+                    <Select
+                      value={selectedSenderEmail?.id || ""}
+                      onValueChange={(value) => {
+                        const sender = senderEmails.find(s => s.id === value);
+                        if (sender) {
+                          setSelectedSenderEmail(sender);
+                          setSenderName(sender.name);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona mittente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {senderEmails.map(sender => (
+                          <SelectItem key={sender.id} value={sender.id}>
+                            {sender.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Nome Mittente *</label>
+                    <Input
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="Nome visualizzato"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-sm font-medium">Nome Mittente *</label>
+                  <label className="text-sm font-medium">Oggetto *</label>
                   <Input
-                    value={senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
-                    placeholder="Nome visualizzato"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Oggetto della mail"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Messaggio *</label>
+                  <Textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Il tuo messaggio..."
+                    rows={10}
                   />
                 </div>
               </div>
 
+              {/* Anteprima Email Aggiornata */}
               <div>
-                <label className="text-sm font-medium">Oggetto *</label>
-                <Input
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Oggetto della mail"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Messaggio *</label>
-                <Textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Il tuo messaggio..."
-                  rows={10}
-                />
-              </div>
-
-              {/* Preview */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Anteprima Email</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Anteprima Email</label>
+                  <Badge variant="outline" className="text-xs">Anteprima in tempo reale</Badge>
+                </div>
                 <div className="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-auto">
                   <div dangerouslySetInnerHTML={{ __html: generatePreview() }} />
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  L'anteprima mostra come apparirà l'email con il template e il contenuto che hai inserito
+                </p>
               </div>
             </div>
           )}
