@@ -284,6 +284,8 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
     };
     
     setTemplate(newTemplate);
+    
+    // Prima aggiorna il template, poi passa anche subject e message
     onTemplateChange(newTemplate);
     onTemplateSelect({
       subject: savedTemplate.subject,
