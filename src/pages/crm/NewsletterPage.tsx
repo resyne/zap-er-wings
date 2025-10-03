@@ -490,7 +490,8 @@ export default function NewsletterPage() {
         message: campaign.message,
         sender_email: selectedSenderEmail.email,
         sender_name: senderName || selectedSenderEmail.name,
-        template: campaign.template
+        template: campaign.template,
+        is_newsletter: true
       };
 
       if (campaign.targetAudience === 'custom_list' && campaign.customListId) {
