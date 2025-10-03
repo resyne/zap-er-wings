@@ -11,8 +11,6 @@ import { Mail, Send, Users, Target, Calendar, Settings, Loader, History, CheckCi
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
-import { NewsletterTemplateEditor } from "@/components/crm/NewsletterTemplateEditor";
-import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
 
 
 interface EmailCampaign {
@@ -27,18 +25,10 @@ interface EmailCampaign {
     region?: string;
     active_only?: boolean;
   };
-  template?: {
-    logo?: string;
-    headerText: string;
-    footerText: string;
-    signature: string;
-    attachments: Array<{
-      id: string;
-      name: string;
-      url: string;
-      type: string;
-    }>;
-  };
+  logo?: string;
+  headerText: string;
+  footerText: string;
+  signature: string;
   senderEmail?: {
     id: string;
     email: string;
@@ -356,22 +346,37 @@ export default function NewsletterPage() {
   const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
   const [selectedSenderEmail, setSelectedSenderEmail] = useState<any>(null);
   const [senderName, setSenderName] = useState<string>('');
+  const [senderEmails, setSenderEmails] = useState<Array<{id: string, email: string, name: string, is_verified: boolean}>>([]);
   const [campaign, setCampaign] = useState<EmailCampaign>({
     subject: '',
     message: '',
     targetAudience: 'customers',
-    template: {
-      headerText: '',
-      footerText: '',
-      signature: '',
-      attachments: []
-    }
+    logo: '',
+    headerText: '',
+    footerText: '',
+    signature: ''
   });
 
   useEffect(() => {
     fetchEmailLists();
     fetchSentEmails();
+    fetchSenderEmails();
   }, []);
+
+  const fetchSenderEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sender_emails')
+        .select('*')
+        .eq('is_verified', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSenderEmails(data || []);
+    } catch (error) {
+      console.error('Error fetching sender emails:', error);
+    }
+  };
 
   const fetchEmailLists = async () => {
     try {
@@ -490,8 +495,10 @@ export default function NewsletterPage() {
         message: campaign.message,
         sender_email: selectedSenderEmail.email,
         sender_name: senderName || selectedSenderEmail.name,
-        template: campaign.template,
-        is_newsletter: true
+        logo: campaign.logo,
+        headerText: campaign.headerText,
+        footerText: campaign.footerText,
+        signature: campaign.signature
       };
 
       if (campaign.targetAudience === 'custom_list' && campaign.customListId) {
@@ -530,12 +537,10 @@ export default function NewsletterPage() {
         subject: '',
         message: '',
         targetAudience: 'customers',
-        template: {
-          headerText: '',
-          footerText: '',
-          signature: '',
-          attachments: []
-        }
+        logo: '',
+        headerText: '',
+        footerText: '',
+        signature: ''
       });
 
       fetchSentEmails();
@@ -551,41 +556,18 @@ export default function NewsletterPage() {
     }
   };
 
-  const handleTemplateSelect = (template: { subject: string; message: string; template?: any }) => {
-    setCampaign(prev => ({
-      ...prev,
-      subject: template.subject,
-      message: template.message,
-      template: template.template || prev.template
-    }));
-  };
-
-  const handleTemplateChange = (templateConfig: any) => {
-    setCampaign(prev => ({
-      ...prev,
-      template: templateConfig
-    }));
-  };
-
   const generateEmailPreview = () => {
-    const template = campaign.template || {
-      headerText: '',
-      footerText: '',
-      signature: '',
-      attachments: []
-    };
-
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-        ${template.logo ? `
+        ${campaign.logo ? `
           <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
-            <img src="${template.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
+            <img src="${campaign.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
           </div>
         ` : ''}
         
-        ${template.headerText ? `
+        ${campaign.headerText ? `
           <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">${template.headerText}</h1>
+            <h1 style="margin: 0; font-size: 24px;">${campaign.headerText}</h1>
           </div>
         ` : ''}
         
@@ -600,27 +582,16 @@ export default function NewsletterPage() {
             ${campaign.message ? campaign.message.replace(/\n/g, '<br>') : '<p style="color: #9ca3af;">Contenuto del messaggio...</p>'}
           </div>
           
-          ${template.attachments && template.attachments.length > 0 ? `
-            <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
-              <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
-              ${template.attachments.map((att: any) => `
-                <div style="margin: 8px 0;">
-                  <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-          
-          ${template.signature ? `
+          ${campaign.signature ? `
             <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
-              <div style="white-space: pre-line;">${template.signature}</div>
+              <div style="white-space: pre-line;">${campaign.signature}</div>
             </div>
           ` : ''}
         </div>
         
-        ${template.footerText ? `
+        ${campaign.footerText ? `
           <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
-            ${template.footerText}
+            ${campaign.footerText}
           </div>
         ` : ''}
       </div>
@@ -660,7 +631,7 @@ export default function NewsletterPage() {
 
       <Tabs defaultValue="compose" className="space-y-6">
         <div className="border-b">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
             <TabsTrigger value="compose" className="flex items-center gap-2">
               <Send className="h-4 w-4" />
               <span className="hidden sm:inline">Componi</span>
@@ -672,10 +643,6 @@ export default function NewsletterPage() {
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               <span className="hidden sm:inline">Cronologia</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Impostazioni</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -730,7 +697,7 @@ export default function NewsletterPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Recipients Summary */}
-                  <div className="p-3 bg-muted/50 rounded-lg border">
+                  <div className="p-3 bg-muted/50 rounded-lg border space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -749,6 +716,28 @@ export default function NewsletterPage() {
                       <Badge variant="secondary" className="text-xs">
                         {getCurrentEmailCount()} destinatari
                       </Badge>
+                    </div>
+                    
+                    <div className="pt-2 border-t">
+                      <label className="text-xs font-medium mb-2 block">Email Mittente</label>
+                      <Select
+                        value={selectedSenderEmail?.id || ''}
+                        onValueChange={(value) => {
+                          const email = senderEmails.find(e => e.id === value);
+                          if (email) setSelectedSenderEmail(email);
+                        }}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Seleziona mittente..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {senderEmails.map((email) => (
+                            <SelectItem key={email.id} value={email.id}>
+                              {email.name} ({email.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -786,6 +775,50 @@ export default function NewsletterPage() {
                         value={campaign.message}
                         onChange={(e) => setCampaign(prev => ({ ...prev, message: e.target.value }))}
                       />
+                    </div>
+
+                    <div className="pt-4 border-t space-y-4">
+                      <h4 className="text-sm font-medium">Personalizzazione Email</h4>
+                      
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Logo URL (opzionale)</label>
+                        <Input
+                          placeholder="https://esempio.com/logo.png"
+                          value={campaign.logo}
+                          onChange={(e) => setCampaign(prev => ({ ...prev, logo: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Intestazione (opzionale)</label>
+                        <Input
+                          placeholder="Benvenuto nella nostra newsletter"
+                          value={campaign.headerText}
+                          onChange={(e) => setCampaign(prev => ({ ...prev, headerText: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Firma</label>
+                        <Textarea
+                          placeholder="Cordiali saluti,&#10;Il Team"
+                          value={campaign.signature}
+                          onChange={(e) => setCampaign(prev => ({ ...prev, signature: e.target.value }))}
+                          className="min-h-[80px] resize-none text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Piè di pagina (opzionale)</label>
+                        <Input
+                          placeholder="© 2025 La tua azienda"
+                          value={campaign.footerText}
+                          onChange={(e) => setCampaign(prev => ({ ...prev, footerText: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -929,47 +962,6 @@ export default function NewsletterPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings">
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Email Mittenti
-                </CardTitle>
-                <CardDescription>
-                  Gestisci e verifica gli indirizzi email mittenti per l'invio delle newsletter
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SenderEmailManager 
-                  onEmailSelect={setSelectedSenderEmail}
-                  selectedEmailId={selectedSenderEmail?.id}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Template Newsletter
-                </CardTitle>
-                <CardDescription>
-                  Crea e gestisci template riutilizzabili per le tue newsletter
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <NewsletterTemplateEditor 
-                  onTemplateChange={handleTemplateChange} 
-                  onTemplateSelect={handleTemplateSelect}
-                  currentSubject={campaign.subject}
-                  currentMessage={campaign.message}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );
