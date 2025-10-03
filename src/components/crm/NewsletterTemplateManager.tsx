@@ -6,10 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Star, Copy, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Star, Copy, Eye, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
+import { FileUpload } from "@/components/ui/file-upload";
 
 interface SavedTemplate {
   id: string;
@@ -29,6 +30,7 @@ export const NewsletterTemplateManager = () => {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<SavedTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SavedTemplate | null>(null);
@@ -105,6 +107,48 @@ export const NewsletterTemplateManager = () => {
       resetForm();
     }
     setDialogOpen(true);
+  };
+
+  const handleLogoUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    const file = files[0];
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `newsletter-logo-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('documents')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, logo_url: data.publicUrl });
+
+      toast({
+        title: "Logo caricato",
+        description: "Logo caricato con successo",
+      });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento del logo",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData({ ...formData, logo_url: '' });
   };
 
   const handleCloseDialog = () => {
@@ -382,11 +426,34 @@ export const NewsletterTemplateManager = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium">Logo URL</label>
-                <Input
-                  placeholder="https://example.com/logo.png"
-                  value={formData.logo_url}
-                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                <label className="text-sm font-medium">Logo</label>
+                {formData.logo_url ? (
+                  <div className="space-y-2 mb-3">
+                    <div className="relative w-full max-w-xs border rounded-lg p-4 bg-gray-50">
+                      <img 
+                        src={formData.logo_url} 
+                        alt="Logo preview" 
+                        className="max-h-32 mx-auto object-contain"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={handleRemoveLogo}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Carica un nuovo logo per sostituire quello esistente
+                    </p>
+                  </div>
+                ) : null}
+                <FileUpload
+                  value={[]}
+                  onChange={handleLogoUpload}
+                  maxFiles={1}
+                  acceptedFileTypes={["image/jpeg", "image/png", "image/svg+xml", "image/webp"]}
                 />
               </div>
 
