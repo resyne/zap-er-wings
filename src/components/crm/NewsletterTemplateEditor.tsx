@@ -44,9 +44,16 @@ interface SavedTemplate {
 interface NewsletterTemplateEditorProps {
   onTemplateChange: (template: TemplateConfig) => void;
   onTemplateSelect: (template: { subject: string; message: string }) => void;
+  currentSubject?: string;
+  currentMessage?: string;
 }
 
-export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }: NewsletterTemplateEditorProps) => {
+export const NewsletterTemplateEditor = ({ 
+  onTemplateChange, 
+  onTemplateSelect,
+  currentSubject = '',
+  currentMessage = ''
+}: NewsletterTemplateEditorProps) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("design");
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
@@ -373,6 +380,58 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
     return '📎';
   };
 
+  // Genera l'HTML esattamente come verrà inviato via email
+  const generateEmailHtml = (subject: string, message: string) => {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        ${template.logo ? `
+          <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
+            <img src="${template.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
+          </div>
+        ` : ''}
+        
+        ${template.headerText ? `
+          <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">${template.headerText}</h1>
+          </div>
+        ` : ''}
+        
+        <div style="padding: 30px;">
+          <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
+            ${subject || 'Oggetto della Newsletter'}
+          </h2>
+          
+          <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
+            ${(message || 'Il messaggio della newsletter apparirà qui...').replace(/\n/g, '<br>')}
+          </div>
+          
+          ${template.attachments && template.attachments.length > 0 ? `
+            <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+              <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
+              ${template.attachments.map((att: any) => `
+                <div style="margin: 8px 0;">
+                  <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          
+          ${template.signature ? `
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
+              <div style="white-space: pre-line;">${template.signature}</div>
+            </div>
+          ` : ''}
+        </div>
+        
+        ${template.footerText ? `
+          <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
+            ${template.footerText}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  };
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -642,56 +701,24 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
             <CardHeader>
               <CardTitle>Anteprima Template</CardTitle>
               <CardDescription>
-                Visualizza come apparirà il template nella newsletter
+                Anteprima esatta del layout che verrà inviato via email
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg p-6 bg-background space-y-4">
-                {template.logo && (
-                  <div className="text-center">
-                    <img 
-                      src={template.logo} 
-                      alt="Logo" 
-                      className="h-12 w-auto mx-auto"
-                    />
-                  </div>
-                )}
-                
-                <div className="text-center">
-                  <h2 className="text-xl font-bold">{template.headerText}</h2>
-                </div>
-                
-                <Separator />
-                
-                <div className="bg-muted/30 p-4 rounded border-l-4 border-primary">
-                  <p className="text-sm text-muted-foreground mb-2">Contenuto Newsletter</p>
-                  <p>Il contenuto della tua newsletter apparirà qui...</p>
-                </div>
-                
-                {template.attachments.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Allegati:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {template.attachments.map((attachment) => (
-                        <Badge key={attachment.id} variant="outline" className="flex items-center gap-1">
-                          <span>{getFileIcon(attachment.type)}</span>
-                          {attachment.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="whitespace-pre-line text-sm">
-                  {template.signature}
-                </div>
-                
-                <Separator />
-                
-                <div className="text-center text-xs text-muted-foreground">
-                  {template.footerText}
-                </div>
-              </div>
+              <div 
+                className="bg-gray-50 p-4 rounded-lg"
+                dangerouslySetInnerHTML={{ 
+                  __html: generateEmailHtml(
+                    currentSubject || saveData.subject || 'Oggetto della Newsletter',
+                    currentMessage || saveData.message || 'Il messaggio della newsletter apparirà qui...'
+                  )
+                }}
+              />
+              {!currentSubject && !currentMessage && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  💡 Vai alla sezione "Componi" per vedere l'anteprima con i tuoi contenuti
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -808,39 +835,74 @@ export const NewsletterTemplateEditor = ({ onTemplateChange, onTemplateSelect }:
           </DialogHeader>
           {previewTemplate && (
             <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium mb-1">Oggetto:</p>
-                <p className="text-sm bg-muted p-2 rounded">{previewTemplate.subject}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-1">Messaggio:</p>
-                <div className="text-sm bg-muted p-4 rounded whitespace-pre-wrap">
-                  {previewTemplate.message}
-                </div>
-              </div>
-              <div className="border rounded-lg p-4 bg-background">
-                <div className="space-y-4">
-                  {previewTemplate.logo_url && (
-                    <div className="text-center">
-                      <img 
-                        src={previewTemplate.logo_url} 
-                        alt="Logo" 
-                        className="h-12 w-auto mx-auto"
-                      />
-                    </div>
-                  )}
-                  <div className="text-center">
-                    <h3 className="text-lg font-bold">{previewTemplate.header_text}</h3>
-                  </div>
-                  <Separator />
-                  <div className="whitespace-pre-line text-sm">
-                    {previewTemplate.signature}
-                  </div>
-                  <Separator />
-                  <div className="text-center text-xs text-muted-foreground">
-                    {previewTemplate.footer_text}
-                  </div>
-                </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm font-medium mb-2">Anteprima esatta dell'email:</p>
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: (() => {
+                      const previewTemplateConfig = {
+                        logo: previewTemplate.logo_url,
+                        headerText: previewTemplate.header_text,
+                        footerText: previewTemplate.footer_text,
+                        signature: previewTemplate.signature,
+                        attachments: Array.isArray(previewTemplate.attachments) ? previewTemplate.attachments : []
+                      };
+                      
+                      const generatePreviewHtml = (config: any, subject: string, message: string) => {
+                        return `
+                          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                            ${config.logo ? `
+                              <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
+                                <img src="${config.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
+                              </div>
+                            ` : ''}
+                            
+                            ${config.headerText ? `
+                              <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
+                                <h1 style="margin: 0; font-size: 24px;">${config.headerText}</h1>
+                              </div>
+                            ` : ''}
+                            
+                            <div style="padding: 30px;">
+                              <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
+                                ${subject}
+                              </h2>
+                              
+                              <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
+                                ${message.replace(/\n/g, '<br>')}
+                              </div>
+                              
+                              ${config.attachments && config.attachments.length > 0 ? `
+                                <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+                                  <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
+                                  ${config.attachments.map((att: any) => `
+                                    <div style="margin: 8px 0;">
+                                      <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
+                                    </div>
+                                  `).join('')}
+                                </div>
+                              ` : ''}
+                              
+                              ${config.signature ? `
+                                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
+                                  <div style="white-space: pre-line;">${config.signature}</div>
+                                </div>
+                              ` : ''}
+                            </div>
+                            
+                            ${config.footerText ? `
+                              <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                ${config.footerText}
+                              </div>
+                            ` : ''}
+                          </div>
+                        `;
+                      };
+                      
+                      return generatePreviewHtml(previewTemplateConfig, previewTemplate.subject, previewTemplate.message);
+                    })()
+                  }}
+                />
               </div>
             </div>
           )}

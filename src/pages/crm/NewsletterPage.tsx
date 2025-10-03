@@ -961,7 +961,9 @@ export default function NewsletterPage() {
               <CardContent>
                 <NewsletterTemplateEditor 
                   onTemplateChange={handleTemplateChange} 
-                  onTemplateSelect={handleTemplateSelect} 
+                  onTemplateSelect={handleTemplateSelect}
+                  currentSubject={campaign.subject}
+                  currentMessage={campaign.message}
                 />
               </CardContent>
             </Card>
