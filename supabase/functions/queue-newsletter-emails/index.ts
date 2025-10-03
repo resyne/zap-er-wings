@@ -16,10 +16,8 @@ interface QueueEmailRequest {
   country?: string;
   subject: string;
   message: string;
-  logo?: string;
-  headerText?: string;
-  footerText?: string;
-  signature?: string;
+  is_newsletter?: boolean;
+  template?: any;
   sender_email?: string;
   sender_name?: string;
   use_crm_contacts?: boolean;
@@ -45,10 +43,8 @@ const handler = async (req: Request): Promise<Response> => {
       message,
       sender_email,
       sender_name,
-      logo,
-      headerText,
-      footerText,
-      signature,
+      template,
+      is_newsletter = false,
       use_crm_contacts = false,
       use_partners = false,
       partner_type,
@@ -61,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Queue email request received:', { 
       active_only, city, country, subject, use_crm_contacts, use_partners, 
       partner_type, acquisition_status, region, excluded_countries, custom_list_id,
-      sender_email, sender_name, logo, headerText, footerText, signature
+      sender_email, sender_name, template
     });
 
     // Create sender email object
@@ -195,43 +191,73 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Generate HTML content
     const generateEmailHtml = (recipient: any, personalizedMessage: string) => {
-      return `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-          ${logo ? `
-            <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
-              <img src="${logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
-            </div>
-          ` : ''}
-          
-          ${headerText ? `
-            <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
-              <h1 style="margin: 0; font-size: 24px;">${headerText}</h1>
-            </div>
-          ` : ''}
-          
-          <div style="padding: 30px;">
-            <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
-              ${subject}
-            </h2>
+      if (is_newsletter && template) {
+        return `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            ${template.logo ? `
+              <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
+                <img src="${template.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
+              </div>
+            ` : ''}
             
-            <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              ${personalizedMessage.replace(/\n/g, '<br>')}
+            ${template.headerText ? `
+              <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">${template.headerText}</h1>
+              </div>
+            ` : ''}
+            
+            <div style="padding: 30px;">
+              <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
+                ${subject}
+              </h2>
+              
+              <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
+                ${personalizedMessage.replace(/\n/g, '<br>')}
+              </div>
+              
+              ${template.attachments && template.attachments.length > 0 ? `
+                <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+                  <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
+                  ${template.attachments.map((att: any) => `
+                    <div style="margin: 8px 0;">
+                      <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              
+              ${template.signature ? `
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
+                  <div style="white-space: pre-line;">${template.signature}</div>
+                </div>
+              ` : ''}
             </div>
             
-            ${signature ? `
-              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
-                <div style="white-space: pre-line;">${signature}</div>
+            ${template.footerText ? `
+              <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
+                ${template.footerText}
               </div>
             ` : ''}
           </div>
-          
-          ${footerText ? `
-            <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
-              ${footerText}
+        `;
+      } else {
+        return `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+              Comunicazione Clienti
+            </h2>
+            <div style="line-height: 1.6; color: #374151;">
+              ${personalizedMessage.replace(/\n/g, '<br>')}
             </div>
-          ` : ''}
-        </div>
-      `;
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
+              <p>Cordiali saluti,<br>Il Team Customer Service</p>
+              <p style="font-size: 12px; color: #9ca3af;">
+                Questa email è stata inviata automaticamente dal sistema di gestione clienti.
+              </p>
+            </div>
+          </div>
+        `;
+      }
     };
 
     // Queue emails for processing
@@ -273,10 +299,8 @@ const handler = async (req: Request): Promise<Response> => {
            acquisition_status,
            region,
            excluded_countries,
-           logo,
-           headerText,
-           footerText,
-           signature
+           is_newsletter,
+           template: template || null
          }
       };
     });
