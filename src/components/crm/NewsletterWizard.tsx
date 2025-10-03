@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,6 +36,17 @@ interface NewsletterTemplate {
   signature: string;
 }
 
+interface SavedTemplate {
+  id: string;
+  name: string;
+  description: string;
+  logo_url?: string;
+  header_text: string;
+  footer_text: string;
+  signature: string;
+  is_default: boolean;
+}
+
 interface NewsletterWizardProps {
   onSend: (data: {
     template: NewsletterTemplate;
@@ -54,6 +65,9 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const [currentStep, setCurrentStep] = useState(1);
   const [senderEmails, setSenderEmails] = useState<SenderEmail[]>([]);
   const [loadingSenders, setLoadingSenders] = useState(false);
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   // Step 1: Template
   const [template, setTemplate] = useState<NewsletterTemplate>({
@@ -79,6 +93,50 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     { step: 2, title: "Destinatari", description: "Seleziona chi riceverà la mail" },
     { step: 3, title: "Composizione", description: "Scrivi oggetto e messaggio" }
   ];
+
+  // Fetch saved templates on mount
+  useEffect(() => {
+    fetchSavedTemplates();
+  }, []);
+
+  const fetchSavedTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('newsletter_templates')
+        .select('id, name, description, logo_url, header_text, footer_text, signature, is_default')
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setSavedTemplates(data || []);
+      
+      // Auto-select default template if exists
+      const defaultTemplate = data?.find(t => t.is_default);
+      if (defaultTemplate) {
+        loadTemplate(defaultTemplate);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare i template salvati",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const loadTemplate = (savedTemplate: SavedTemplate) => {
+    setSelectedTemplateId(savedTemplate.id);
+    setTemplate({
+      logo: savedTemplate.logo_url || "",
+      headerText: savedTemplate.header_text || "",
+      footerText: savedTemplate.footer_text || "",
+      signature: savedTemplate.signature || ""
+    });
+  };
 
   // Fetch sender emails quando arriviamo allo step 3
   const fetchSenderEmails = async () => {
@@ -279,38 +337,81 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
           {/* Step 1: Template */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Logo (URL)</label>
-                <Input
-                  placeholder="https://example.com/logo.png (opzionale)"
-                  value={template.logo}
-                  onChange={(e) => setTemplate({ ...template, logo: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Testo Header</label>
-                <Input
-                  placeholder="Newsletter Aziendale (opzionale)"
-                  value={template.headerText}
-                  onChange={(e) => setTemplate({ ...template, headerText: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Firma *</label>
-                <Textarea
-                  placeholder="Cordiali saluti,&#10;Il Team"
-                  value={template.signature}
-                  onChange={(e) => setTemplate({ ...template, signature: e.target.value })}
-                  rows={4}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Testo Footer</label>
-                <Input
-                  placeholder="© 2024 La Tua Azienda (opzionale)"
-                  value={template.footerText}
-                  onChange={(e) => setTemplate({ ...template, footerText: e.target.value })}
-                />
+              {/* Saved Templates Selection */}
+              {loadingTemplates ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2 text-sm text-muted-foreground">Caricamento template...</span>
+                </div>
+              ) : savedTemplates.length > 0 ? (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Template Salvati</label>
+                  <div className="grid gap-2 mb-4">
+                    {savedTemplates.map((tmpl) => (
+                      <div
+                        key={tmpl.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+                          selectedTemplateId === tmpl.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : ''
+                        }`}
+                        onClick={() => loadTemplate(tmpl)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-sm">{tmpl.name}</div>
+                            {tmpl.description && (
+                              <div className="text-xs text-muted-foreground">{tmpl.description}</div>
+                            )}
+                          </div>
+                          {tmpl.is_default && (
+                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground mb-4 p-3 bg-muted/50 rounded-lg">
+                  Nessun template salvato. Crea i tuoi template nella sezione Impostazioni.
+                </div>
+              )}
+
+              {/* Manual Template Fields */}
+              <div className="space-y-4">
+                <div className="text-sm font-medium">Personalizza Template</div>
+                <div>
+                  <label className="text-sm font-medium">Logo (URL)</label>
+                  <Input
+                    placeholder="https://example.com/logo.png (opzionale)"
+                    value={template.logo}
+                    onChange={(e) => setTemplate({ ...template, logo: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Testo Header</label>
+                  <Input
+                    placeholder="Newsletter Aziendale (opzionale)"
+                    value={template.headerText}
+                    onChange={(e) => setTemplate({ ...template, headerText: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Firma *</label>
+                  <Textarea
+                    placeholder="Cordiali saluti,&#10;Il Team"
+                    value={template.signature}
+                    onChange={(e) => setTemplate({ ...template, signature: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Testo Footer</label>
+                  <Input
+                    placeholder="© 2024 La Tua Azienda (opzionale)"
+                    value={template.footerText}
+                    onChange={(e) => setTemplate({ ...template, footerText: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
           )}
