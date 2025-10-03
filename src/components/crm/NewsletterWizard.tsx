@@ -421,60 +421,81 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Seleziona lista destinatari</label>
-                <div className="grid gap-3">
-                  <div
-                    className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
-                      targetAudience === 'customers' ? 'border-primary bg-primary/5' : ''
-                    }`}
-                    onClick={() => setTargetAudience('customers')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Clienti</span>
-                      <Badge variant="secondary">Sistema</Badge>
+                
+                {/* System Lists */}
+                <div className="space-y-2 mb-4">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">Liste Sistema</div>
+                  <div className="grid gap-3">
+                    <div
+                      className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+                        targetAudience === 'customers' ? 'border-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => setTargetAudience('customers')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Clienti</span>
+                        <Badge variant="secondary">Sistema</Badge>
+                      </div>
                     </div>
-                  </div>
-                  <div
-                    className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
-                      targetAudience === 'crm_contacts' ? 'border-primary bg-primary/5' : ''
-                    }`}
-                    onClick={() => setTargetAudience('crm_contacts')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Contatti CRM</span>
-                      <Badge variant="secondary">Sistema</Badge>
+                    <div
+                      className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+                        targetAudience === 'crm_contacts' ? 'border-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => setTargetAudience('crm_contacts')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Contatti CRM</span>
+                        <Badge variant="secondary">Sistema</Badge>
+                      </div>
                     </div>
-                  </div>
-                  <div
-                    className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
-                      targetAudience === 'partners' ? 'border-primary bg-primary/5' : ''
-                    }`}
-                    onClick={() => setTargetAudience('partners')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Partner</span>
-                      <Badge variant="secondary">Sistema</Badge>
+                    <div
+                      className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+                        targetAudience === 'partners' ? 'border-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => setTargetAudience('partners')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Partner</span>
+                        <Badge variant="secondary">Sistema</Badge>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {targetAudience === 'custom_list' && (
-                <div>
-                  <label className="text-sm font-medium">Lista Personalizzata</label>
-                  <Select value={customListId} onValueChange={setCustomListId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona una lista" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {emailLists.map(list => (
-                        <SelectItem key={list.id} value={list.id}>
-                          {list.name} ({list.contact_count} contatti)
-                        </SelectItem>
+                {/* Custom Lists */}
+                {emailLists.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground mb-2">Liste Personalizzate</div>
+                    <div className="grid gap-3">
+                      {emailLists.map((list) => (
+                        <div
+                          key={list.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+                            targetAudience === 'custom_list' && customListId === list.id ? 'border-primary bg-primary/5' : ''
+                          }`}
+                          onClick={() => {
+                            setTargetAudience('custom_list');
+                            setCustomListId(list.id);
+                            setRecipientCount(list.contact_count);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-medium">{list.name}</div>
+                              {list.description && (
+                                <div className="text-xs text-muted-foreground mt-1">{list.description}</div>
+                              )}
+                            </div>
+                            <Badge variant="outline" className="ml-2">
+                              {list.contact_count} contatti
+                            </Badge>
+                          </div>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <Button onClick={fetchRecipientCount} variant="outline" className="w-full">
                 Aggiorna conteggio destinatari
