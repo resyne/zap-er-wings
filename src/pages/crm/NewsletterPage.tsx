@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
 import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
+import { NewsletterTemplateManager } from "@/components/crm/NewsletterTemplateManager";
 import { NewsletterWizard } from "@/components/crm/NewsletterWizard";
 import { Button } from "@/components/ui/button";
 
@@ -332,7 +333,19 @@ export default function NewsletterPage() {
         <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Impostazioni Email</CardTitle>
+              <CardTitle>Template Newsletter</CardTitle>
+              <CardDescription>
+                Crea e gestisci i template per le tue newsletter
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NewsletterTemplateManager />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Mittente</CardTitle>
               <CardDescription>
                 Gestisci le email mittente verificate
               </CardDescription>
