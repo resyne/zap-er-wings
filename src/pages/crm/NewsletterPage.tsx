@@ -1,58 +1,15 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, Send, Users, Target, Calendar, Settings, Loader, History, CheckCircle2, XCircle, Clock, Eye } from "lucide-react";
+import { Mail, History as HistoryIcon, CheckCircle2, XCircle, Clock, List, Settings as SettingsIcon, Rocket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
-import { NewsletterTemplateEditor } from "@/components/crm/NewsletterTemplateEditor";
 import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
-
-
-interface EmailCampaign {
-  subject: string;
-  message: string;
-  targetAudience: 'customers' | 'crm_contacts' | 'custom_list' | 'partners';
-  customListId?: string;
-  systemFilters?: {
-    partner_type?: string;
-    acquisition_status?: string;
-    excludedCountries?: string[];
-    region?: string;
-    active_only?: boolean;
-  };
-  template?: {
-    logo?: string;
-    headerText: string;
-    footerText: string;
-    signature: string;
-    attachments: Array<{
-      id: string;
-      name: string;
-      url: string;
-      type: string;
-    }>;
-  };
-  senderEmail?: {
-    id: string;
-    email: string;
-    name: string;
-    is_verified: boolean;
-  };
-}
-
-interface EmailCounts {
-  customers: number;
-  crm_contacts: number;
-  custom_list: number;
-  partners: number;
-}
+import { NewsletterWizard } from "@/components/crm/NewsletterWizard";
+import { Button } from "@/components/ui/button";
 
 interface SentEmail {
   id: string;
@@ -67,277 +24,11 @@ interface SentEmail {
   region?: string;
 }
 
-interface SystemFiltersManagerProps {
-  onFilterSelect: (type: 'customers' | 'crm_contacts' | 'partners', filters?: any, count?: number) => void;
-  selectedType?: string;
-  selectedFilters?: any;
-}
-
-function SystemFiltersManager({ onFilterSelect, selectedType, selectedFilters }: SystemFiltersManagerProps) {
-  const [filterCounts, setFilterCounts] = useState({
-    customers: 0,
-    crm_contacts: 0,
-    partners: 0
-  });
-  const [currentFilters, setCurrentFilters] = useState(selectedFilters || {});
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    fetchFilterCounts();
-  }, [currentFilters]);
-
-
-  const fetchFilterCounts = async () => {
-    setLoading(true);
-    try {
-      // Count customers
-      let customerQuery = supabase
-        .from('customers')
-        .select('id', { count: 'exact' });
-      
-      if (currentFilters.active_only) {
-        customerQuery = customerQuery.eq('active', true);
-      }
-
-      const { count: customerCount } = await customerQuery;
-
-      // Count CRM contacts
-      const { count: crmCount } = await supabase
-        .from('crm_contacts')
-        .select('id', { count: 'exact' });
-
-      // Count partners with filters
-      console.log('Applying partner filters:', currentFilters);
-      let partnerQuery = supabase
-        .from('partners')
-        .select('id', { count: 'exact' });
-
-      if (currentFilters.partner_type) {
-        console.log('Filtering by partner_type:', currentFilters.partner_type);
-        partnerQuery = partnerQuery.eq('partner_type', currentFilters.partner_type);
-      }
-      if (currentFilters.acquisition_status) {
-        console.log('Filtering by acquisition_status:', currentFilters.acquisition_status);
-        partnerQuery = partnerQuery.eq('acquisition_status', currentFilters.acquisition_status);
-      }
-      if (currentFilters.excludedCountries && currentFilters.excludedCountries.length > 0) {
-        console.log('Excluding countries:', currentFilters.excludedCountries);
-        currentFilters.excludedCountries.forEach(country => {
-          partnerQuery = partnerQuery.neq('country', country);
-        });
-      }
-      if (currentFilters.region) {
-        console.log('Filtering by region:', currentFilters.region);
-        partnerQuery = partnerQuery.ilike('region', `%${currentFilters.region}%`);
-      }
-
-      const { count: partnerCount, error: partnerError } = await partnerQuery;
-      
-      if (partnerError) {
-        console.error('Partner query error:', partnerError);
-      } else {
-        console.log('Partner count result:', partnerCount);
-      }
-
-      setFilterCounts({
-        customers: customerCount || 0,
-        crm_contacts: crmCount || 0,
-        partners: partnerCount || 0
-      });
-    } catch (error) {
-      console.error('Error fetching filter counts:', error);
-      toast({
-        title: "Errore",
-        description: "Impossibile caricare i conteggi",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addExcludedCountry = (country: string) => {
-    if (country && !currentFilters.excludedCountries?.includes(country)) {
-      const newFilters = {
-        ...currentFilters,
-        excludedCountries: [...(currentFilters.excludedCountries || []), country]
-      };
-      setCurrentFilters(newFilters);
-      if (selectedType === 'partners') {
-        // Update selection immediately when filters change
-        setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
-      }
-    }
-  };
-
-  const removeExcludedCountry = (country: string) => {
-    const newFilters = {
-      ...currentFilters,
-      excludedCountries: currentFilters.excludedCountries?.filter(c => c !== country) || []
-    };
-    setCurrentFilters(newFilters);
-    if (selectedType === 'partners') {
-      // Update selection immediately when filters change
-      setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      {/* System Lists - Compact */}
-      <div className="space-y-2">
-        {/* Customers */}
-        <div 
-          className={`p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 ${
-            selectedType === 'customers' ? 'ring-2 ring-primary bg-primary/5' : ''
-          }`}
-          onClick={() => onFilterSelect('customers', currentFilters, filterCounts.customers)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              <span className="text-sm font-medium">Clienti</span>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {filterCounts.customers}
-            </Badge>
-          </div>
-        </div>
-
-        {/* CRM Contacts */}
-        <div 
-          className={`p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 ${
-            selectedType === 'crm_contacts' ? 'ring-2 ring-primary bg-primary/5' : ''
-          }`}
-          onClick={() => onFilterSelect('crm_contacts', {}, filterCounts.crm_contacts)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span className="text-sm font-medium">Contatti CRM</span>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {filterCounts.crm_contacts}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Partners */}
-        <div 
-          className={`rounded-lg border transition-all cursor-pointer ${
-            selectedType === 'partners' ? 'ring-2 ring-primary bg-primary/5' : ''
-          }`}
-          onClick={() => {
-            console.log('Partner section clicked, current filters:', currentFilters);
-            onFilterSelect('partners', currentFilters, filterCounts.partners);
-          }}
-        >
-          <div className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                <span className="text-sm font-medium">Partner</span>
-              </div>
-              <Badge variant="secondary" className="text-xs">
-                {filterCounts.partners}
-              </Badge>
-            </div>
-
-            {/* Partner Filters - Compact */}
-            <div className="space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
-              <div className="grid grid-cols-1 gap-2">
-                <Select
-                  value={currentFilters.partner_type || 'all'}
-                  onValueChange={(value) => {
-                    const newFilters = { ...currentFilters, partner_type: value === 'all' ? undefined : value };
-                    setCurrentFilters(newFilters);
-                    if (selectedType === 'partners') {
-                      // Update selection immediately when filters change
-                      setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue placeholder="Tipo Partner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti i tipi</SelectItem>
-                    <SelectItem value="installatore">Installatori</SelectItem>
-                    <SelectItem value="importatore">Importatori</SelectItem>
-                    <SelectItem value="rivenditore">Rivenditori</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={currentFilters.acquisition_status || 'all'}
-                  onValueChange={(value) => {
-                    const newFilters = { ...currentFilters, acquisition_status: value === 'all' ? undefined : value };
-                    setCurrentFilters(newFilters);
-                    if (selectedType === 'partners') {
-                      // Update selection immediately when filters change
-                      setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 100);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue placeholder="Stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti gli stati</SelectItem>
-                    <SelectItem value="attivo">Attivi</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Input
-                placeholder="Regione..."
-                value={currentFilters.region || ''}
-                onChange={(e) => {
-                  const newFilters = { ...currentFilters, region: e.target.value || undefined };
-                  setCurrentFilters(newFilters);
-                  if (selectedType === 'partners') {
-                    // Update selection immediately when filters change
-                    setTimeout(() => onFilterSelect('partners', newFilters, filterCounts.partners), 300);
-                  }
-                }}
-                className="h-7 text-xs"
-              />
-
-              {currentFilters.excludedCountries && currentFilters.excludedCountries.length > 0 && (
-                <div className="flex gap-1 flex-wrap">
-                  {currentFilters.excludedCountries.map((country: string) => (
-                    <Badge key={country} variant="outline" className="text-xs px-1 py-0">
-                      {country}
-                      <button
-                        onClick={() => removeExcludedCountry(country)}
-                        className="ml-1 hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              <Input
-                placeholder="Escludi paese..."
-                className="h-7 text-xs"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const input = e.currentTarget;
-                    addExcludedCountry(input.value);
-                    input.value = '';
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+interface EmailList {
+  id: string;
+  name: string;
+  description: string;
+  contact_count: number;
 }
 
 export default function NewsletterPage() {
@@ -345,28 +36,8 @@ export default function NewsletterPage() {
   const [loading, setLoading] = useState(false);
   const [loadingSentEmails, setLoadingSentEmails] = useState(false);
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
-  const [emailCounts, setEmailCounts] = useState<EmailCounts>({
-    customers: 0,
-    crm_contacts: 0,
-    custom_list: 0,
-    partners: 0
-  });
-  const [emailLists, setEmailLists] = useState<Array<{id: string, name: string, description: string, contact_count: number}>>([]);
-  const [selectedCustomList, setSelectedCustomList] = useState<string>('');
-  const [selectedCustomListCount, setSelectedCustomListCount] = useState<number>(0);
-  const [selectedSenderEmail, setSelectedSenderEmail] = useState<any>(null);
-  const [senderName, setSenderName] = useState<string>('');
-  const [campaign, setCampaign] = useState<EmailCampaign>({
-    subject: '',
-    message: '',
-    targetAudience: 'customers',
-    template: {
-      headerText: '',
-      footerText: '',
-      signature: '',
-      attachments: []
-    }
-  });
+  const [emailLists, setEmailLists] = useState<EmailList[]>([]);
+  const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
     fetchEmailLists();
@@ -388,8 +59,10 @@ export default function NewsletterPage() {
       if (error) throw error;
 
       const formattedLists = lists?.map(list => ({
-        ...list,
-        contact_count: list.email_list_contacts?.[0]?.count || 0
+        id: list.id,
+        name: list.name,
+        description: list.description || '',
+        contact_count: (list.email_list_contacts as any)?.[0]?.count || 0
       })) || [];
 
       setEmailLists(formattedLists);
@@ -421,210 +94,67 @@ export default function NewsletterPage() {
     }
   };
 
-  const getCurrentEmailCount = () => {
-    if (campaign.targetAudience === 'custom_list') {
-      return selectedCustomListCount;
-    }
-    return emailCounts[campaign.targetAudience] || 0;
-  };
-
-  const handleSystemFilterSelect = (type: 'customers' | 'crm_contacts' | 'partners', filters?: any, count?: number) => {
-    setCampaign(prev => ({
-      ...prev,
-      targetAudience: type,
-      systemFilters: filters || {},
-      customListId: undefined
-    }));
-    
-    setEmailCounts(prev => ({
-      ...prev,
-      [type]: count || 0
-    }));
-    
-    // Clear custom list selection when selecting system filters
-    setSelectedCustomList('');
-    setSelectedCustomListCount(0);
-  };
-
-  const handleCustomListSelect = (listId: string, contactCount: number) => {
-    setCampaign(prev => ({
-      ...prev,
-      targetAudience: 'custom_list',
-      customListId: listId,
-      systemFilters: undefined
-    }));
-    setSelectedCustomList(listId);
-    setSelectedCustomListCount(contactCount);
-    
-    // Update email counts to reflect custom list selection
-    setEmailCounts(prev => ({
-      ...prev,
-      custom_list: contactCount
-    }));
-  };
-
-  const sendNewsletter = async () => {
-    if (!campaign.subject || !campaign.message) {
-      toast({
-        title: "Errore",
-        description: "Inserisci oggetto e messaggio",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedSenderEmail) {
-      toast({
-        title: "Errore", 
-        description: "Seleziona un'email mittente verificata",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleWizardSend = async (data: any) => {
     try {
       setLoading(true);
 
       let requestData: any = {
-        subject: campaign.subject,
-        message: campaign.message,
-        sender_email: selectedSenderEmail.email,
-        sender_name: senderName || selectedSenderEmail.name,
-        template: campaign.template,
-        is_newsletter: true
+        subject: data.subject,
+        message: data.message,
+        sender_email: data.senderEmail.email,
+        sender_name: data.senderName,
+        logo: data.template.logo,
+        headerText: data.template.headerText,
+        footerText: data.template.footerText,
+        signature: data.template.signature,
       };
 
-      if (campaign.targetAudience === 'custom_list' && campaign.customListId) {
-        requestData.custom_list_id = campaign.customListId;
+      if (data.targetAudience === 'custom_list' && data.customListId) {
+        requestData.custom_list_id = data.customListId;
         requestData.use_crm_contacts = false;
-      } else if (campaign.targetAudience === 'crm_contacts') {
+        requestData.use_partners = false;
+      } else if (data.targetAudience === 'crm_contacts') {
         requestData.use_crm_contacts = true;
-      } else if (campaign.targetAudience === 'customers') {
-        requestData.active_only = campaign.systemFilters?.active_only || false;
-      } else if (campaign.targetAudience === 'partners') {
-        requestData = {
-          ...requestData,
-          use_partners: true,
-          partner_type: campaign.systemFilters?.partner_type,
-          acquisition_status: campaign.systemFilters?.acquisition_status,
-          region: campaign.systemFilters?.region,
-          excluded_countries: campaign.systemFilters?.excludedCountries || []
-        };
+        requestData.use_partners = false;
+      } else if (data.targetAudience === 'partners') {
+        requestData.use_partners = true;
+        requestData.use_crm_contacts = false;
+      } else {
+        requestData.active_only = true;
+        requestData.use_crm_contacts = false;
+        requestData.use_partners = false;
       }
 
       console.log('Sending newsletter with data:', requestData);
 
-      const { data, error } = await supabase.functions.invoke('queue-newsletter-emails', {
+      const { data: result, error } = await supabase.functions.invoke('queue-newsletter-emails', {
         body: requestData
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Function invocation error:', error);
+        throw error;
+      }
+
+      console.log('Newsletter queued:', result);
 
       toast({
-        title: "Successo",
-        description: `Newsletter accodata con successo! ID campagna: ${data.campaignId}`,
+        title: "Newsletter in coda",
+        description: `${result.emailsQueued} email in coda per l'invio`,
       });
 
-      // Reset form
-      setCampaign({
-        subject: '',
-        message: '',
-        targetAudience: 'customers',
-        template: {
-          headerText: '',
-          footerText: '',
-          signature: '',
-          attachments: []
-        }
-      });
-
-      fetchSentEmails();
+      await fetchSentEmails();
+      setShowWizard(false);
     } catch (error: any) {
       console.error('Error sending newsletter:', error);
       toast({
         title: "Errore",
-        description: error.message || "Impossibile inviare la newsletter",
+        description: error.message || "Errore durante l'invio della newsletter",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleTemplateSelect = (template: { subject: string; message: string; template?: any }) => {
-    setCampaign(prev => ({
-      ...prev,
-      subject: template.subject,
-      message: template.message,
-      template: template.template || prev.template
-    }));
-  };
-
-  const handleTemplateChange = (templateConfig: any) => {
-    setCampaign(prev => ({
-      ...prev,
-      template: templateConfig
-    }));
-  };
-
-  const generateEmailPreview = () => {
-    const template = campaign.template || {
-      headerText: '',
-      footerText: '',
-      signature: '',
-      attachments: []
-    };
-
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-        ${template.logo ? `
-          <div style="text-align: center; padding: 20px; background-color: #f9fafb;">
-            <img src="${template.logo}" alt="Logo aziendale" style="max-width: 200px; height: auto;" />
-          </div>
-        ` : ''}
-        
-        ${template.headerText ? `
-          <div style="background-color: #1f2937; color: white; padding: 20px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">${template.headerText}</h1>
-          </div>
-        ` : ''}
-        
-        <div style="padding: 30px;">
-          ${campaign.subject ? `
-            <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 20px;">
-              ${campaign.subject}
-            </h2>
-          ` : '<h2 style="color: #9ca3af; margin-top: 0; margin-bottom: 20px; font-size: 20px;">Oggetto dell\'email...</h2>'}
-          
-          <div style="line-height: 1.6; color: #374151; margin-bottom: 30px;">
-            ${campaign.message ? campaign.message.replace(/\n/g, '<br>') : '<p style="color: #9ca3af;">Contenuto del messaggio...</p>'}
-          </div>
-          
-          ${template.attachments && template.attachments.length > 0 ? `
-            <div style="margin: 30px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
-              <h4 style="margin-top: 0; color: #374151;">📎 Allegati:</h4>
-              ${template.attachments.map((att: any) => `
-                <div style="margin: 8px 0;">
-                  <a href="${att.url}" style="color: #2563eb; text-decoration: none;">${att.name}</a>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-          
-          ${template.signature ? `
-            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">
-              <div style="white-space: pre-line;">${template.signature}</div>
-            </div>
-          ` : ''}
-        </div>
-        
-        ${template.footerText ? `
-          <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb;">
-            ${template.footerText}
-          </div>
-        ` : ''}
-      </div>
-    `;
   };
 
   const formatDate = (dateString: string) => {
@@ -660,264 +190,133 @@ export default function NewsletterPage() {
 
       <Tabs defaultValue="compose" className="space-y-6">
         <div className="border-b">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
             <TabsTrigger value="compose" className="flex items-center gap-2">
-              <Send className="h-4 w-4" />
+              <Rocket className="h-4 w-4" />
               <span className="hidden sm:inline">Componi</span>
             </TabsTrigger>
             <TabsTrigger value="lists" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Liste</span>
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">Contatti</span>
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="h-4 w-4" />
+              <HistoryIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Cronologia</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
+              <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Impostazioni</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Compose Tab - Redesigned */}
+        {/* Compose Tab */}
         <TabsContent value="compose" className="space-y-6">
-          <div className="grid gap-6 xl:grid-cols-2">
-            {/* Left Column */}
-            <div className="space-y-6">
-              {/* Recipients Selection Section */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Destinatari</CardTitle>
-                  <CardDescription className="text-xs">
-                    Seleziona chi riceverà la newsletter
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <SystemFiltersManager 
-                    onFilterSelect={handleSystemFilterSelect}
-                    selectedType={campaign.targetAudience}
-                    selectedFilters={campaign.systemFilters}
-                  />
-                  
-                  <div className="pt-4 border-t">
-                    <h4 className="text-sm font-medium mb-3">Liste Personalizzate</h4>
-                    <EmailListManager 
-                      onListSelect={handleCustomListSelect}
-                      selectedListId={campaign.targetAudience === 'custom_list' ? campaign.customListId : undefined}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+          {!showWizard ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Crea una nuova Newsletter</CardTitle>
+                <CardDescription>
+                  Avvia il processo guidato per creare e inviare una newsletter professionale
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setShowWizard(true)} size="lg" className="w-full sm:w-auto">
+                  <Rocket className="h-5 w-5 mr-2" />
+                  Inizia Processo Guidato
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div>
+              <div className="mb-4">
+                <Button variant="outline" onClick={() => setShowWizard(false)}>
+                  ← Annulla
+                </Button>
+              </div>
+              <NewsletterWizard
+                onSend={handleWizardSend}
+                emailLists={emailLists}
+              />
             </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* Compose Area */}
-              <Card className="h-fit">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Nuova Newsletter</CardTitle>
-                      <CardDescription>
-                        Crea e invia newsletter personalizzate ai tuoi contatti
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {getCurrentEmailCount()} destinatari
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Recipients Summary */}
-                  <div className="p-3 bg-muted/50 rounded-lg border">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">
-                          {campaign.targetAudience === 'customers' && 'Clienti'}
-                          {campaign.targetAudience === 'crm_contacts' && 'Contatti CRM'}
-                          {campaign.targetAudience === 'partners' && 'Partner'}
-                          {campaign.targetAudience === 'custom_list' && 'Lista Personalizzata'}
-                        </span>
-                        {campaign.targetAudience === 'custom_list' && selectedCustomList && (
-                          <span className="text-xs text-muted-foreground">
-                            ({emailLists.find(l => l.id === selectedCustomList)?.name})
-                          </span>
-                        )}
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        {getCurrentEmailCount()} destinatari
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Nome Mittente</label>
-                      <Input
-                        placeholder="Es. Newsletter Aziendale"
-                        value={senderName}
-                        onChange={(e) => setSenderName(e.target.value)}
-                        className="w-full"
-                      />
-                      {selectedSenderEmail && !senderName && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Predefinito: {selectedSenderEmail.name}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Oggetto</label>
-                      <Input
-                        placeholder="Oggetto della newsletter..."
-                        value={campaign.subject}
-                        onChange={(e) => setCampaign(prev => ({ ...prev, subject: e.target.value }))}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Messaggio</label>
-                      <Textarea
-                        placeholder="Scrivi il tuo messaggio qui..."
-                        className="min-h-[200px] resize-none"
-                        value={campaign.message}
-                        onChange={(e) => setCampaign(prev => ({ ...prev, message: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      {!selectedSenderEmail && (
-                        <span className="text-amber-600">⚠️ Seleziona un mittente nelle impostazioni</span>
-                      )}
-                    </div>
-                    <Button 
-                      onClick={sendNewsletter} 
-                      disabled={loading || getCurrentEmailCount() === 0 || !selectedSenderEmail || !campaign.subject || !campaign.message}
-                      size="lg"
-                      className="min-w-[140px]"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader className="h-4 w-4 animate-spin mr-2" />
-                          Invio...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Invia Newsletter
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Email Preview */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    Anteprima Email
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Come apparirà l'email ai destinatari
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-lg p-2 bg-gray-50 max-h-96 overflow-y-auto">
-                    <div 
-                      className="bg-white rounded shadow-sm text-xs"
-                      dangerouslySetInnerHTML={{ __html: generateEmailPreview() }}
-                      style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '125%' }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          )}
         </TabsContent>
 
-        {/* Other Tabs - Simplified */}
-        <TabsContent value="lists">
+        {/* Lists Tab */}
+        <TabsContent value="lists" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Gestione Liste Email
-              </CardTitle>
+              <CardTitle>Gestione Liste Contatti</CardTitle>
               <CardDescription>
-                Crea, modifica e gestisci le tue liste di contatti personalizzate
+                Crea e gestisci le tue liste personalizzate di contatti
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmailListManager 
-                onListSelect={() => {}}
-                selectedListId=""
-              />
+              <EmailListManager onListSelect={() => {}} />
             </CardContent>
           </Card>
         </TabsContent>
 
-
-        <TabsContent value="history">
+        {/* History Tab */}
+        <TabsContent value="history" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
+                <HistoryIcon className="h-5 w-5" />
                 Cronologia Invii
               </CardTitle>
               <CardDescription>
-                Visualizza lo storico di tutte le newsletter inviate
+                Visualizza lo storico delle newsletter inviate
               </CardDescription>
             </CardHeader>
             <CardContent>
               {loadingSentEmails ? (
-                <div className="flex justify-center py-12">
-                  <div className="text-center">
-                    <Loader className="h-8 w-8 animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Caricamento cronologia...</p>
-                  </div>
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : sentEmails.length === 0 ? (
-                <div className="text-center py-12">
-                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Nessuna newsletter inviata</h3>
-                  <p className="text-muted-foreground">Le newsletter inviate appariranno qui</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  Nessuna email inviata ancora
                 </div>
               ) : (
-                <div className="rounded-lg border">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">Stato</TableHead>
+                        <TableHead>Stato</TableHead>
                         <TableHead>Oggetto</TableHead>
                         <TableHead>Tipo</TableHead>
-                        <TableHead className="text-center">Destinatari</TableHead>
-                        <TableHead className="text-center">Successo</TableHead>
-                        <TableHead className="text-center">Errori</TableHead>
-                        <TableHead>Data Invio</TableHead>
+                        <TableHead>Destinatari</TableHead>
+                        <TableHead>Inviate</TableHead>
+                        <TableHead>Fallite</TableHead>
+                        <TableHead>Data</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sentEmails.map((email) => (
                         <TableRow key={email.id}>
                           <TableCell>
-                            {getStatusIcon(email.success_count, email.failure_count, email.recipients_count)}
+                            {getStatusIcon(
+                              email.success_count,
+                              email.failure_count,
+                              email.recipients_count
+                            )}
                           </TableCell>
-                          <TableCell className="font-medium">{email.subject}</TableCell>
+                          <TableCell className="font-medium max-w-xs truncate">
+                            {email.subject}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline">{email.campaign_type}</Badge>
                           </TableCell>
-                          <TableCell className="text-center">{email.recipients_count}</TableCell>
-                          <TableCell className="text-center text-green-600 font-medium">{email.success_count}</TableCell>
-                          <TableCell className="text-center text-red-600 font-medium">{email.failure_count}</TableCell>
+                          <TableCell>{email.recipients_count}</TableCell>
+                          <TableCell>
+                            <span className="text-green-600">{email.success_count}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-destructive">{email.failure_count}</span>
+                          </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {email.sent_at ? formatDate(email.sent_at) : formatDate(email.created_at)}
+                            {formatDate(email.sent_at || email.created_at)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -929,46 +328,19 @@ export default function NewsletterPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings">
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Email Mittenti
-                </CardTitle>
-                <CardDescription>
-                  Gestisci e verifica gli indirizzi email mittenti per l'invio delle newsletter
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SenderEmailManager 
-                  onEmailSelect={setSelectedSenderEmail}
-                  selectedEmailId={selectedSenderEmail?.id}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Template Newsletter
-                </CardTitle>
-                <CardDescription>
-                  Crea e gestisci template riutilizzabili per le tue newsletter
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <NewsletterTemplateEditor 
-                  onTemplateChange={handleTemplateChange} 
-                  onTemplateSelect={handleTemplateSelect}
-                  currentSubject={campaign.subject}
-                  currentMessage={campaign.message}
-                />
-              </CardContent>
-            </Card>
-          </div>
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Impostazioni Email</CardTitle>
+              <CardDescription>
+                Gestisci le email mittente verificate
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SenderEmailManager onEmailSelect={() => {}} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
