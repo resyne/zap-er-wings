@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
@@ -93,9 +93,13 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
 
   // Automation settings
   const [enableAutomation, setEnableAutomation] = useState(false);
-  const [automationName, setAutomationName] = useState("");
-  const [automationDescription, setAutomationDescription] = useState("");
-  const [followUpDelayDays, setFollowUpDelayDays] = useState(7);
+  const [automations, setAutomations] = useState<Array<{
+    name: string;
+    description: string;
+    delayDays: number;
+    subject: string;
+    message: string;
+  }>>([]);
 
   const steps: WizardStep[] = [
     { step: 1, title: "Template", description: "Personalizza il template della mail" },
@@ -249,40 +253,52 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     }
 
     try {
-      // If automation is enabled, create it
-      if (enableAutomation) {
+      // If automation is enabled, create automations
+      if (enableAutomation && automations.length > 0) {
         const { data: userData } = await supabase.auth.getUser();
-        const { error: automationError } = await supabase
-          .from("email_automations")
-          .insert({
-            name: automationName || `Follow-up dopo ${followUpDelayDays} giorni`,
-            description: automationDescription || `Automation per follow-up ${subject}`,
-            template_id: selectedTemplateId || null,
-            trigger_type: "after_campaign",
-            delay_days: followUpDelayDays,
-            target_audience: targetAudience,
-            email_list_id: targetAudience === 'custom_list' ? customListId : null,
-            sender_email: selectedSenderEmail.email,
-            sender_name: senderName,
-            subject: `Follow-up: ${subject}`,
-            message: message,
-            is_active: true,
-            created_by: userData.user?.id,
-          });
+        
+        for (const automation of automations) {
+          if (!automation.subject.trim() || !automation.message.trim()) {
+            toast({
+              title: "Attenzione",
+              description: `L'automation "${automation.name}" richiede oggetto e messaggio`,
+              variant: "destructive",
+            });
+            return;
+          }
 
-        if (automationError) {
-          console.error("Error creating automation:", automationError);
-          toast({
-            title: "Attenzione",
-            description: "Email preparata ma errore nella creazione dell'automation",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Automation creata",
-            description: `L'automation di follow-up è stata configurata con successo`,
-          });
+          const { error: automationError } = await supabase
+            .from("email_automations")
+            .insert({
+              name: automation.name,
+              description: automation.description || null,
+              template_id: selectedTemplateId || null,
+              trigger_type: "after_campaign",
+              delay_days: automation.delayDays,
+              target_audience: targetAudience,
+              email_list_id: targetAudience === 'custom_list' ? customListId : null,
+              sender_email: selectedSenderEmail.email,
+              sender_name: senderName,
+              subject: automation.subject,
+              message: automation.message,
+              is_active: true,
+              created_by: userData.user?.id,
+            });
+
+          if (automationError) {
+            console.error("Error creating automation:", automationError);
+            toast({
+              title: "Attenzione",
+              description: `Errore nella creazione dell'automation "${automation.name}"`,
+              variant: "destructive",
+            });
+          }
         }
+
+        toast({
+          title: "Automations create",
+          description: `${automations.length} automation${automations.length > 1 ? 's' : ''} configurata con successo`,
+        });
       }
 
       // Send the newsletter
@@ -706,53 +722,139 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
                   <Switch
                     id="enable-automation"
                     checked={enableAutomation}
-                    onCheckedChange={setEnableAutomation}
+                    onCheckedChange={(checked) => {
+                      setEnableAutomation(checked);
+                      if (checked && automations.length === 0) {
+                        setAutomations([{
+                          name: "Follow-up dopo 7 giorni",
+                          description: "",
+                          delayDays: 7,
+                          subject: "",
+                          message: ""
+                        }]);
+                      }
+                    }}
                   />
                 </div>
 
                 {enableAutomation && (
-                  <div className="space-y-4 pl-4 border-l-2 border-primary/20">
-                    <div className="space-y-2">
-                      <Label htmlFor="automation-name">
-                        Nome Automation (opzionale)
-                      </Label>
-                      <Input
-                        id="automation-name"
-                        value={automationName}
-                        onChange={(e) => setAutomationName(e.target.value)}
-                        placeholder={`Follow-up dopo ${followUpDelayDays} giorni`}
-                      />
-                    </div>
+                  <div className="space-y-6">
+                    {automations.map((automation, index) => (
+                      <div key={index} className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">Follow-up #{index + 1}</h4>
+                          {automations.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newAutomations = automations.filter((_, i) => i !== index);
+                                setAutomations(newAutomations);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="automation-description">
-                        Descrizione (opzionale)
-                      </Label>
-                      <Textarea
-                        id="automation-description"
-                        value={automationDescription}
-                        onChange={(e) => setAutomationDescription(e.target.value)}
-                        placeholder="Descrivi lo scopo di questa automation..."
-                        rows={2}
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`automation-name-${index}`}>Nome Automation (opzionale)</Label>
+                          <Input
+                            id={`automation-name-${index}`}
+                            placeholder="Follow-up dopo 7 giorni"
+                            value={automation.name}
+                            onChange={(e) => {
+                              const newAutomations = [...automations];
+                              newAutomations[index].name = e.target.value;
+                              setAutomations(newAutomations);
+                            }}
+                          />
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="follow-up-delay">
-                        Giorni di attesa prima del follow-up
-                      </Label>
-                      <Input
-                        id="follow-up-delay"
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={followUpDelayDays}
-                        onChange={(e) => setFollowUpDelayDays(Number(e.target.value))}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        L'email di follow-up verrà inviata {followUpDelayDays} giorni dopo l'invio iniziale
-                      </p>
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`automation-description-${index}`}>Descrizione (opzionale)</Label>
+                          <Textarea
+                            id={`automation-description-${index}`}
+                            placeholder="Descrivi lo scopo di questa automation..."
+                            value={automation.description}
+                            onChange={(e) => {
+                              const newAutomations = [...automations];
+                              newAutomations[index].description = e.target.value;
+                              setAutomations(newAutomations);
+                            }}
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`delay-days-${index}`}>Giorni di attesa prima del follow-up</Label>
+                          <Input
+                            id={`delay-days-${index}`}
+                            type="number"
+                            min="1"
+                            value={automation.delayDays}
+                            onChange={(e) => {
+                              const newAutomations = [...automations];
+                              newAutomations[index].delayDays = parseInt(e.target.value) || 1;
+                              setAutomations(newAutomations);
+                            }}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            L'email di follow-up verrà inviata {automation.delayDays} giorni dopo l'invio iniziale
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`automation-subject-${index}`}>Oggetto Follow-up *</Label>
+                          <Input
+                            id={`automation-subject-${index}`}
+                            placeholder="Oggetto dell'email di follow-up"
+                            value={automation.subject}
+                            onChange={(e) => {
+                              const newAutomations = [...automations];
+                              newAutomations[index].subject = e.target.value;
+                              setAutomations(newAutomations);
+                            }}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`automation-message-${index}`}>Messaggio Follow-up *</Label>
+                          <Textarea
+                            id={`automation-message-${index}`}
+                            placeholder="Scrivi il messaggio per questa email di follow-up..."
+                            value={automation.message}
+                            onChange={(e) => {
+                              const newAutomations = [...automations];
+                              newAutomations[index].message = e.target.value;
+                              setAutomations(newAutomations);
+                            }}
+                            rows={6}
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const lastDelay = automations.length > 0 
+                          ? automations[automations.length - 1].delayDays 
+                          : 0;
+                        setAutomations([...automations, {
+                          name: `Follow-up dopo ${lastDelay + 7} giorni`,
+                          description: "",
+                          delayDays: lastDelay + 7,
+                          subject: "",
+                          message: ""
+                        }]);
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Aggiungi altro Follow-up
+                    </Button>
                   </div>
                 )}
               </div>
