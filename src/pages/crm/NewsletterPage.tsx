@@ -39,6 +39,7 @@ export default function NewsletterPage() {
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
   const [emailLists, setEmailLists] = useState<EmailList[]>([]);
   const [showWizard, setShowWizard] = useState(false);
+  const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchEmailLists();
@@ -236,6 +237,7 @@ export default function NewsletterPage() {
                 </Button>
               </div>
               <NewsletterWizard
+                key={templateRefreshKey}
                 onSend={handleWizardSend}
                 emailLists={emailLists}
               />
@@ -339,7 +341,9 @@ export default function NewsletterPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <NewsletterTemplateManager />
+              <NewsletterTemplateManager 
+                onTemplateChange={() => setTemplateRefreshKey(prev => prev + 1)} 
+              />
             </CardContent>
           </Card>
 

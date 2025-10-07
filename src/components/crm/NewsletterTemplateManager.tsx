@@ -26,7 +26,11 @@ interface SavedTemplate {
   created_at: string;
 }
 
-export const NewsletterTemplateManager = () => {
+interface NewsletterTemplateManagerProps {
+  onTemplateChange?: () => void;
+}
+
+export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTemplateManagerProps = {}) => {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<SavedTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,6 +231,7 @@ export const NewsletterTemplateManager = () => {
 
       fetchTemplates();
       handleCloseDialog();
+      onTemplateChange?.();
     } catch (error) {
       console.error('Error saving template:', error);
       toast({
