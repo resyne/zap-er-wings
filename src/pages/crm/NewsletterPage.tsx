@@ -192,10 +192,14 @@ export default function NewsletterPage() {
 
       <Tabs defaultValue="compose" className="space-y-6">
         <div className="border-b">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
             <TabsTrigger value="compose" className="flex items-center gap-2">
               <Rocket className="h-4 w-4" />
               <span className="hidden sm:inline">Componi</span>
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span className="hidden sm:inline">Automation</span>
             </TabsTrigger>
             <TabsTrigger value="lists" className="flex items-center gap-2">
               <List className="h-4 w-4" />
@@ -243,6 +247,21 @@ export default function NewsletterPage() {
               />
             </div>
           )}
+        </TabsContent>
+
+        {/* Automation Tab */}
+        <TabsContent value="automation">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Automation</CardTitle>
+              <CardDescription>
+                Gestisci le tue automation di follow-up e monitora gli invii programmati
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AutomationManager />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Lists Tab */}

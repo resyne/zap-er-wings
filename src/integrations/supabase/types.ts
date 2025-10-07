@@ -1063,6 +1063,148 @@ export type Database = {
         }
         Relationships: []
       }
+      email_automation_logs: {
+        Row: {
+          automation_id: string
+          campaign_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          recipient_email: string
+          recipient_name: string | null
+          scheduled_for: string
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          automation_id: string
+          campaign_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          recipient_email: string
+          recipient_name?: string | null
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          automation_id?: string
+          campaign_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          recipient_email?: string
+          recipient_name?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automation_logs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "email_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_automations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          delay_days: number
+          description: string | null
+          email_list_id: string | null
+          id: string
+          is_active: boolean | null
+          message: string
+          name: string
+          parent_campaign_id: string | null
+          partner_type: string | null
+          region: string | null
+          sender_email: string
+          sender_name: string
+          subject: string
+          target_audience: string
+          template_id: string | null
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          delay_days?: number
+          description?: string | null
+          email_list_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          message: string
+          name: string
+          parent_campaign_id?: string | null
+          partner_type?: string | null
+          region?: string | null
+          sender_email: string
+          sender_name: string
+          subject: string
+          target_audience: string
+          template_id?: string | null
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          delay_days?: number
+          description?: string | null
+          email_list_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          message?: string
+          name?: string
+          parent_campaign_id?: string | null
+          partner_type?: string | null
+          region?: string | null
+          sender_email?: string
+          sender_name?: string
+          subject?: string
+          target_audience?: string
+          template_id?: string | null
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automations_email_list_id_fkey"
+            columns: ["email_list_id"]
+            isOneToOne: false
+            referencedRelation: "email_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automations_parent_campaign_id_fkey"
+            columns: ["parent_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automations_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_campaigns: {
         Row: {
           campaign_type: string

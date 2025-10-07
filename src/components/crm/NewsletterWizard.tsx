@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 
 interface WizardStep {
   step: number;
@@ -87,6 +90,12 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const [senderName, setSenderName] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+
+  // Automation settings
+  const [enableAutomation, setEnableAutomation] = useState(false);
+  const [automationName, setAutomationName] = useState("");
+  const [automationDescription, setAutomationDescription] = useState("");
+  const [followUpDelayDays, setFollowUpDelayDays] = useState(7);
 
   const steps: WizardStep[] = [
     { step: 1, title: "Template", description: "Personalizza il template della mail" },
@@ -229,7 +238,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!selectedSenderEmail) {
       toast({
         title: "Errore",
@@ -239,15 +248,61 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
       return;
     }
 
-    onSend({
-      template,
-      targetAudience,
-      customListId: targetAudience === 'custom_list' ? customListId : undefined,
-      senderEmail: selectedSenderEmail,
-      senderName,
-      subject,
-      message
-    });
+    try {
+      // If automation is enabled, create it
+      if (enableAutomation) {
+        const { data: userData } = await supabase.auth.getUser();
+        const { error: automationError } = await supabase
+          .from("email_automations")
+          .insert({
+            name: automationName || `Follow-up dopo ${followUpDelayDays} giorni`,
+            description: automationDescription || `Automation per follow-up ${subject}`,
+            template_id: selectedTemplateId || null,
+            trigger_type: "after_campaign",
+            delay_days: followUpDelayDays,
+            target_audience: targetAudience,
+            email_list_id: targetAudience === 'custom_list' ? customListId : null,
+            sender_email: selectedSenderEmail.email,
+            sender_name: senderName,
+            subject: `Follow-up: ${subject}`,
+            message: message,
+            is_active: true,
+            created_by: userData.user?.id,
+          });
+
+        if (automationError) {
+          console.error("Error creating automation:", automationError);
+          toast({
+            title: "Attenzione",
+            description: "Email preparata ma errore nella creazione dell'automation",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Automation creata",
+            description: `L'automation di follow-up è stata configurata con successo`,
+          });
+        }
+      }
+
+      // Send the newsletter
+      onSend({
+        template,
+        targetAudience,
+        customListId: targetAudience === 'custom_list' ? customListId : undefined,
+        senderEmail: selectedSenderEmail,
+        senderName,
+        subject,
+        message
+      });
+    } catch (error) {
+      console.error("Error in handleSend:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la configurazione",
+        variant: "destructive",
+      });
+    }
   };
 
   const generatePreview = () => {
@@ -633,6 +688,73 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
                     rows={10}
                   />
                 </div>
+              </div>
+
+              <Separator className="my-6" />
+
+              {/* Automation Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="enable-automation" className="text-base">
+                      Abilita Follow-up Automatico
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Invia automaticamente un'email di follow-up ai destinatari dopo un periodo di tempo
+                    </p>
+                  </div>
+                  <Switch
+                    id="enable-automation"
+                    checked={enableAutomation}
+                    onCheckedChange={setEnableAutomation}
+                  />
+                </div>
+
+                {enableAutomation && (
+                  <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                    <div className="space-y-2">
+                      <Label htmlFor="automation-name">
+                        Nome Automation (opzionale)
+                      </Label>
+                      <Input
+                        id="automation-name"
+                        value={automationName}
+                        onChange={(e) => setAutomationName(e.target.value)}
+                        placeholder={`Follow-up dopo ${followUpDelayDays} giorni`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="automation-description">
+                        Descrizione (opzionale)
+                      </Label>
+                      <Textarea
+                        id="automation-description"
+                        value={automationDescription}
+                        onChange={(e) => setAutomationDescription(e.target.value)}
+                        placeholder="Descrivi lo scopo di questa automation..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="follow-up-delay">
+                        Giorni di attesa prima del follow-up
+                      </Label>
+                      <Input
+                        id="follow-up-delay"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={followUpDelayDays}
+                        onChange={(e) => setFollowUpDelayDays(Number(e.target.value))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        L'email di follow-up verrà inviata {followUpDelayDays} giorni dopo l'invio iniziale
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Anteprima Email Aggiornata */}
