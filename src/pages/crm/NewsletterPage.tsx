@@ -10,6 +10,7 @@ import { EmailListManager } from "@/components/crm/EmailListManager";
 import { SenderEmailManager } from "@/components/crm/SenderEmailManager";
 import { NewsletterTemplateManager } from "@/components/crm/NewsletterTemplateManager";
 import { NewsletterWizard } from "@/components/crm/NewsletterWizard";
+import { AutomationManager } from "@/components/crm/AutomationManager";
 import { Button } from "@/components/ui/button";
 
 interface SentEmail {
