@@ -576,6 +576,9 @@ export default function OrdersPage() {
   const shippedOrders = filteredOrders.filter(order => order.status === "shipped");
   const odlOrders = filteredOrders.filter(order => order.order_type === "odl");
   const odpOrders = filteredOrders.filter(order => order.order_type === "odp");
+  const odsOrders = filteredOrders.filter(order => order.order_type === "ods");
+  const saleOrders = filteredOrders.filter(order => (order as any).order_source === "sale");
+  const warrantyOrders = filteredOrders.filter(order => (order as any).order_source === "warranty");
 
   if (loading) {
     return (
@@ -592,7 +595,7 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Ordini</h1>
-          <p className="text-muted-foreground">Gestisci gli ordini e la creazione automatica di OdL/OdP</p>
+          <p className="text-muted-foreground">Gestisci gli ordini e la creazione automatica di OdL/OdP/OdS</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -605,7 +608,7 @@ export default function OrdersPage() {
             <DialogHeader>
               <DialogTitle>Crea Nuovo Ordine</DialogTitle>
               <p className="text-sm text-muted-foreground">
-                Seleziona il tipo di ordine per creare automaticamente OdL, OdP o entrambi
+                Seleziona il tipo di ordine per creare automaticamente OdL, OdP, OdS o combinazioni
               </p>
             </DialogHeader>
             
@@ -961,7 +964,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Totali</CardTitle>
@@ -997,6 +1000,17 @@ export default function OrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">OdS</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{odsOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini di spedizione</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Consegnati</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -1008,12 +1022,23 @@ export default function OrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Spedizione</CardTitle>
+            <CardTitle className="text-sm font-medium">Vendite</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{shippedOrders.length}</div>
-            <p className="text-xs text-muted-foreground">ordini spediti</p>
+            <div className="text-2xl font-bold">{saleOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini vendita</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Garanzie</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{warrantyOrders.length}</div>
+            <p className="text-xs text-muted-foreground">ordini garanzia</p>
           </CardContent>
         </Card>
       </div>
