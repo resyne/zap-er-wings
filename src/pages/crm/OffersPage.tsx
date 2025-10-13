@@ -46,28 +46,15 @@ interface Customer {
   code?: string;
 }
 
-interface BOMItem {
-  id: string;
-  name: string;
-  version: string;
-  description?: string;
-  level: number;
-}
-
-// Removed TechnicalDoc interface - using DocumentItem from useDocuments hook
 
 export default function OffersPage() {
   const { toast } = useToast();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [boms, setBoms] = useState<BOMItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { documents: availableDocuments, loading: documentsLoading } = useDocuments();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
-  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
-  const [selectedBomId, setSelectedBomId] = useState<string>('');
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -75,7 +62,6 @@ export default function OffersPage() {
     description: '',
     amount: 0,
     valid_until: '',
-    attachments: [] as string[],
     status: 'richiesta_offerta' as const
   });
 
@@ -130,19 +116,10 @@ export default function OffersPage() {
 
       if (leadsError) throw leadsError;
 
-      // Load BOMs for selection
-      const { data: bomsData, error: bomsError } = await supabase
-        .from('boms')
-        .select('id, name, version, description, level')
-        .order('level')
-        .order('name');
-
-      if (bomsError) throw bomsError;
 
       setOffers(transformedOffers);
       setCustomers(customersData || []);
       setLeads(leadsData || []);
-      setBoms(bomsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -316,8 +293,7 @@ export default function OffersPage() {
           description: newOffer.description,
           amount: newOffer.amount,
           valid_until: newOffer.valid_until || null,
-          status: newOffer.status,
-          attachments: selectedDocs
+          status: newOffer.status
         }]);
 
       if (error) throw error;
@@ -334,11 +310,8 @@ export default function OffersPage() {
         description: '',
         amount: 0,
         valid_until: '',
-        attachments: [],
         status: 'richiesta_offerta'
       });
-      setSelectedDocs([]);
-      setSelectedBomId('');
       loadData();
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -415,14 +388,14 @@ export default function OffersPage() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              Nuova Offerta
+              Nuova Richiesta di Offerta
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Crea Nuova Offerta</DialogTitle>
+              <DialogTitle>Crea Nuova Richiesta di Offerta</DialogTitle>
               <DialogDescription>
-                Compila i dettagli dell'offerta e seleziona la documentazione da allegare
+                Compila i dettagli della richiesta di offerta
               </DialogDescription>
             </DialogHeader>
             
@@ -475,42 +448,6 @@ export default function OffersPage() {
                 />
               </div>
               
-              <div>
-                <label className="text-sm font-medium">Oggetto dell'Offerta</label>
-                <Select value={selectedBomId} onValueChange={(value) => {
-                  setSelectedBomId(value);
-                  // Auto-fill title and description from selected BOM
-                  const selectedBom = boms.find(bom => bom.id === value);
-                  if (selectedBom) {
-                    setNewOffer(prev => ({
-                      ...prev,
-                      title: `${selectedBom.name} ${selectedBom.version}`,
-                      description: selectedBom.description || prev.description
-                    }));
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona dalla Distinta Base" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {boms.length === 0 ? (
-                      <SelectItem value="no-boms" disabled>Nessuna Distinta Base disponibile</SelectItem>
-                    ) : (
-                      boms.map((bom) => (
-                        <SelectItem key={bom.id} value={bom.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{bom.name} {bom.version}</span>
-                            <span className="text-xs text-muted-foreground">
-                              Level {bom.level} • {bom.description || 'Nessuna descrizione'}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Importo (€)</label>
@@ -532,57 +469,14 @@ export default function OffersPage() {
                 </div>
               </div>
               
-              <div>
-                <label className="text-sm font-medium mb-2 block">Documentazione Tecnica da Allegare</label>
-                {documentsLoading ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    Caricamento documenti...
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto border rounded-md p-3">
-                    {availableDocuments.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nessun documento disponibile
-                      </p>
-                    ) : (
-                      availableDocuments.map((doc) => (
-                        <label key={doc.id} className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-muted/50 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedDocs.includes(doc.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedDocs(prev => [...prev, doc.id]);
-                              } else {
-                                setSelectedDocs(prev => prev.filter(id => id !== doc.id));
-                              }
-                            }}
-                            className="rounded"
-                          />
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">{doc.name}</div>
-                            <div className="text-xs text-muted-foreground flex gap-2">
-                              <span className="bg-secondary/50 px-1 rounded">{doc.category}</span>
-                              <span className="bg-secondary/50 px-1 rounded">{doc.type}</span>
-                              {doc.size && <span>{doc.size}</span>}
-                            </div>
-                          </div>
-                        </label>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-              
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => {
                   setIsCreateDialogOpen(false);
-                  setSelectedBomId('');
                 }}>
                   Annulla
                 </Button>
                 <Button onClick={handleCreateOffer}>
-                  Crea Offerta
+                  Crea Richiesta di Offerta
                 </Button>
               </div>
             </div>
