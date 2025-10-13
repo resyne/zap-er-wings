@@ -18,7 +18,7 @@ interface FolderSyncState {
   uidnext: number;
 }
 
-// Connect to IMAP server
+// Connect to IMAP server with STARTTLS support
 async function connectToImap(config: ImapConfig): Promise<Deno.TcpConn | null> {
   try {
     const conn = await Deno.connect({
@@ -26,10 +26,12 @@ async function connectToImap(config: ImapConfig): Promise<Deno.TcpConn | null> {
       port: config.port,
     });
     
-    if (config.port === 993 || config.port === 465) {
+    // Port 993 uses implicit TLS
+    if (config.port === 993) {
       return await Deno.startTls(conn, { hostname: config.host });
     }
     
+    // Port 143 may need STARTTLS - we'll try to upgrade after greeting
     return conn;
   } catch (error) {
     console.error('IMAP connection failed:', error);
@@ -65,15 +67,34 @@ async function sendImapCommand(conn: Deno.TcpConn, command: string): Promise<str
   return fullResponse;
 }
 
-// Authenticate IMAP
-async function authenticateImap(conn: Deno.TcpConn, user: string, pass: string): Promise<boolean> {
+// Authenticate IMAP with STARTTLS support
+async function authenticateImap(conn: Deno.TcpConn, user: string, pass: string, host: string, port: number): Promise<{ success: boolean; conn: Deno.TcpConn }> {
   try {
-    const loginCommand = `A001 LOGIN ${user} ${pass}`;
+    // For port 143, try STARTTLS first
+    if (port === 143) {
+      try {
+        const starttlsResponse = await sendImapCommand(conn, 'A000 STARTTLS');
+        if (starttlsResponse.includes('A000 OK')) {
+          console.log('STARTTLS successful, upgrading connection...');
+          conn = await Deno.startTls(conn, { hostname: host });
+        }
+      } catch (e) {
+        console.log('STARTTLS not supported or failed, continuing without TLS:', e);
+      }
+    }
+    
+    const loginCommand = `A001 LOGIN "${user}" "${pass}"`;
     const response = await sendImapCommand(conn, loginCommand);
-    return response.includes('A001 OK') || response.includes('LOGIN completed');
+    const success = response.includes('A001 OK') || response.includes('LOGIN completed');
+    
+    if (!success) {
+      console.error('Login failed. Response:', response);
+    }
+    
+    return { success, conn };
   } catch (error) {
     console.error('IMAP authentication failed:', error);
-    return false;
+    return { success: false, conn };
   }
 }
 
@@ -329,11 +350,14 @@ const handler = async (req: Request): Promise<Response> => {
       // Read greeting
       await sendImapCommand(conn, '');
       
-      // Authenticate
-      const authenticated = await authenticateImap(conn, imap_config.user, imap_config.pass);
-      if (!authenticated) {
+      // Authenticate with STARTTLS support
+      const authResult = await authenticateImap(conn, imap_config.user, imap_config.pass, imap_config.host, imap_config.port);
+      if (!authResult.success) {
         throw new Error('IMAP authentication failed');
       }
+      
+      // Use the potentially upgraded connection
+      conn = authResult.conn;
       
       // Get folders to sync
       let folders = sync_folders || ['INBOX', 'Sent', 'Drafts', 'Trash'];
