@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -70,6 +70,15 @@ export default function LeadsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
+  const [currentLeadForOffer, setCurrentLeadForOffer] = useState<Lead | null>(null);
+  const [newOffer, setNewOffer] = useState({
+    title: "",
+    customer_name: "",
+    amount: "",
+    status: "richiesta_offerta",
+    description: "",
+  });
   const [newLead, setNewLead] = useState({
     company_name: "",
     contact_name: "",
@@ -397,6 +406,90 @@ export default function LeadsPage() {
       toast({
         title: "Errore",
         description: "Impossibile processare il lead perso: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateOfferForLead = async (lead: Lead) => {
+    setCurrentLeadForOffer(lead);
+    setNewOffer({
+      title: `Offerta per ${lead.company_name}`,
+      customer_name: lead.company_name,
+      amount: lead.value?.toString() || "",
+      status: "richiesta_offerta",
+      description: "",
+    });
+    setIsOfferDialogOpen(true);
+  };
+
+  const handleSubmitOffer = async () => {
+    if (!currentLeadForOffer) return;
+
+    try {
+      // Generate a temporary offer number
+      const timestamp = Date.now();
+      const offerNumber = `OFF-${timestamp}`;
+
+      const offerData = {
+        number: offerNumber,
+        title: newOffer.title,
+        customer_name: newOffer.customer_name,
+        amount: newOffer.amount ? parseFloat(newOffer.amount) : 0,
+        status: newOffer.status,
+        description: newOffer.description,
+        lead_id: currentLeadForOffer.id,
+      };
+
+      const { error } = await supabase
+        .from("offers")
+        .insert([offerData]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta creata",
+        description: "L'offerta è stata creata con successo e collegata al lead",
+      });
+
+      setIsOfferDialogOpen(false);
+      setCurrentLeadForOffer(null);
+      setNewOffer({
+        title: "",
+        customer_name: "",
+        amount: "",
+        status: "richiesta_offerta",
+        description: "",
+      });
+      await loadOffers();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile creare l'offerta: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLinkOfferToLead = async (leadId: string, offerId: string) => {
+    try {
+      const { error } = await supabase
+        .from("offers")
+        .update({ lead_id: leadId })
+        .eq("id", offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta collegata",
+        description: "L'offerta è stata collegata al lead con successo",
+      });
+
+      await loadOffers();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile collegare l'offerta: " + error.message,
         variant: "destructive",
       });
     }
@@ -881,43 +974,95 @@ export default function LeadsPage() {
                                   </div>
                                  )}
 
-                                 {/* Offerta collegata */}
-                                 {offers.find(o => o.lead_id === lead.id) && (
-                                   <div className="border-t pt-2">
-                                     <div className="flex items-center gap-2 mb-1">
-                                       <FileText className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                       <span className="text-xs font-medium text-purple-600">Offerta Collegata</span>
-                                     </div>
-                                     {(() => {
-                                       const linkedOffer = offers.find(o => o.lead_id === lead.id);
-                                       return linkedOffer && (
-                                         <div className="ml-5 space-y-1">
-                                           <div className="text-xs">
-                                             <span className="font-medium">{linkedOffer.number}</span>
-                                             {" - "}
-                                             <span className="text-muted-foreground">{linkedOffer.title}</span>
-                                           </div>
-                                           <div className="flex items-center justify-between">
-                                             <span className="text-xs text-green-600 font-medium">
-                                               €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                                             </span>
-                                             <Button
-                                               size="sm"
-                                               variant="ghost"
-                                               className="h-6 px-2"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 window.open('/crm/offers', '_blank');
-                                               }}
-                                             >
-                                               <ExternalLink className="h-3 w-3" />
-                                             </Button>
-                                           </div>
-                                         </div>
-                                       );
-                                     })()}
-                                   </div>
-                                 )}
+                                  {/* Offerta collegata o pulsante per collegarla */}
+                                  <div className="border-t pt-2">
+                                    {offers.find(o => o.lead_id === lead.id) ? (
+                                      <>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <FileText className="h-3 w-3 text-purple-600 flex-shrink-0" />
+                                          <span className="text-xs font-medium text-purple-600">Offerta Collegata</span>
+                                        </div>
+                                        {(() => {
+                                          const linkedOffer = offers.find(o => o.lead_id === lead.id);
+                                          return linkedOffer && (
+                                            <div className="ml-5 space-y-1">
+                                              <div className="text-xs">
+                                                <span className="font-medium">{linkedOffer.number}</span>
+                                                {" - "}
+                                                <span className="text-muted-foreground">{linkedOffer.title}</span>
+                                              </div>
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-xs text-green-600 font-medium">
+                                                  €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                                                </span>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-6 px-2"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    window.open('/crm/offers', '_blank');
+                                                  }}
+                                                >
+                                                  <ExternalLink className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
+                                      </>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full h-8 text-xs"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCreateOfferForLead(lead);
+                                          }}
+                                        >
+                                          <Plus className="h-3 w-3 mr-1" />
+                                          Crea Offerta
+                                        </Button>
+                                        <Dialog>
+                                          <DialogTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="w-full h-8 text-xs"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <Link className="h-3 w-3 mr-1" />
+                                              Collega Offerta
+                                            </Button>
+                                          </DialogTrigger>
+                                          <DialogContent onClick={(e) => e.stopPropagation()}>
+                                            <DialogHeader>
+                                              <DialogTitle>Collega un'offerta esistente</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="space-y-4">
+                                              <div>
+                                                <Label>Seleziona Offerta</Label>
+                                                <Select onValueChange={(value) => handleLinkOfferToLead(lead.id, value)}>
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Seleziona un'offerta" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {offers.filter(o => !o.lead_id).map(offer => (
+                                                      <SelectItem key={offer.id} value={offer.id}>
+                                                        {offer.number} - {offer.title} (€{offer.amount.toLocaleString()})
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                            </div>
+                                          </DialogContent>
+                                        </Dialog>
+                                      </div>
+                                    )}
+                                  </div>
 
 
                                 {/* Footer con valore e fonte */}
@@ -1173,6 +1318,80 @@ export default function LeadsPage() {
             </Button>
             <Button onClick={handleUpdateLead}>
               Salva Modifiche
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per creare una nuova offerta */}
+      <Dialog open={isOfferDialogOpen} onOpenChange={setIsOfferDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Crea Nuova Offerta per {currentLeadForOffer?.company_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="offer_title">Titolo Offerta *</Label>
+              <Input
+                id="offer_title"
+                value={newOffer.title}
+                onChange={(e) => setNewOffer({...newOffer, title: e.target.value})}
+                placeholder="Offerta per..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="offer_customer">Cliente</Label>
+              <Input
+                id="offer_customer"
+                value={newOffer.customer_name}
+                onChange={(e) => setNewOffer({...newOffer, customer_name: e.target.value})}
+                placeholder="Nome cliente"
+              />
+            </div>
+            <div>
+              <Label htmlFor="offer_amount">Importo (€)</Label>
+              <Input
+                id="offer_amount"
+                type="number"
+                value={newOffer.amount}
+                onChange={(e) => setNewOffer({...newOffer, amount: e.target.value})}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="offer_status">Stato</Label>
+              <Select value={newOffer.status} onValueChange={(value) => setNewOffer({...newOffer, status: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="richiesta_offerta">Richiesta Offerta</SelectItem>
+                  <SelectItem value="offerta_pronta">Offerta Pronta</SelectItem>
+                  <SelectItem value="offerta_inviata">Offerta Inviata</SelectItem>
+                  <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                  <SelectItem value="accettata">Accettata</SelectItem>
+                  <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                  <SelectItem value="scaduta">Scaduta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="offer_description">Descrizione</Label>
+              <Textarea
+                id="offer_description"
+                value={newOffer.description}
+                onChange={(e) => setNewOffer({...newOffer, description: e.target.value})}
+                placeholder="Descrizione dell'offerta..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsOfferDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleSubmitOffer}>
+              Crea Offerta
             </Button>
           </div>
         </DialogContent>
