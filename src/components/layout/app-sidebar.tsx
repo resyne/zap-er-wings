@@ -68,7 +68,7 @@ interface NavGroup {
 
 const navigationGroups: NavGroup[] = [
   {
-    title: "Dashboard",
+    title: "Area Personale",
     items: [
       { title: "Panoramica", url: "/dashboard", icon: LayoutDashboard },
       { title: "Calendario", url: "/calendar", icon: Calendar },
