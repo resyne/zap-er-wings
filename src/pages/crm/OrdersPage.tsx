@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal, LayoutGrid, List, ExternalLink } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -1654,9 +1655,16 @@ export default function OrdersPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {selectedOrder.work_orders.map((wo) => (
-                        <div key={wo.id} className="p-4 border rounded-lg">
+                        <Link 
+                          key={wo.id} 
+                          to="/mfg/work-orders"
+                          className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
                           <div className="flex items-center justify-between mb-2">
-                            <div className="font-semibold">{wo.number}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold">{wo.number}</div>
+                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                            </div>
                             <Badge className={
                               wo.status === 'completed' ? 'bg-green-100 text-green-800' :
                               wo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
@@ -1668,7 +1676,7 @@ export default function OrdersPage() {
                           <div className="text-sm text-muted-foreground">
                             {wo.includes_installation ? 'Include Installazione' : 'Solo Produzione'}
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </CardContent>
@@ -1684,9 +1692,16 @@ export default function OrdersPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {selectedOrder.service_work_orders.map((swo) => (
-                        <div key={swo.id} className="p-4 border rounded-lg">
+                        <Link 
+                          key={swo.id} 
+                          to="/support/work-orders"
+                          className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
                           <div className="flex items-center justify-between">
-                            <div className="font-semibold">{swo.number}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold">{swo.number}</div>
+                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                            </div>
                             <Badge className={
                               swo.status === 'completed' ? 'bg-green-100 text-green-800' :
                               swo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
@@ -1695,7 +1710,7 @@ export default function OrdersPage() {
                               {getSubOrderStatusLabel(swo.status)}
                             </Badge>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </CardContent>
@@ -1711,9 +1726,16 @@ export default function OrdersPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {selectedOrder.shipping_orders.map((so) => (
-                        <div key={so.id} className="p-4 border rounded-lg">
+                        <Link 
+                          key={so.id} 
+                          to="/warehouse/shipping-orders"
+                          className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
                           <div className="flex items-center justify-between">
-                            <div className="font-semibold">{so.number}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold">{so.number}</div>
+                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                            </div>
                             <Badge className={
                               so.status === 'spedito' ? 'bg-green-100 text-green-800' :
                               so.status === 'in_preparazione' ? 'bg-blue-100 text-blue-800' :
@@ -1722,7 +1744,7 @@ export default function OrdersPage() {
                               {getSubOrderStatusLabel(so.status)}
                             </Badge>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </CardContent>
