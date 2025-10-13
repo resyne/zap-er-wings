@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -55,6 +56,9 @@ export default function OffersPage() {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [offerFiles, setOfferFiles] = useState<File[]>([]);
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -372,6 +376,85 @@ export default function OffersPage() {
     }
   };
 
+  const handleLinkLead = async (offerId: string, leadId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .update({ lead_id: leadId })
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: leadId ? "Lead Collegato" : "Lead Scollegato",
+        description: leadId ? "Il lead è stato collegato all'offerta" : "Il lead è stato scollegato dall'offerta",
+      });
+
+      loadData();
+      if (selectedOffer) {
+        const updatedOffer = offers.find(o => o.id === offerId);
+        if (updatedOffer) {
+          setSelectedOffer({ ...updatedOffer, lead_id: leadId || undefined });
+        }
+      }
+    } catch (error) {
+      console.error('Error linking lead:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel collegamento del lead",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUploadFiles = async (files: File[]) => {
+    if (!selectedOffer) return;
+
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const filePath = `offers/${selectedOffer.id}/${file.name}`;
+        const { error } = await supabase.storage
+          .from('documents')
+          .upload(filePath, file);
+
+        if (error) throw error;
+        return filePath;
+      });
+
+      const uploadedPaths = await Promise.all(uploadPromises);
+      
+      const currentAttachments = selectedOffer.attachments || [];
+      const { error } = await supabase
+        .from('offers')
+        .update({ 
+          attachments: [...currentAttachments, ...uploadedPaths] 
+        })
+        .eq('id', selectedOffer.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "File Caricati",
+        description: `${files.length} file caricati con successo`,
+      });
+
+      loadData();
+      setOfferFiles([]);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento dei file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openDetails = (offer: Offer) => {
+    setSelectedOffer(offer);
+    setIsDetailsDialogOpen(true);
+  };
+
   if (loading) {
     return <div className="p-8">Caricamento...</div>;
   }
@@ -508,7 +591,6 @@ export default function OffersPage() {
                 <TableHead>Importo</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>Data Creazione</TableHead>
-                <TableHead>Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -516,7 +598,11 @@ export default function OffersPage() {
                 const relatedLead = leads.find(l => l.id === offer.lead_id);
                 
                 return (
-                  <TableRow key={offer.id}>
+                  <TableRow 
+                    key={offer.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => openDetails(offer)}
+                  >
                     <TableCell className="font-medium">{offer.number}</TableCell>
                     <TableCell>{offer.customer_name}</TableCell>
                     <TableCell>
@@ -531,7 +617,7 @@ export default function OffersPage() {
                     </TableCell>
                     <TableCell>{offer.title}</TableCell>
                     <TableCell>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select 
                         value={offer.status} 
                         onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}
@@ -548,27 +634,6 @@ export default function OffersPage() {
                       </Select>
                     </TableCell>
                     <TableCell>{new Date(offer.created_at).toLocaleDateString('it-IT')}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownloadPDF(offer)}
-                          title="Scarica PDF"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSendEmail(offer)}
-                          disabled={offer.status === 'offerta_inviata'}
-                          title="Invia Email"
-                        >
-                          <Mail className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -576,6 +641,137 @@ export default function OffersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Dialog Dettagli Offerta */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dettagli Offerta - {selectedOffer?.number}</DialogTitle>
+            <DialogDescription>
+              Gestisci i file e i collegamenti dell'offerta
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOffer && (
+            <div className="space-y-6">
+              {/* Info Offerta */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Cliente</label>
+                  <p className="text-sm">{selectedOffer.customer_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Importo</label>
+                  <p className="text-sm">€ {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Titolo</label>
+                  <p className="text-sm">{selectedOffer.title}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Stato</label>
+                  <Badge variant="outline" className="ml-2">
+                    {selectedOffer.status === 'richiesta_offerta' ? 'Richiesta di Offerta' :
+                     selectedOffer.status === 'offerta_pronta' ? 'Offerta Pronta' :
+                     selectedOffer.status === 'offerta_inviata' ? 'Offerta Inviata' :
+                     'Negoziazione'}
+                  </Badge>
+                </div>
+              </div>
+
+              {selectedOffer.description && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Descrizione</label>
+                  <p className="text-sm mt-1">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {/* Collegamento Lead */}
+              <div className="border-t pt-4">
+                <label className="text-sm font-medium">Lead Collegato</label>
+                <div className="flex gap-2 mt-2">
+                  <Select 
+                    value={selectedOffer.lead_id || "none"} 
+                    onValueChange={(value) => handleLinkLead(selectedOffer.id, value === "none" ? null : value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona un lead" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessun lead</SelectItem>
+                      {leads.map((lead) => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {lead.company_name} - {lead.contact_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedOffer.lead_id && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => window.open(`/crm/leads`, '_blank')}
+                      title="Vai al Lead"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Files */}
+              <div className="border-t pt-4">
+                <label className="text-sm font-medium mb-2 block">Documenti Allegati</label>
+                <FileUpload
+                  value={offerFiles}
+                  onChange={setOfferFiles}
+                  maxFiles={10}
+                  acceptedFileTypes={[
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/png',
+                    'image/jpg'
+                  ]}
+                />
+                {offerFiles.length > 0 && (
+                  <div className="mt-2">
+                    <Button onClick={() => handleUploadFiles(offerFiles)}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Carica {offerFiles.length} file
+                    </Button>
+                  </div>
+                )}
+
+                {/* Lista file esistenti */}
+                {selectedOffer.attachments && selectedOffer.attachments.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium">File caricati:</p>
+                    {selectedOffer.attachments.map((attachment, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <span className="text-sm">{attachment.split('/').pop()}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            const { data } = supabase.storage
+                              .from('documents')
+                              .getPublicUrl(attachment);
+                            window.open(data.publicUrl, '_blank');
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
