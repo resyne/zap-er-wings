@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2 } from "lucide-react";
+import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 
 interface ServiceWorkOrder {
@@ -32,6 +33,7 @@ interface ServiceWorkOrder {
   notes?: string;
   production_work_order_id?: string;
   sales_order_id?: string;
+  lead_id?: string;
   customers?: {
     name: string;
     code: string;
@@ -54,6 +56,10 @@ interface ServiceWorkOrder {
   };
   sales_orders?: {
     number: string;
+  };
+  leads?: {
+    id: string;
+    company_name: string;
   };
 }
 
@@ -122,6 +128,10 @@ export default function WorkOrdersServicePage() {
           ),
           sales_orders (
             number
+          ),
+          leads (
+            id,
+            company_name
           )
         `)
         .order('created_at', { ascending: false });
@@ -618,6 +628,7 @@ export default function WorkOrdersServicePage() {
                 <TableHead>Titolo</TableHead>
                 <TableHead>Cliente/Contatto</TableHead>
                 <TableHead>Ordine di Vendita</TableHead>
+                <TableHead>Lead</TableHead>
                 <TableHead>Tecnico</TableHead>
                 <TableHead>Priorità</TableHead>
                 <TableHead>Stato</TableHead>
@@ -688,6 +699,20 @@ export default function WorkOrdersServicePage() {
                       <TableCell>
                         {workOrder.sales_orders ? (
                           <Badge variant="outline">{workOrder.sales_orders.number}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {workOrder.leads ? (
+                          <Link 
+                            to={`/crm/opportunities?lead=${workOrder.lead_id}`}
+                            className="text-sm text-primary hover:underline flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {workOrder.leads.company_name}
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -820,6 +845,18 @@ export default function WorkOrdersServicePage() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
                   <p className="text-base">{selectedWorkOrder.customers.name} ({selectedWorkOrder.customers.code})</p>
+                </div>
+              )}
+              {selectedWorkOrder.leads && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Lead</Label>
+                  <Link 
+                    to={`/crm/opportunities?lead=${selectedWorkOrder.lead_id}`}
+                    className="text-base text-primary hover:underline flex items-center gap-1 w-fit"
+                  >
+                    {selectedWorkOrder.leads.company_name}
+                    <ExternalLink className="w-4 h-4" />
+                  </Link>
                 </div>
               )}
               <div>

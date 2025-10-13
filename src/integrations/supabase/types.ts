@@ -3995,6 +3995,7 @@ export type Database = {
           equipment_needed: string | null
           estimated_hours: number | null
           id: string
+          lead_id: string | null
           location: string | null
           notes: string | null
           number: string
@@ -4019,6 +4020,7 @@ export type Database = {
           equipment_needed?: string | null
           estimated_hours?: number | null
           id?: string
+          lead_id?: string | null
           location?: string | null
           notes?: string | null
           number: string
@@ -4043,6 +4045,7 @@ export type Database = {
           equipment_needed?: string | null
           estimated_hours?: number | null
           id?: string
+          lead_id?: string | null
           location?: string | null
           notes?: string | null
           number?: string
@@ -4067,6 +4070,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_work_orders_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
