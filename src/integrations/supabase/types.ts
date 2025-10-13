@@ -5151,6 +5151,8 @@ export type Database = {
         | "to_do"
         | "completed"
         | "completato"
+        | "in_lavorazione"
+        | "in_corso"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5317,6 +5319,8 @@ export const Constants = {
         "to_do",
         "completed",
         "completato",
+        "in_lavorazione",
+        "in_corso",
       ],
     },
   },
