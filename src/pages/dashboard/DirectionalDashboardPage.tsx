@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   ShoppingCart, 
@@ -16,9 +21,9 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { NewRfqDialog } from "@/components/dashboard/NewRfqDialog";
-import { NewOrderDialog } from "@/components/dashboard/NewOrderDialog";
-import { NewTaskDialog } from "@/components/dashboard/NewTaskDialog";
+import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
+import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardKPIs {
   salesOrders: { draft: number; inProgress: number };
@@ -51,9 +56,9 @@ export function DirectionalDashboardPage() {
   });
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showRfqDialog, setShowRfqDialog] = useState(false);
-  const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadDashboardData();
@@ -273,7 +278,7 @@ export function DirectionalDashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            <Button onClick={() => setShowRfqDialog(true)}>
+            <Button onClick={() => window.location.href = '/procurement/rfq'}>
               <FileText className="w-4 h-4 mr-2" />
               Nuova Richiesta di Offerta
             </Button>
@@ -342,9 +347,8 @@ export function DirectionalDashboardPage() {
       </Card>
 
       {/* Dialogs */}
-      <NewRfqDialog open={showRfqDialog} onOpenChange={setShowRfqDialog} onSuccess={loadDashboardData} />
-      <NewOrderDialog open={showOrderDialog} onOpenChange={setShowOrderDialog} onSuccess={loadDashboardData} />
-      <NewTaskDialog open={showTaskDialog} onOpenChange={setShowTaskDialog} onSuccess={loadDashboardData} />
+      <CreateOrderDialog open={showOrderDialog} onOpenChange={setShowOrderDialog} onSuccess={loadDashboardData} />
+      <CreateTaskDialog open={showTaskDialog} onOpenChange={setShowTaskDialog} onTaskAdded={loadDashboardData} />
     </div>
   );
 }
