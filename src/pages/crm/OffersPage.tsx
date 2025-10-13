@@ -22,10 +22,19 @@ interface Offer {
   title: string;
   description?: string;
   amount: number;
-  status: 'draft' | 'sent' | 'approved' | 'rejected';
+  status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione';
   created_at: string;
   valid_until?: string;
   attachments?: string[];
+  lead_id?: string;
+}
+
+interface Lead {
+  id: string;
+  company_name: string;
+  contact_name?: string;
+  status: string;
+  value?: number;
 }
 
 interface Customer {
@@ -51,6 +60,7 @@ export default function OffersPage() {
   const { toast } = useToast();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [boms, setBoms] = useState<BOMItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { documents: availableDocuments, loading: documentsLoading } = useDocuments();
@@ -65,7 +75,8 @@ export default function OffersPage() {
     description: '',
     amount: 0,
     valid_until: '',
-    attachments: [] as string[]
+    attachments: [] as string[],
+    status: 'richiesta_offerta' as const
   });
 
   useEffect(() => {
@@ -75,27 +86,32 @@ export default function OffersPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load offers (using quotes as table doesn't exist yet)
+      // Load offers with customer and lead data
       const { data: offersData, error: offersError } = await supabase
-        .from('quotes')
-        .select('*')
+        .from('offers')
+        .select(`
+          *,
+          customers (name, email, address, tax_id),
+          leads (id, company_name, contact_name, status, value)
+        `)
         .order('created_at', { ascending: false });
 
       if (offersError) throw offersError;
 
-      // Transform quotes to offers format
-      const transformedOffers = (offersData || []).map(quote => ({
-        id: quote.id,
-        number: quote.number,
-        customer_id: quote.customer_id,
-        customer_name: 'Cliente', // You may want to join with customers table
-        title: 'Offerta ' + quote.number,
-        description: quote.notes,
-        amount: quote.total_amount || 0,
-        status: quote.status as 'draft' | 'sent' | 'approved' | 'rejected',
-        created_at: quote.created_at,
-        valid_until: quote.valid_until,
-        attachments: []
+      // Transform to offers format
+      const transformedOffers = (offersData || []).map((offer: any) => ({
+        id: offer.id,
+        number: offer.number,
+        customer_id: offer.customer_id,
+        customer_name: offer.customers?.name || offer.customer_name,
+        title: offer.title,
+        description: offer.description,
+        amount: offer.amount || 0,
+        status: offer.status,
+        created_at: offer.created_at,
+        valid_until: offer.valid_until,
+        attachments: offer.attachments || [],
+        lead_id: offer.lead_id
       }));
 
       // Load customers
@@ -105,6 +121,14 @@ export default function OffersPage() {
         .eq('active', true);
 
       if (customersError) throw customersError;
+
+      // Load leads
+      const { data: leadsData, error: leadsError } = await supabase
+        .from('leads')
+        .select('id, company_name, contact_name, status, value')
+        .order('created_at', { ascending: false });
+
+      if (leadsError) throw leadsError;
 
       // Load BOMs for selection
       const { data: bomsData, error: bomsError } = await supabase
@@ -117,6 +141,7 @@ export default function OffersPage() {
 
       setOffers(transformedOffers);
       setCustomers(customersData || []);
+      setLeads(leadsData || []);
       setBoms(bomsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -241,10 +266,10 @@ export default function OffersPage() {
 
         if (error) throw error;
 
-        // Update offer status (using quotes table for now)
+        // Update offer status to "offerta_inviata"
         await supabase
-          .from('quotes')
-          .update({ status: 'sent' })
+          .from('offers')
+          .update({ status: 'offerta_inviata' })
           .eq('id', offer.id);
 
         toast({
@@ -280,23 +305,26 @@ export default function OffersPage() {
 
       const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
+      // Crea l'offerta - il trigger creerà automaticamente il lead
       const { error } = await supabase
-        .from('quotes')
+        .from('offers')
         .insert([{
           number: offerNumber,
           customer_id: newOffer.customer_id,
-          date: new Date().toISOString().split('T')[0],
-          total_amount: newOffer.amount,
+          customer_name: customer.name,
+          title: newOffer.title,
+          description: newOffer.description,
+          amount: newOffer.amount,
           valid_until: newOffer.valid_until || null,
-          notes: `${newOffer.title}\n\n${newOffer.description || ''}`,
-          status: 'draft'
+          status: newOffer.status,
+          attachments: selectedDocs
         }]);
 
       if (error) throw error;
 
       toast({
         title: "Offerta Creata",
-        description: "L'offerta è stata creata con successo",
+        description: "L'offerta e il lead collegato sono stati creati con successo",
       });
 
       setIsCreateDialogOpen(false);
@@ -306,7 +334,8 @@ export default function OffersPage() {
         description: '',
         amount: 0,
         valid_until: '',
-        attachments: []
+        attachments: [],
+        status: 'richiesta_offerta'
       });
       setSelectedDocs([]);
       setSelectedBomId('');
@@ -327,21 +356,46 @@ export default function OffersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'default';
-      case 'sent': return 'secondary';
-      case 'approved': return 'secondary';
-      case 'rejected': return 'destructive';
+      case 'richiesta_offerta': return 'default';
+      case 'offerta_pronta': return 'secondary';
+      case 'offerta_inviata': return 'outline';
+      case 'negoziazione': return 'destructive';
       default: return 'default';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'draft': return 'Bozza';
-      case 'sent': return 'Inviata';
-      case 'approved': return 'Approvata';
-      case 'rejected': return 'Rifiutata';
+      case 'richiesta_offerta': return 'Richiesta di Offerta';
+      case 'offerta_pronta': return 'Offerta Pronta';
+      case 'offerta_inviata': return 'Offerta Inviata';
+      case 'negoziazione': return 'Negoziazione';
       default: return status;
+    }
+  };
+
+  const handleChangeStatus = async (offerId: string, newStatus: Offer['status']) => {
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .update({ status: newStatus })
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stato Aggiornato",
+        description: "Lo stato dell'offerta è stato aggiornato",
+      });
+
+      loadData();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiornamento dello stato",
+        variant: "destructive",
+      });
     }
   };
 
@@ -555,6 +609,7 @@ export default function OffersPage() {
               <TableRow>
                 <TableHead>Numero</TableHead>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Lead</TableHead>
                 <TableHead>Titolo</TableHead>
                 <TableHead>Importo</TableHead>
                 <TableHead>Stato</TableHead>
@@ -563,39 +618,66 @@ export default function OffersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {offers.map((offer) => (
-                <TableRow key={offer.id}>
-                  <TableCell className="font-medium">{offer.number}</TableCell>
-                  <TableCell>{offer.customer_name}</TableCell>
-                  <TableCell>{offer.title}</TableCell>
-                  <TableCell>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(offer.status)}>
-                      {getStatusText(offer.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{new Date(offer.created_at).toLocaleDateString('it-IT')}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownloadPDF(offer)}
+              {offers.map((offer) => {
+                const relatedLead = leads.find(l => l.id === offer.lead_id);
+                
+                return (
+                  <TableRow key={offer.id}>
+                    <TableCell className="font-medium">{offer.number}</TableCell>
+                    <TableCell>{offer.customer_name}</TableCell>
+                    <TableCell>
+                      {relatedLead ? (
+                        <div className="text-sm">
+                          <div className="font-medium">{relatedLead.company_name}</div>
+                          <div className="text-muted-foreground text-xs">{relatedLead.contact_name}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{offer.title}</TableCell>
+                    <TableCell>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>
+                      <Select 
+                        value={offer.status} 
+                        onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}
                       >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSendEmail(offer)}
-                        disabled={offer.status === 'sent'}
-                      >
-                        <Mail className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="richiesta_offerta">Richiesta di Offerta</SelectItem>
+                          <SelectItem value="offerta_pronta">Offerta Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Offerta Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>{new Date(offer.created_at).toLocaleDateString('it-IT')}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownloadPDF(offer)}
+                          title="Scarica PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendEmail(offer)}
+                          disabled={offer.status === 'offerta_inviata'}
+                          title="Invia Email"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
