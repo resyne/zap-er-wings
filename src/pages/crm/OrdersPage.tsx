@@ -36,7 +36,12 @@ const orderStatuses = ["draft", "confirmed", "in_production", "shipped", "delive
 const orderTypes = [
   { value: "odl", label: "Ordine di Lavoro (OdL)" },
   { value: "odp", label: "Ordine di Produzione (OdP)" },
-  { value: "odpel", label: "Ordine Produzione e Installazione (OdPeL)" }
+  { value: "odpel", label: "Ordine Produzione e Installazione (OdPeL)" },
+  { value: "ods", label: "Ordine di Spedizione (OdS)" }
+];
+const orderSources = [
+  { value: "sale", label: "Vendita" },
+  { value: "warranty", label: "Garanzia" }
 ];
 
 export default function OrdersPage() {
@@ -56,6 +61,7 @@ export default function OrdersPage() {
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
     order_type: "",
+    order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
     status: "draft",
@@ -68,7 +74,8 @@ export default function OrdersPage() {
     planned_start_date: "",
     planned_end_date: "",
     location: "",
-    equipment_needed: ""
+    equipment_needed: "",
+    shipping_address: ""
   });
   
   const { toast } = useToast();
@@ -209,6 +216,27 @@ export default function OrdersPage() {
     return serviceWO;
   };
 
+  const createShippingOrder = async (orderId: string, orderData: any) => {
+    const shippingData = {
+      number: '', // Auto-generated
+      customer_id: newOrder.customer_id,
+      status: 'da_preparare' as const,
+      order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
+      notes: newOrder.notes,
+      shipping_address: newOrder.shipping_address || null,
+      sales_order_id: orderId
+    };
+
+    const { data: shippingOrder, error } = await supabase
+      .from('shipping_orders')
+      .insert([shippingData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return shippingOrder;
+  };
+
   const handleCreateOrder = async () => {
     if (!newOrder.customer_id || !newOrder.order_type) {
       toast({
@@ -246,7 +274,8 @@ export default function OrdersPage() {
         delivery_date: newOrder.delivery_date || null,
         status: newOrder.status,
         notes: newOrder.notes || null,
-        order_type: newOrder.order_type
+        order_type: newOrder.order_type,
+        order_source: newOrder.order_source
       };
 
       const { data: salesOrder, error: salesError } = await supabase
@@ -265,6 +294,7 @@ export default function OrdersPage() {
 
       let productionWO = null;
       let serviceWO = null;
+      let shippingOrder = null;
 
       // Create work orders based on type
       console.log('Creating work orders for type:', newOrder.order_type);
@@ -288,6 +318,12 @@ export default function OrdersPage() {
           serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO.id);
           console.log('Service WO created:', serviceWO);
           break;
+        
+        case 'ods':
+          console.log('Creating shipping order...');
+          shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
+          console.log('Shipping order created:', shippingOrder);
+          break;
       }
 
       let successMessage = "Ordine creato con successo";
@@ -297,6 +333,8 @@ export default function OrdersPage() {
         successMessage += ` - Ordine di Produzione: ${productionWO.number}`;
       } else if (serviceWO) {
         successMessage += ` - Ordine di Lavoro: ${serviceWO.number}`;
+      } else if (shippingOrder) {
+        successMessage += ` - Ordine di Spedizione: ${shippingOrder.number}`;
       }
 
       toast({
@@ -308,6 +346,7 @@ export default function OrdersPage() {
       setNewOrder({
         customer_id: "",
         order_type: "",
+        order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
         status: "draft",
@@ -320,7 +359,8 @@ export default function OrdersPage() {
         planned_start_date: "",
         planned_end_date: "",
         location: "",
-        equipment_needed: ""
+        equipment_needed: "",
+        shipping_address: ""
       });
       setUploadedFiles([]);
       await loadOrders();
@@ -338,6 +378,7 @@ export default function OrdersPage() {
     setNewOrder({
       customer_id: order.customer_id || "",
       order_type: order.order_type || "",
+      order_source: (order as any).order_source || "sale",
       order_date: order.order_date || new Date().toISOString().split('T')[0],
       delivery_date: order.delivery_date || "",
       status: order.status || "draft",
@@ -350,7 +391,8 @@ export default function OrdersPage() {
       planned_start_date: "",
       planned_end_date: "",
       location: "",
-      equipment_needed: ""
+      equipment_needed: "",
+      shipping_address: ""
     });
     setIsEditDialogOpen(true);
   };
@@ -372,7 +414,8 @@ export default function OrdersPage() {
         delivery_date: newOrder.delivery_date || null,
         status: newOrder.status,
         notes: newOrder.notes || null,
-        order_type: newOrder.order_type
+        order_type: newOrder.order_type,
+        order_source: newOrder.order_source
       };
 
       const { error } = await supabase
@@ -392,6 +435,7 @@ export default function OrdersPage() {
       setNewOrder({
         customer_id: "",
         order_type: "",
+        order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
         status: "draft",
@@ -404,7 +448,8 @@ export default function OrdersPage() {
         planned_start_date: "",
         planned_end_date: "",
         location: "",
-        equipment_needed: ""
+        equipment_needed: "",
+        shipping_address: ""
       });
       await loadOrders();
     } catch (error: any) {
@@ -499,6 +544,8 @@ export default function OrdersPage() {
         return "bg-green-100 text-green-800";
       case "odpel":
         return "bg-purple-100 text-purple-800";
+      case "ods":
+        return "bg-orange-100 text-orange-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -607,6 +654,26 @@ export default function OrdersPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Order Source - Sale or Warranty */}
+              <div>
+                <Label htmlFor="order_source">Categoria Ordine *</Label>
+                <Select value={newOrder.order_source} onValueChange={(value) => setNewOrder({...newOrder, order_source: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orderSources.map(source => (
+                      <SelectItem key={source.value} value={source.value}>
+                        {source.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Indica se l'ordine è relativo a una vendita o una garanzia
+                </p>
               </div>
 
               {/* Conditional fields based on order type */}
@@ -817,6 +884,20 @@ export default function OrdersPage() {
                       placeholder="Attrezzature specifiche..."
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Shipping Order specific fields */}
+              {newOrder.order_type === 'ods' && (
+                <div>
+                  <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+                  <Textarea
+                    id="shipping_address"
+                    value={newOrder.shipping_address}
+                    onChange={(e) => setNewOrder({...newOrder, shipping_address: e.target.value})}
+                    placeholder="Inserisci l'indirizzo completo di spedizione..."
+                    rows={3}
+                  />
                 </div>
               )}
 
