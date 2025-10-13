@@ -5143,7 +5143,14 @@ export type Database = {
         | "tecnico"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "review" | "completed" | "cancelled"
-      wo_status: "planned" | "in_progress" | "testing" | "closed"
+      wo_status:
+        | "planned"
+        | "in_progress"
+        | "testing"
+        | "closed"
+        | "to_do"
+        | "completed"
+        | "completato"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5302,7 +5309,15 @@ export const Constants = {
       ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "review", "completed", "cancelled"],
-      wo_status: ["planned", "in_progress", "testing", "closed"],
+      wo_status: [
+        "planned",
+        "in_progress",
+        "testing",
+        "closed",
+        "to_do",
+        "completed",
+        "completato",
+      ],
     },
   },
 } as const
