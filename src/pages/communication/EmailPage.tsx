@@ -75,7 +75,47 @@ const EmailPage = () => {
   const [showHtml, setShowHtml] = useState(true);
   const { toast } = useToast();
 
-  // Load emails from database
+  // Load emails from cache (new efficient method)
+  const loadEmailsFromCache = async () => {
+    try {
+      if (!emailConfig.email) return;
+      
+      const { data: cachedMessages, error } = await supabase
+        .from('mail_messages')
+        .select('*')
+        .eq('user_email', emailConfig.email)
+        .order('date', { ascending: false })
+        .limit(100);
+      
+      if (error) {
+        console.error('Error loading emails from cache:', error);
+        return;
+      }
+      
+      if (cachedMessages && cachedMessages.length > 0) {
+        // Convert cache to Email format
+        const formattedEmails: Email[] = cachedMessages.map(msg => ({
+          id: `${msg.folder}_${msg.uid}`,
+          from: msg.from_address,
+          to: msg.to_address,
+          subject: msg.subject,
+          body: msg.snippet, // Show snippet, full body loaded on demand
+          htmlBody: undefined,
+          date: msg.date,
+          read: msg.flags?.includes('\\Seen') || false,
+          starred: msg.flags?.includes('\\Flagged') || false,
+          hasAttachments: msg.has_attachments
+        }));
+        
+        setEmails(formattedEmails);
+        console.log(`Loaded ${formattedEmails.length} emails from cache`);
+      }
+    } catch (error) {
+      console.error('Error loading emails from cache:', error);
+    }
+  };
+
+  // Load emails from database (old method - fallback)
   const loadEmailsFromDatabase = async () => {
     try {
       const { data: savedEmails, error } = await supabase
@@ -90,7 +130,6 @@ const EmailPage = () => {
       }
       
       if (savedEmails && savedEmails.length > 0) {
-        // Convert database emails to Email format
         const formattedEmails: Email[] = savedEmails.map(email => ({
           id: email.external_id,
           from: email.from_address,
@@ -116,19 +155,22 @@ const EmailPage = () => {
     // Load saved configuration and emails
     const savedConfig = localStorage.getItem('emailConfig');
     if (savedConfig) {
-      setEmailConfig(JSON.parse(savedConfig));
+      const config = JSON.parse(savedConfig);
+      setEmailConfig(config);
       setIsConfigured(true);
+      
+      // Load emails from cache immediately
+      if (config.email) {
+        loadEmailsFromCache();
+      }
     }
     
-    // Load emails from database
-    loadEmailsFromDatabase();
-    
-    // Set up auto-sync every 2 minutes (120000ms)
+    // Set up auto-sync every 5 minutes (300000ms)
     const autoSyncInterval = setInterval(() => {
-      if (isConfigured) {
+      if (isConfigured && emailConfig.email) {
         handleFetchEmails(false); // Silent sync without loading state
       }
-    }, 120000);
+    }, 300000);
     
     return () => clearInterval(autoSyncInterval);
   }, [isConfigured]);
@@ -224,57 +266,46 @@ const EmailPage = () => {
     try {
       setLoading(true);
 
-      // Verifica che le credenziali siano configurate
-      if (!emailConfig.email || !emailConfig.password || emailConfig.email.trim() === '' || emailConfig.password.trim() === '') {
+      if (!emailConfig.email || !emailConfig.password) {
         toast({
           title: "Configurazione mancante",
-          description: "Inserisci email e password valide per connettersi al server IMAP.",
+          description: "Inserisci email e password valide.",
           variant: "destructive"
         });
         return;
       }
       
-      const { data, error } = await supabase.functions.invoke('fetch-emails', {
+      // Use new efficient sync function
+      const { data, error } = await supabase.functions.invoke('imap-sync', {
         body: {
           imap_config: {
             host: emailConfig.imap_server,
             port: emailConfig.imap_port,
             user: emailConfig.email,
             pass: emailConfig.password
-          }
+          },
+          user_email: emailConfig.email,
+          sync_folders: ['INBOX', 'Sent', 'Drafts', 'Trash']
         }
       });
 
       if (error) throw error;
 
-      // Handle authentication errors specifically
-      if (data && data.authError) {
-        toast({
-          title: "Autenticazione fallita",
-          description: "Credenziali email non valide. Verifica email e password nelle impostazioni.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (data && data.emails) {
-        setEmails(data.emails);
+      if (data && data.success) {
+        // Load messages from cache
+        await loadEmailsFromCache();
         
-        // Show different messages based on source
-        if (data.emails.length > 0) {
-          const isRealData = data.emails[0].id.includes('imap_') && !data.emails[0].from.includes('.it');
-          toast({
-            title: isRealData ? "Email caricate dal server" : "Email demo caricate",
-            description: `${data.emails.length} email disponibili${!isRealData ? ' (dati di test)' : ''}`
-          });
-        }
+        toast({
+          title: "Email sincronizzate",
+          description: `${data.total_synced} nuove email sincronizzate da ${data.folders.length} cartelle`
+        });
       }
 
     } catch (error: any) {
-      console.error('Email fetch error:', error);
+      console.error('Email sync error:', error);
       toast({
-        title: "Errore nel caricamento",
-        description: error.message || "Impossibile caricare le email",
+        title: "Errore sincronizzazione",
+        description: error.message || "Impossibile sincronizzare le email",
         variant: "destructive"
       });
     } finally {

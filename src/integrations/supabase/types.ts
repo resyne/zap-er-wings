@@ -2262,6 +2262,84 @@ export type Database = {
           },
         ]
       }
+      mail_messages: {
+        Row: {
+          created_at: string | null
+          date: string | null
+          flags: string[] | null
+          folder: string
+          from_address: string | null
+          has_attachments: boolean | null
+          id: string
+          snippet: string | null
+          subject: string | null
+          synced_at: string | null
+          to_address: string | null
+          uid: number
+          updated_at: string | null
+          user_email: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string | null
+          flags?: string[] | null
+          folder?: string
+          from_address?: string | null
+          has_attachments?: boolean | null
+          id?: string
+          snippet?: string | null
+          subject?: string | null
+          synced_at?: string | null
+          to_address?: string | null
+          uid: number
+          updated_at?: string | null
+          user_email: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string | null
+          flags?: string[] | null
+          folder?: string
+          from_address?: string | null
+          has_attachments?: boolean | null
+          id?: string
+          snippet?: string | null
+          subject?: string | null
+          synced_at?: string | null
+          to_address?: string | null
+          uid?: number
+          updated_at?: string | null
+          user_email?: string
+        }
+        Relationships: []
+      }
+      mail_sync_state: {
+        Row: {
+          folder: string
+          id: string
+          last_sync_at: string | null
+          uidnext: number | null
+          uidvalidity: number | null
+          user_email: string
+        }
+        Insert: {
+          folder: string
+          id?: string
+          last_sync_at?: string | null
+          uidnext?: number | null
+          uidvalidity?: number | null
+          user_email: string
+        }
+        Update: {
+          folder?: string
+          id?: string
+          last_sync_at?: string | null
+          uidnext?: number | null
+          uidvalidity?: number | null
+          user_email?: string
+        }
+        Relationships: []
+      }
       management_projects: {
         Row: {
           actual_costs: number | null
