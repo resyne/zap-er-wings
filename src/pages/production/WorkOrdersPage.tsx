@@ -1061,6 +1061,7 @@ export default function WorkOrdersPage() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
+                                      onClick={() => handleViewDetails(wo)}
                                       className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
                                         snapshot.isDragging ? 'shadow-lg opacity-90' : ''
                                       }`}
