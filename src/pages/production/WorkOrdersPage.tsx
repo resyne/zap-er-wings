@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +22,7 @@ interface WorkOrder {
   id: string;
   number: string;
   title: string;
-  status: 'planned' | 'in_progress' | 'testing' | 'closed';
+  status: 'to_do' | 'in_progress' | 'testing' | 'completed' | 'closed' | 'planned' | 'completato' | 'in_lavorazione' | 'in_corso';
   planned_start_date?: string;
   planned_end_date?: string;
   assigned_to?: string;
@@ -59,6 +61,7 @@ export default function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
@@ -432,13 +435,57 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const normalizeStatus = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      "planned": "to_do",
+      "completato": "completed",
+      "in_lavorazione": "in_progress",
+      "in_corso": "in_progress"
+    };
+    return statusMap[status] || status;
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planned': return 'bg-info';
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'to_do': return 'bg-info';
       case 'in_progress': return 'bg-primary';
       case 'testing': return 'bg-warning';
+      case 'completed':
       case 'closed': return 'bg-success';
       default: return 'bg-muted';
+    }
+  };
+
+  const handleDragEnd = async (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+    if (source.droppableId === destination.droppableId) return;
+
+    const newStatus = destination.droppableId;
+    const woId = draggableId;
+
+    try {
+      const { error } = await supabase
+        .from("work_orders")
+        .update({ status: newStatus })
+        .eq("id", woId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stato aggiornato",
+        description: "Lo stato dell'ordine di produzione è stato aggiornato",
+      });
+
+      fetchWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato",
+        variant: "destructive",
+      });
     }
   };
 
@@ -455,11 +502,13 @@ export default function WorkOrdersPage() {
 
   const statusCounts = {
     all: workOrders.length,
-    planned: workOrders.filter(wo => wo.status === 'planned').length,
-    in_progress: workOrders.filter(wo => wo.status === 'in_progress').length,
-    testing: workOrders.filter(wo => wo.status === 'testing').length,
-    closed: workOrders.filter(wo => wo.status === 'closed').length,
+    to_do: workOrders.filter(wo => normalizeStatus(wo.status) === 'to_do').length,
+    in_progress: workOrders.filter(wo => normalizeStatus(wo.status) === 'in_progress').length,
+    testing: workOrders.filter(wo => normalizeStatus(wo.status) === 'testing').length,
+    completed: workOrders.filter(wo => normalizeStatus(wo.status) === 'completed' || normalizeStatus(wo.status) === 'closed').length,
   };
+
+  const workOrderStatuses = ["to_do", "in_progress", "testing", "completed"];
 
   return (
     <div className="space-y-6">
@@ -787,10 +836,10 @@ export default function WorkOrdersPage() {
                 <div className="text-2xl font-bold">{count}</div>
                 <div className="text-sm text-muted-foreground capitalize">
                   {status === 'all' ? 'Tutti' : 
-                   status === 'planned' ? 'Pianificati' :
+                   status === 'to_do' ? 'To Do' :
                    status === 'in_progress' ? 'In Corso' :
                    status === 'testing' ? 'Test' :
-                   status === 'closed' ? 'Chiusi' : status.replace('_', ' ')}
+                   status === 'completed' ? 'Completati' : status.replace('_', ' ')}
                 </div>
               </div>
             </CardContent>
@@ -814,6 +863,18 @@ export default function WorkOrdersPage() {
                 className="pl-8"
               />
             </div>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban")}>
+              <TabsList>
+                <TabsTrigger value="table">
+                  <List className="h-4 w-4 mr-2" />
+                  Tabella
+                </TabsTrigger>
+                <TabsTrigger value="kanban">
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Kanban
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Button variant="outline" size="sm" onClick={() => setShowFiltersDialog(true)}>
               <Filter className="mr-2 h-4 w-4" />
               Filtri
@@ -826,12 +887,13 @@ export default function WorkOrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Work Orders Table */}
+      {/* Work Orders Table or Kanban */}
       <Card>
         <CardHeader>
           <CardTitle>Ordini di Produzione ({filteredWorkOrders.length})</CardTitle>
         </CardHeader>
         <CardContent>
+          {viewMode === "table" ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -966,6 +1028,82 @@ export default function WorkOrdersPage() {
               </TableBody>
             </Table>
           </div>
+          ) : (
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="grid grid-cols-4 gap-4">
+                {workOrderStatuses.map((status) => (
+                  <div key={status} className="space-y-3">
+                    <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                      {status === "to_do" && "To Do"}
+                      {status === "in_progress" && "In Lavorazione"}
+                      {status === "testing" && "Test"}
+                      {status === "completed" && "Completati"}
+                      <span className="ml-2 text-xs">
+                        ({filteredWorkOrders.filter(wo => normalizeStatus(wo.status) === status).length})
+                      </span>
+                    </div>
+                    <Droppable droppableId={status}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`min-h-[500px] p-3 rounded-lg border-2 border-dashed ${
+                            snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-border'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            {filteredWorkOrders
+                              .filter(wo => normalizeStatus(wo.status) === status)
+                              .map((wo, index) => (
+                                <Draggable key={wo.id} draggableId={wo.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                        snapshot.isDragging ? 'shadow-lg opacity-90' : ''
+                                      }`}
+                                    >
+                                      <div className="space-y-2">
+                                        <div className="flex items-start justify-between">
+                                          <div>
+                                            <div className="font-semibold">{wo.number}</div>
+                                            <div className="text-sm text-muted-foreground line-clamp-2">
+                                              {wo.title}
+                                            </div>
+                                          </div>
+                                          {wo.priority && (
+                                            <Badge variant={wo.priority === 'high' ? 'destructive' : 'secondary'}>
+                                              {wo.priority}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {wo.customers && (
+                                          <div className="text-xs text-muted-foreground">
+                                            {wo.customers.name}
+                                          </div>
+                                        )}
+                                        {wo.boms && (
+                                          <div className="text-xs">
+                                            <Badge variant="outline">{wo.boms.name}</Badge>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                            {provided.placeholder}
+                          </div>
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+                ))}
+              </div>
+            </DragDropContext>
+          )}
         </CardContent>
       </Card>
 
