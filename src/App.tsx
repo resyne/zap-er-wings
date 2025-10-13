@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/app-layout";
 import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import { PersonalAreaPage } from "./pages/dashboard/PersonalAreaPage";
 import PeoplePage from "./pages/hr/PeoplePage";
 import TechniciansPage from "./pages/hr/TechniciansPage";
 import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
@@ -96,6 +97,7 @@ const App = () => (
                 <Route index element={<DashboardPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="personal-area" element={<PersonalAreaPage />} />
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />
