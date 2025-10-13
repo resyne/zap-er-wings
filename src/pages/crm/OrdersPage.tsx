@@ -1294,8 +1294,8 @@ export default function OrdersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusColor(calculateOrderStatus(order))}>
-                      {calculateOrderStatus(order).toUpperCase()}
+                    <Badge variant={getStatusColor(normalizeOrderStatus(order.status))}>
+                      {normalizeOrderStatus(order.status).toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell>
