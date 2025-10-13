@@ -30,6 +30,22 @@ interface Order {
     name: string;
     code: string;
   };
+  work_orders?: Array<{
+    id: string;
+    number: string;
+    status: string;
+    includes_installation: boolean;
+  }>;
+  service_work_orders?: Array<{
+    id: string;
+    number: string;
+    status: string;
+  }>;
+  shipping_orders?: Array<{
+    id: string;
+    number: string;
+    status: string;
+  }>;
 }
 
 const orderStatuses = ["draft", "confirmed", "in_production", "shipped", "delivered", "cancelled"];
@@ -91,7 +107,10 @@ export default function OrdersPage() {
         .from("sales_orders")
         .select(`
           *,
-          customers(name, code)
+          customers(name, code),
+          work_orders(id, number, status, includes_installation),
+          service_work_orders(id, number, status),
+          shipping_orders(id, number, status)
         `)
         .order("created_at", { ascending: false });
 
@@ -554,6 +573,97 @@ export default function OrdersPage() {
   const getOrderTypeLabel = (orderType?: string) => {
     const type = orderTypes.find(t => t.value === orderType);
     return type ? type.label : orderType?.toUpperCase();
+  };
+
+  // Funzione per ottenere lo stato aggregato dei sotto-ordini
+  const getSubOrdersStatus = (order: Order) => {
+    const statuses = [];
+    
+    // Controlla ordini di produzione
+    if (order.work_orders && order.work_orders.length > 0) {
+      order.work_orders.forEach(wo => {
+        statuses.push({
+          type: wo.includes_installation ? 'OdP+Inst' : 'OdP',
+          number: wo.number,
+          status: wo.status,
+          color: wo.status === 'completed' ? 'bg-green-100 text-green-800' :
+                 wo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                 wo.status === 'planned' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800'
+        });
+      });
+    }
+    
+    // Controlla ordini di lavoro
+    if (order.service_work_orders && order.service_work_orders.length > 0) {
+      order.service_work_orders.forEach(swo => {
+        statuses.push({
+          type: 'OdL',
+          number: swo.number,
+          status: swo.status,
+          color: swo.status === 'completed' ? 'bg-green-100 text-green-800' :
+                 swo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                 swo.status === 'planned' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800'
+        });
+      });
+    }
+    
+    // Controlla ordini di spedizione
+    if (order.shipping_orders && order.shipping_orders.length > 0) {
+      order.shipping_orders.forEach(so => {
+        statuses.push({
+          type: 'OdS',
+          number: so.number,
+          status: so.status,
+          color: so.status === 'spedito' ? 'bg-green-100 text-green-800' :
+                 so.status === 'in_preparazione' ? 'bg-blue-100 text-blue-800' :
+                 so.status === 'da_preparare' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800'
+        });
+      });
+    }
+    
+    return statuses;
+  };
+
+  // Funzione per calcolare lo stato automatico dell'ordine basato sui sotto-ordini
+  const calculateOrderStatus = (order: Order): string => {
+    const subStatuses = getSubOrdersStatus(order);
+    
+    if (subStatuses.length === 0) {
+      return order.status || 'draft';
+    }
+    
+    // Se tutti i sotto-ordini sono completati
+    const allCompleted = subStatuses.every(s => 
+      s.status === 'completed' || s.status === 'spedito'
+    );
+    
+    if (allCompleted) {
+      return 'completed';
+    }
+    
+    // Se almeno un sotto-ordine è in progress (non più in stato iniziale)
+    const anyInProgress = subStatuses.some(s => 
+      s.status === 'in_progress' || s.status === 'in_preparazione'
+    );
+    
+    if (anyInProgress) {
+      return 'in_progress';
+    }
+    
+    // Altrimenti è ancora in draft/planned
+    return order.status || 'draft';
+  };
+
+  const getSubOrderStatusLabel = (status: string): string => {
+    const labels: Record<string, string> = {
+      'planned': 'Pianificato',
+      'in_progress': 'In Corso',
+      'completed': 'Completato',
+      'da_preparare': 'Da Preparare',
+      'in_preparazione': 'In Preparazione',
+      'spedito': 'Spedito'
+    };
+    return labels[status] || status;
   };
 
   const removeFile = (index: number) => {
@@ -1111,10 +1221,29 @@ export default function OrdersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {order.status && (
-                      <Badge variant={getStatusColor(order.status)}>
-                        {order.status.toUpperCase()}
-                      </Badge>
+                    <Badge variant={getStatusColor(calculateOrderStatus(order))}>
+                      {calculateOrderStatus(order).toUpperCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {getSubOrdersStatus(order).length > 0 ? (
+                      <div className="space-y-1">
+                        {getSubOrdersStatus(order).map((subStatus, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <Badge className={subStatus.color} variant="outline">
+                              {subStatus.type}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {subStatus.number}
+                            </span>
+                            <span className="text-xs font-medium">
+                              {getSubOrderStatusLabel(subStatus.status)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Nessun sotto-ordine</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -1166,7 +1295,7 @@ export default function OrdersPage() {
               ))}
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessun ordine trovato" : "Nessun ordine presente"}
                     </div>
