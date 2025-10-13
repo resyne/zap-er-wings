@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -34,6 +34,16 @@ interface Lead {
   updated_at: string;
 }
 
+interface Offer {
+  id: string;
+  number: string;
+  title: string;
+  amount: number;
+  status: string;
+  customer_name: string;
+  lead_id?: string;
+}
+
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
 const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro"];
 // Solo le fasi principali per la Kanban
@@ -53,6 +63,7 @@ const allStatuses = [
 export default function LeadsPage() {
   const [users, setUsers] = useState<Array<{id: string, first_name: string, last_name: string, email: string}>>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPipeline, setSelectedPipeline] = useState<string>("ZAPPER");
@@ -79,6 +90,7 @@ export default function LeadsPage() {
   useEffect(() => {
     loadLeads();
     loadUsers();
+    loadOffers();
   }, []);
 
   const loadLeads = async () => {
@@ -113,6 +125,20 @@ export default function LeadsPage() {
       setUsers(data || []);
     } catch (error: any) {
       console.error("Error loading users:", error.message);
+    }
+  };
+
+  const loadOffers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('offers')
+        .select('id, number, title, amount, status, customer_name, lead_id')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOffers(data || []);
+    } catch (error: any) {
+      console.error('Error loading offers:', error.message);
     }
   };
 
@@ -853,7 +879,46 @@ export default function LeadsPage() {
                                        )}
                                      </div>
                                   </div>
-                                )}
+                                 )}
+
+                                 {/* Offerta collegata */}
+                                 {offers.find(o => o.lead_id === lead.id) && (
+                                   <div className="border-t pt-2">
+                                     <div className="flex items-center gap-2 mb-1">
+                                       <FileText className="h-3 w-3 text-purple-600 flex-shrink-0" />
+                                       <span className="text-xs font-medium text-purple-600">Offerta Collegata</span>
+                                     </div>
+                                     {(() => {
+                                       const linkedOffer = offers.find(o => o.lead_id === lead.id);
+                                       return linkedOffer && (
+                                         <div className="ml-5 space-y-1">
+                                           <div className="text-xs">
+                                             <span className="font-medium">{linkedOffer.number}</span>
+                                             {" - "}
+                                             <span className="text-muted-foreground">{linkedOffer.title}</span>
+                                           </div>
+                                           <div className="flex items-center justify-between">
+                                             <span className="text-xs text-green-600 font-medium">
+                                               €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                                             </span>
+                                             <Button
+                                               size="sm"
+                                               variant="ghost"
+                                               className="h-6 px-2"
+                                               onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 window.open('/crm/offers', '_blank');
+                                               }}
+                                             >
+                                               <ExternalLink className="h-3 w-3" />
+                                             </Button>
+                                           </div>
+                                         </div>
+                                       );
+                                     })()}
+                                   </div>
+                                 )}
+
 
                                 {/* Footer con valore e fonte */}
                                 <div className="flex items-center justify-between border-t pt-2">
