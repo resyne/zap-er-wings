@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
+import { CreateOfferDialog } from "@/components/dashboard/CreateOfferDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardKPIs {
@@ -56,6 +57,7 @@ export function DirectionalDashboardPage() {
   });
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [showOrderDialog, setShowOrderDialog] = useState(false);
   const { toast } = useToast();
@@ -278,7 +280,7 @@ export function DirectionalDashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            <Button onClick={() => window.location.href = '/procurement/rfq'}>
+            <Button onClick={() => setShowOfferDialog(true)}>
               <FileText className="w-4 h-4 mr-2" />
               Nuova Richiesta di Offerta
             </Button>
@@ -347,6 +349,7 @@ export function DirectionalDashboardPage() {
       </Card>
 
       {/* Dialogs */}
+      <CreateOfferDialog open={showOfferDialog} onOpenChange={setShowOfferDialog} onSuccess={loadDashboardData} />
       <CreateOrderDialog open={showOrderDialog} onOpenChange={setShowOrderDialog} onSuccess={loadDashboardData} />
       <CreateTaskDialog open={showTaskDialog} onOpenChange={setShowTaskDialog} onTaskAdded={loadDashboardData} />
     </div>
