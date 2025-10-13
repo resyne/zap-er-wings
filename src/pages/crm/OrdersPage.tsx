@@ -571,6 +571,24 @@ export default function OrdersPage() {
     }
   };
 
+  // Funzione per normalizzare gli stati vecchi a quelli nuovi
+  const normalizeOrderStatus = (status?: string): string => {
+    if (!status) return "commissionato";
+    
+    // Mappa gli stati vecchi a quelli nuovi
+    const statusMap: Record<string, string> = {
+      "draft": "commissionato",
+      "pending": "commissionato",
+      "processing": "in_lavorazione",
+      "in_progress": "in_lavorazione",
+      "completed": "completato",
+      "delivered": "completato",
+      "shipped": "completato"
+    };
+    
+    return statusMap[status.toLowerCase()] || status;
+  };
+
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
 
@@ -1368,8 +1386,8 @@ export default function OrdersPage() {
                       {status === "commissionato" && "Commissionati"}
                       {status === "in_lavorazione" && "In Lavorazione"}
                       {status === "completato" && "Completati"}
-                      <span className="ml-2 text-xs">
-                        ({filteredOrders.filter(o => o.status === status).length})
+                       <span className="ml-2 text-xs">
+                        ({filteredOrders.filter(o => normalizeOrderStatus(o.status) === status).length})
                       </span>
                     </div>
                     <Droppable droppableId={status}>
@@ -1381,9 +1399,9 @@ export default function OrdersPage() {
                             snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-border'
                           }`}
                         >
-                          <div className="space-y-2">
+                           <div className="space-y-2">
                             {filteredOrders
-                              .filter(order => order.status === status)
+                              .filter(order => normalizeOrderStatus(order.status) === status)
                               .map((order, index) => (
                                 <Draggable key={order.id} draggableId={order.id} index={index}>
                                   {(provided, snapshot) => (
