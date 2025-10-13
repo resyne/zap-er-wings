@@ -48,7 +48,7 @@ interface Order {
   }>;
 }
 
-const orderStatuses = ["draft", "confirmed", "in_production", "shipped", "delivered", "cancelled"];
+const orderStatuses = ["commissionato", "in_lavorazione", "completato"];
 const orderTypes = [
   { value: "odl", label: "Ordine di Lavoro (OdL)" },
   { value: "odp", label: "Ordine di Produzione (OdP)" },
@@ -80,7 +80,7 @@ export default function OrdersPage() {
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
-    status: "draft",
+    status: "commissionato",
     notes: "",
     work_description: "",
     bom_id: "",
@@ -368,7 +368,7 @@ export default function OrdersPage() {
         order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
-        status: "draft",
+        status: "commissionato",
         notes: "",
         work_description: "",
         bom_id: "",
@@ -542,13 +542,11 @@ export default function OrdersPage() {
 
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case "delivered":
+      case "completato":
         return "default";
-      case "cancelled":
-        return "destructive";
-      case "shipped":
+      case "in_lavorazione":
         return "secondary";
-      case "confirmed":
+      case "commissionato":
         return "outline";
       default:
         return "outline";

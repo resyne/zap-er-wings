@@ -26,7 +26,7 @@ import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardKPIs {
-  salesOrders: { draft: number; inProgress: number };
+  salesOrders: { commissionato: number; inLavorazione: number };
   workOrders: { planned: number; inProgress: number };
   serviceOrders: { planned: number; inProgress: number };
   shippingOrders: { inPreparazione: number; inProgress: number };
@@ -47,7 +47,7 @@ interface Task {
 
 export function DirectionalDashboardPage() {
   const [kpis, setKpis] = useState<DashboardKPIs>({
-    salesOrders: { draft: 0, inProgress: 0 },
+    salesOrders: { commissionato: 0, inLavorazione: 0 },
     workOrders: { planned: 0, inProgress: 0 },
     serviceOrders: { planned: 0, inProgress: 0 },
     shippingOrders: { inPreparazione: 0, inProgress: 0 },
@@ -70,6 +70,12 @@ export function DirectionalDashboardPage() {
       const { data: salesOrdersData } = await supabase
         .from("sales_orders")
         .select("status");
+
+      // Calculate sales order counts based on new statuses
+      const salesOrders = {
+        commissionato: salesOrdersData?.filter(o => o.status === "commissionato").length || 0,
+        inLavorazione: salesOrdersData?.filter(o => o.status === "in_lavorazione").length || 0,
+      };
 
       // Load Work Orders (Production)
       const { data: workOrdersData } = await supabase
@@ -100,10 +106,7 @@ export function DirectionalDashboardPage() {
 
       // Calculate KPIs
       setKpis({
-        salesOrders: {
-          draft: salesOrdersData?.filter(o => o.status === "draft").length || 0,
-          inProgress: salesOrdersData?.filter(o => o.status === "in_progress").length || 0,
-        },
+        salesOrders,
         workOrders: {
           planned: workOrdersData?.filter(o => o.status === "planned").length || 0,
           inProgress: workOrdersData?.filter(o => o.status === "in_progress").length || 0,
@@ -168,12 +171,12 @@ export function DirectionalDashboardPage() {
           <CardContent>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Bozza</span>
-                <span className="text-2xl font-bold">{kpis.salesOrders.draft}</span>
+                <span className="text-sm text-muted-foreground">Commissionati</span>
+                <span className="text-2xl font-bold">{kpis.salesOrders.commissionato}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">In Corso</span>
-                <span className="text-2xl font-bold text-blue-600">{kpis.salesOrders.inProgress}</span>
+                <span className="text-sm text-muted-foreground">In Lavorazione</span>
+                <span className="text-2xl font-bold text-blue-600">{kpis.salesOrders.inLavorazione}</span>
               </div>
             </div>
           </CardContent>
