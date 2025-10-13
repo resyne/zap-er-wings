@@ -378,7 +378,7 @@ export function DashboardPage() {
               </a>
             </Button>
             <Button variant="default" asChild>
-              <a href="https://webmail.abbattitorizapper.it/" target="_blank" rel="noopener noreferrer">
+              <a href="/webmail">
                 <Mail className="w-4 h-4 mr-2" />
                 Email (v2)
               </a>
