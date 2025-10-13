@@ -15,8 +15,7 @@ import {
   LogOut,
   Settings,
   Plus,
-  Receipt,
-  Mail
+  Receipt
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -378,23 +377,6 @@ export function DashboardPage() {
               </a>
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Email Webmail Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5" />
-            Email (v2)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <iframe 
-            src="https://webmail.abbattitorizapper.it" 
-            className="w-full h-[800px] border-0 rounded-b-lg"
-            title="Webmail Abbattitori Zapper"
-          />
         </CardContent>
       </Card>
     </div>
