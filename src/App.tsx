@@ -96,7 +96,6 @@ const App = () => (
                 <Route index element={<DashboardPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="email" element={<EmailPage />} />
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />
