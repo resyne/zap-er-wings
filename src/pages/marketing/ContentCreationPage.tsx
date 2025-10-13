@@ -7,10 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Eye, Calendar, Tag, User, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Edit, Trash2, Eye, Calendar as CalendarIcon, Tag, User, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Calendar } from "@/components/ui/calendar";
+import { format, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
+import { it } from "date-fns/locale";
 
 interface ContentItem {
   id: string;
@@ -71,6 +75,8 @@ export default function ContentCreationPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContent, setEditingContent] = useState<ContentItem | null>(null);
+  const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -78,6 +84,7 @@ export default function ContentCreationPage() {
     platform: '',
     priority: 'medium',
     due_date: '',
+    published_date: '',
     notes: '',
     tags: [] as string[]
   });
@@ -114,7 +121,8 @@ export default function ContentCreationPage() {
       // Prepare data with proper null handling for dates
       const submitData = {
         ...formData,
-        due_date: formData.due_date || null
+        due_date: formData.due_date || null,
+        published_date: formData.published_date || null
       };
 
       if (editingContent) {
@@ -222,6 +230,7 @@ export default function ContentCreationPage() {
       platform: '',
       priority: 'medium',
       due_date: '',
+      published_date: '',
       notes: '',
       tags: []
     });
@@ -236,6 +245,7 @@ export default function ContentCreationPage() {
       platform: item.platform || '',
       priority: item.priority,
       due_date: item.due_date || '',
+      published_date: item.published_date || '',
       notes: item.notes || '',
       tags: item.tags || []
     });
@@ -295,12 +305,20 @@ export default function ContentCreationPage() {
             </Badge>
           </div>
           
-          {item.due_date && (
-            <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-              <Calendar className="h-3 w-3" />
-              {new Date(item.due_date).toLocaleDateString('it-IT')}
-            </div>
-          )}
+          <div className="space-y-1">
+            {item.due_date && (
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <CalendarIcon className="h-3 w-3" />
+                <span>Scadenza: {new Date(item.due_date).toLocaleDateString('it-IT')}</span>
+              </div>
+            )}
+            {item.published_date && (
+              <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                <CalendarIcon className="h-3 w-3" />
+                <span>Pubblicazione: {new Date(item.published_date).toLocaleDateString('it-IT')}</span>
+              </div>
+            )}
+          </div>
           
           {item.tags && item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -434,6 +452,16 @@ export default function ContentCreationPage() {
                     />
                   </div>
                   
+                  <div>
+                    <Label htmlFor="published_date">Data Pubblicazione</Label>
+                    <Input
+                      id="published_date"
+                      type="date"
+                      value={formData.published_date}
+                      onChange={(e) => setFormData({ ...formData, published_date: e.target.value })}
+                    />
+                  </div>
+                  
                   <div className="col-span-2">
                     <Label htmlFor="notes">Note</Label>
                     <Textarea
@@ -459,58 +487,129 @@ export default function ContentCreationPage() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {columns.map((column) => {
-            const columnContent = content.filter(item => item.status === column.id);
-            
-            return (
-              <div key={column.id} className={`rounded-lg border-2 ${column.color} p-4`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {columnContent.length}
-                  </Badge>
-                </div>
+      {/* Tabs per passare tra Kanban e Calendario */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'calendar')} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="kanban">Vista Kanban</TabsTrigger>
+          <TabsTrigger value="calendar">Calendario Editoriale</TabsTrigger>
+        </TabsList>
+        
+        {/* Kanban Board */}
+        <TabsContent value="kanban">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {columns.map((column) => {
+                const columnContent = content.filter(item => item.status === column.id);
                 
-                <Droppable droppableId={column.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className={`min-h-[300px] ${snapshot.isDraggingOver ? 'bg-blue-50 rounded-lg' : ''}`}
-                    >
-                      {columnContent.map((item, index) => (
-                        <Draggable key={item.id} draggableId={item.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`${snapshot.isDragging ? 'rotate-2 scale-105' : ''}`}
-                            >
-                              <ContentCard item={item} />
+                return (
+                  <div key={column.id} className={`rounded-lg border-2 ${column.color} p-4`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-gray-900">{column.title}</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        {columnContent.length}
+                      </Badge>
+                    </div>
+                    
+                    <Droppable droppableId={column.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className={`min-h-[300px] ${snapshot.isDraggingOver ? 'bg-blue-50 rounded-lg' : ''}`}
+                        >
+                          {columnContent.map((item, index) => (
+                            <Draggable key={item.id} draggableId={item.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`${snapshot.isDragging ? 'rotate-2 scale-105' : ''}`}
+                                >
+                                  <ContentCard item={item} />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          
+                          {columnContent.length === 0 && (
+                            <div className="text-center py-8 text-gray-400">
+                              <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                              <p className="text-sm">Nessun contenuto</p>
                             </div>
                           )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      
-                      {columnContent.length === 0 && (
-                        <div className="text-center py-8 text-gray-400">
-                          <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                          <p className="text-sm">Nessun contenuto</p>
                         </div>
                       )}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            );
-          })}
-        </div>
-      </DragDropContext>
+                    </Droppable>
+                  </div>
+                );
+              })}
+            </div>
+          </DragDropContext>
+        </TabsContent>
+        
+        {/* Calendario Editoriale */}
+        <TabsContent value="calendar">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Calendario */}
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                <CardTitle>Calendario</CardTitle>
+                <CardDescription>Seleziona una data per visualizzare i contenuti</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  locale={it}
+                  className="pointer-events-auto"
+                  modifiers={{
+                    hasContent: (date) => content.some(item => 
+                      item.published_date && isSameDay(parseISO(item.published_date), date)
+                    )
+                  }}
+                  modifiersStyles={{
+                    hasContent: {
+                      fontWeight: 'bold',
+                      backgroundColor: 'hsl(var(--primary) / 0.1)',
+                      color: 'hsl(var(--primary))'
+                    }
+                  }}
+                />
+              </CardContent>
+            </Card>
+            
+            {/* Lista contenuti per data selezionata */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>
+                  Contenuti per {format(selectedDate, 'dd MMMM yyyy', { locale: it })}
+                </CardTitle>
+                <CardDescription>
+                  Contenuti programmati per questa data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {content
+                  .filter(item => item.published_date && isSameDay(parseISO(item.published_date), selectedDate))
+                  .map(item => (
+                    <ContentCard key={item.id} item={item} />
+                  ))}
+                
+                {content.filter(item => item.published_date && isSameDay(parseISO(item.published_date), selectedDate)).length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">Nessun contenuto programmato</p>
+                    <p className="text-sm">Nessun contenuto è stato programmato per questa data</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
