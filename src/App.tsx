@@ -94,7 +94,8 @@ const App = () => (
                   <AppLayout />
                 </ProtectedRoute>
               }>
-              <Route index element={<DirectionalDashboardPage />} />
+              <Route index element={<Index />} />
+                <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="personal-area" element={<DashboardPage />} />
                 <Route path="hr/people" element={<PeoplePage />} />
