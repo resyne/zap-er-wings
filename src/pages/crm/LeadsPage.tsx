@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -423,6 +423,10 @@ export default function LeadsPage() {
     );
   }
 
+  const handleOpenBigin = () => {
+    window.open('https://bigin.zoho.eu/', '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -431,6 +435,10 @@ export default function LeadsPage() {
           <p className="text-muted-foreground">Gestisci i tuoi lead con il kanban board</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={handleOpenBigin} variant="outline">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Apri Bigin CRM
+          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
