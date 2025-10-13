@@ -10,11 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal, LayoutGrid, List } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Order {
   id: string;
@@ -64,6 +66,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -565,6 +568,39 @@ export default function OrdersPage() {
         return "bg-orange-100 text-orange-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const handleDragEnd = async (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+
+    if (source.droppableId === destination.droppableId) return;
+
+    const newStatus = destination.droppableId;
+    const orderId = draggableId;
+
+    try {
+      const { error } = await supabase
+        .from("sales_orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stato aggiornato",
+        description: "Lo stato dell'ordine è stato aggiornato con successo",
+      });
+
+      loadOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato dell'ordine",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1155,18 +1191,39 @@ export default function OrdersPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Lista Ordini ({filteredOrders.length})</CardTitle>
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Cerca ordini..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === "table" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("table")}
+                >
+                  <List className="w-4 h-4 mr-2" />
+                  Tabella
+                </Button>
+                <Button
+                  variant={viewMode === "kanban" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("kanban")}
+                >
+                  <LayoutGrid className="w-4 h-4 mr-2" />
+                  Kanban
+                </Button>
+              </div>
+              <div className="relative w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Cerca ordini..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {viewMode === "table" ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -1302,6 +1359,90 @@ export default function OrdersPage() {
               )}
             </TableBody>
           </Table>
+          ) : (
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="grid grid-cols-3 gap-4">
+                {orderStatuses.map((status) => (
+                  <div key={status} className="space-y-3">
+                    <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                      {status === "commissionato" && "Commissionati"}
+                      {status === "in_lavorazione" && "In Lavorazione"}
+                      {status === "completato" && "Completati"}
+                      <span className="ml-2 text-xs">
+                        ({filteredOrders.filter(o => o.status === status).length})
+                      </span>
+                    </div>
+                    <Droppable droppableId={status}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`min-h-[500px] p-3 rounded-lg border-2 border-dashed ${
+                            snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-border'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            {filteredOrders
+                              .filter(order => order.status === status)
+                              .map((order, index) => (
+                                <Draggable key={order.id} draggableId={order.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={`p-4 bg-card border rounded-lg shadow-sm ${
+                                        snapshot.isDragging ? 'shadow-lg opacity-90' : ''
+                                      }`}
+                                    >
+                                      <div className="space-y-2">
+                                        <div className="flex items-start justify-between">
+                                          <div>
+                                            <div className="font-semibold">{order.number}</div>
+                                            <div className="text-sm text-muted-foreground">
+                                              {order.customers?.name}
+                                            </div>
+                                          </div>
+                                          {order.order_type && (
+                                            <Badge className={getOrderTypeColor(order.order_type)} variant="outline">
+                                              {getOrderTypeLabel(order.order_type)?.split(" ")[0]}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {order.order_date && (
+                                          <div className="text-xs text-muted-foreground">
+                                            {new Date(order.order_date).toLocaleDateString('it-IT')}
+                                          </div>
+                                        )}
+                                        {getSubOrdersStatus(order).length > 0 && (
+                                          <div className="space-y-1">
+                                            {getSubOrdersStatus(order).map((subStatus, idx) => (
+                                              <div key={idx} className="flex items-center gap-1">
+                                                <Badge className={subStatus.color} variant="outline">
+                                                  {subStatus.type}
+                                                </Badge>
+                                                <span className="text-xs">
+                                                  {getSubOrderStatusLabel(subStatus.status)}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                            {provided.placeholder}
+                          </div>
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+                ))}
+              </div>
+            </DragDropContext>
+          )}
         </CardContent>
       </Card>
 
