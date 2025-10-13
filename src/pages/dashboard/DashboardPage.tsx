@@ -15,8 +15,7 @@ import {
   LogOut,
   Settings,
   Plus,
-  Receipt,
-  Mail
+  Receipt
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -375,12 +374,6 @@ export function DashboardPage() {
               <a href="/finance/prima-nota">
                 <Receipt className="w-4 h-4 mr-2" />
                 Nuovo Movimento Prima Nota
-              </a>
-            </Button>
-            <Button variant="default" asChild>
-              <a href="/webmail">
-                <Mail className="w-4 h-4 mr-2" />
-                Email (v2)
               </a>
             </Button>
           </div>

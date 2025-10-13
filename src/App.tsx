@@ -66,7 +66,6 @@ import MaterialsPage from "./pages/warehouse/MaterialsPage";
 import ShippingOrdersPage from "./pages/warehouse/ShippingOrdersPage";
 import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
 import EmailPage from "./pages/communication/EmailPage";
-import { WebmailPage } from "./pages/communication/WebmailPage";
 import ArchivePage from "./pages/marketing/ArchivePage";
 import BrandkitPage from "./pages/marketing/BrandkitPage";
 import BrandAssetManager from "./pages/marketing/BrandAssetManager";
@@ -98,7 +97,6 @@ const App = () => (
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="email" element={<EmailPage />} />
-                <Route path="webmail" element={<WebmailPage />} />
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />

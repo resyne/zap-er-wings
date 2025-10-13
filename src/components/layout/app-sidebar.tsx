@@ -73,7 +73,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Panoramica", url: "/dashboard", icon: LayoutDashboard },
       { title: "Calendario", url: "/calendar", icon: Calendar },
       { title: "Email", url: "/email", icon: Mail },
-      { title: "Email (v2)", url: "/webmail", icon: Mail },
     ]
   },
   {
