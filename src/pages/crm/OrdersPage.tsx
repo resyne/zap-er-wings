@@ -28,10 +28,15 @@ interface Order {
   status?: string;
   notes?: string;
   order_type?: string;
+  lead_id?: string;
   created_at: string;
   customers?: {
     name: string;
     code: string;
+  };
+  leads?: {
+    id: string;
+    company_name: string;
   };
   work_orders?: Array<{
     id: string;
@@ -114,6 +119,7 @@ export default function OrdersPage() {
         .select(`
           *,
           customers(name, code),
+          leads(id, company_name),
           work_orders(id, number, status, includes_installation),
           service_work_orders(id, number, status),
           shipping_orders(id, number, status)
@@ -1255,10 +1261,12 @@ export default function OrdersPage() {
               <TableRow>
                 <TableHead>Numero</TableHead>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Lead</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Data Ordine</TableHead>
                 <TableHead>Consegna</TableHead>
                 <TableHead>Stato</TableHead>
+                <TableHead>Sotto-Ordini</TableHead>
                 <TableHead>Note</TableHead>
                 <TableHead className="w-[50px]">Azioni</TableHead>
               </TableRow>
@@ -1278,6 +1286,20 @@ export default function OrdersPage() {
                         <div className="font-medium">{order.customers.name}</div>
                         <div className="text-sm text-muted-foreground">{order.customers.code}</div>
                       </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {order.leads ? (
+                      <Link 
+                        to={`/crm/opportunities?lead=${order.lead_id}`}
+                        className="text-primary hover:underline flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {order.leads.company_name}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -1610,6 +1632,20 @@ export default function OrdersPage() {
                     <Label className="text-sm text-muted-foreground">Cliente</Label>
                     <div className="font-semibold">{selectedOrder.customers?.name}</div>
                     <div className="text-sm text-muted-foreground">{selectedOrder.customers?.code}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Lead</Label>
+                    {selectedOrder.leads ? (
+                      <Link 
+                        to={`/crm/opportunities?lead=${selectedOrder.lead_id}`}
+                        className="text-primary hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        {selectedOrder.leads.company_name}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Non collegato</div>
+                    )}
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Tipo Ordine</Label>

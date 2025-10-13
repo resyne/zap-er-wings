@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ interface WorkOrder {
   bom_id?: string;
   accessori_ids?: string[];
   sales_order_id?: string;
+  lead_id?: string;
   boms?: {
     name: string;
     version: string;
@@ -49,6 +51,10 @@ interface WorkOrder {
   };
   sales_orders?: {
     number: string;
+  };
+  leads?: {
+    id: string;
+    company_name: string;
   };
 }
 
@@ -102,6 +108,7 @@ export default function WorkOrdersPage() {
           boms(name, version),
           customers(name, code),
           sales_orders(number),
+          leads(id, company_name),
           service_work_orders!production_work_order_id(id, number, title)
         `)
         .order('updated_at', { ascending: false });
@@ -901,6 +908,7 @@ export default function WorkOrdersPage() {
                   <TableHead>Numero</TableHead>
                   <TableHead>Titolo</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Lead</TableHead>
                   <TableHead>Ordine di Vendita</TableHead>
                   <TableHead>Tecnico</TableHead>
                   <TableHead>Priorità</TableHead>
@@ -943,6 +951,19 @@ export default function WorkOrdersPage() {
                             <div className="font-medium">{wo.customers.name}</div>
                             <div className="text-sm text-muted-foreground">({wo.customers.code})</div>
                           </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wo.leads ? (
+                          <Link 
+                            to={`/crm/opportunities?lead=${wo.lead_id}`}
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            {wo.leads.company_name}
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -1143,9 +1164,31 @@ export default function WorkOrdersPage() {
                   </p>
                 </div>
                 <div>
+                  <Label className="text-sm font-medium">Lead</Label>
+                  {selectedWO.leads ? (
+                    <Link 
+                      to={`/crm/opportunities?lead=${selectedWO.lead_id}`}
+                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                    >
+                      {selectedWO.leads.company_name}
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Non collegato</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label className="text-sm font-medium">Tecnico</Label>
                   <p className="text-sm text-muted-foreground">
                     {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Ordine di Vendita</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWO.sales_orders ? selectedWO.sales_orders.number : 'Non collegato'}
                   </p>
                 </div>
               </div>
