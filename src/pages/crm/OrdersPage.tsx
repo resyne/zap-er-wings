@@ -69,6 +69,8 @@ export default function OrdersPage() {
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -727,6 +729,11 @@ export default function OrdersPage() {
     setIsCreateCustomerDialogOpen(false);
   };
 
+  const handleOrderClick = (order: Order) => {
+    setSelectedOrder(order);
+    setIsDetailsDialogOpen(true);
+  };
+
   const filteredOrders = orders.filter(order =>
     `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
       .toLowerCase()
@@ -1257,7 +1264,7 @@ export default function OrdersPage() {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
                   <TableCell>
                     <div className="flex items-center">
                       <Package className="w-4 h-4 mr-2 text-muted-foreground" />
@@ -1329,7 +1336,7 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm">
                           <MoreHorizontal className="w-4 h-4" />
                         </Button>
@@ -1404,15 +1411,16 @@ export default function OrdersPage() {
                               .filter(order => normalizeOrderStatus(order.status) === status)
                               .map((order, index) => (
                                 <Draggable key={order.id} draggableId={order.id} index={index}>
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      className={`p-4 bg-card border rounded-lg shadow-sm ${
-                                        snapshot.isDragging ? 'shadow-lg opacity-90' : ''
-                                      }`}
-                                    >
+                                   {(provided, snapshot) => (
+                                     <div
+                                       ref={provided.innerRef}
+                                       {...provided.draggableProps}
+                                       {...provided.dragHandleProps}
+                                       onClick={() => handleOrderClick(order)}
+                                       className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                         snapshot.isDragging ? 'shadow-lg opacity-90' : ''
+                                       }`}
+                                     >
                                       <div className="space-y-2">
                                         <div className="flex items-start justify-between">
                                           <div>
@@ -1578,7 +1586,165 @@ export default function OrdersPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Create Customer Dialog */}
+      {/* Order Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dettagli Ordine {selectedOrder?.number}</DialogTitle>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Main Order Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Informazioni Ordine</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Numero Ordine</Label>
+                    <div className="font-semibold">{selectedOrder.number}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Cliente</Label>
+                    <div className="font-semibold">{selectedOrder.customers?.name}</div>
+                    <div className="text-sm text-muted-foreground">{selectedOrder.customers?.code}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Tipo Ordine</Label>
+                    <Badge className={getOrderTypeColor(selectedOrder.order_type)}>
+                      {getOrderTypeLabel(selectedOrder.order_type)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Stato</Label>
+                    <div>
+                      <Badge variant={getStatusColor(normalizeOrderStatus(selectedOrder.status))}>
+                        {normalizeOrderStatus(selectedOrder.status).toUpperCase()}
+                      </Badge>
+                    </div>
+                  </div>
+                  {selectedOrder.order_date && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Data Ordine</Label>
+                      <div>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</div>
+                    </div>
+                  )}
+                  {selectedOrder.delivery_date && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Data Consegna</Label>
+                      <div>{new Date(selectedOrder.delivery_date).toLocaleDateString('it-IT')}</div>
+                    </div>
+                  )}
+                  {selectedOrder.notes && (
+                    <div className="col-span-2">
+                      <Label className="text-sm text-muted-foreground">Note</Label>
+                      <div className="text-sm">{selectedOrder.notes}</div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Production Work Orders */}
+              {selectedOrder.work_orders && selectedOrder.work_orders.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Ordini di Produzione</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {selectedOrder.work_orders.map((wo) => (
+                        <div key={wo.id} className="p-4 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="font-semibold">{wo.number}</div>
+                            <Badge className={
+                              wo.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              wo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getSubOrderStatusLabel(wo.status)}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {wo.includes_installation ? 'Include Installazione' : 'Solo Produzione'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Service Work Orders */}
+              {selectedOrder.service_work_orders && selectedOrder.service_work_orders.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Ordini di Lavoro/Installazione</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {selectedOrder.service_work_orders.map((swo) => (
+                        <div key={swo.id} className="p-4 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold">{swo.number}</div>
+                            <Badge className={
+                              swo.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              swo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getSubOrderStatusLabel(swo.status)}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Shipping Orders */}
+              {selectedOrder.shipping_orders && selectedOrder.shipping_orders.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Ordini di Spedizione</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {selectedOrder.shipping_orders.map((so) => (
+                        <div key={so.id} className="p-4 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold">{so.number}</div>
+                            <Badge className={
+                              so.status === 'spedito' ? 'bg-green-100 text-green-800' :
+                              so.status === 'in_preparazione' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {getSubOrderStatusLabel(so.status)}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* No sub-orders message */}
+              {(!selectedOrder.work_orders || selectedOrder.work_orders.length === 0) &&
+               (!selectedOrder.service_work_orders || selectedOrder.service_work_orders.length === 0) &&
+               (!selectedOrder.shipping_orders || selectedOrder.shipping_orders.length === 0) && (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    Nessun sotto-ordine collegato
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Customer Dialog */}
         <CreateCustomerDialog
           open={isCreateCustomerDialogOpen}
           onOpenChange={setIsCreateCustomerDialogOpen}
