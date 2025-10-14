@@ -77,6 +77,7 @@ const navigationGroups: NavGroup[] = [
     title: "Area Personale",
     items: [
       { title: "Dashboard", url: "/personal-area", icon: LayoutDashboard },
+      { title: "Calendario", url: "/calendar", icon: Calendar },
     ]
   },
   {
