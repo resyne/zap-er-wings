@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail } from "lucide-react";
 import { CreateContactDialog } from "@/components/support/CreateContactDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
+import jsPDF from "jspdf";
 
 interface Contact {
   id: string;
@@ -50,7 +51,9 @@ export default function ServiceReportsPage() {
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showCreateContact, setShowCreateContact] = useState(false);
   const [showSignatures, setShowSignatures] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     intervention_type: '',
     description: '',
@@ -185,7 +188,7 @@ export default function ServiceReportsPage() {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('service_reports')
         .insert({
           contact_id: selectedContact?.id,
@@ -204,32 +207,20 @@ export default function ServiceReportsPage() {
           customer_signature: customerSignature,
           technician_signature: technicianSignature,
           status: 'completed'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      setSavedReportId(data.id);
+      setShowSignatures(false);
+      setShowActions(true);
 
       toast({
         title: "Rapporto salvato",
         description: "Il rapporto di intervento è stato salvato con successo",
       });
-
-      // Reset form
-      setFormData({
-        intervention_type: '',
-        description: '',
-        work_performed: '',
-        materials_used: '',
-        notes: '',
-        intervention_date: new Date().toISOString().split('T')[0],
-        start_time: '',
-        end_time: ''
-      });
-      setSelectedContact(null);
-      setSelectedTechnician(null);
-      setSelectedWorkOrder(null);
-      setCustomerSignature('');
-      setTechnicianSignature('');
-      setShowSignatures(false);
     } catch (error) {
       console.error('Error saving report:', error);
       toast({
@@ -242,6 +233,203 @@ export default function ServiceReportsPage() {
     }
   };
 
+  const generatePDF = () => {
+    if (!selectedContact || !selectedTechnician) return;
+
+    const doc = new jsPDF();
+    let y = 20;
+
+    // Intestazione
+    doc.setFontSize(18);
+    doc.text("Rapporto di Intervento", 105, y, { align: "center" });
+    y += 15;
+
+    // Informazioni cliente
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+    doc.text("Cliente:", 20, y);
+    doc.setFont(undefined, "normal");
+    y += 7;
+    doc.text(`${selectedContact.first_name} ${selectedContact.last_name}`, 20, y);
+    if (selectedContact.company_name) {
+      y += 7;
+      doc.text(selectedContact.company_name, 20, y);
+    }
+    if (selectedContact.email) {
+      y += 7;
+      doc.text(`Email: ${selectedContact.email}`, 20, y);
+    }
+    if (selectedContact.phone) {
+      y += 7;
+      doc.text(`Tel: ${selectedContact.phone}`, 20, y);
+    }
+    if (selectedContact.address) {
+      y += 7;
+      doc.text(`Indirizzo: ${selectedContact.address}`, 20, y);
+    }
+    y += 10;
+
+    // Ordine di lavoro
+    if (selectedWorkOrder) {
+      doc.setFont(undefined, "bold");
+      doc.text("Ordine di Lavoro:", 20, y);
+      doc.setFont(undefined, "normal");
+      y += 7;
+      doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
+      y += 10;
+    }
+
+    // Dettagli intervento
+    doc.setFont(undefined, "bold");
+    doc.text("Dettagli Intervento:", 20, y);
+    doc.setFont(undefined, "normal");
+    y += 7;
+    doc.text(`Data: ${formData.intervention_date}`, 20, y);
+    y += 7;
+    if (formData.start_time && formData.end_time) {
+      doc.text(`Orario: ${formData.start_time} - ${formData.end_time}`, 20, y);
+      y += 7;
+    }
+    doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
+    y += 7;
+    doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
+    y += 10;
+
+    if (formData.description) {
+      doc.setFont(undefined, "bold");
+      doc.text("Descrizione Problema:", 20, y);
+      doc.setFont(undefined, "normal");
+      y += 7;
+      const descLines = doc.splitTextToSize(formData.description, 170);
+      doc.text(descLines, 20, y);
+      y += descLines.length * 7 + 3;
+    }
+
+    if (formData.work_performed) {
+      doc.setFont(undefined, "bold");
+      doc.text("Lavori Eseguiti:", 20, y);
+      doc.setFont(undefined, "normal");
+      y += 7;
+      const workLines = doc.splitTextToSize(formData.work_performed, 170);
+      doc.text(workLines, 20, y);
+      y += workLines.length * 7 + 3;
+    }
+
+    if (formData.materials_used) {
+      doc.setFont(undefined, "bold");
+      doc.text("Materiali Utilizzati:", 20, y);
+      doc.setFont(undefined, "normal");
+      y += 7;
+      const matLines = doc.splitTextToSize(formData.materials_used, 170);
+      doc.text(matLines, 20, y);
+      y += matLines.length * 7 + 3;
+    }
+
+    if (formData.notes) {
+      doc.setFont(undefined, "bold");
+      doc.text("Note:", 20, y);
+      doc.setFont(undefined, "normal");
+      y += 7;
+      const noteLines = doc.splitTextToSize(formData.notes, 170);
+      doc.text(noteLines, 20, y);
+      y += noteLines.length * 7 + 3;
+    }
+
+    // Firme
+    if (y > 220) {
+      doc.addPage();
+      y = 20;
+    }
+    y += 10;
+
+    doc.setFont(undefined, "bold");
+    doc.text("Firma Cliente:", 20, y);
+    if (customerSignature) {
+      doc.addImage(customerSignature, "PNG", 20, y + 5, 70, 30);
+    }
+
+    doc.text("Firma Tecnico:", 110, y);
+    if (technicianSignature) {
+      doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
+    }
+
+    const fileName = `rapporto_intervento_${formData.intervention_date}_${selectedContact.last_name}.pdf`;
+    doc.save(fileName);
+
+    toast({
+      title: "PDF Scaricato",
+      description: "Il rapporto è stato scaricato in formato PDF",
+    });
+  };
+
+  const sendEmail = async () => {
+    if (!selectedContact?.email) {
+      toast({
+        title: "Email mancante",
+        description: "Il cliente non ha un indirizzo email registrato",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-customer-emails', {
+        body: {
+          to: selectedContact.email,
+          subject: `Rapporto di Intervento - ${formData.intervention_date}`,
+          recipientName: `${selectedContact.first_name} ${selectedContact.last_name}`,
+          message: `Gentile ${selectedContact.first_name} ${selectedContact.last_name},\n\nin allegato trovi il rapporto di intervento del ${formData.intervention_date}.\n\nTipo intervento: ${formData.intervention_type}\nTecnico: ${selectedTechnician?.first_name} ${selectedTechnician?.last_name}\n\n${formData.work_performed ? `Lavori eseguiti:\n${formData.work_performed}\n\n` : ''}Grazie per averci scelto.\n\nCordiali saluti`,
+          reportData: {
+            customer: selectedContact,
+            technician: selectedTechnician,
+            formData: formData,
+            customerSignature: customerSignature,
+            technicianSignature: technicianSignature,
+            workOrder: selectedWorkOrder
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email Inviata",
+        description: `Il rapporto è stato inviato a ${selectedContact.email}`,
+      });
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'invio dell'email",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      intervention_type: '',
+      description: '',
+      work_performed: '',
+      materials_used: '',
+      notes: '',
+      intervention_date: new Date().toISOString().split('T')[0],
+      start_time: '',
+      end_time: ''
+    });
+    setSelectedContact(null);
+    setSelectedTechnician(null);
+    setSelectedWorkOrder(null);
+    setCustomerSignature('');
+    setTechnicianSignature('');
+    setShowSignatures(false);
+    setShowActions(false);
+    setSavedReportId(null);
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
@@ -251,7 +439,43 @@ export default function ServiceReportsPage() {
         </p>
       </div>
 
-      {!showSignatures ? (
+      {showActions ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rapporto Completato</CardTitle>
+            <CardDescription>
+              Il rapporto è stato salvato con successo. Scegli cosa fare ora.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3">
+              <Button onClick={generatePDF} className="w-full flex items-center justify-center gap-2">
+                <Download className="w-4 h-4" />
+                Scarica PDF
+              </Button>
+              <Button 
+                onClick={sendEmail} 
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2"
+                disabled={loading || !selectedContact?.email}
+              >
+                <Mail className="w-4 h-4" />
+                {loading ? "Invio in corso..." : "Invia Email al Cliente"}
+              </Button>
+            </div>
+
+            <Separator />
+
+            <Button 
+              onClick={resetForm}
+              variant="secondary"
+              className="w-full"
+            >
+              Crea Nuovo Rapporto
+            </Button>
+          </CardContent>
+        </Card>
+      ) : !showSignatures ? (
         <div className="space-y-6">
           {/* Ordine di Lavoro (Optional) */}
           <Card>
