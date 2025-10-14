@@ -23,7 +23,7 @@ interface WorkOrder {
   id: string;
   number: string;
   title: string;
-  status: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati';
+  status: string; // Accetta qualsiasi stato per compatibilità con la migrazione
   planned_start_date?: string;
   planned_end_date?: string;
   assigned_to?: string;
@@ -1021,12 +1021,13 @@ export default function WorkOrdersPage() {
                 {workOrderStatuses.map((status) => (
                   <div key={status} className="space-y-3">
                     <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                      {status === "to_do" && "To Do"}
-                      {status === "in_progress" && "In Lavorazione"}
-                      {status === "testing" && "Test"}
-                      {status === "completed" && "Completati"}
+                      {status === "to_do" && "Da Fare"}
+                      {status === "in_lavorazione" && "In Lavorazione"}
+                      {status === "test" && "Test"}
+                      {status === "pronti" && "Pronti"}
+                      {status === "spediti_consegnati" && "Spediti"}
                       <span className="ml-2 text-xs">
-                        ({filteredWorkOrders.filter(wo => normalizeStatus(wo.status) === status).length})
+                        ({filteredWorkOrders.filter(wo => wo.status === status).length})
                       </span>
                     </div>
                     <Droppable droppableId={status}>
@@ -1151,28 +1152,37 @@ export default function WorkOrdersPage() {
                   <div className="mt-1">
                     <Select 
                       value={selectedWO.status} 
-                      onValueChange={(value: 'planned' | 'in_progress' | 'testing' | 'closed') => {
-                        handleStatusChange(selectedWO.id, value);
+                      onValueChange={(value) => {
+                        handleStatusChange(selectedWO.id, value as any);
                         setSelectedWO({ ...selectedWO, status: value });
                       }}
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-48">
                         <SelectValue>
-                          <StatusBadge status={selectedWO.status} />
+                          <Badge className={getStatusColor(selectedWO.status)}>
+                            {selectedWO.status === 'to_do' ? 'Da Fare' :
+                             selectedWO.status === 'in_lavorazione' ? 'In Lavorazione' :
+                             selectedWO.status === 'test' ? 'Test' :
+                             selectedWO.status === 'pronti' ? 'Pronti' :
+                             selectedWO.status === 'spediti_consegnati' ? 'Spediti' : selectedWO.status}
+                          </Badge>
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="planned">
-                          <StatusBadge status="planned" />
+                        <SelectItem value="to_do">
+                          <Badge className="bg-gray-500">Da Fare</Badge>
                         </SelectItem>
-                        <SelectItem value="in_progress">
-                          <StatusBadge status="in_progress" />
+                        <SelectItem value="in_lavorazione">
+                          <Badge className="bg-blue-600">In Lavorazione</Badge>
                         </SelectItem>
-                        <SelectItem value="testing">
-                          <StatusBadge status="testing" />
+                        <SelectItem value="test">
+                          <Badge className="bg-orange-500">Test</Badge>
                         </SelectItem>
-                        <SelectItem value="closed">
-                          <StatusBadge status="closed" />
+                        <SelectItem value="pronti">
+                          <Badge className="bg-green-600">Pronti</Badge>
+                        </SelectItem>
+                        <SelectItem value="spediti_consegnati">
+                          <Badge className="bg-purple-600">Spediti/Consegnati</Badge>
                         </SelectItem>
                       </SelectContent>
                     </Select>
