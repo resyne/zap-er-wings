@@ -3515,6 +3515,53 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_task_completions: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          recurring_task_id: string
+          updated_at: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          recurring_task_id: string
+          updated_at?: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          recurring_task_id?: string
+          updated_at?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_task_completions_recurring_task_id_fkey"
+            columns: ["recurring_task_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_tasks: {
         Row: {
           created_at: string

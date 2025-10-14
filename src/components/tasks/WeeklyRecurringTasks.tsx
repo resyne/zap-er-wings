@@ -5,9 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Clock, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, X, Clock, Trash2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { startOfWeek, endOfWeek, format } from "date-fns";
+import { it } from "date-fns/locale";
 
 type TaskCategory = 'amministrazione' | 'back_office' | 'ricerca_sviluppo' | 'tecnico';
 
@@ -20,10 +24,12 @@ interface RecurringTask {
   title: string;
   description?: string;
   category: TaskCategory;
-  day: number; // Single day instead of array
+  day: number;
   estimated_hours?: number;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   is_active: boolean;
+  completed?: boolean;
+  completion_id?: string;
 }
 
 const weekDays = [
@@ -39,6 +45,11 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Calculate current week
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
 
   const [newTask, setNewTask] = useState({
     title: '',
@@ -56,7 +67,7 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
     try {
       setLoading(true);
       
-      // Fetch recurring tasks with their template tasks, filtered by category
+      // Fetch recurring tasks with their template tasks and completions for current week
       const { data, error } = await supabase
         .from('recurring_tasks')
         .select(`
@@ -75,18 +86,37 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
 
       if (error) throw error;
 
-      // Filter by category and map the data
+      // Fetch completions for this week
+      const { data: completions, error: completionsError } = await supabase
+        .from('recurring_task_completions')
+        .select('*')
+        .gte('week_start', format(weekStart, 'yyyy-MM-dd'))
+        .lte('week_end', format(weekEnd, 'yyyy-MM-dd'));
+
+      if (completionsError) throw completionsError;
+
+      // Create a map of completions by recurring_task_id
+      const completionsMap = new Map(
+        completions?.map(c => [c.recurring_task_id, c]) || []
+      );
+
+      // Filter by category and map the data with completion status
       const recurringTasks = data?.filter(item => item.tasks?.category === category)
-        .map(item => ({
-          id: item.id,
-          title: item.tasks?.title || '',
-          description: item.tasks?.description || '',
-          category: item.tasks?.category as TaskCategory,
-          day: item.recurrence_days?.[0] || 1, // Take first day from array
-          estimated_hours: item.tasks?.estimated_hours,
-          priority: item.tasks?.priority || 'medium',
-          is_active: item.is_active
-        })) || [];
+        .map(item => {
+          const completion = completionsMap.get(item.id);
+          return {
+            id: item.id,
+            title: item.tasks?.title || '',
+            description: item.tasks?.description || '',
+            category: item.tasks?.category as TaskCategory,
+            day: item.recurrence_days?.[0] || 1,
+            estimated_hours: item.tasks?.estimated_hours,
+            priority: item.tasks?.priority || 'medium',
+            is_active: item.is_active,
+            completed: completion?.completed || false,
+            completion_id: completion?.id
+          };
+        }) || [];
 
       setTasks(recurringTasks);
     } catch (error) {
@@ -170,6 +200,66 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
       toast({
         title: "Errore",
         description: "Impossibile creare la task ricorrente",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleCompletion = async (task: RecurringTask) => {
+    if (!user) return;
+
+    try {
+      if (task.completed && task.completion_id) {
+        // Mark as incomplete
+        const { error } = await supabase
+          .from('recurring_task_completions')
+          .update({ 
+            completed: false,
+            completed_at: null,
+            completed_by: null
+          })
+          .eq('id', task.completion_id);
+
+        if (error) throw error;
+      } else if (task.completion_id) {
+        // Mark existing record as complete
+        const { error } = await supabase
+          .from('recurring_task_completions')
+          .update({ 
+            completed: true,
+            completed_at: new Date().toISOString(),
+            completed_by: user.id
+          })
+          .eq('id', task.completion_id);
+
+        if (error) throw error;
+      } else {
+        // Create new completion record
+        const { error } = await supabase
+          .from('recurring_task_completions')
+          .insert({
+            recurring_task_id: task.id,
+            week_start: format(weekStart, 'yyyy-MM-dd'),
+            week_end: format(weekEnd, 'yyyy-MM-dd'),
+            completed: true,
+            completed_at: new Date().toISOString(),
+            completed_by: user.id
+          });
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Successo",
+        description: task.completed ? "Task segnata come non completata" : "Task completata!"
+      });
+
+      fetchRecurringTasks();
+    } catch (error) {
+      console.error('Error toggling completion:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato",
         variant: "destructive"
       });
     }
@@ -326,26 +416,37 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-muted-foreground mb-3">
+            Settimana: {format(weekStart, 'dd MMM', { locale: it })} - {format(weekEnd, 'dd MMM yyyy', { locale: it })}
+          </div>
           {tasks.map(task => (
-            <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div 
+              key={task.id} 
+              className={`flex items-center gap-3 p-3 border rounded-lg transition-all ${
+                task.completed ? 'bg-green-50 border-green-200' : 'hover:bg-muted/50'
+              }`}
+            >
+              <Checkbox
+                checked={task.completed}
+                onCheckedChange={() => toggleCompletion(task)}
+                className="h-5 w-5"
+              />
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-medium">{task.title}</h4>
+                  <h4 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                    {task.title}
+                  </h4>
                   <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+                  {task.completed && <Check className="w-4 h-4 text-green-600" />}
                 </div>
                 {task.description && (
                   <p className="text-sm text-muted-foreground">{task.description}</p>
                 )}
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    {/* Show single day */}
-                    {weekDays.find(d => d.value === task.day) && (
-                      <Badge variant="secondary" className="text-xs">
-                        {weekDays.find(d => d.value === task.day)?.short}
-                      </Badge>
-                    )}
-                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {weekDays.find(d => d.value === task.day)?.label}
+                  </Badge>
                   {task.estimated_hours && (
                     <Badge variant="outline" className="text-xs">
                       {task.estimated_hours}h
