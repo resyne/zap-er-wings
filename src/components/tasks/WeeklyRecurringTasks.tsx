@@ -85,6 +85,20 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
     fetchRecurringTasks();
   }, [category]);
 
+  const fetchProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .order('first_name');
+
+      if (error) throw error;
+      setProfiles(data || []);
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+    }
+  };
+
   const fetchRecurringTasks = async () => {
     try {
       setLoading(true);
