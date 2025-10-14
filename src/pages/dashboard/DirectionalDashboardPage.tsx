@@ -17,7 +17,8 @@ import {
   Plus,
   FileText,
   CheckSquare,
-  Calendar
+  Calendar,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -30,6 +31,7 @@ interface DashboardKPIs {
   workOrders: { planned: number; inProgress: number };
   serviceOrders: { planned: number; inProgress: number };
   shippingOrders: { inPreparazione: number; inProgress: number };
+  tickets: { open: number; inProgress: number };
   newLeads: number;
   negotiationLeads: number;
 }
@@ -51,6 +53,7 @@ export function DirectionalDashboardPage() {
     workOrders: { planned: 0, inProgress: 0 },
     serviceOrders: { planned: 0, inProgress: 0 },
     shippingOrders: { inPreparazione: 0, inProgress: 0 },
+    tickets: { open: 0, inProgress: 0 },
     newLeads: 0,
     negotiationLeads: 0,
   });
@@ -97,6 +100,11 @@ export function DirectionalDashboardPage() {
         .from("leads")
         .select("status");
 
+      // Load Tickets
+      const { data: ticketsData } = await supabase
+        .from("tickets")
+        .select("status");
+
       // Load Tasks in progress
       const { data: tasksData } = await supabase
         .from("tasks")
@@ -118,6 +126,10 @@ export function DirectionalDashboardPage() {
         shippingOrders: {
           inPreparazione: shippingOrdersData?.filter(o => o.status === "in_preparazione").length || 0,
           inProgress: shippingOrdersData?.filter(o => o.status === "in_progress").length || 0,
+        },
+        tickets: {
+          open: ticketsData?.filter(t => t.status === "open").length || 0,
+          inProgress: ticketsData?.filter(t => t.status === "in_progress").length || 0,
         },
         newLeads: leadsData?.filter(l => l.status === "new").length || 0,
         negotiationLeads: leadsData?.filter(l => ["qualified", "proposal"].includes(l.status)).length || 0,
@@ -237,6 +249,26 @@ export function DirectionalDashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">In Corso</span>
                 <span className="text-2xl font-bold text-green-600">{kpis.shippingOrders.inProgress}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tickets */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ticket</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Aperti</span>
+                <span className="text-2xl font-bold text-red-600">{kpis.tickets.open}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">In Lavorazione</span>
+                <span className="text-2xl font-bold text-yellow-600">{kpis.tickets.inProgress}</span>
               </div>
             </div>
           </CardContent>

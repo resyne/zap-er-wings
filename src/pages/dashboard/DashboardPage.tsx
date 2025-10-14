@@ -81,6 +81,18 @@ interface LeadActivity {
   };
 }
 
+interface Ticket {
+  id: string;
+  number: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  customer_name: string;
+  assigned_to?: string;
+  created_at: string;
+}
+
 // Component to display user role
 function RoleDisplay() {
   const { userRole } = useUserRole();
@@ -94,6 +106,7 @@ export function DashboardPage() {
   const [requests, setRequests] = useState<UserRequest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -151,10 +164,21 @@ export function DashboardPage() {
 
       if (leadActivitiesError) console.error("Error loading lead activities:", leadActivitiesError);
 
+      // Load tickets assigned to user
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from("tickets")
+        .select("*")
+        .eq("assigned_to", user.id)
+        .in("status", ["open", "in_progress"])
+        .order("created_at", { ascending: false });
+
+      if (ticketsError) console.error("Error loading tickets:", ticketsError);
+
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
       setTasks(tasksData || []);
       setLeadActivities(leadActivitiesData || []);
+      setTickets(ticketsData || []);
     } catch (error) {
       console.error("Error loading user tasks:", error);
     } finally {
@@ -282,7 +306,7 @@ export function DashboardPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Attività Totali</CardTitle>
@@ -318,6 +342,19 @@ export function DashboardPage() {
             <div className="text-2xl font-bold">{tasks.length}</div>
             <p className="text-xs text-muted-foreground">
               Task sistema
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ticket Assegnati</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{tickets.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Da gestire
             </p>
           </CardContent>
         </Card>
@@ -579,6 +616,73 @@ export function DashboardPage() {
                     </div>
                   ))}
                 </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tickets */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Ticket Assegnati
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {tickets.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nessun ticket assegnato
+                </p>
+              ) : (
+                tickets.map((ticket) => {
+                  const priorityColor = ticket.priority === "high" ? "destructive" : 
+                                       ticket.priority === "medium" ? "default" : "secondary";
+                  const statusColor = ticket.status === "open" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
+                  
+                  return (
+                    <div 
+                      key={ticket.id} 
+                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => navigate(`/support/tickets`)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs">{ticket.number}</Badge>
+                            <h4 className="font-medium">{ticket.title}</h4>
+                            <Badge variant={priorityColor as any} className="text-xs">
+                              {ticket.priority}
+                            </Badge>
+                          </div>
+                          {ticket.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                              {ticket.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span><strong>Cliente:</strong> {ticket.customer_name}</span>
+                            <Badge className={statusColor}>
+                              {ticket.status === "open" ? "Aperto" : "In Lavorazione"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/support/tickets`);
+                          }}
+                          className="h-7 w-7 p-0"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </CardContent>
