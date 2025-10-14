@@ -421,27 +421,28 @@ export default function LeadsPage() {
 
       if (leadError) throw leadError;
 
-      // 2. Crea un cliente con badge "vinto"
+      // 2. Crea un cliente nella tabella customers
       const { data: customer, error: customerError } = await supabase
-        .from("crm_contacts")
+        .from("customers")
         .insert([{
-          first_name: lead.contact_name?.split(' ')[0] || "",
-          last_name: lead.contact_name?.split(' ').slice(1).join(' ') || "",
+          name: lead.contact_name || lead.company_name,
           company_name: lead.company_name,
           email: lead.email,
           phone: lead.phone,
-          lead_source: "won_lead"
+          address: lead.country,
+          code: `CUST-${Date.now()}`
         }])
         .select()
         .single();
 
       if (customerError) throw customerError;
 
-      // 3. Crea un ordine di vendita
+      // 3. Crea un ordine di vendita collegato al lead
       const { error: salesOrderError } = await supabase
         .from("sales_orders")
         .insert([{
           customer_id: customer.id,
+          lead_id: lead.id,
           status: "draft",
           notes: `Ordine creato da lead vinto: ${lead.company_name}`,
           order_type: "lead_conversion",
