@@ -2175,9 +2175,11 @@ export type Database = {
       }
       leads: {
         Row: {
+          archived: boolean | null
           assigned_to: string | null
           company_name: string
           contact_name: string | null
+          country: string | null
           created_at: string | null
           email: string | null
           id: string
@@ -2194,9 +2196,11 @@ export type Database = {
           value: number | null
         }
         Insert: {
+          archived?: boolean | null
           assigned_to?: string | null
           company_name: string
           contact_name?: string | null
+          country?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
@@ -2213,9 +2217,11 @@ export type Database = {
           value?: number | null
         }
         Update: {
+          archived?: boolean | null
           assigned_to?: string | null
           company_name?: string
           contact_name?: string | null
+          country?: string | null
           created_at?: string | null
           email?: string | null
           id?: string

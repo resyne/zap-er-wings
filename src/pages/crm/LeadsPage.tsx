@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle } from "lucide-react";
 import LeadActivities from "@/components/crm/LeadActivities";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -26,6 +26,8 @@ interface Lead {
   source?: string;
   status: string;
   pipeline?: string;
+  country?: string;
+  archived?: boolean;
   notes?: string;
   assigned_to?: string;
   next_activity_type?: string;
@@ -48,6 +50,7 @@ interface Offer {
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
 const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro"];
+const countries = ["Italia", "Francia", "Germania"];
 // Solo le fasi principali per la Kanban
 const kanbanStatuses = [
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
@@ -70,6 +73,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPipeline, setSelectedPipeline] = useState<string>("ZAPPER");
+  const [selectedCountry, setSelectedCountry] = useState<string>("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -92,6 +97,7 @@ export default function LeadsPage() {
     source: "",
     status: "new",
     pipeline: "ZAPPER",
+    country: "Italia",
     notes: "",
     next_activity_type: "",
     next_activity_date: "",
@@ -199,6 +205,7 @@ export default function LeadsPage() {
       source: lead.source || "",
       status: lead.status,
       pipeline: lead.pipeline || "",
+      country: lead.country || "Italia",
       notes: lead.notes || "",
       next_activity_type: lead.next_activity_type || "",
       next_activity_date: lead.next_activity_date ? new Date(lead.next_activity_date).toISOString().slice(0, 16) : "",
@@ -277,6 +284,7 @@ export default function LeadsPage() {
       source: "",
       status: "new",
       pipeline: selectedPipeline,
+      country: "Italia",
       notes: "",
       next_activity_type: "",
       next_activity_date: "",
@@ -512,7 +520,9 @@ export default function LeadsPage() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesPipeline = !selectedPipeline || lead.pipeline === selectedPipeline;
-    return matchesSearch && matchesPipeline;
+    const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
+    const matchesArchived = showArchived ? lead.archived : !lead.archived;
+    return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
   });
 
   // Group leads by status (solo per le fasi kanban)
@@ -672,6 +682,21 @@ export default function LeadsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="country">Paese</Label>
+                  <Select value={newLead.country} onValueChange={(value) => setNewLead({...newLead, country: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona paese" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map(country => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="col-span-2">
                   <Label htmlFor="notes">Note</Label>
                   <Textarea
@@ -793,8 +818,8 @@ export default function LeadsPage() {
         </Card>
       </div>
 
-      {/* Pipeline and Search */}
-      <div className="flex items-center space-x-4">
+      {/* Pipeline, Country Filters and Search */}
+      <div className="flex items-center space-x-4 flex-wrap">
         <div className="flex items-center space-x-2">
           <Label htmlFor="pipeline-filter">Pipeline:</Label>
           <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
@@ -810,6 +835,30 @@ export default function LeadsPage() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center space-x-2">
+          <Label htmlFor="country-filter">Paese:</Label>
+          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Seleziona paese" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i paesi</SelectItem>
+              {countries.map(country => (
+                <SelectItem key={country} value={country}>
+                  {country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          variant={showArchived ? "default" : "outline"}
+          onClick={() => setShowArchived(!showArchived)}
+          size="sm"
+        >
+          <Archive className="h-4 w-4 mr-2" />
+          {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
+        </Button>
         <div className="flex items-center space-x-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input
@@ -1108,29 +1157,85 @@ export default function LeadsPage() {
                                    </div>
                                  </div>
 
-                                {/* Bottoni Vinto/Perso */}
-                                {lead.status === "negotiation" && (
-                                  <div className="flex gap-2 pt-2 border-t">
+                                {/* Bottoni Vinto/Perso/Archivia */}
+                                {!lead.archived && (
+                                  <div className="space-y-2 pt-2 border-t">
+                                    {lead.status === "negotiation" && (
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleWinLead(lead);
+                                          }}
+                                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                        >
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          Vinto
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleLoseLead(lead);
+                                          }}
+                                          className="flex-1"
+                                        >
+                                          <XCircle className="h-3 w-3 mr-1" />
+                                          Perso
+                                        </Button>
+                                      </div>
+                                    )}
                                     <Button
                                       size="sm"
-                                      onClick={(e) => {
+                                      variant="outline"
+                                      onClick={async (e) => {
                                         e.stopPropagation();
-                                        handleWinLead(lead);
+                                        const { error } = await supabase
+                                          .from('leads')
+                                          .update({ archived: true })
+                                          .eq('id', lead.id);
+                                        
+                                        if (!error) {
+                                          toast({
+                                            title: "Lead archiviato",
+                                            description: "Il lead è stato archiviato con successo."
+                                          });
+                                          loadLeads();
+                                        }
                                       }}
-                                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="w-full"
                                     >
-                                      Vinto
+                                      <Archive className="h-3 w-3 mr-1" />
+                                      Archivia
                                     </Button>
+                                  </div>
+                                )}
+                                {lead.archived && (
+                                  <div className="pt-2 border-t">
                                     <Button
                                       size="sm"
-                                      variant="destructive"
-                                      onClick={(e) => {
+                                      variant="outline"
+                                      onClick={async (e) => {
                                         e.stopPropagation();
-                                        handleLoseLead(lead);
+                                        const { error } = await supabase
+                                          .from('leads')
+                                          .update({ archived: false })
+                                          .eq('id', lead.id);
+                                        
+                                        if (!error) {
+                                          toast({
+                                            title: "Lead ripristinato",
+                                            description: "Il lead è stato ripristinato con successo."
+                                          });
+                                          loadLeads();
+                                        }
                                       }}
-                                      className="flex-1"
+                                      className="w-full"
                                     >
-                                      Perso
+                                      <Archive className="h-3 w-3 mr-1" />
+                                      Ripristina
                                     </Button>
                                   </div>
                                 )}
