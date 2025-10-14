@@ -15,10 +15,14 @@ import {
   Calendar,
   User,
   LogOut,
-  Settings
+  Settings,
+  Eye,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface UserActivity {
   id: string;
@@ -84,12 +88,15 @@ function RoleDisplay() {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [requests, setRequests] = useState<UserRequest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewItem, setPreviewItem] = useState<any>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -337,8 +344,12 @@ export function DashboardPage() {
                   {leadActivities.map((activity) => {
                     const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
                     return (
-                      <div key={`lead-${activity.id}`} className={`p-3 border rounded-lg ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}>
-                        <div className="flex items-start justify-between">
+                      <div 
+                        key={`lead-${activity.id}`} 
+                        className={`p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
+                        onClick={() => navigate(`/crm/leads?lead=${activity.lead_id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Lead</Badge>
@@ -349,7 +360,7 @@ export function DashboardPage() {
                               {activity.leads?.company_name || 'Lead'}
                             </p>
                             {activity.notes && (
-                              <p className="text-sm text-muted-foreground mt-1">
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                                 {activity.notes}
                               </p>
                             )}
@@ -358,19 +369,35 @@ export function DashboardPage() {
                               {format(new Date(activity.activity_date), "dd MMM yyyy", { locale: it })}
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={async () => {
-                              await supabase
-                                .from('lead_activities')
-                                .update({ status: 'completed' })
-                                .eq('id', activity.id);
-                              loadUserTasks();
-                            }}
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex flex-col gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewItem({ type: 'lead', data: activity });
+                                setIsPreviewOpen(true);
+                              }}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await supabase
+                                  .from('lead_activities')
+                                  .update({ status: 'completed' })
+                                  .eq('id', activity.id);
+                                loadUserTasks();
+                              }}
+                              className="h-7 w-7 p-0"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -436,8 +463,12 @@ export function DashboardPage() {
                 <>
                   {/* Tasks */}
                   {tasks.map((task) => (
-                    <div key={`task-${task.id}`} className="p-3 border rounded-lg">
-                      <div className="flex items-start justify-between">
+                    <div 
+                      key={`task-${task.id}`} 
+                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => navigate(`/tasks?task=${task.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="font-medium">{task.title}</h4>
@@ -446,7 +477,7 @@ export function DashboardPage() {
                             </Badge>
                           </div>
                           {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                               {task.description}
                             </p>
                           )}
@@ -460,21 +491,43 @@ export function DashboardPage() {
                             )}
                           </div>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markTaskCompleted(task.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewItem({ type: 'task', data: task });
+                              setIsPreviewOpen(true);
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markTaskCompleted(task.id);
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
 
                   {/* Requests */}
                   {requests.map((request) => (
-                    <div key={`request-${request.id}`} className="p-3 border rounded-lg">
-                      <div className="flex items-start justify-between">
+                    <div 
+                      key={`request-${request.id}`} 
+                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => navigate(`/tasks?task=${request.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="font-medium">{request.title}</h4>
@@ -483,7 +536,7 @@ export function DashboardPage() {
                             </Badge>
                           </div>
                           {request.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                               {request.description}
                             </p>
                           )}
@@ -497,13 +550,31 @@ export function DashboardPage() {
                             )}
                           </div>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markRequestCompleted(request.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewItem({ type: 'request', data: request });
+                              setIsPreviewOpen(true);
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markRequestCompleted(request.id);
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -516,6 +587,134 @@ export function DashboardPage() {
 
       {/* Weekly Calendar Section */}
       <WeeklyCalendar />
+
+      {/* Preview Dialog */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Anteprima Dettagli</DialogTitle>
+          </DialogHeader>
+          {previewItem && (
+            <div className="space-y-4">
+              {previewItem.type === 'lead' && (
+                <>
+                  <div>
+                    <h3 className="font-semibold mb-2">Attività Lead</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Lead</Badge>
+                        <span className="capitalize">{previewItem.data.activity_type}</span>
+                      </div>
+                      <p className="text-sm"><strong>Lead:</strong> {previewItem.data.leads?.company_name || 'N/A'}</p>
+                      <p className="text-sm"><strong>Data:</strong> {format(new Date(previewItem.data.activity_date), "PPP 'alle' HH:mm", { locale: it })}</p>
+                      {previewItem.data.notes && (
+                        <div>
+                          <p className="text-sm font-semibold mb-1">Note:</p>
+                          <p className="text-sm text-muted-foreground">{previewItem.data.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setIsPreviewOpen(false);
+                      navigate(`/crm/leads?lead=${previewItem.data.lead_id}`);
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Vai al Lead
+                  </Button>
+                </>
+              )}
+              {previewItem.type === 'task' && (
+                <>
+                  <div>
+                    <h3 className="font-semibold mb-2">Task</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{previewItem.data.title}</h4>
+                        <Badge variant={getPriorityColor(previewItem.data.priority) as any}>
+                          {previewItem.data.priority}
+                        </Badge>
+                      </div>
+                      {previewItem.data.description && (
+                        <div>
+                          <p className="text-sm font-semibold mb-1">Descrizione:</p>
+                          <p className="text-sm text-muted-foreground">{previewItem.data.description}</p>
+                        </div>
+                      )}
+                      <p className="text-sm"><strong>Categoria:</strong> <span className="capitalize">{previewItem.data.category}</span></p>
+                      {previewItem.data.due_date && (
+                        <p className="text-sm"><strong>Scadenza:</strong> {format(new Date(previewItem.data.due_date), "PPP", { locale: it })}</p>
+                      )}
+                      {previewItem.data.estimated_hours && (
+                        <p className="text-sm"><strong>Ore stimate:</strong> {previewItem.data.estimated_hours}h</p>
+                      )}
+                      {previewItem.data.tags && previewItem.data.tags.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold mb-1">Tags:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {previewItem.data.tags.map((tag: string) => (
+                              <Badge key={tag} variant="outline">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setIsPreviewOpen(false);
+                      navigate(`/tasks?task=${previewItem.data.id}`);
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Vai al Task
+                  </Button>
+                </>
+              )}
+              {previewItem.type === 'request' && (
+                <>
+                  <div>
+                    <h3 className="font-semibold mb-2">Richiesta</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{previewItem.data.title}</h4>
+                        <Badge variant={getPriorityColor(previewItem.data.priority) as any}>
+                          {previewItem.data.priority}
+                        </Badge>
+                      </div>
+                      {previewItem.data.description && (
+                        <div>
+                          <p className="text-sm font-semibold mb-1">Descrizione:</p>
+                          <p className="text-sm text-muted-foreground">{previewItem.data.description}</p>
+                        </div>
+                      )}
+                      <p className="text-sm"><strong>Tipo:</strong> {previewItem.data.type}</p>
+                      <p className="text-sm"><strong>Stato:</strong> {previewItem.data.status}</p>
+                      {previewItem.data.due_date && (
+                        <p className="text-sm"><strong>Scadenza:</strong> {format(new Date(previewItem.data.due_date), "PPP", { locale: it })}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setIsPreviewOpen(false);
+                      navigate(`/tasks?task=${previewItem.data.id}`);
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Vai alla Richiesta
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
