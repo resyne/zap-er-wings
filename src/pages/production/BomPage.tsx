@@ -507,6 +507,24 @@ export default function BomPage() {
     if (!confirm("Are you sure you want to delete this BOM? This will also delete all child BOMs and inclusions.")) return;
 
     try {
+      // Check if this BOM is used in any work orders
+      const { data: workOrders, error: checkError } = await supabase
+        .from('work_orders')
+        .select('id, number')
+        .eq('bom_id', id)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (workOrders && workOrders.length > 0) {
+        toast({
+          title: "Cannot Delete BOM",
+          description: "This BOM is being used by one or more work orders. Please remove or update those work orders first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('boms')
         .delete()
