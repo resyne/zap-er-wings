@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link } from "lucide-react";
+import LeadActivities from "@/components/crm/LeadActivities";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useNavigate } from "react-router-dom";
@@ -1149,7 +1150,7 @@ export default function LeadsPage() {
 
       {/* Lead Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
@@ -1310,6 +1311,11 @@ export default function LeadsPage() {
                   })()}
                 </div>
               )}
+
+              {/* Lead Activities Component */}
+              <div className="border-t pt-4">
+                <LeadActivities leadId={selectedLead.id} />
+              </div>
 
               {/* Actions */}
               <div className="border-t pt-4 flex gap-2">
