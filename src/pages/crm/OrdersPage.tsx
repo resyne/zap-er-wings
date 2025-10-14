@@ -72,6 +72,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [orderFilter, setOrderFilter] = useState<"all" | "work" | "installation" | "shipping">("all");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("kanban");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -741,11 +742,24 @@ export default function OrdersPage() {
     setIsDetailsDialogOpen(true);
   };
 
-  const filteredOrders = orders.filter(order =>
-    `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+      .includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Filtro per tipo di ordine
+    if (orderFilter === "work") {
+      return order.work_orders && order.work_orders.length > 0;
+    } else if (orderFilter === "installation") {
+      return order.service_work_orders && order.service_work_orders.length > 0;
+    } else if (orderFilter === "shipping") {
+      return order.shipping_orders && order.shipping_orders.length > 0;
+    }
+    
+    return true;
+  });
 
   const totalOrders = filteredOrders.length;
   const deliveredOrders = filteredOrders.filter(order => order.status === "delivered");
@@ -1242,6 +1256,20 @@ export default function OrdersPage() {
                   Kanban
                 </Button>
               </div>
+              
+              {/* Filtri per tipo di ordine */}
+              <Select value={orderFilter} onValueChange={(value: any) => setOrderFilter(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtra per tipo" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  <SelectItem value="all">Tutti gli ordini</SelectItem>
+                  <SelectItem value="work">Con Ordini di Produzione</SelectItem>
+                  <SelectItem value="installation">Con Ordini di Installazione</SelectItem>
+                  <SelectItem value="shipping">Con Ordini di Spedizione</SelectItem>
+                </SelectContent>
+              </Select>
+              
               <div className="relative w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
