@@ -164,6 +164,9 @@ export default function LeadsPage() {
 
   const handleCreateLead = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
       const leadData = {
         ...newLead,
         value: newLead.value ? parseFloat(newLead.value) : null,
@@ -172,11 +175,38 @@ export default function LeadsPage() {
         next_activity_assigned_to: newLead.next_activity_assigned_to || null
       };
       
-      const { error } = await supabase
+      const { data: newLeadData, error } = await supabase
         .from("leads")
-        .insert([leadData]);
+        .insert([leadData])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Se c'è una prossima attività, creala anche nella tabella lead_activities
+      if (newLead.next_activity_type && newLead.next_activity_date && newLeadData) {
+        await supabase.from("lead_activities").insert([{
+          lead_id: newLeadData.id,
+          activity_type: newLead.next_activity_type,
+          activity_date: new Date(newLead.next_activity_date).toISOString(),
+          assigned_to: newLead.next_activity_assigned_to || null,
+          notes: newLead.next_activity_notes || null,
+          status: "scheduled",
+          created_by: user.id
+        }]);
+
+        // Aggiungi al calendario se assegnata
+        if (newLead.next_activity_assigned_to) {
+          await supabase.from("calendar_events").insert([{
+            user_id: newLead.next_activity_assigned_to,
+            title: `Lead Activity: ${newLead.next_activity_type}`,
+            description: newLead.next_activity_notes || "",
+            event_date: new Date(newLead.next_activity_date).toISOString(),
+            event_type: "lead_activity",
+            color: "blue"
+          }]);
+        }
+      }
 
       toast({
         title: "Lead creato",
@@ -220,6 +250,9 @@ export default function LeadsPage() {
     if (!selectedLead) return;
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
       const leadData = {
         ...newLead,
         value: newLead.value ? parseFloat(newLead.value) : null,
@@ -232,6 +265,53 @@ export default function LeadsPage() {
         .eq("id", selectedLead.id);
 
       if (error) throw error;
+
+      // Se c'è una nuova prossima attività o è stata modificata, aggiornala anche in lead_activities
+      if (newLead.next_activity_type && newLead.next_activity_date) {
+        // Controlla se esiste già un'attività per questo lead
+        const { data: existingActivity } = await supabase
+          .from("lead_activities")
+          .select("id")
+          .eq("lead_id", selectedLead.id)
+          .eq("activity_type", newLead.next_activity_type)
+          .eq("status", "scheduled")
+          .maybeSingle();
+
+        if (existingActivity) {
+          // Aggiorna l'attività esistente
+          await supabase
+            .from("lead_activities")
+            .update({
+              activity_date: new Date(newLead.next_activity_date).toISOString(),
+              assigned_to: newLead.next_activity_assigned_to || null,
+              notes: newLead.next_activity_notes || null
+            })
+            .eq("id", existingActivity.id);
+        } else {
+          // Crea una nuova attività
+          await supabase.from("lead_activities").insert([{
+            lead_id: selectedLead.id,
+            activity_type: newLead.next_activity_type,
+            activity_date: new Date(newLead.next_activity_date).toISOString(),
+            assigned_to: newLead.next_activity_assigned_to || null,
+            notes: newLead.next_activity_notes || null,
+            status: "scheduled",
+            created_by: user.id
+          }]);
+        }
+
+        // Aggiungi/aggiorna nel calendario se assegnata
+        if (newLead.next_activity_assigned_to) {
+          await supabase.from("calendar_events").insert([{
+            user_id: newLead.next_activity_assigned_to,
+            title: `Lead Activity: ${newLead.next_activity_type}`,
+            description: newLead.next_activity_notes || "",
+            event_date: new Date(newLead.next_activity_date).toISOString(),
+            event_type: "lead_activity",
+            color: "blue"
+          }]);
+        }
+      }
 
       toast({
         title: "Lead aggiornato",
