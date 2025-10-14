@@ -880,7 +880,17 @@ export default function CalendarioAziendale() {
               {selectedItem?.item_type === 'shipping_order' && `${selectedItem.order_number}${selectedItem.customer_name ? ` - ${selectedItem.customer_name}` : ''}`}
               {selectedItem?.item_type === 'content_task' && selectedItem.title}
               {selectedItem?.item_type === 'event' && selectedItem.title}
-              {selectedItem?.item_type === 'lead_activity' && (selectedItem.leads?.company_name || 'Lead Activity')}
+              {selectedItem?.item_type === 'lead_activity' && (
+                <>
+                  {selectedItem.activity_type === 'call' ? 'Chiamata' :
+                   selectedItem.activity_type === 'email' ? 'Email' :
+                   selectedItem.activity_type === 'meeting' ? 'Riunione' :
+                   selectedItem.activity_type === 'follow_up' ? 'Follow-up' :
+                   selectedItem.activity_type === 'demo' ? 'Demo' :
+                   'Attività'}
+                  {' con '}{selectedItem.leads?.company_name || 'Lead'}
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
               {selectedItem?.item_type === 'task' ? 'Task Aziendale' : 
