@@ -1139,32 +1139,75 @@ export default function WorkOrdersPage() {
             </DialogDescription>
           </DialogHeader>
           {selectedWO && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Numero</Label>
-                  <p className="text-sm text-muted-foreground">{selectedWO.number}</p>
+                  <Label className="text-sm font-medium text-muted-foreground">Numero</Label>
+                  <p className="text-sm">{selectedWO.number}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Stato</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Stato</Label>
                   <div className="mt-1">
-                    <StatusBadge status={selectedWO.status} />
+                    <Select 
+                      value={selectedWO.status} 
+                      onValueChange={(value: 'planned' | 'in_progress' | 'testing' | 'closed') => {
+                        handleStatusChange(selectedWO.id, value);
+                        setSelectedWO({ ...selectedWO, status: value });
+                      }}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue>
+                          <StatusBadge status={selectedWO.status} />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="planned">
+                          <StatusBadge status="planned" />
+                        </SelectItem>
+                        <SelectItem value="in_progress">
+                          <StatusBadge status="in_progress" />
+                        </SelectItem>
+                        <SelectItem value="testing">
+                          <StatusBadge status="testing" />
+                        </SelectItem>
+                        <SelectItem value="closed">
+                          <StatusBadge status="closed" />
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
+              
               <div>
-                <Label className="text-sm font-medium">Titolo</Label>
-                <p className="text-sm text-muted-foreground">{selectedWO.title}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Titolo</Label>
+                <p className="text-sm">{selectedWO.title}</p>
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Cliente</Label>
-                  <p className="text-sm text-muted-foreground">
+                  <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
+                  <p className="text-sm">
                     {selectedWO.customers ? `${selectedWO.customers.name} (${selectedWO.customers.code})` : 'Non assegnato'}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Lead</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Priorità</Label>
+                  <Badge variant={
+                    selectedWO.priority === 'urgent' ? 'destructive' :
+                    selectedWO.priority === 'high' ? 'default' :
+                    selectedWO.priority === 'medium' ? 'secondary' : 'outline'
+                  }>
+                    {selectedWO.priority === 'urgent' ? 'Urgente' :
+                     selectedWO.priority === 'high' ? 'Alta' :
+                     selectedWO.priority === 'medium' ? 'Media' : 'Bassa'}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Lead</Label>
                   {selectedWO.leads ? (
                     <Link 
                       to={`/crm/opportunities?lead=${selectedWO.lead_id}`}
@@ -1177,57 +1220,95 @@ export default function WorkOrdersPage() {
                     <p className="text-sm text-muted-foreground">Non collegato</p>
                   )}
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Tecnico</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Ordine di Vendita</Label>
-                  <p className="text-sm text-muted-foreground">
+                  <Label className="text-sm font-medium text-muted-foreground">Ordine di Vendita</Label>
+                  <p className="text-sm">
                     {selectedWO.sales_orders ? selectedWO.sales_orders.number : 'Non collegato'}
                   </p>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Priorità</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedWO.priority === 'urgent' ? 'Urgente' :
-                     selectedWO.priority === 'high' ? 'Alta' :
-                     selectedWO.priority === 'medium' ? 'Media' : 'Bassa'}
+                  <Label className="text-sm font-medium text-muted-foreground">Tecnico</Label>
+                  <p className="text-sm">
+                    {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Distinta Base</Label>
-                  <p className="text-sm text-muted-foreground">
+                  <Label className="text-sm font-medium text-muted-foreground">Distinta Base</Label>
+                  <p className="text-sm">
                     {selectedWO.boms ? `${selectedWO.boms.name} (${selectedWO.boms.version})` : 'Non assegnata'}
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Inizio Pianificato</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedWO.planned_start_date ? new Date(selectedWO.planned_start_date).toLocaleString() : 'Non impostato'}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Fine Pianificata</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedWO.planned_end_date ? new Date(selectedWO.planned_end_date).toLocaleString() : 'Non impostato'}
-                  </p>
-                </div>
-              </div>
-              {selectedWO.notes && (
-                <div>
-                  <Label className="text-sm font-medium">Note</Label>
-                  <p className="text-sm text-muted-foreground">{selectedWO.notes}</p>
+
+              {(selectedWO.planned_start_date || selectedWO.planned_end_date) && (
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium text-muted-foreground mb-2 block">Date Pianificate</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Inizio</Label>
+                      <p className="text-sm">
+                        {selectedWO.planned_start_date ? new Date(selectedWO.planned_start_date).toLocaleString('it-IT') : 'Non impostato'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Fine</Label>
+                      <p className="text-sm">
+                        {selectedWO.planned_end_date ? new Date(selectedWO.planned_end_date).toLocaleString('it-IT') : 'Non impostato'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {selectedWO.notes && (
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium text-muted-foreground">Note</Label>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedWO.notes}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="border-t pt-4 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDetailsDialog(false);
+                    handleEdit(selectedWO);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifica
+                </Button>
+                <Link to={`/mfg/executions?wo=${selectedWO.id}`} className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Esecuzioni
+                  </Button>
+                </Link>
+                {selectedWO.status !== 'closed' && (
+                  <Button
+                    variant="default"
+                    className="flex-1"
+                    onClick={async () => {
+                      const nextStatus = 
+                        selectedWO.status === 'planned' ? 'in_progress' :
+                        selectedWO.status === 'in_progress' ? 'testing' :
+                        selectedWO.status === 'testing' ? 'closed' : 'closed';
+                      
+                      await handleStatusChange(selectedWO.id, nextStatus as any);
+                      setSelectedWO({ ...selectedWO, status: nextStatus as any });
+                    }}
+                  >
+                    {selectedWO.status === 'planned' ? 'Inizia' :
+                     selectedWO.status === 'in_progress' ? 'In Test' :
+                     selectedWO.status === 'testing' ? 'Completa' : 'Completa'}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
