@@ -202,9 +202,8 @@ export function TaskKanban({ category }: TaskKanbanProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-5 gap-4">
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div className="grid grid-cols-5 gap-4">
           {Object.entries(statusConfig).map(([status, config]) => {
             const statusTasks = getTasksByStatus(status as Task['status']);
             
@@ -265,14 +264,5 @@ export function TaskKanban({ category }: TaskKanbanProps) {
           })}
         </div>
       </DragDropContext>
-
-      <CreateTaskDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        defaultCategory={category as any}
-        defaultStatus={createDialogStatus}
-        onTaskAdded={handleTaskAdded}
-      />
-    </div>
-  );
-}
+    );
+  }

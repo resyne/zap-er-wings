@@ -109,11 +109,23 @@ export function TasksPage() {
 
             <WeeklyRecurringTasks category={category.key} />
             
-            {viewMode === 'kanban' ? (
-              <TaskKanban category={category.key} />
-            ) : (
-              <TaskCalendar category={category.key} />
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Task Richieste
+                </CardTitle>
+                <CardDescription>
+                  Gestisci le task assegnate e i loro stati di avanzamento
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {viewMode === 'kanban' ? (
+                  <TaskKanban category={category.key} />
+                ) : (
+                  <TaskCalendar category={category.key} />
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         ))}
       </Tabs>

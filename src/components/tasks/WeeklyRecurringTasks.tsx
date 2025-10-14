@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, X, Clock, Trash2, Check } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, X, Clock, Trash2, Check, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -421,48 +422,71 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
             Settimana: {format(weekStart, 'dd MMM', { locale: it })} - {format(weekEnd, 'dd MMM yyyy', { locale: it })}
           </div>
           {tasks.map(task => (
-            <div 
-              key={task.id} 
-              className={`flex items-center gap-3 p-3 border rounded-lg transition-all ${
-                task.completed ? 'bg-green-50 border-green-200' : 'hover:bg-muted/50'
-              }`}
-            >
-              <Checkbox
-                checked={task.completed}
-                onCheckedChange={() => toggleCompletion(task)}
-                className="h-5 w-5"
-              />
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2">
-                  <h4 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                    {task.title}
-                  </h4>
-                  <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-                  {task.completed && <Check className="w-4 h-4 text-green-600" />}
-                </div>
-                {task.description && (
-                  <p className="text-sm text-muted-foreground">{task.description}</p>
-                )}
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {weekDays.find(d => d.value === task.day)?.label}
-                  </Badge>
-                  {task.estimated_hours && (
-                    <Badge variant="outline" className="text-xs">
-                      {task.estimated_hours}h
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => deleteTask(task.id)}
-                className="text-destructive hover:text-destructive"
+            <Collapsible key={task.id}>
+              <div 
+                className={`border rounded-lg transition-all ${
+                  task.completed ? 'bg-green-50 border-green-200' : 'hover:bg-muted/50'
+                }`}
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
+                <div className="flex items-center gap-3 p-3">
+                  <Checkbox
+                    checked={task.completed}
+                    onCheckedChange={() => toggleCompletion(task)}
+                    className="h-5 w-5"
+                  />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </h4>
+                      <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+                      {task.completed && <Check className="w-4 h-4 text-green-600" />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {weekDays.find(d => d.value === task.day)?.label}
+                      </Badge>
+                      {task.estimated_hours && (
+                        <Badge variant="outline" className="text-xs">
+                          {task.estimated_hours}h
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {task.description && (
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronDown className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                        </Button>
+                      </CollapsibleTrigger>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteTask(task.id)}
+                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {task.description && (
+                  <CollapsibleContent className="px-3 pb-3">
+                    <div className="pt-2 border-t mt-2">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {task.description}
+                      </p>
+                    </div>
+                  </CollapsibleContent>
+                )}
+              </div>
+            </Collapsible>
           ))}
 
           {tasks.length === 0 && !isAddingTask && (
