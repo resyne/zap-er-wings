@@ -64,6 +64,19 @@ interface Task {
   created_at: string;
 }
 
+interface LeadActivity {
+  id: string;
+  lead_id: string;
+  activity_type: string;
+  activity_date: string;
+  assigned_to: string;
+  status: string;
+  notes?: string;
+  leads?: {
+    company_name: string;
+  };
+}
+
 // Component to display user role
 function RoleDisplay() {
   const { userRole } = useUserRole();
@@ -75,6 +88,7 @@ export function DashboardPage() {
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [requests, setRequests] = useState<UserRequest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -120,9 +134,20 @@ export function DashboardPage() {
 
       if (tasksError) throw tasksError;
 
+      // Load lead activities
+      const { data: leadActivitiesData, error: leadActivitiesError } = await supabase
+        .from("lead_activities")
+        .select("*, leads(company_name)")
+        .eq("assigned_to", user.id)
+        .neq("status", "completed")
+        .order("activity_date", { ascending: true });
+
+      if (leadActivitiesError) console.error("Error loading lead activities:", leadActivitiesError);
+
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
       setTasks(tasksData || []);
+      setLeadActivities(leadActivitiesData || []);
     } catch (error) {
       console.error("Error loading user tasks:", error);
     } finally {
@@ -213,11 +238,12 @@ export function DashboardPage() {
     );
   }
 
-  const totalTasks = activities.length + requests.length + tasks.length;
+  const totalTasks = activities.length + requests.length + tasks.length + leadActivities.length;
   const urgentTasks = [
     ...activities.filter(a => a.scheduled_date && new Date(a.scheduled_date) < new Date(Date.now() + 24 * 60 * 60 * 1000)),
     ...requests.filter(r => r.priority === "high" || (r.due_date && new Date(r.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000))),
-    ...tasks.filter(t => t.priority === "high" || (t.due_date && new Date(t.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000)))
+    ...tasks.filter(t => t.priority === "high" || (t.due_date && new Date(t.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000))),
+    ...leadActivities.filter(la => new Date(la.activity_date) < new Date(Date.now() + 24 * 60 * 60 * 1000) && la.status === 'scheduled')
   ].length;
 
   return (
@@ -249,7 +275,7 @@ export function DashboardPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Attività Totali</CardTitle>
@@ -258,7 +284,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalTasks}</div>
             <p className="text-xs text-muted-foreground">
-              Task, attività CRM e richieste
+              Tutte le attività
             </p>
           </CardContent>
         </Card>
@@ -271,7 +297,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold text-destructive">{urgentTasks}</div>
             <p className="text-xs text-muted-foreground">
-              Da completare entro 24h
+              Entro 24h
             </p>
           </CardContent>
         </Card>
@@ -291,19 +317,32 @@ export function DashboardPage() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CRM + Richieste</CardTitle>
+            <CardTitle className="text-sm font-medium">Lead</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{leadActivities.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Attività lead
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">CRM</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activities.length + requests.length}</div>
             <p className="text-xs text-muted-foreground">
-              Attività CRM e richieste
+              CRM e richieste
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Tasks */}
         <Card>
           <CardHeader>
@@ -354,6 +393,66 @@ export function DashboardPage() {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lead Activities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Attività Lead
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {leadActivities.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nessuna attività lead
+                </p>
+              ) : (
+                leadActivities.map((activity) => {
+                  const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
+                  return (
+                    <div key={activity.id} className={`p-3 border rounded-lg ${isOverdue ? 'border-l-4 border-l-destructive bg-red-50/50' : ''}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium capitalize">{activity.activity_type}</h4>
+                            {isOverdue && <Badge variant="destructive">Scaduta</Badge>}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {activity.leads?.company_name || 'Lead'}
+                          </p>
+                          {activity.notes && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {activity.notes}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            {format(new Date(activity.activity_date), "dd MMM yyyy", { locale: it })}
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={async () => {
+                            await supabase
+                              .from('lead_activities')
+                              .update({ status: 'completed' })
+                              .eq('id', activity.id);
+                            loadUserTasks();
+                          }}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </CardContent>
@@ -415,7 +514,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
+              <AlertCircle className="w-5 h-5" />
               Richieste Assegnate
             </CardTitle>
           </CardHeader>
