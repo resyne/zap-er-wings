@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { useNavigate } from "react-router-dom";
 
 
 interface Lead {
@@ -61,6 +62,7 @@ const allStatuses = [
 ];
 
 export default function LeadsPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<Array<{id: string, first_name: string, last_name: string, email: string}>>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -996,16 +998,16 @@ export default function LeadsPage() {
                                                   €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                                                 </span>
                                                 <Button
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  className="h-6 px-2"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    window.open('/crm/offers', '_blank');
-                                                  }}
-                                                >
-                                                  <ExternalLink className="h-3 w-3" />
-                                                </Button>
+                                                   size="sm"
+                                                   variant="ghost"
+                                                   className="h-6 px-2"
+                                                   onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     navigate('/crm/offers');
+                                                   }}
+                                                 >
+                                                   <ExternalLink className="h-3 w-3" />
+                                                 </Button>
                                               </div>
                                             </div>
                                           );

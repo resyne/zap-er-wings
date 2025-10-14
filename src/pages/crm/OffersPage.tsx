@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
+import { useNavigate } from "react-router-dom";
 
 interface Offer {
   id: string;
@@ -49,6 +50,7 @@ interface Customer {
 
 
 export default function OffersPage() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -710,7 +712,7 @@ export default function OffersPage() {
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => window.open(`/crm/leads`, '_blank')}
+                      onClick={() => navigate('/crm/leads')}
                       title="Vai al Lead"
                     >
                       <ExternalLink className="h-4 w-4" />
