@@ -99,6 +99,7 @@ const App = () => (
               <Route index element={<Index />} />
                 <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
                 <Route path="direzione/calendario" element={<CalendarioAziendale />} />
+                <Route path="direzione/orders" element={<OrdersPage />} />
                 <Route path="personal-area" element={<DashboardPage />} />
                 
                 <Route path="hr/people" element={<PeoplePage />} />
@@ -111,7 +112,6 @@ const App = () => (
                 <Route path="mfg/rma" element={<RmaPage />} />
                 <Route path="crm/leads" element={<LeadsPage />} />
                 <Route path="marketing/email-marketing" element={<EmailMarketingPage />} />
-                <Route path="crm/orders" element={<OrdersPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
                 <Route path="crm/offers" element={<OffersPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />

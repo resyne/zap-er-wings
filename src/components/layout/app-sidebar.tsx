@@ -73,6 +73,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Dashboard Direzionale", url: "/direzione/dashboard", icon: LayoutDashboard },
       { title: "Calendario Aziendale", url: "/direzione/calendario", icon: Calendar },
       { title: "Task Management", url: "/tasks", icon: CheckSquare },
+      { title: "Ordini", url: "/direzione/orders", icon: ShoppingCart },
     ]
   },
   {
@@ -86,7 +87,6 @@ const navigationGroups: NavGroup[] = [
     title: "CRM", 
     items: [
       { title: "Lead", url: "/crm/leads", icon: Users },
-      { title: "Ordini", url: "/crm/orders", icon: ShoppingCart },
       { title: "Clienti", url: "/crm/customers", icon: Building2 },
       { title: "Offerte", url: "/crm/offers", icon: FileText },
     ]
