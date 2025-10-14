@@ -4914,6 +4914,51 @@ export type Database = {
         }
         Relationships: []
       }
+      work_order_accessories: {
+        Row: {
+          bom_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          quantity: number
+          updated_at: string | null
+          work_order_id: string
+        }
+        Insert: {
+          bom_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          updated_at?: string | null
+          work_order_id: string
+        }
+        Update: {
+          bom_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          updated_at?: string | null
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_accessories_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_accessories_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_orders: {
         Row: {
           accessori_ids: string[] | null
