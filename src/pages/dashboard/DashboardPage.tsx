@@ -50,6 +50,21 @@ interface UserRequest {
   created_at: string;
 }
 
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  category: string;
+  assigned_to?: string;
+  due_date?: string;
+  start_date?: string;
+  estimated_hours?: number;
+  tags?: string[];
+  created_at: string;
+}
+
 // Component to display user role
 function RoleDisplay() {
   const { userRole } = useUserRole();
@@ -60,6 +75,7 @@ export function DashboardPage() {
   const { user, profile, signOut } = useAuth();
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [requests, setRequests] = useState<UserRequest[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -95,8 +111,20 @@ export function DashboardPage() {
 
       if (requestsError) throw requestsError;
 
+      // Load tasks assigned to user
+      const { data: tasksData, error: tasksError } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("assigned_to", user.id)
+        .neq("status", "completed")
+        .or("is_template.is.null,is_template.eq.false")
+        .order("due_date", { ascending: true, nullsFirst: false });
+
+      if (tasksError) throw tasksError;
+
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
+      setTasks(tasksData || []);
     } catch (error) {
       console.error("Error loading user tasks:", error);
     } finally {
@@ -150,6 +178,24 @@ export function DashboardPage() {
     }
   };
 
+  const markTaskCompleted = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          status: "completed"
+        })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      // Refresh tasks
+      loadUserTasks();
+    } catch (error) {
+      console.error("Error completing task:", error);
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high": return "destructive";
@@ -169,10 +215,11 @@ export function DashboardPage() {
     );
   }
 
-  const totalTasks = activities.length + requests.length;
+  const totalTasks = activities.length + requests.length + tasks.length;
   const urgentTasks = [
     ...activities.filter(a => a.scheduled_date && new Date(a.scheduled_date) < new Date(Date.now() + 24 * 60 * 60 * 1000)),
-    ...requests.filter(r => r.priority === "high" || (r.due_date && new Date(r.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000)))
+    ...requests.filter(r => r.priority === "high" || (r.due_date && new Date(r.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000))),
+    ...tasks.filter(t => t.priority === "high" || (t.due_date && new Date(t.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000)))
   ].length;
 
   return (
@@ -213,7 +260,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalTasks}</div>
             <p className="text-xs text-muted-foreground">
-              Attività e richieste assegnate
+              Task, attività CRM e richieste
             </p>
           </CardContent>
         </Card>
@@ -233,32 +280,87 @@ export function DashboardPage() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CRM</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Task</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activities.length}</div>
+            <div className="text-2xl font-bold">{tasks.length}</div>
             <p className="text-xs text-muted-foreground">
-              Attività CRM assegnate
+              Task assegnate
             </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Richieste</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">CRM + Richieste</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{requests.length}</div>
+            <div className="text-2xl font-bold">{activities.length + requests.length}</div>
             <p className="text-xs text-muted-foreground">
-              Richieste varie assegnate
+              Attività CRM e richieste
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Tasks */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Task
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {tasks.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nessuna task assegnata
+                </p>
+              ) : (
+                tasks.map((task) => (
+                  <div key={task.id} className="p-3 border rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium">{task.title}</h4>
+                          <Badge variant={getPriorityColor(task.priority) as any}>
+                            {task.priority}
+                          </Badge>
+                        </div>
+                        {task.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {task.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span className="capitalize">{task.category}</span>
+                          {task.due_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(task.due_date), "dd MMM yyyy", { locale: it })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => markTaskCompleted(task.id)}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* CRM Activities */}
         <Card>
           <CardHeader>
