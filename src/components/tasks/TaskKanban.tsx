@@ -95,12 +95,13 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
     try {
       console.log('Fetching tasks for category:', category, 'archived:', archived);
       
-      // Fetch only regular tasks - recurring tasks are excluded from Kanban
+      // Fetch only regular tasks - exclude template tasks and recurring tasks
       const { data: regularTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('category', category as any)
         .eq('archived', archived)
+        .eq('is_template', false) // Exclude template tasks
         .is('parent_task_id', null)
         .order('created_at', { ascending: false });
 

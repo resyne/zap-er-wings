@@ -211,7 +211,8 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
           estimated_hours: data.estimated_hours ? parseFloat(data.estimated_hours) : null,
           priority: data.priority,
           status: 'todo',
-          assigned_to: data.assigned_to || null
+          assigned_to: data.assigned_to || null,
+          is_template: true // Mark as template task
         })
         .select()
         .single();

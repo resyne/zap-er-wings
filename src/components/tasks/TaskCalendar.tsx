@@ -60,6 +60,7 @@ export function TaskCalendar({ category }: TaskCalendarProps) {
         .from('tasks')
         .select('*')
         .eq('category', category as any)
+        .eq('is_template', false) // Exclude template tasks
         .or(`due_date.gte.${startDate.toISOString()},due_date.lte.${endDate.toISOString()}`)
         .order('due_date', { ascending: true });
 
