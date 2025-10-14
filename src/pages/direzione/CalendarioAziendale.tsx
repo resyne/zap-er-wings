@@ -107,40 +107,28 @@ export default function CalendarioAziendale() {
     try {
       const allItems: CalendarItem[] = [];
 
-      // Load tasks
+      // Load tasks - TUTTE le task senza filtri utente
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
-        .select(`
-          id,
-          title,
-          description,
-          due_date,
-          status,
-          priority,
-          category,
-          assigned_to,
-          profiles!tasks_assigned_to_fkey (
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, title, description, due_date, status, priority, category, assigned_to')
         .gte('due_date', weekStart.toISOString())
         .lte('due_date', weekEnd.toISOString())
         .not('due_date', 'is', null)
         .eq('is_template', false);
 
-      if (tasksError) throw tasksError;
+      if (tasksError) {
+        console.error('Error loading tasks:', tasksError);
+      }
 
       if (tasksData) {
         const formattedTasks = tasksData.map((task: any) => ({
           ...task,
-          assignee: task.profiles,
           item_type: 'task' as const
         }));
         allItems.push(...formattedTasks);
       }
 
-      // Load production work orders
+      // Load production work orders - TUTTI gli ordini
       const { data: productionWO, error: productionWOError } = await supabase
         .from('work_orders')
         .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
@@ -148,7 +136,11 @@ export default function CalendarioAziendale() {
         .lte('scheduled_start', weekEnd.toISOString())
         .not('scheduled_start', 'is', null);
 
-      if (!productionWOError && productionWO) {
+      if (productionWOError) {
+        console.error('Error loading production work orders:', productionWOError);
+      }
+
+      if (productionWO) {
         const formattedProductionWO = productionWO.map((wo: any) => ({
           ...wo,
           item_type: 'work_order' as const
@@ -156,7 +148,7 @@ export default function CalendarioAziendale() {
         allItems.push(...formattedProductionWO);
       }
 
-      // Load service work orders
+      // Load service work orders - TUTTI gli ordini
       const { data: serviceWO, error: serviceWOError } = await supabase
         .from('service_work_orders')
         .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
@@ -164,7 +156,11 @@ export default function CalendarioAziendale() {
         .lte('scheduled_start', weekEnd.toISOString())
         .not('scheduled_start', 'is', null);
 
-      if (!serviceWOError && serviceWO) {
+      if (serviceWOError) {
+        console.error('Error loading service work orders:', serviceWOError);
+      }
+
+      if (serviceWO) {
         const formattedServiceWO = serviceWO.map((wo: any) => ({
           ...wo,
           item_type: 'work_order' as const
@@ -172,7 +168,7 @@ export default function CalendarioAziendale() {
         allItems.push(...formattedServiceWO);
       }
 
-      // Load shipping orders
+      // Load shipping orders - TUTTI gli ordini
       const { data: shippingOrders, error: shippingError } = await supabase
         .from('shipping_orders')
         .select('id, order_number, customer_name, status, scheduled_date, delivery_date')
@@ -180,7 +176,11 @@ export default function CalendarioAziendale() {
         .lte('scheduled_date', weekEnd.toISOString())
         .not('scheduled_date', 'is', null);
 
-      if (!shippingError && shippingOrders) {
+      if (shippingError) {
+        console.error('Error loading shipping orders:', shippingError);
+      }
+
+      if (shippingOrders) {
         const formattedShipping = shippingOrders.map((order: any) => ({
           ...order,
           item_type: 'shipping_order' as const
@@ -318,11 +318,6 @@ export default function CalendarioAziendale() {
                               {title}
                             </div>
                           </div>
-                          {item.item_type === 'task' && item.assignee && (
-                            <div className="text-xs text-muted-foreground ml-5">
-                              👤 {item.assignee.first_name} {item.assignee.last_name}
-                            </div>
-                          )}
                           <div className="flex gap-1 ml-5">
                             <Badge variant="outline" className="text-xs">
                               {item.item_type === 'task' ? 'Task' : 
@@ -374,15 +369,6 @@ export default function CalendarioAziendale() {
                     <div>
                       <h4 className="font-medium mb-1">Descrizione</h4>
                       <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
-                    </div>
-                  )}
-                  
-                  {selectedItem.assignee && (
-                    <div>
-                      <h4 className="font-medium mb-1">Assegnato a</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedItem.assignee.first_name} {selectedItem.assignee.last_name}
-                      </p>
                     </div>
                   )}
                   
