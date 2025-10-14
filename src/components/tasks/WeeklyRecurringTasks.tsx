@@ -495,101 +495,123 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
           <div className="text-sm font-medium text-muted-foreground mb-3">
             Settimana: {format(weekStart, 'dd MMM', { locale: it })} - {format(weekEnd, 'dd MMM yyyy', { locale: it })}
           </div>
-          {tasks.map(task => (
-            <Collapsible key={task.id}>
-              <div 
-                className={`border rounded-lg transition-all ${
-                  task.completed ? 'bg-green-50 border-green-200' : 'hover:bg-muted/50'
-                }`}
-              >
-                <div className="flex items-center gap-3 p-3">
-                  <Checkbox
-                    checked={task.completed}
-                    onCheckedChange={() => toggleCompletion(task)}
-                    className="h-5 w-5"
-                  />
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                        {task.title}
-                      </h4>
-                      <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-                      {task.completed && <Check className="w-4 h-4 text-green-600" />}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {weekDays.find(d => d.value === task.day)?.label}
-                      </Badge>
-                      {task.estimated_hours && (
-                        <Badge variant="outline" className="text-xs">
-                          {task.estimated_hours}h
-                        </Badge>
-                      )}
-                    </div>
-                    {task.assigned_user && (
-                      <div className="flex items-center gap-1">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-[10px]">
-                            {task.assigned_user.first_name?.[0]}{task.assigned_user.last_name?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs text-muted-foreground">
-                          {task.assigned_user.first_name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+
+          {/* Grouped by day */}
+          {weekDays.map(day => {
+            const dayTasks = tasks.filter(t => t.day === day.value);
+            return (
+              <div key={day.value} className="space-y-2">
+                <div className="flex items-center justify-between px-2 py-1.5 bg-muted/30 rounded-md">
+                  <h4 className="font-medium text-sm">{day.label}</h4>
                   <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{dayTasks.length}</span>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setEditingTask(task)}
-                      className="h-8 w-8 p-0"
+                      className="h-7 w-7 p-0"
+                      onClick={() => {
+                        setNewTask(prev => ({ ...prev, day: day.value }));
+                        setIsAddingTask(true);
+                      }}
                     >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    {task.description && (
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
-                        >
-                          <ChevronDown className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                        </Button>
-                      </CollapsibleTrigger>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => deleteTask(task.id)}
-                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                      <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                
-                {task.description && (
-                  <CollapsibleContent className="px-3 pb-3">
-                    <div className="pt-2 border-t mt-2">
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {task.description}
-                      </p>
+
+                {dayTasks.map(task => (
+                  <Collapsible key={task.id}>
+                    <div 
+                      className={`border rounded-lg transition-all ${
+                        task.completed ? 'bg-green-50 border-green-200' : 'hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 p-3">
+                        <Checkbox
+                          checked={task.completed}
+                          onCheckedChange={() => toggleCompletion(task)}
+                          className="h-5 w-5"
+                        />
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                              {task.title}
+                            </h4>
+                            <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+                            {task.completed && <Check className="w-4 h-4 text-green-600" />}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {task.estimated_hours && (
+                              <Badge variant="outline" className="text-xs">
+                                {task.estimated_hours}h
+                              </Badge>
+                            )}
+                          </div>
+                          {task.assigned_user && (
+                            <div className="flex items-center gap-1">
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[10px]">
+                                  {task.assigned_user.first_name?.[0]}{task.assigned_user.last_name?.[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs text-muted-foreground">
+                                {task.assigned_user.first_name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingTask(task)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          {task.description && (
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                              >
+                                <ChevronDown className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                              </Button>
+                            </CollapsibleTrigger>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteTask(task.id)}
+                            className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {task.description && (
+                        <CollapsibleContent className="px-3 pb-3">
+                          <div className="pt-2 border-t mt-2">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {task.description}
+                            </p>
+                          </div>
+                        </CollapsibleContent>
+                      )}
                     </div>
-                  </CollapsibleContent>
+                  </Collapsible>
+                ))}
+
+                {dayTasks.length === 0 && (
+                  <div className="text-center py-4 text-sm text-muted-foreground border border-dashed rounded-lg">
+                    Nessuna task per {day.label}
+                  </div>
                 )}
               </div>
-            </Collapsible>
-          ))}
-
-          {tasks.length === 0 && !isAddingTask && (
-            <div className="text-center py-8 text-muted-foreground">
-              <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Nessuna task ricorrente configurata</p>
-              <p className="text-sm">Aggiungi una task che si ripete ogni settimana</p>
-            </div>
-          )}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
