@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Wrench, Truck, Package, FileEdit, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Wrench, Truck, Package, FileEdit, Plus, Phone } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, addDays, startOfDay } from "date-fns";
 import { it } from "date-fns/locale";
@@ -70,12 +70,31 @@ interface CalendarEvent {
   created_by?: string;
 }
 
+interface LeadActivity {
+  id: string;
+  lead_id: string;
+  activity_type: string;
+  activity_date: string;
+  status: string;
+  notes?: string;
+  assigned_to?: string;
+  leads?: {
+    company_name: string;
+    contact_name?: string;
+  };
+  profiles?: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
 type CalendarItem = 
   | (Task & { item_type: 'task' })
   | (WorkOrder & { item_type: 'work_order' })
   | (ShippingOrder & { item_type: 'shipping_order' })
   | (ContentTask & { item_type: 'content_task' })
-  | (CalendarEvent & { item_type: 'event' });
+  | (CalendarEvent & { item_type: 'event' })
+  | (LeadActivity & { item_type: 'lead_activity' });
 
 const statusColors = {
   todo: "bg-blue-100 text-blue-800 border-blue-200",
@@ -261,6 +280,26 @@ export default function CalendarioAziendale() {
         allItems.push(...formattedEvents);
       }
 
+      // Load lead activities - TUTTE le attività lead
+      const { data: leadActivitiesData, error: leadActivitiesError } = await supabase
+        .from('lead_activities')
+        .select('*, leads(company_name, contact_name), profiles(first_name, last_name)')
+        .gte('activity_date', start.toISOString())
+        .lte('activity_date', end.toISOString())
+        .order('activity_date', { ascending: true });
+
+      if (leadActivitiesError) {
+        console.error('Error loading lead activities:', leadActivitiesError);
+      }
+
+      if (leadActivitiesData) {
+        const formattedLeadActivities = leadActivitiesData.map((activity: any) => ({
+          ...activity,
+          item_type: 'lead_activity' as const
+        }));
+        allItems.push(...formattedLeadActivities);
+      }
+
       setItems(allItems);
     } catch (error) {
       console.error('Error loading calendar items:', error);
@@ -288,6 +327,8 @@ export default function CalendarioAziendale() {
         itemDate = parseISO(item.scheduled_date);
       } else if (item.item_type === 'event' && item.event_date) {
         itemDate = parseISO(item.event_date);
+      } else if (item.item_type === 'lead_activity' && item.activity_date) {
+        itemDate = parseISO(item.activity_date);
       }
       
       return itemDate && isSameDay(itemDate, day);
@@ -418,6 +459,8 @@ export default function CalendarioAziendale() {
         itemDate = parseISO(item.scheduled_date);
       } else if (item.item_type === 'event' && item.event_date) {
         itemDate = parseISO(item.event_date);
+      } else if (item.item_type === 'lead_activity' && item.activity_date) {
+        itemDate = parseISO(item.activity_date);
       }
       
       return itemDate && itemDate.getMonth() === month && itemDate.getFullYear() === year;
@@ -532,6 +575,9 @@ export default function CalendarioAziendale() {
                       } else if (item.item_type === 'event') {
                         icon = <Calendar className="w-3 h-3" />;
                         title = item.title;
+                      } else if (item.item_type === 'lead_activity') {
+                        icon = <CheckSquare className="w-3 h-3" />;
+                        title = `Lead: ${item.leads?.company_name || 'N/A'} - ${item.activity_type}`;
                       }
                       
                       return (
@@ -608,6 +654,7 @@ export default function CalendarioAziendale() {
                     let icon = <CheckSquare className="w-3 h-3" />;
                     let borderColor = 'border-l-blue-400';
                     let title = '';
+                    let subtitle = '';
                     
                     if (item.item_type === 'task') {
                       icon = <CheckSquare className="w-3 h-3" />;
@@ -629,6 +676,19 @@ export default function CalendarioAziendale() {
                       icon = <Calendar className="w-3 h-3" />;
                       borderColor = 'border-l-indigo-400';
                       title = item.title;
+                    } else if (item.item_type === 'lead_activity') {
+                      icon = <Package className="w-3 h-3" />;
+                      borderColor = 'border-l-pink-400';
+                      const activityTypeMap: Record<string, string> = {
+                        call: 'Chiamata',
+                        email: 'Email',
+                        meeting: 'Riunione',
+                        follow_up: 'Follow-up',
+                        demo: 'Demo',
+                        other: 'Altro'
+                      };
+                      title = `${activityTypeMap[item.activity_type] || item.activity_type}`;
+                      subtitle = item.leads?.company_name || 'Lead';
                     }
                     
                     return (
@@ -643,22 +703,42 @@ export default function CalendarioAziendale() {
                         <div className={viewMode === 'month' ? 'space-y-1' : 'space-y-2'}>
                           <div className="flex items-start gap-2">
                             <div className="mt-0.5">{icon}</div>
-                            <div className={`font-medium ${viewMode === 'month' ? 'text-xs' : 'text-sm'} leading-tight flex-1 truncate`}>
-                              {title}
+                            <div className="flex-1">
+                              <div className={`font-medium ${viewMode === 'month' ? 'text-xs' : 'text-sm'} leading-tight`}>
+                                {title}
+                              </div>
+                              {subtitle && viewMode !== 'month' && (
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                  {subtitle}
+                                </div>
+                              )}
                             </div>
                           </div>
                           {viewMode !== 'month' && (
-                            <div className="flex gap-1 ml-5">
+                            <div className="flex gap-1 ml-5 flex-wrap">
                               <Badge variant="outline" className="text-xs">
                                 {item.item_type === 'task' ? 'Task' : 
                                  item.item_type === 'work_order' ? 'Ordine Lavoro' :
                                  item.item_type === 'shipping_order' ? 'Spedizione' : 
-                                 item.item_type === 'event' ? 'Evento' : 'Contenuto'}
+                                 item.item_type === 'event' ? 'Evento' :
+                                 item.item_type === 'lead_activity' ? 'Attività CRM' : 'Contenuto'}
                               </Badge>
                               {item.item_type === 'task' && (
                                 <Badge className={priorityColors[item.priority as keyof typeof priorityColors] + " text-xs"}>
                                   {priorityLabels[item.priority as keyof typeof priorityLabels]}
                                 </Badge>
+                              )}
+                              {item.item_type === 'lead_activity' && (
+                                <>
+                                  <Badge className={item.status === 'completed' ? 'bg-green-100 text-green-800 text-xs' : 'bg-yellow-100 text-yellow-800 text-xs'}>
+                                    {item.status === 'completed' ? 'Completata' : 'Pianificata'}
+                                  </Badge>
+                                  {item.profiles && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {item.profiles.first_name} {item.profiles.last_name}
+                                    </Badge>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
@@ -794,17 +874,20 @@ export default function CalendarioAziendale() {
               {selectedItem?.item_type === 'shipping_order' && <Truck className="w-5 h-5 text-green-600" />}
               {selectedItem?.item_type === 'content_task' && <FileEdit className="w-5 h-5 text-purple-600" />}
               {selectedItem?.item_type === 'event' && <Calendar className="w-5 h-5 text-indigo-600" />}
+              {selectedItem?.item_type === 'lead_activity' && <Package className="w-5 h-5 text-pink-600" />}
               {selectedItem?.item_type === 'task' && selectedItem.title}
               {selectedItem?.item_type === 'work_order' && `${selectedItem.number}${selectedItem.title ? ` - ${selectedItem.title}` : ''}`}
               {selectedItem?.item_type === 'shipping_order' && `${selectedItem.order_number}${selectedItem.customer_name ? ` - ${selectedItem.customer_name}` : ''}`}
               {selectedItem?.item_type === 'content_task' && selectedItem.title}
               {selectedItem?.item_type === 'event' && selectedItem.title}
+              {selectedItem?.item_type === 'lead_activity' && (selectedItem.leads?.company_name || 'Lead Activity')}
             </DialogTitle>
             <DialogDescription>
               {selectedItem?.item_type === 'task' ? 'Task Aziendale' : 
                selectedItem?.item_type === 'work_order' ? 'Ordine di Lavoro' :
                selectedItem?.item_type === 'shipping_order' ? 'Ordine di Spedizione' : 
-               selectedItem?.item_type === 'event' ? 'Evento Aziendale' : 'Attività Contenuto'}
+               selectedItem?.item_type === 'event' ? 'Evento Aziendale' :
+               selectedItem?.item_type === 'lead_activity' ? 'Attività CRM' : 'Attività Contenuto'}
             </DialogDescription>
           </DialogHeader>
           
@@ -962,6 +1045,60 @@ export default function CalendarioAziendale() {
                       )}
                     </p>
                   </div>
+                </>
+              )}
+
+              {selectedItem?.item_type === 'lead_activity' && (
+                <>
+                  <div>
+                    <h4 className="font-medium mb-1">Azienda Lead</h4>
+                    <p className="text-sm font-semibold">{selectedItem.leads?.company_name || 'N/A'}</p>
+                    {selectedItem.leads?.contact_name && (
+                      <p className="text-sm text-muted-foreground">Contatto: {selectedItem.leads.contact_name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-1">Tipo di Attività</h4>
+                    <Badge variant="outline">
+                      {selectedItem.activity_type === 'call' ? 'Chiamata' :
+                       selectedItem.activity_type === 'email' ? 'Email' :
+                       selectedItem.activity_type === 'meeting' ? 'Riunione' :
+                       selectedItem.activity_type === 'follow_up' ? 'Follow-up' :
+                       selectedItem.activity_type === 'demo' ? 'Demo' :
+                       selectedItem.activity_type || 'Altro'}
+                    </Badge>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge className={selectedItem.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      {selectedItem.status === 'completed' ? 'Completata' : 'Pianificata'}
+                    </Badge>
+                  </div>
+
+                  {selectedItem.profiles && (
+                    <div>
+                      <h4 className="font-medium mb-1">Assegnato a</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedItem.profiles.first_name} {selectedItem.profiles.last_name}
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <h4 className="font-medium mb-1">Data e Ora</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {format(parseISO(selectedItem.activity_date), "PPP 'alle' HH:mm", { locale: it })}
+                    </p>
+                  </div>
+
+                  {selectedItem.notes && (
+                    <div>
+                      <h4 className="font-medium mb-1">Note</h4>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedItem.notes}</p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
