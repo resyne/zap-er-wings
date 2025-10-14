@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,7 @@ export default function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
@@ -870,7 +870,7 @@ export default function WorkOrdersPage() {
                 className="pl-8"
               />
             </div>
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban")}>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "calendar")}>
               <TabsList>
                 <TabsTrigger value="table">
                   <List className="h-4 w-4 mr-2" />
@@ -879,6 +879,10 @@ export default function WorkOrdersPage() {
                 <TabsTrigger value="kanban">
                   <LayoutGrid className="h-4 w-4 mr-2" />
                   Kanban
+                </TabsTrigger>
+                <TabsTrigger value="calendar">
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Calendario
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -906,27 +910,24 @@ export default function WorkOrdersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Numero</TableHead>
-                  <TableHead>Titolo</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Lead</TableHead>
                   <TableHead>Ordine di Vendita</TableHead>
-                  <TableHead>Tecnico</TableHead>
                   <TableHead>Priorità</TableHead>
                   <TableHead>Stato</TableHead>
-                  <TableHead>Inizio Pianificato</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Caricamento ordini di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Nessun ordine di produzione trovato
                     </TableCell>
                   </TableRow>
@@ -944,7 +945,6 @@ export default function WorkOrdersPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{wo.title}</TableCell>
                       <TableCell>
                         {wo.customers ? (
                           <div>
@@ -971,16 +971,6 @@ export default function WorkOrdersPage() {
                       <TableCell>
                         {wo.sales_orders ? (
                           <Badge variant="outline">{wo.sales_orders.number}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {wo.technician ? (
-                          <div>
-                            <div className="font-medium">{wo.technician.first_name} {wo.technician.last_name}</div>
-                            <div className="text-sm text-muted-foreground">({wo.technician.employee_code})</div>
-                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -1022,14 +1012,8 @@ export default function WorkOrdersPage() {
                                <StatusBadge status="closed" />
                              </SelectItem>
                            </SelectContent>
-                         </Select>
+                          </Select>
                        </TableCell>
-                      <TableCell>
-                        {wo.planned_start_date ? 
-                          new Date(wo.planned_start_date).toLocaleDateString() : 
-                          <span className="text-muted-foreground">Non impostato</span>
-                        }
-                      </TableCell>
                        <TableCell className="text-right">
                          <div className="flex items-center justify-end space-x-2">
                            <Button variant="ghost" size="sm" onClick={() => handleViewDetails(wo)}>
@@ -1049,7 +1033,7 @@ export default function WorkOrdersPage() {
               </TableBody>
             </Table>
           </div>
-          ) : (
+          ) : viewMode === "kanban" ? (
             <DragDropContext onDragEnd={handleDragEnd}>
               <div className="grid grid-cols-4 gap-4">
                 {workOrderStatuses.map((status) => (
@@ -1092,7 +1076,7 @@ export default function WorkOrdersPage() {
                                           <div>
                                             <div className="font-semibold">{wo.number}</div>
                                             <div className="text-sm text-muted-foreground line-clamp-2">
-                                              {wo.title}
+                                              {wo.customers?.name || 'N/A'}
                                             </div>
                                           </div>
                                           {wo.priority && (
@@ -1101,11 +1085,6 @@ export default function WorkOrdersPage() {
                                             </Badge>
                                           )}
                                         </div>
-                                        {wo.customers && (
-                                          <div className="text-xs text-muted-foreground">
-                                            {wo.customers.name}
-                                          </div>
-                                        )}
                                         {wo.boms && (
                                           <div className="text-xs">
                                             <Badge variant="outline">{wo.boms.name}</Badge>
@@ -1125,6 +1104,46 @@ export default function WorkOrdersPage() {
                 ))}
               </div>
             </DragDropContext>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-7 gap-2 mb-4">
+                {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                  <div key={day} className="text-center font-medium text-sm text-muted-foreground p-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 35 }).map((_, i) => {
+                  const date = new Date();
+                  date.setDate(date.getDate() - date.getDay() + i);
+                  const dateStr = date.toISOString().split('T')[0];
+                  const dayOrders = filteredWorkOrders.filter(wo => 
+                    wo.planned_start_date && wo.planned_start_date.split('T')[0] === dateStr
+                  );
+                  
+                  return (
+                    <div key={i} className={`min-h-[100px] p-2 border rounded-lg ${
+                      date.getMonth() !== new Date().getMonth() ? 'bg-muted/20' : 'bg-card'
+                    }`}>
+                      <div className="text-sm font-medium mb-1">{date.getDate()}</div>
+                      <div className="space-y-1">
+                        {dayOrders.map(wo => (
+                          <div
+                            key={wo.id}
+                            onClick={() => handleViewDetails(wo)}
+                            className="text-xs p-1 bg-primary/10 rounded cursor-pointer hover:bg-primary/20 transition-colors"
+                          >
+                            <div className="font-medium truncate">{wo.number}</div>
+                            <div className="text-muted-foreground truncate">{wo.customers?.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
