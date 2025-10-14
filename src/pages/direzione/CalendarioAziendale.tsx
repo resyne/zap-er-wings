@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Wrench, Truck, Package, FileEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
@@ -23,6 +23,42 @@ interface Task {
     last_name: string;
   };
 }
+
+interface WorkOrder {
+  id: string;
+  number: string;
+  title?: string;
+  status: string;
+  type: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
+  actual_start?: string;
+  actual_end?: string;
+}
+
+interface ShippingOrder {
+  id: string;
+  order_number: string;
+  customer_name?: string;
+  status: string;
+  scheduled_date?: string;
+  delivery_date?: string;
+}
+
+interface ContentTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  scheduled_date?: string;
+  content_type?: string;
+}
+
+type CalendarItem = 
+  | (Task & { item_type: 'task' })
+  | (WorkOrder & { item_type: 'work_order' })
+  | (ShippingOrder & { item_type: 'shipping_order' })
+  | (ContentTask & { item_type: 'content_task' });
 
 const statusColors = {
   todo: "bg-blue-100 text-blue-800 border-blue-200",
@@ -52,9 +88,9 @@ const priorityLabels = {
 
 export default function CalendarioAziendale() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const { toast } = useToast();
 
@@ -63,13 +99,16 @@ export default function CalendarioAziendale() {
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   useEffect(() => {
-    loadTasks();
+    loadAllItems();
   }, [currentWeek]);
 
-  const loadTasks = async () => {
+  const loadAllItems = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const allItems: CalendarItem[] = [];
+
+      // Load tasks
+      const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select(`
           id,
@@ -90,19 +129,71 @@ export default function CalendarioAziendale() {
         .not('due_date', 'is', null)
         .eq('is_template', false);
 
-      if (error) throw error;
+      if (tasksError) throw tasksError;
 
-      const formattedTasks = (data || []).map((task: any) => ({
-        ...task,
-        assignee: task.profiles
-      }));
+      if (tasksData) {
+        const formattedTasks = tasksData.map((task: any) => ({
+          ...task,
+          assignee: task.profiles,
+          item_type: 'task' as const
+        }));
+        allItems.push(...formattedTasks);
+      }
 
-      setTasks(formattedTasks);
+      // Load production work orders
+      const { data: productionWO, error: productionWOError } = await supabase
+        .from('work_orders')
+        .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
+        .gte('scheduled_start', weekStart.toISOString())
+        .lte('scheduled_start', weekEnd.toISOString())
+        .not('scheduled_start', 'is', null);
+
+      if (!productionWOError && productionWO) {
+        const formattedProductionWO = productionWO.map((wo: any) => ({
+          ...wo,
+          item_type: 'work_order' as const
+        }));
+        allItems.push(...formattedProductionWO);
+      }
+
+      // Load service work orders
+      const { data: serviceWO, error: serviceWOError } = await supabase
+        .from('service_work_orders')
+        .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
+        .gte('scheduled_start', weekStart.toISOString())
+        .lte('scheduled_start', weekEnd.toISOString())
+        .not('scheduled_start', 'is', null);
+
+      if (!serviceWOError && serviceWO) {
+        const formattedServiceWO = serviceWO.map((wo: any) => ({
+          ...wo,
+          item_type: 'work_order' as const
+        }));
+        allItems.push(...formattedServiceWO);
+      }
+
+      // Load shipping orders
+      const { data: shippingOrders, error: shippingError } = await supabase
+        .from('shipping_orders')
+        .select('id, order_number, customer_name, status, scheduled_date, delivery_date')
+        .gte('scheduled_date', weekStart.toISOString())
+        .lte('scheduled_date', weekEnd.toISOString())
+        .not('scheduled_date', 'is', null);
+
+      if (!shippingError && shippingOrders) {
+        const formattedShipping = shippingOrders.map((order: any) => ({
+          ...order,
+          item_type: 'shipping_order' as const
+        }));
+        allItems.push(...formattedShipping);
+      }
+
+      setItems(allItems);
     } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error('Error loading calendar items:', error);
       toast({
         title: "Errore",
-        description: "Errore nel caricamento delle task",
+        description: "Errore nel caricamento delle attività",
         variant: "destructive",
       });
     } finally {
@@ -110,11 +201,21 @@ export default function CalendarioAziendale() {
     }
   };
 
-  const getTasksForDay = (day: Date) => {
-    return tasks.filter(task => {
-      if (!task.due_date) return false;
-      const taskDate = parseISO(task.due_date);
-      return isSameDay(taskDate, day);
+  const getItemsForDay = (day: Date) => {
+    return items.filter(item => {
+      let itemDate: Date | null = null;
+      
+      if (item.item_type === 'task' && item.due_date) {
+        itemDate = parseISO(item.due_date);
+      } else if (item.item_type === 'work_order' && item.scheduled_start) {
+        itemDate = parseISO(item.scheduled_start);
+      } else if (item.item_type === 'shipping_order' && item.scheduled_date) {
+        itemDate = parseISO(item.scheduled_date);
+      } else if (item.item_type === 'content_task' && item.scheduled_date) {
+        itemDate = parseISO(item.scheduled_date);
+      }
+      
+      return itemDate && isSameDay(itemDate, day);
     });
   };
 
@@ -135,7 +236,7 @@ export default function CalendarioAziendale() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Calendario Aziendale</h1>
         <p className="text-muted-foreground">
-          Visualizza tutte le task aziendali pianificate per settimana
+          Visualizza tutte le attività aziendali pianificate: task, ordini di lavoro, spedizioni e contenuti
         </p>
       </div>
 
@@ -159,7 +260,7 @@ export default function CalendarioAziendale() {
 
       <div className="grid grid-cols-7 gap-4">
         {weekDays.map((day, index) => {
-          const dayTasks = getTasksForDay(day);
+          const dayItems = getItemsForDay(day);
           const isToday = isSameDay(day, new Date());
           
           return (
@@ -173,37 +274,71 @@ export default function CalendarioAziendale() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                {dayTasks.length === 0 ? (
+                {dayItems.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Nessuna task pianificata
+                    Nessuna attività pianificata
                   </p>
                 ) : (
-                  dayTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-blue-400"
-                      onClick={() => {
-                        setSelectedTask(task);
-                        setShowDetailsDialog(true);
-                      }}
-                    >
-                      <div className="space-y-2">
-                        <div className="font-medium text-sm leading-tight">
-                          {task.title}
-                        </div>
-                        {task.assignee && (
-                          <div className="text-xs text-muted-foreground">
-                            👤 {task.assignee.first_name} {task.assignee.last_name}
+                  dayItems.map((item) => {
+                    let icon = <CheckSquare className="w-3 h-3" />;
+                    let borderColor = 'border-l-blue-400';
+                    let title = '';
+                    
+                    if (item.item_type === 'task') {
+                      icon = <CheckSquare className="w-3 h-3" />;
+                      borderColor = 'border-l-blue-400';
+                      title = item.title;
+                    } else if (item.item_type === 'work_order') {
+                      icon = <Wrench className="w-3 h-3" />;
+                      borderColor = 'border-l-orange-400';
+                      title = `${item.number}${item.title ? ` - ${item.title}` : ''}`;
+                    } else if (item.item_type === 'shipping_order') {
+                      icon = <Truck className="w-3 h-3" />;
+                      borderColor = 'border-l-green-400';
+                      title = `${item.order_number}${item.customer_name ? ` - ${item.customer_name}` : ''}`;
+                    } else if (item.item_type === 'content_task') {
+                      icon = <FileEdit className="w-3 h-3" />;
+                      borderColor = 'border-l-purple-400';
+                      title = item.title;
+                    }
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border-l-4 ${borderColor}`}
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setShowDetailsDialog(true);
+                        }}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5">{icon}</div>
+                            <div className="font-medium text-sm leading-tight flex-1">
+                              {title}
+                            </div>
                           </div>
-                        )}
-                        <div className="flex gap-1">
-                          <Badge className={priorityColors[task.priority as keyof typeof priorityColors] + " text-xs"}>
-                            {priorityLabels[task.priority as keyof typeof priorityLabels]}
-                          </Badge>
+                          {item.item_type === 'task' && item.assignee && (
+                            <div className="text-xs text-muted-foreground ml-5">
+                              👤 {item.assignee.first_name} {item.assignee.last_name}
+                            </div>
+                          )}
+                          <div className="flex gap-1 ml-5">
+                            <Badge variant="outline" className="text-xs">
+                              {item.item_type === 'task' ? 'Task' : 
+                               item.item_type === 'work_order' ? 'Ordine Lavoro' :
+                               item.item_type === 'shipping_order' ? 'Spedizione' : 'Contenuto'}
+                            </Badge>
+                            {item.item_type === 'task' && (
+                              <Badge className={priorityColors[item.priority as keyof typeof priorityColors] + " text-xs"}>
+                                {priorityLabels[item.priority as keyof typeof priorityLabels]}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
@@ -215,56 +350,157 @@ export default function CalendarioAziendale() {
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="w-5 h-5 text-blue-600" />
-              {selectedTask?.title}
+              {selectedItem?.item_type === 'task' && <CheckSquare className="w-5 h-5 text-blue-600" />}
+              {selectedItem?.item_type === 'work_order' && <Wrench className="w-5 h-5 text-orange-600" />}
+              {selectedItem?.item_type === 'shipping_order' && <Truck className="w-5 h-5 text-green-600" />}
+              {selectedItem?.item_type === 'content_task' && <FileEdit className="w-5 h-5 text-purple-600" />}
+              {selectedItem?.item_type === 'task' && selectedItem.title}
+              {selectedItem?.item_type === 'work_order' && `${selectedItem.number}${selectedItem.title ? ` - ${selectedItem.title}` : ''}`}
+              {selectedItem?.item_type === 'shipping_order' && `${selectedItem.order_number}${selectedItem.customer_name ? ` - ${selectedItem.customer_name}` : ''}`}
+              {selectedItem?.item_type === 'content_task' && selectedItem.title}
             </DialogTitle>
-            <DialogDescription>Task Aziendale</DialogDescription>
+            <DialogDescription>
+              {selectedItem?.item_type === 'task' ? 'Task Aziendale' : 
+               selectedItem?.item_type === 'work_order' ? 'Ordine di Lavoro' :
+               selectedItem?.item_type === 'shipping_order' ? 'Ordine di Spedizione' : 'Attività Contenuto'}
+            </DialogDescription>
           </DialogHeader>
           
-          {selectedTask && (
+          {selectedItem && (
             <div className="space-y-4">
-              {selectedTask.description && (
-                <div>
-                  <h4 className="font-medium mb-1">Descrizione</h4>
-                  <p className="text-sm text-muted-foreground">{selectedTask.description}</p>
-                </div>
-              )}
-              
-              {selectedTask.assignee && (
-                <div>
-                  <h4 className="font-medium mb-1">Assegnato a</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedTask.assignee.first_name} {selectedTask.assignee.last_name}
-                  </p>
-                </div>
-              )}
-              
-              <div>
-                <h4 className="font-medium mb-1">Categoria</h4>
-                <p className="text-sm text-muted-foreground">{selectedTask.category}</p>
-              </div>
+              {selectedItem.item_type === 'task' && (
+                <>
+                  {selectedItem.description && (
+                    <div>
+                      <h4 className="font-medium mb-1">Descrizione</h4>
+                      <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
+                    </div>
+                  )}
+                  
+                  {selectedItem.assignee && (
+                    <div>
+                      <h4 className="font-medium mb-1">Assegnato a</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedItem.assignee.first_name} {selectedItem.assignee.last_name}
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Categoria</h4>
+                    <p className="text-sm text-muted-foreground">{selectedItem.category}</p>
+                  </div>
 
-              <div>
-                <h4 className="font-medium mb-1">Priorità</h4>
-                <Badge className={priorityColors[selectedTask.priority as keyof typeof priorityColors]}>
-                  {priorityLabels[selectedTask.priority as keyof typeof priorityLabels]}
-                </Badge>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-1">Stato</h4>
-                <Badge className={statusColors[selectedTask.status as keyof typeof statusColors]}>
-                  {statusLabels[selectedTask.status as keyof typeof statusLabels]}
-                </Badge>
-              </div>
-              
-              {selectedTask.due_date && (
-                <div>
-                  <h4 className="font-medium mb-1">Scadenza</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {format(parseISO(selectedTask.due_date), "PPP 'alle' HH:mm", { locale: it })}
-                  </p>
-                </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Priorità</h4>
+                    <Badge className={priorityColors[selectedItem.priority as keyof typeof priorityColors]}>
+                      {priorityLabels[selectedItem.priority as keyof typeof priorityLabels]}
+                    </Badge>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge className={statusColors[selectedItem.status as keyof typeof statusColors]}>
+                      {statusLabels[selectedItem.status as keyof typeof statusLabels]}
+                    </Badge>
+                  </div>
+                  
+                  {selectedItem.due_date && (
+                    <div>
+                      <h4 className="font-medium mb-1">Scadenza</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(parseISO(selectedItem.due_date), "PPP 'alle' HH:mm", { locale: it })}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedItem.item_type === 'work_order' && (
+                <>
+                  <div>
+                    <h4 className="font-medium mb-1">Tipo</h4>
+                    <p className="text-sm text-muted-foreground">{selectedItem.type}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge variant="outline">{selectedItem.status}</Badge>
+                  </div>
+                  
+                  {selectedItem.scheduled_start && (
+                    <div>
+                      <h4 className="font-medium mb-1">Inizio Pianificato</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(parseISO(selectedItem.scheduled_start), "PPP 'alle' HH:mm", { locale: it })}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {selectedItem.scheduled_end && (
+                    <div>
+                      <h4 className="font-medium mb-1">Fine Pianificata</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(parseISO(selectedItem.scheduled_end), "PPP 'alle' HH:mm", { locale: it })}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedItem.item_type === 'shipping_order' && (
+                <>
+                  <div>
+                    <h4 className="font-medium mb-1">Cliente</h4>
+                    <p className="text-sm text-muted-foreground">{selectedItem.customer_name || 'N/A'}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge variant="outline">{selectedItem.status}</Badge>
+                  </div>
+                  
+                  {selectedItem.scheduled_date && (
+                    <div>
+                      <h4 className="font-medium mb-1">Data Pianificata</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(parseISO(selectedItem.scheduled_date), "PPP", { locale: it })}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedItem.item_type === 'content_task' && (
+                <>
+                  {selectedItem.description && (
+                    <div>
+                      <h4 className="font-medium mb-1">Descrizione</h4>
+                      <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge variant="outline">{selectedItem.status}</Badge>
+                  </div>
+                  
+                  {selectedItem.content_type && (
+                    <div>
+                      <h4 className="font-medium mb-1">Tipo Contenuto</h4>
+                      <p className="text-sm text-muted-foreground">{selectedItem.content_type}</p>
+                    </div>
+                  )}
+                  
+                  {selectedItem.scheduled_date && (
+                    <div>
+                      <h4 className="font-medium mb-1">Data Pianificata</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(parseISO(selectedItem.scheduled_date), "PPP", { locale: it })}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
