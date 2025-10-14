@@ -57,7 +57,7 @@ import CompliancePage from "./pages/documentation/CompliancePage";
 import ManualsPage from "./pages/documentation/ManualsPage";
 import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
-import CalendarioAziendale from "./pages/direzione/CalendarioAziendale";
+import CalendarioAziendale from "./pages/direzione/CalendarioAziendaleNew";
 
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
