@@ -2,20 +2,27 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Package, Wrench, Truck, CalendarDays, Users, Filter } from "lucide-react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, addDays, startOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { useCalendarData } from "@/components/direzione/calendario/useCalendarData";
 import { ItemDetailsDialog } from "@/components/direzione/calendario/ItemDetailsDialog";
 import { CalendarItem, statusColors, statusLabels, activityTypeLabels } from "@/components/direzione/calendario/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type ViewMode = 'day' | 'week' | 'month';
+type ItemTypeFilter = 'task' | 'work_order' | 'service_order' | 'shipping_order' | 'event' | 'lead_activity';
 
 export default function CalendarioAziendaleNew() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<ItemTypeFilter[]>([
+    'task', 'work_order', 'service_order', 'shipping_order', 'event', 'lead_activity'
+  ]);
 
   const getDateRange = () => {
     if (viewMode === 'day') {
@@ -42,6 +49,11 @@ export default function CalendarioAziendaleNew() {
 
   const getItemsForDay = (day: Date) => {
     return items.filter(item => {
+      // Applica filtri di tipologia
+      if (!activeFilters.includes(item.item_type)) {
+        return false;
+      }
+
       let itemDate: Date | null = null;
       
       switch (item.item_type) {
@@ -98,43 +110,66 @@ export default function CalendarioAziendaleNew() {
     setShowDetailsDialog(true);
   };
 
+  const toggleFilter = (filter: ItemTypeFilter) => {
+    setActiveFilters(prev => 
+      prev.includes(filter) 
+        ? prev.filter(f => f !== filter)
+        : [...prev, filter]
+    );
+  };
+
+  const filterOptions: { value: ItemTypeFilter; label: string; icon: any }[] = [
+    { value: 'task', label: 'Task', icon: CalendarIcon },
+    { value: 'work_order', label: 'Ordini Produzione', icon: Package },
+    { value: 'service_order', label: 'Ordini Assistenza', icon: Wrench },
+    { value: 'shipping_order', label: 'Ordini Spedizione', icon: Truck },
+    { value: 'event', label: 'Eventi', icon: CalendarDays },
+    { value: 'lead_activity', label: 'Attività CRM', icon: Users },
+  ];
+
   const getItemBadge = (item: CalendarItem) => {
     if (item.item_type === 'task') {
       return (
-        <Badge variant="outline" className={statusColors[item.status as keyof typeof statusColors]}>
-          {item.title}
+        <Badge variant="outline" className={`${statusColors[item.status as keyof typeof statusColors]} w-full justify-start text-left px-2 py-1`}>
+          <CalendarIcon className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span className="truncate text-xs">{item.title}</span>
         </Badge>
       );
     } else if (item.item_type === 'lead_activity') {
       const actType = activityTypeLabels[item.activity_type] || item.activity_type;
       const companyName = item.leads?.company_name || 'Lead';
       return (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-          {actType}: {companyName}
+        <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900 w-full justify-start text-left px-2 py-1">
+          <Users className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span className="truncate text-xs">{actType}: {companyName}</span>
         </Badge>
       );
     } else if (item.item_type === 'work_order') {
       return (
-        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-          OP: {item.number}
+        <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 w-full justify-start text-left px-2 py-1">
+          <Package className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span className="truncate text-xs">OP: {item.number}</span>
         </Badge>
       );
     } else if (item.item_type === 'service_order') {
       return (
-        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-          Assistenza: {item.number}
+        <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 w-full justify-start text-left px-2 py-1">
+          <Wrench className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span className="truncate text-xs">Assistenza: {item.number}</span>
         </Badge>
       );
     } else if (item.item_type === 'shipping_order') {
       return (
-        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-          Spedizione: {item.number}
+        <Badge variant="outline" className="bg-green-100 dark:bg-green-900 w-full justify-start text-left px-2 py-1">
+          <Truck className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span className="truncate text-xs">Spedizione: {item.number}</span>
         </Badge>
       );
     } else if (item.item_type === 'event') {
       return (
-        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-          {item.title}
+        <Badge variant="outline" className="bg-indigo-100 dark:bg-indigo-900 w-full justify-start text-left px-2 py-1">
+          <CalendarDays className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span className="truncate text-xs">{item.title}</span>
         </Badge>
       );
     }
@@ -168,6 +203,36 @@ export default function CalendarioAziendaleNew() {
             <CalendarIcon className="w-4 h-4 mr-2" />
             Oggi
           </Button>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filtri ({activeFilters.length})
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm">Tipologie di attività</h4>
+                {filterOptions.map(({ value, label, icon: Icon }) => (
+                  <div key={value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={value}
+                      checked={activeFilters.includes(value)}
+                      onCheckedChange={() => toggleFilter(value)}
+                    />
+                    <Label
+                      htmlFor={value}
+                      className="flex items-center gap-2 text-sm font-normal cursor-pointer"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           
           <div className="flex gap-2">
             <Button
