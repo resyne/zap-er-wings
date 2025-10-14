@@ -333,7 +333,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/tasks')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Task Generali</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
@@ -346,7 +346,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support/tickets')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ticket Assegnati</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />

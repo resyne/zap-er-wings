@@ -25,6 +25,7 @@ import { it } from "date-fns/locale";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardKPIs {
   salesOrders: { commissionato: number; inLavorazione: number };
@@ -48,6 +49,7 @@ interface Task {
 }
 
 export function DirectionalDashboardPage() {
+  const navigate = useNavigate();
   const [kpis, setKpis] = useState<DashboardKPIs>({
     salesOrders: { commissionato: 0, inLavorazione: 0 },
     workOrders: { planned: 0, inProgress: 0 },
@@ -175,7 +177,7 @@ export function DirectionalDashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Sales Orders */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/crm/orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ordini di Vendita</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -195,7 +197,7 @@ export function DirectionalDashboardPage() {
         </Card>
 
         {/* Production Work Orders */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/production/work-orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ordini di Produzione</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
@@ -215,7 +217,7 @@ export function DirectionalDashboardPage() {
         </Card>
 
         {/* Service Work Orders */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support/work-orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ordini di Lavoro</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
@@ -235,7 +237,7 @@ export function DirectionalDashboardPage() {
         </Card>
 
         {/* Shipping Orders */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/warehouse/shipping-orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ordini di Spedizione</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
@@ -255,7 +257,7 @@ export function DirectionalDashboardPage() {
         </Card>
 
         {/* Tickets */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support/tickets')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ticket</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -275,7 +277,7 @@ export function DirectionalDashboardPage() {
         </Card>
 
         {/* New Leads */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/crm/leads')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Nuovi Lead</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -289,7 +291,7 @@ export function DirectionalDashboardPage() {
         </Card>
 
         {/* Leads in Negotiation */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/crm/leads')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lead in Negoziazione</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
