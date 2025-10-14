@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   CheckCircle2, 
@@ -47,6 +48,12 @@ interface UserRequest {
   due_date?: string;
   completed_at?: string;
   created_at: string;
+}
+
+// Component to display user role
+function RoleDisplay() {
+  const { userRole } = useUserRole();
+  return <>{userRole || "user"}</>;
 }
 
 export function DashboardPage() {
@@ -183,7 +190,7 @@ export function DashboardPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <User className="w-4 h-4" />
-            {profile?.role || "User"}
+            <RoleDisplay />
           </div>
           <Button variant="outline" size="sm">
             <Settings className="w-4 h-4 mr-2" />

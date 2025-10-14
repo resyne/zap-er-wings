@@ -8,6 +8,7 @@ import { Header } from "./header";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export function AppLayout() {
   const [user, setUser] = useState<User | null>(null);
@@ -16,6 +17,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { userRole } = useUserRole();
 
   useEffect(() => {
     // Set up auth state listener
@@ -88,7 +90,7 @@ export function AppLayout() {
             user={{
               name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
               email: user.email || '',
-              role: 'Admin' // TODO: Get from user_roles table
+              role: userRole || 'user'
             }}
             onLogout={handleLogout}
           />

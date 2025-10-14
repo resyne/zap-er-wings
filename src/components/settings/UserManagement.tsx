@@ -14,13 +14,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Search } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-interface User {
+interface UserWithRole {
   id: string;
   email: string;
   first_name?: string;
   last_name?: string;
-  role?: "admin" | "moderator" | "user";
-  user_type?: "erp" | "website";
+  role: "admin" | "moderator" | "user";
+  user_type: "erp" | "website";
   created_at: string;
 }
 
@@ -28,7 +28,7 @@ export function UserManagement() {
   const { user: currentUser } = useAuth();
   const { isAdmin } = useUserRole();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
@@ -48,16 +48,10 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      console.log('Fetching users...');
-      console.log('Current user:', currentUser);
-      console.log('Is admin:', isAdmin);
-      
-      // Fetch all profiles first
+      // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name, user_type, created_at");
-
-      console.log('Profiles response:', { profiles, error: profilesError });
 
       if (profilesError) throw profilesError;
 
@@ -66,28 +60,19 @@ export function UserManagement() {
         .from("user_roles")
         .select("user_id, role");
 
-      console.log('Roles response:', { roles, error: rolesError });
-
       if (rolesError) throw rolesError;
 
-      // Create users array by combining profiles with their roles
-      // Include ALL users, not just those with roles
-      const usersWithRoles = profiles?.map(profile => {
-        const userRole = roles?.find(role => role.user_id === profile.id);
-        const user = {
-          id: profile.id,
-          email: profile.email,
-          first_name: profile.first_name || "",
-          last_name: profile.last_name || "",
-          user_type: (profile.user_type as "erp" | "website") || "website",
-          role: (userRole?.role || "user") as "admin" | "moderator" | "user",
-          created_at: profile.created_at
-        };
-        console.log('Processing user:', user);
-        return user;
-      }) || [];
+      // Combine profiles with their roles
+      const usersWithRoles = profiles?.map(profile => ({
+        id: profile.id,
+        email: profile.email,
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        user_type: (profile.user_type as "erp" | "website") || "website",
+        role: (roles?.find(r => r.user_id === profile.id)?.role || "user") as "admin" | "moderator" | "user",
+        created_at: profile.created_at
+      })) || [];
 
-      console.log('Final users array:', usersWithRoles);
       setUsers(usersWithRoles);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -145,17 +130,22 @@ export function UserManagement() {
 
   const deleteUser = async (userId: string) => {
     try {
-      // Note: In a real app, you might want to deactivate rather than delete
-      const { error } = await supabase
+      // First delete user role
+      const { error: roleError } = await supabase
         .from("user_roles")
         .delete()
         .eq("user_id", userId);
 
-      if (error) throw error;
+      if (roleError) throw roleError;
+
+      // Then delete from auth.users (this will cascade to profiles)
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+
+      if (deleteError) throw deleteError;
 
       toast({
         title: "Successo",
-        description: "Utente rimosso con successo",
+        description: "Utente eliminato con successo",
       });
 
       fetchUsers();
@@ -163,7 +153,7 @@ export function UserManagement() {
       console.error("Error deleting user:", error);
       toast({
         title: "Errore",
-        description: "Impossibile rimuovere l'utente",
+        description: "Impossibile eliminare l'utente. Verifica i permessi.",
         variant: "destructive",
       });
     }
@@ -439,14 +429,14 @@ export function UserManagement() {
                     }
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={getUserTypeBadgeVariant(user.user_type || "website")}>
+                   <TableCell>
+                    <Badge variant={getUserTypeBadgeVariant(user.user_type)}>
                       {user.user_type === "erp" ? "ERP" : "Web"}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getRoleBadgeVariant(user.role || "user")}>
-                      {user.role || "user"}
+                    <Badge variant={getRoleBadgeVariant(user.role)}>
+                      {user.role}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -454,9 +444,9 @@ export function UserManagement() {
                   </TableCell>
                   {isAdmin && (
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                       <div className="flex items-center gap-2">
                         <Select
-                          value={user.role || "user"}
+                          value={user.role}
                           onValueChange={(newRole) => updateUserRole(user.id, newRole)}
                           disabled={user.id === currentUser?.id}
                         >

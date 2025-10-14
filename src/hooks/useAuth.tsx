@@ -8,7 +8,8 @@ interface Profile {
   email: string;
   first_name?: string;
   last_name?: string;
-  role?: string;
+  user_type?: 'erp' | 'website';
+  site_origin?: string;
   created_at: string;
   updated_at: string;
 }
@@ -78,7 +79,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setProfile(data);
+      if (data) {
+        setProfile({
+          ...data,
+          user_type: data.user_type as 'erp' | 'website' | undefined
+        });
+      }
     } catch (error) {
       console.error("Error loading profile:", error);
     }
