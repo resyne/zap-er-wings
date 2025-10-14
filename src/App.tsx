@@ -75,6 +75,7 @@ import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
 import IntegrationsPage from "./pages/integrations/IntegrationsPage";
 import { TasksPage } from "./pages/tasks/TasksPage";
 import ContentCreationPage from "./pages/marketing/ContentCreationPage";
+import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
 
 const queryClient = new QueryClient();
 
@@ -159,6 +160,7 @@ const App = () => (
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="tasks" element={<TasksPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="personal-area/calendario" element={<CalendarioPersonale />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
