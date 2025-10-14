@@ -286,11 +286,7 @@ export default function CalendarioAziendale() {
       // Load lead activities - TUTTE le attività lead
       const { data: leadActivitiesData, error: leadActivitiesError } = await supabase
         .from('lead_activities')
-        .select(`
-          *,
-          leads(company_name, contact_name),
-          assigned_to_profile:profiles!lead_activities_assigned_to_fkey(first_name, last_name)
-        `)
+        .select('*, leads(company_name, contact_name)')
         .gte('activity_date', start.toISOString())
         .lte('activity_date', end.toISOString())
         .order('activity_date', { ascending: true });
@@ -298,11 +294,22 @@ export default function CalendarioAziendale() {
       if (leadActivitiesError) {
         console.error('Error loading lead activities:', leadActivitiesError);
       }
-
-      if (leadActivitiesData) {
+      
+      if (leadActivitiesData && leadActivitiesData.length > 0) {
+        // Get unique assigned_to user IDs
+        const userIds = [...new Set(leadActivitiesData.map((a: any) => a.assigned_to).filter(Boolean))];
+        
+        // Fetch profiles for assigned users
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+        
+        const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+        
         const formattedLeadActivities = leadActivitiesData.map((activity: any) => ({
           ...activity,
-          profiles: activity.assigned_to_profile,
+          profiles: activity.assigned_to ? profilesMap.get(activity.assigned_to) : null,
           item_type: 'lead_activity' as const
         }));
         allItems.push(...formattedLeadActivities);
