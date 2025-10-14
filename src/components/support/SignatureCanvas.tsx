@@ -2,7 +2,7 @@
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Eraser, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 
 interface SignatureCanvasProps {
   onSignatureChange: (signature: string) => void;
@@ -21,27 +21,69 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    // Set up canvas
-    canvas.width = 400;
-    canvas.height = 200;
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.lineWidth = 2;
-    context.strokeStyle = '#000000';
+    // Set canvas size based on container
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Set display size
+      canvas.style.width = '100%';
+      canvas.style.height = '200px';
+      
+      // Set actual size in memory (scaled to account for extra pixel density)
+      canvas.width = rect.width * dpr;
+      canvas.height = 200 * dpr;
+      
+      // Scale context to ensure correct drawing operations
+      context.scale(dpr, dpr);
+      
+      // Set up drawing context
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.lineWidth = 2;
+      context.strokeStyle = '#000000';
 
-    // Clear canvas with white background
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas with white background
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, []);
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    
+    if ('touches' in e) {
+      // Touch event
+      const touch = e.touches[0] || e.changedTouches[0];
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    } else {
+      // Mouse event
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
+    const { x, y } = getCoordinates(e);
     const context = canvas.getContext('2d');
     if (!context) return;
 
@@ -51,16 +93,14 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     setIsEmpty(false);
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     if (!isDrawing) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
+    const { x, y } = getCoordinates(e);
     const context = canvas.getContext('2d');
     if (!context) return;
 
@@ -68,7 +108,8 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     context.stroke();
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (e) e.preventDefault();
     if (!isDrawing) return;
     
     setIsDrawing(false);
@@ -87,38 +128,12 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     const context = canvas.getContext('2d');
     if (!context) return;
 
+    const rect = canvas.getBoundingClientRect();
     context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, rect.width, 200);
     
     setIsEmpty(true);
     onSignatureChange('');
-  };
-
-  // Touch events for mobile
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent("mousedown", {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvasRef.current?.dispatchEvent(mouseEvent);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent("mousemove", {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvasRef.current?.dispatchEvent(mouseEvent);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const mouseEvent = new MouseEvent("mouseup", {});
-    canvasRef.current?.dispatchEvent(mouseEvent);
   };
 
   return (
@@ -131,11 +146,15 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
             onMouseMove={draw}
             onMouseUp={stopDrawing}
             onMouseLeave={stopDrawing}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="border border-dashed border-gray-300 rounded cursor-crosshair w-full max-w-md"
-            style={{ touchAction: 'none' }}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            className="border-2 border-dashed border-gray-300 rounded cursor-crosshair w-full"
+            style={{ 
+              touchAction: 'none',
+              height: '200px',
+              maxWidth: '100%'
+            }}
           />
           {isEmpty && (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none">
