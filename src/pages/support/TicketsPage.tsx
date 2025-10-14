@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/ui/file-upload";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, AlertCircle, CheckCircle, Clock, X, Trash2, Eye, Paperclip, Users, UserPlus } from "lucide-react";
+import { Plus, Search, AlertCircle, CheckCircle, Clock, X, Trash2, Eye, Paperclip, Users, UserPlus, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,6 +60,7 @@ export default function TicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
@@ -68,7 +69,8 @@ export default function TicketsPage() {
     title: "",
     customer: "",
     priority: "medium",
-    description: ""
+    description: "",
+    status: "open"
   });
 
   // Load users and tickets on component mount
@@ -200,7 +202,7 @@ export default function TicketsPage() {
       }
 
       // Reset form
-      setFormData({ title: "", customer: "", priority: "medium", description: "" });
+      setFormData({ title: "", customer: "", priority: "medium", description: "", status: "open" });
       setSelectedAssignee("none");
       setSelectedWatchers([]);
       setUploadedFiles([]);
@@ -221,6 +223,94 @@ export default function TicketsPage() {
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
+  };
+
+  const handleEditTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setFormData({
+      title: ticket.title,
+      customer: ticket.customer_name,
+      priority: ticket.priority,
+      description: ticket.description || "",
+      status: ticket.status
+    });
+    setSelectedAssignee(ticket.assigned_to || "none");
+    setSelectedWatchers(ticket.watchers || []);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateTicket = async () => {
+    if (!selectedTicket || !formData.title || !formData.customer) {
+      toast.error('Inserisci almeno titolo e cliente');
+      return;
+    }
+
+    try {
+      // Update ticket
+      const { error: ticketError } = await supabase
+        .from('tickets')
+        .update({
+          title: formData.title,
+          description: formData.description || null,
+          customer_name: formData.customer,
+          priority: formData.priority,
+          status: formData.status,
+          assigned_to: selectedAssignee === 'none' ? null : selectedAssignee || null,
+        })
+        .eq('id', selectedTicket.id);
+
+      if (ticketError) throw ticketError;
+
+      // Update watchers - remove existing and add new ones
+      await supabase
+        .from('ticket_watchers')
+        .delete()
+        .eq('ticket_id', selectedTicket.id);
+
+      if (selectedWatchers.length > 0) {
+        const watcherInserts = selectedWatchers.map(userId => ({
+          ticket_id: selectedTicket.id,
+          user_id: userId
+        }));
+
+        const { error: watchersError } = await supabase
+          .from('ticket_watchers')
+          .insert(watcherInserts);
+
+        if (watchersError) throw watchersError;
+      }
+
+      // Reset form
+      setFormData({ title: "", customer: "", priority: "medium", description: "", status: "open" });
+      setSelectedAssignee("none");
+      setSelectedWatchers([]);
+      setIsEditDialogOpen(false);
+      setSelectedTicket(null);
+      
+      // Reload tickets
+      loadTickets();
+      toast.success("Ticket aggiornato con successo");
+    } catch (error) {
+      console.error('Error updating ticket:', error);
+      toast.error('Errore nell\'aggiornamento del ticket');
+    }
+  };
+
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ status: newStatus })
+        .eq('id', ticketId);
+
+      if (error) throw error;
+
+      loadTickets();
+      toast.success("Stato aggiornato con successo");
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Errore nell\'aggiornamento dello stato');
+    }
   };
 
   return (
@@ -443,6 +533,16 @@ export default function TicketsPage() {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTicket(ticket);
+                        }}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -564,9 +664,40 @@ export default function TicketsPage() {
                 <div>
                   <Label className="text-sm font-medium">Stato</Label>
                   <div className="mt-1">
-                    <Badge className={statusConfig[selectedTicket.status as keyof typeof statusConfig].color}>
-                      {statusConfig[selectedTicket.status as keyof typeof statusConfig].label}
-                    </Badge>
+                    <Select 
+                      value={selectedTicket.status} 
+                      onValueChange={(value) => handleStatusChange(selectedTicket.id, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            Aperto
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="in_progress">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                            In Lavorazione
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="resolved">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            Risolto
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="closed">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-gray-500" />
+                            Chiuso
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div>
@@ -610,6 +741,133 @@ export default function TicketsPage() {
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
               Chiudi
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Modifica Ticket */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Modifica Ticket</DialogTitle>
+            <DialogDescription>
+              Modifica i dettagli del ticket {selectedTicket?.number}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-title">Titolo</Label>
+                <Input 
+                  id="edit-title" 
+                  placeholder="Titolo del problema"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-customer">Cliente</Label>
+                <Input 
+                  id="edit-customer" 
+                  placeholder="Nome cliente"
+                  value={formData.customer}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="edit-status">Stato</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Aperto</SelectItem>
+                    <SelectItem value="in_progress">In Lavorazione</SelectItem>
+                    <SelectItem value="resolved">Risolto</SelectItem>
+                    <SelectItem value="closed">Chiuso</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-priority">Priorità</Label>
+                <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona priorità" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Bassa</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-assigned">Assegnato a</Label>
+                <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona utente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessuno</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Watcher (utenti che monitoreranno il ticket)
+              </Label>
+              <div className="mt-2 max-h-32 overflow-y-auto border rounded-md p-2 space-y-2">
+                {users.map((user) => (
+                  <div key={user.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`edit-watcher-${user.id}`}
+                      checked={selectedWatchers.includes(user.id)}
+                      onChange={() => toggleWatcher(user.id)}
+                      className="rounded"
+                    />
+                    <Label htmlFor={`edit-watcher-${user.id}`} className="text-sm font-normal cursor-pointer">
+                      {user.first_name} {user.last_name} ({user.email})
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {selectedWatchers.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedWatchers.length} utente{selectedWatchers.length > 1 ? 'i' : ''} selezionat{selectedWatchers.length > 1 ? 'i' : 'o'}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="edit-description">Descrizione</Label>
+              <Textarea 
+                id="edit-description" 
+                placeholder="Descrizione dettagliata del problema"
+                rows={4}
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleUpdateTicket}>
+              Salva Modifiche
             </Button>
           </div>
         </DialogContent>
