@@ -726,8 +726,46 @@ export default function LeadsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <Label htmlFor="next_activity_date">Data e Ora</Label>
+                      <div className="flex gap-2 mb-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const date = new Date();
+                            date.setDate(date.getDate() + 1);
+                            setNewLead({...newLead, next_activity_date: date.toISOString().slice(0, 16)});
+                          }}
+                        >
+                          +1 giorno
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const date = new Date();
+                            date.setDate(date.getDate() + 3);
+                            setNewLead({...newLead, next_activity_date: date.toISOString().slice(0, 16)});
+                          }}
+                        >
+                          +3 giorni
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const date = new Date();
+                            date.setDate(date.getDate() + 7);
+                            setNewLead({...newLead, next_activity_date: date.toISOString().slice(0, 16)});
+                          }}
+                        >
+                          +7 giorni
+                        </Button>
+                      </div>
                       <Input
                         id="next_activity_date"
                         type="datetime-local"

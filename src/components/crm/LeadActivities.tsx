@@ -129,9 +129,21 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
 
       if (error) throw error;
 
+      // Aggiungi l'attività al calendario personale e aziendale se assegnata
+      if (newActivity.assigned_to) {
+        await supabase.from("calendar_events").insert([{
+          user_id: newActivity.assigned_to,
+          title: `Lead Activity: ${getActivityTypeLabel(newActivity.activity_type)}`,
+          description: newActivity.notes || "",
+          event_date: new Date(newActivity.activity_date).toISOString(),
+          event_type: "lead_activity",
+          color: "blue"
+        }]);
+      }
+
       toast({
         title: "Attività creata",
-        description: "L'attività è stata creata con successo",
+        description: "L'attività è stata creata e aggiunta al calendario",
       });
 
       setIsDialogOpen(false);
@@ -264,9 +276,14 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
     return activityTypes.find(t => t.value === type)?.label || type;
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, activityDate: string) => {
+    const isOverdue = status === "scheduled" && new Date(activityDate) < new Date();
+    
     switch (status) {
       case "scheduled":
+        if (isOverdue) {
+          return <Badge variant="destructive" className="animate-pulse">Scaduta</Badge>;
+        }
         return <Badge variant="outline" className="bg-blue-50 text-blue-700">Programmata</Badge>;
       case "completed":
         return <Badge variant="outline" className="bg-green-50 text-green-700">Completata</Badge>;
@@ -321,6 +338,44 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
 
               <div>
                 <Label htmlFor="activity_date">Data e Ora *</Label>
+                <div className="flex gap-2 mb-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 1);
+                      setNewActivity({ ...newActivity, activity_date: date.toISOString().slice(0, 16) });
+                    }}
+                  >
+                    +1 giorno
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 3);
+                      setNewActivity({ ...newActivity, activity_date: date.toISOString().slice(0, 16) });
+                    }}
+                  >
+                    +3 giorni
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 7);
+                      setNewActivity({ ...newActivity, activity_date: date.toISOString().slice(0, 16) });
+                    }}
+                  >
+                    +7 giorni
+                  </Button>
+                </div>
                 <Input
                   id="activity_date"
                   type="datetime-local"
@@ -401,14 +456,16 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
           <p className="text-sm text-muted-foreground text-center py-4">Nessuna attività registrata</p>
         ) : (
           <div className="space-y-3">
-            {activities.map((activity) => (
-              <Card key={activity.id} className="border-l-4 border-l-primary">
+            {activities.map((activity) => {
+              const isOverdue = activity.status === "scheduled" && new Date(activity.activity_date) < new Date();
+              return (
+              <Card key={activity.id} className={`border-l-4 ${isOverdue ? 'border-l-destructive bg-red-50/50' : 'border-l-primary'}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium">{getActivityTypeLabel(activity.activity_type)}</h4>
-                        {getStatusBadge(activity.status)}
+                        {getStatusBadge(activity.status, activity.activity_date)}
                       </div>
                       
                       <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -485,7 +542,8 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
