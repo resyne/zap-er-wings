@@ -204,7 +204,7 @@ export default function CalendarioAziendale() {
       // Load production work orders - TUTTI gli ordini
       const { data: productionWO, error: productionWOError } = await supabase
         .from('work_orders')
-        .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
+        .select('id, number, title, status, scheduled_start, scheduled_end, actual_start, actual_end')
         .gte('scheduled_start', start.toISOString())
         .lte('scheduled_start', end.toISOString())
         .not('scheduled_start', 'is', null);
@@ -216,7 +216,8 @@ export default function CalendarioAziendale() {
       if (productionWO) {
         const formattedProductionWO = productionWO.map((wo: any) => ({
           ...wo,
-          item_type: 'work_order' as const
+          item_type: 'work_order' as const,
+          type: 'production'
         }));
         allItems.push(...formattedProductionWO);
       }
@@ -224,7 +225,7 @@ export default function CalendarioAziendale() {
       // Load service work orders - TUTTI gli ordini
       const { data: serviceWO, error: serviceWOError } = await supabase
         .from('service_work_orders')
-        .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
+        .select('id, number, title, status, scheduled_start, scheduled_end, actual_start, actual_end')
         .gte('scheduled_start', start.toISOString())
         .lte('scheduled_start', end.toISOString())
         .not('scheduled_start', 'is', null);
@@ -236,7 +237,8 @@ export default function CalendarioAziendale() {
       if (serviceWO) {
         const formattedServiceWO = serviceWO.map((wo: any) => ({
           ...wo,
-          item_type: 'work_order' as const
+          item_type: 'work_order' as const,
+          type: 'service'
         }));
         allItems.push(...formattedServiceWO);
       }
@@ -244,7 +246,7 @@ export default function CalendarioAziendale() {
       // Load shipping orders - TUTTI gli ordini
       const { data: shippingOrders, error: shippingError } = await supabase
         .from('shipping_orders')
-        .select('id, order_number, customer_name, status, scheduled_date, delivery_date')
+        .select('id, number, customer_name, status, scheduled_date, delivery_date')
         .gte('scheduled_date', start.toISOString())
         .lte('scheduled_date', end.toISOString())
         .not('scheduled_date', 'is', null);
@@ -256,6 +258,7 @@ export default function CalendarioAziendale() {
       if (shippingOrders) {
         const formattedShipping = shippingOrders.map((order: any) => ({
           ...order,
+          order_number: order.number,
           item_type: 'shipping_order' as const
         }));
         allItems.push(...formattedShipping);
@@ -283,7 +286,11 @@ export default function CalendarioAziendale() {
       // Load lead activities - TUTTE le attività lead
       const { data: leadActivitiesData, error: leadActivitiesError } = await supabase
         .from('lead_activities')
-        .select('*, leads(company_name, contact_name), profiles(first_name, last_name)')
+        .select(`
+          *,
+          leads(company_name, contact_name),
+          assigned_to_profile:profiles!lead_activities_assigned_to_fkey(first_name, last_name)
+        `)
         .gte('activity_date', start.toISOString())
         .lte('activity_date', end.toISOString())
         .order('activity_date', { ascending: true });
@@ -295,6 +302,7 @@ export default function CalendarioAziendale() {
       if (leadActivitiesData) {
         const formattedLeadActivities = leadActivitiesData.map((activity: any) => ({
           ...activity,
+          profiles: activity.assigned_to_profile,
           item_type: 'lead_activity' as const
         }));
         allItems.push(...formattedLeadActivities);
