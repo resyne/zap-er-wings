@@ -58,7 +58,7 @@ import ManualsPage from "./pages/documentation/ManualsPage";
 import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import CalendarioAziendale from "./pages/direzione/CalendarioAziendale";
-import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
+
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
