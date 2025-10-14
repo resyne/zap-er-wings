@@ -91,15 +91,14 @@ export function DashboardPage() {
       // Load CRM activities assigned to user
       const { data: activitiesData, error: activitiesError } = await supabase
         .from("opportunity_activities")
-        .select(`
-          *,
-          opportunity:crm_deals(name)
-        `)
+        .select("*")
         .eq("assigned_to", user.id)
         .eq("activity_type", "todo")
         .order("scheduled_date", { ascending: true, nullsFirst: false });
 
-      if (activitiesError) throw activitiesError;
+      if (activitiesError) {
+        console.error("Error loading activities:", activitiesError);
+      }
 
       // Load general requests assigned to user
       const { data: requestsData, error: requestsError } = await supabase
