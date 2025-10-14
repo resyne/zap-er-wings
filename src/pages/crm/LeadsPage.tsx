@@ -72,6 +72,7 @@ export default function LeadsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
   const [currentLeadForOffer, setCurrentLeadForOffer] = useState<Lead | null>(null);
   const [newOffer, setNewOffer] = useState({
@@ -849,7 +850,10 @@ export default function LeadsPage() {
                             className={`cursor-pointer transition-shadow hover:shadow-md ${
                               snapshot.isDragging ? 'shadow-lg' : ''
                             }`}
-                            
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setIsDetailsDialogOpen(true);
+                            }}
                           >
                              <CardContent className="p-4 space-y-3">
                                {/* Header con titolo e azioni */}
@@ -1142,6 +1146,225 @@ export default function LeadsPage() {
           ))}
         </div>
       </DragDropContext>
+
+      {/* Lead Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              {selectedLead?.company_name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedLead && (
+            <div className="space-y-6">
+              {/* Contact Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Contatto</label>
+                  <p className="text-sm">{selectedLead.contact_name || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Pipeline</label>
+                  <p className="text-sm">{selectedLead.pipeline || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Email</label>
+                  <p className="text-sm flex items-center gap-2">
+                    {selectedLead.email ? (
+                      <>
+                        <Mail className="h-3 w-3 text-muted-foreground" />
+                        {selectedLead.email}
+                      </>
+                    ) : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Telefono</label>
+                  <p className="text-sm flex items-center gap-2">
+                    {selectedLead.phone ? (
+                      <>
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        {selectedLead.phone}
+                      </>
+                    ) : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Valore Stimato</label>
+                  <p className="text-sm font-semibold text-green-600">
+                    {selectedLead.value ? `€${selectedLead.value.toLocaleString('it-IT')}` : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Fonte</label>
+                  <p className="text-sm">
+                    {selectedLead.source === "zapier" ? "Zapier" :
+                     selectedLead.source === "social_media" ? "Social Media" :
+                     selectedLead.source === "website" ? "Sito Web" :
+                     selectedLead.source === "referral" ? "Referral" :
+                     selectedLead.source === "cold_call" ? "Cold Call" :
+                     selectedLead.source === "trade_show" ? "Fiera" :
+                     selectedLead.source || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Stato</label>
+                  <Badge className={allStatuses.find(s => s.id === selectedLead.status)?.color || ''}>
+                    {allStatuses.find(s => s.id === selectedLead.status)?.title || selectedLead.status}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedLead.notes && (
+                <div className="border-t pt-4">
+                  <label className="text-sm font-medium text-muted-foreground">Note</label>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedLead.notes}</p>
+                </div>
+              )}
+
+              {/* Next Activity */}
+              {(selectedLead.next_activity_type || selectedLead.next_activity_date) && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <label className="text-sm font-medium text-blue-600">Prossima Attività</label>
+                  </div>
+                  <div className="ml-6 space-y-2">
+                    {selectedLead.next_activity_type && (
+                      <div>
+                        <span className="text-sm font-medium">Tipo: </span>
+                        <span className="text-sm text-muted-foreground">
+                          {selectedLead.next_activity_type === "call" ? "Chiamata" :
+                           selectedLead.next_activity_type === "email" ? "Email" :
+                           selectedLead.next_activity_type === "meeting" ? "Incontro" :
+                           selectedLead.next_activity_type === "demo" ? "Demo" :
+                           selectedLead.next_activity_type === "follow_up" ? "Follow-up" :
+                           selectedLead.next_activity_type === "quote" ? "Preventivo" :
+                           selectedLead.next_activity_type}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLead.next_activity_date && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm">
+                          {new Date(selectedLead.next_activity_date).toLocaleDateString('it-IT', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLead.next_activity_notes && (
+                      <p className="text-sm text-muted-foreground italic">{selectedLead.next_activity_notes}</p>
+                    )}
+                    {selectedLead.next_activity_assigned_to && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm">
+                          {users.find(u => u.id === selectedLead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === selectedLead.next_activity_assigned_to)?.last_name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Linked Offer */}
+              {offers.find(o => o.lead_id === selectedLead.id) && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4 text-purple-600" />
+                    <label className="text-sm font-medium text-purple-600">Offerta Collegata</label>
+                  </div>
+                  {(() => {
+                    const linkedOffer = offers.find(o => o.lead_id === selectedLead.id);
+                    return linkedOffer && (
+                      <div className="ml-6 space-y-2">
+                        <div>
+                          <span className="text-sm font-medium">{linkedOffer.number}</span>
+                          <span className="text-sm text-muted-foreground"> - {linkedOffer.title}</span>
+                        </div>
+                        <div className="text-sm text-green-600 font-medium">
+                          €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setIsDetailsDialogOpen(false);
+                            navigate('/crm/offers');
+                          }}
+                        >
+                          Vai all'offerta
+                          <ExternalLink className="h-3 w-3 ml-2" />
+                        </Button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="border-t pt-4 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setIsDetailsDialogOpen(false);
+                    handleEditLead(selectedLead);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifica
+                </Button>
+                {!offers.find(o => o.lead_id === selectedLead.id) && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false);
+                      handleCreateOfferForLead(selectedLead);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crea Offerta
+                  </Button>
+                )}
+                {selectedLead.status === "negotiation" && (
+                  <>
+                    <Button
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => {
+                        handleWinLead(selectedLead);
+                        setIsDetailsDialogOpen(false);
+                      }}
+                    >
+                      Vinto
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => {
+                        handleLoseLead(selectedLead);
+                        setIsDetailsDialogOpen(false);
+                      }}
+                    >
+                      Perso
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Lead Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
