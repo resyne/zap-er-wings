@@ -100,7 +100,7 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
         .from('tasks')
         .select(`
           *,
-          profiles:assigned_to(first_name, last_name, email)
+          profiles!assigned_to(first_name, last_name, email)
         `)
         .eq('category', category as any)
         .eq('archived', archived)
