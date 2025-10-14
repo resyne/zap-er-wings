@@ -64,17 +64,19 @@ interface ServiceWorkOrder {
 }
 
 const statusColors = {
-  planned: "bg-blue-100 text-blue-800",
-  in_progress: "bg-yellow-100 text-yellow-800",
-  testing: "bg-purple-100 text-purple-800",
-  closed: "bg-green-100 text-green-800"
+  to_do: "bg-blue-100 text-blue-800 border-blue-200",
+  in_lavorazione: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  test: "bg-purple-100 text-purple-800 border-purple-200",
+  pronti: "bg-orange-100 text-orange-800 border-orange-200",
+  spediti_consegnati: "bg-green-100 text-green-800 border-green-200"
 };
 
 const statusLabels = {
-  planned: "Pianificato",
-  in_progress: "In Corso",
-  testing: "Test",
-  closed: "Chiuso"
+  to_do: "Da Fare",
+  in_lavorazione: "In Lavorazione",
+  test: "Test",
+  pronti: "Pronti",
+  spediti_consegnati: "Spediti/Consegnati"
 };
 
 export default function WorkOrdersServicePage() {
@@ -258,7 +260,7 @@ export default function WorkOrdersServicePage() {
         location: formData.location || null,
         equipment_needed: formData.equipment_needed || null,
         notes: formData.notes || null,
-        status: 'planned'
+        status: 'to_do'
       };
 
       // Remove empty string values, replace with null
@@ -363,7 +365,7 @@ export default function WorkOrdersServicePage() {
     }
   };
 
-  const updateWorkOrderStatus = async (workOrderId: string, newStatus: 'planned' | 'in_progress' | 'testing' | 'closed') => {
+  const updateWorkOrderStatus = async (workOrderId: string, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('service_work_orders')
@@ -452,10 +454,11 @@ export default function WorkOrdersServicePage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tutti gli stati</SelectItem>
-            <SelectItem value="planned">Pianificato</SelectItem>
-            <SelectItem value="in_progress">In Corso</SelectItem>
-            <SelectItem value="testing">Test</SelectItem>
-            <SelectItem value="closed">Chiuso</SelectItem>
+            <SelectItem value="to_do">Da Fare</SelectItem>
+            <SelectItem value="in_lavorazione">In Lavorazione</SelectItem>
+            <SelectItem value="test">Test</SelectItem>
+            <SelectItem value="pronti">Pronti</SelectItem>
+            <SelectItem value="spediti_consegnati">Spediti/Consegnati</SelectItem>
           </SelectContent>
         </Select>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
