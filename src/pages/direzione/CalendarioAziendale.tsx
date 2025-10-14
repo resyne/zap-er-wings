@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Wrench, Truck, Package, FileEdit } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Wrench, Truck, Package, FileEdit, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, addDays, startOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 
 interface Task {
@@ -54,11 +58,24 @@ interface ContentTask {
   content_type?: string;
 }
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  event_date: string;
+  end_date?: string;
+  event_type: string;
+  color: string;
+  all_day: boolean;
+  created_by?: string;
+}
+
 type CalendarItem = 
   | (Task & { item_type: 'task' })
   | (WorkOrder & { item_type: 'work_order' })
   | (ShippingOrder & { item_type: 'shipping_order' })
-  | (ContentTask & { item_type: 'content_task' });
+  | (ContentTask & { item_type: 'content_task' })
+  | (CalendarEvent & { item_type: 'event' });
 
 const statusColors = {
   todo: "bg-blue-100 text-blue-800 border-blue-200",
@@ -87,32 +104,64 @@ const priorityLabels = {
 };
 
 export default function CalendarioAziendale() {
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    event_type: "work",
+    color: "blue",
+    all_day: false,
+    start_time: "09:00",
+    end_time: "10:00"
+  });
   const { toast } = useToast();
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
-  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  // Calculate date ranges based on view mode
+  const getDateRange = () => {
+    if (viewMode === 'day') {
+      const dayStart = startOfDay(currentDate);
+      const dayEnd = addDays(dayStart, 1);
+      return { start: dayStart, end: dayEnd, days: [dayStart] };
+    } else if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+      return { start: weekStart, end: weekEnd, days: weekDays };
+    } else {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+      const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+      const monthDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+      return { start: monthStart, end: monthEnd, days: monthDays };
+    }
+  };
+
+  const dateRange = getDateRange();
 
   useEffect(() => {
     loadAllItems();
-  }, [currentWeek]);
+  }, [currentDate, viewMode]);
 
   const loadAllItems = async () => {
     setLoading(true);
     try {
       const allItems: CalendarItem[] = [];
+      const { start, end } = dateRange;
 
       // Load tasks - TUTTE le task senza filtri utente
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('id, title, description, due_date, status, priority, category, assigned_to')
-        .gte('due_date', weekStart.toISOString())
-        .lte('due_date', weekEnd.toISOString())
+        .gte('due_date', start.toISOString())
+        .lte('due_date', end.toISOString())
         .not('due_date', 'is', null)
         .eq('is_template', false);
 
@@ -132,8 +181,8 @@ export default function CalendarioAziendale() {
       const { data: productionWO, error: productionWOError } = await supabase
         .from('work_orders')
         .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
-        .gte('scheduled_start', weekStart.toISOString())
-        .lte('scheduled_start', weekEnd.toISOString())
+        .gte('scheduled_start', start.toISOString())
+        .lte('scheduled_start', end.toISOString())
         .not('scheduled_start', 'is', null);
 
       if (productionWOError) {
@@ -152,8 +201,8 @@ export default function CalendarioAziendale() {
       const { data: serviceWO, error: serviceWOError } = await supabase
         .from('service_work_orders')
         .select('id, number, title, status, type, scheduled_start, scheduled_end, actual_start, actual_end')
-        .gte('scheduled_start', weekStart.toISOString())
-        .lte('scheduled_start', weekEnd.toISOString())
+        .gte('scheduled_start', start.toISOString())
+        .lte('scheduled_start', end.toISOString())
         .not('scheduled_start', 'is', null);
 
       if (serviceWOError) {
@@ -172,8 +221,8 @@ export default function CalendarioAziendale() {
       const { data: shippingOrders, error: shippingError } = await supabase
         .from('shipping_orders')
         .select('id, order_number, customer_name, status, scheduled_date, delivery_date')
-        .gte('scheduled_date', weekStart.toISOString())
-        .lte('scheduled_date', weekEnd.toISOString())
+        .gte('scheduled_date', start.toISOString())
+        .lte('scheduled_date', end.toISOString())
         .not('scheduled_date', 'is', null);
 
       if (shippingError) {
@@ -186,6 +235,25 @@ export default function CalendarioAziendale() {
           item_type: 'shipping_order' as const
         }));
         allItems.push(...formattedShipping);
+      }
+
+      // Load calendar events - TUTTI gli eventi
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .gte('event_date', start.toISOString())
+        .lte('event_date', end.toISOString());
+
+      if (eventsError) {
+        console.error('Error loading calendar events:', eventsError);
+      }
+
+      if (eventsData) {
+        const formattedEvents = eventsData.map((event: any) => ({
+          ...event,
+          item_type: 'event' as const
+        }));
+        allItems.push(...formattedEvents);
       }
 
       setItems(allItems);
@@ -213,22 +281,116 @@ export default function CalendarioAziendale() {
         itemDate = parseISO(item.scheduled_date);
       } else if (item.item_type === 'content_task' && item.scheduled_date) {
         itemDate = parseISO(item.scheduled_date);
+      } else if (item.item_type === 'event' && item.event_date) {
+        itemDate = parseISO(item.event_date);
       }
       
       return itemDate && isSameDay(itemDate, day);
     });
   };
 
-  const goToPreviousWeek = () => {
-    setCurrentWeek(subWeeks(currentWeek, 1));
+  const handleCreateEvent = async () => {
+    if (!selectedDate || !newEvent.title) {
+      toast({
+        title: "Errore",
+        description: "Inserisci almeno un titolo per l'evento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      const eventDate = new Date(selectedDate);
+      if (!newEvent.all_day) {
+        const [hours, minutes] = newEvent.start_time.split(':');
+        eventDate.setHours(parseInt(hours), parseInt(minutes));
+      }
+
+      let endDate = null;
+      if (!newEvent.all_day && newEvent.end_time) {
+        endDate = new Date(selectedDate);
+        const [endHours, endMinutes] = newEvent.end_time.split(':');
+        endDate.setHours(parseInt(endHours), parseInt(endMinutes));
+      }
+
+      const { error } = await supabase
+        .from('calendar_events')
+        .insert({
+          user_id: user.id,
+          title: newEvent.title,
+          description: newEvent.description || null,
+          event_date: eventDate.toISOString(),
+          end_date: endDate?.toISOString() || null,
+          event_type: newEvent.event_type,
+          color: newEvent.color,
+          all_day: newEvent.all_day
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Evento creato con successo",
+      });
+
+      setShowCreateDialog(false);
+      setNewEvent({
+        title: "",
+        description: "",
+        event_type: "work",
+        color: "blue",
+        all_day: false,
+        start_time: "09:00",
+        end_time: "10:00"
+      });
+      loadAllItems();
+    } catch (error) {
+      console.error('Error creating event:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione dell'evento",
+        variant: "destructive",
+      });
+    }
   };
 
-  const goToNextWeek = () => {
-    setCurrentWeek(addWeeks(currentWeek, 1));
+  const goToPrevious = () => {
+    if (viewMode === 'day') {
+      setCurrentDate(addDays(currentDate, -1));
+    } else if (viewMode === 'week') {
+      setCurrentDate(subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(subMonths(currentDate, 1));
+    }
+  };
+
+  const goToNext = () => {
+    if (viewMode === 'day') {
+      setCurrentDate(addDays(currentDate, 1));
+    } else if (viewMode === 'week') {
+      setCurrentDate(addWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(addMonths(currentDate, 1));
+    }
   };
 
   const goToToday = () => {
-    setCurrentWeek(new Date());
+    setCurrentDate(new Date());
+  };
+
+  const getHeaderText = () => {
+    if (viewMode === 'day') {
+      return format(currentDate, "EEEE d MMMM yyyy", { locale: it });
+    } else if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return `${format(weekStart, "d MMM", { locale: it })} - ${format(weekEnd, "d MMM yyyy", { locale: it })}`;
+    } else {
+      return format(currentDate, "MMMM yyyy", { locale: it });
+    }
   };
 
   return (
@@ -242,36 +404,91 @@ export default function CalendarioAziendale() {
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={goToPreviousWeek}>
+          <Button variant="outline" onClick={goToPrevious}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <div className="text-lg font-semibold">
-            {format(weekStart, "d MMM", { locale: it })} - {format(weekEnd, "d MMM yyyy", { locale: it })}
+          <div className="text-lg font-semibold min-w-[300px] text-center">
+            {getHeaderText()}
           </div>
-          <Button variant="outline" onClick={goToNextWeek}>
+          <Button variant="outline" onClick={goToNext}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        <Button onClick={goToToday}>
-          <Calendar className="w-4 h-4 mr-2" />
-          Oggi
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 border rounded-lg p-1">
+            <Button 
+              variant={viewMode === 'day' ? 'default' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('day')}
+            >
+              Giorno
+            </Button>
+            <Button 
+              variant={viewMode === 'week' ? 'default' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('week')}
+            >
+              Settimana
+            </Button>
+            <Button 
+              variant={viewMode === 'month' ? 'default' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('month')}
+            >
+              Mese
+            </Button>
+          </div>
+          <Button onClick={goToToday}>
+            <Calendar className="w-4 h-4 mr-2" />
+            Oggi
+          </Button>
+          <Button onClick={() => {
+            setSelectedDate(new Date());
+            setShowCreateDialog(true);
+          }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuovo Evento
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-4">
-        {weekDays.map((day, index) => {
+      <div className={viewMode === 'month' ? 'grid grid-cols-7 gap-2' : viewMode === 'week' ? 'grid grid-cols-7 gap-4' : 'grid grid-cols-1 gap-4'}>
+        {viewMode === 'month' && ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
+          <div key={day} className="text-center font-semibold text-sm py-2">
+            {day}
+          </div>
+        ))}
+        {dateRange.days.map((day, index) => {
           const dayItems = getItemsForDay(day);
           const isToday = isSameDay(day, new Date());
+          const isCurrentMonth = viewMode === 'month' ? isSameMonth(day, currentDate) : true;
           
           return (
-            <Card key={index} className={`min-h-[300px] ${isToday ? 'ring-2 ring-primary' : ''}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className={`text-sm ${isToday ? 'text-primary' : ''}`}>
-                  {format(day, "EEEE", { locale: it })}
-                </CardTitle>
-                <CardDescription className={`text-lg font-semibold ${isToday ? 'text-primary' : ''}`}>
-                  {format(day, "d MMM", { locale: it })}
-                </CardDescription>
+            <Card key={index} className={`min-h-[${viewMode === 'month' ? '120' : '300'}px] ${isToday ? 'ring-2 ring-primary' : ''} ${!isCurrentMonth ? 'opacity-50' : ''}`}>
+              <CardHeader className={viewMode === 'month' ? 'p-2' : 'pb-3'}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    {viewMode !== 'month' && (
+                      <CardTitle className={`text-sm ${isToday ? 'text-primary' : ''}`}>
+                        {format(day, "EEEE", { locale: it })}
+                      </CardTitle>
+                    )}
+                    <CardDescription className={`${viewMode === 'month' ? 'text-sm' : 'text-lg'} font-semibold ${isToday ? 'text-primary' : ''}`}>
+                      {format(day, viewMode === 'month' ? "d" : "d MMM", { locale: it })}
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-5 w-5"
+                    onClick={() => {
+                      setSelectedDate(day);
+                      setShowCreateDialog(true);
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 {dayItems.length === 0 ? (
@@ -296,40 +513,47 @@ export default function CalendarioAziendale() {
                       icon = <Truck className="w-3 h-3" />;
                       borderColor = 'border-l-green-400';
                       title = `${item.order_number}${item.customer_name ? ` - ${item.customer_name}` : ''}`;
-                    } else if (item.item_type === 'content_task') {
+                     } else if (item.item_type === 'content_task') {
                       icon = <FileEdit className="w-3 h-3" />;
                       borderColor = 'border-l-purple-400';
+                      title = item.title;
+                    } else if (item.item_type === 'event') {
+                      icon = <Calendar className="w-3 h-3" />;
+                      borderColor = 'border-l-indigo-400';
                       title = item.title;
                     }
                     
                     return (
                       <div
                         key={item.id}
-                        className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border-l-4 ${borderColor}`}
+                        className={`${viewMode === 'month' ? 'p-1' : 'p-3'} border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border-l-4 ${borderColor}`}
                         onClick={() => {
                           setSelectedItem(item);
                           setShowDetailsDialog(true);
                         }}
                       >
-                        <div className="space-y-2">
+                        <div className={viewMode === 'month' ? 'space-y-1' : 'space-y-2'}>
                           <div className="flex items-start gap-2">
                             <div className="mt-0.5">{icon}</div>
-                            <div className="font-medium text-sm leading-tight flex-1">
+                            <div className={`font-medium ${viewMode === 'month' ? 'text-xs' : 'text-sm'} leading-tight flex-1 truncate`}>
                               {title}
                             </div>
                           </div>
-                          <div className="flex gap-1 ml-5">
-                            <Badge variant="outline" className="text-xs">
-                              {item.item_type === 'task' ? 'Task' : 
-                               item.item_type === 'work_order' ? 'Ordine Lavoro' :
-                               item.item_type === 'shipping_order' ? 'Spedizione' : 'Contenuto'}
-                            </Badge>
-                            {item.item_type === 'task' && (
-                              <Badge className={priorityColors[item.priority as keyof typeof priorityColors] + " text-xs"}>
-                                {priorityLabels[item.priority as keyof typeof priorityLabels]}
+                          {viewMode !== 'month' && (
+                            <div className="flex gap-1 ml-5">
+                              <Badge variant="outline" className="text-xs">
+                                {item.item_type === 'task' ? 'Task' : 
+                                 item.item_type === 'work_order' ? 'Ordine Lavoro' :
+                                 item.item_type === 'shipping_order' ? 'Spedizione' : 
+                                 item.item_type === 'event' ? 'Evento' : 'Contenuto'}
                               </Badge>
-                            )}
-                          </div>
+                              {item.item_type === 'task' && (
+                                <Badge className={priorityColors[item.priority as keyof typeof priorityColors] + " text-xs"}>
+                                  {priorityLabels[item.priority as keyof typeof priorityLabels]}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -341,6 +565,117 @@ export default function CalendarioAziendale() {
         })}
       </div>
 
+      {/* Create Event Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuovo Evento Aziendale</DialogTitle>
+            <DialogDescription>
+              {selectedDate && format(selectedDate, "PPP", { locale: it })}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Titolo *</Label>
+              <Input
+                id="title"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                placeholder="Titolo evento"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="description">Descrizione</Label>
+              <Textarea
+                id="description"
+                value={newEvent.description}
+                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                placeholder="Descrizione evento"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="event_type">Tipo</Label>
+              <Select value={newEvent.event_type} onValueChange={(value) => setNewEvent({ ...newEvent, event_type: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="work">Lavoro</SelectItem>
+                  <SelectItem value="meeting">Riunione</SelectItem>
+                  <SelectItem value="deadline">Scadenza</SelectItem>
+                  <SelectItem value="other">Altro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="color">Colore</Label>
+              <Select value={newEvent.color} onValueChange={(value) => setNewEvent({ ...newEvent, color: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blue">Blu</SelectItem>
+                  <SelectItem value="green">Verde</SelectItem>
+                  <SelectItem value="red">Rosso</SelectItem>
+                  <SelectItem value="yellow">Giallo</SelectItem>
+                  <SelectItem value="purple">Viola</SelectItem>
+                  <SelectItem value="indigo">Indaco</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="all_day"
+                checked={newEvent.all_day}
+                onChange={(e) => setNewEvent({ ...newEvent, all_day: e.target.checked })}
+                className="rounded"
+              />
+              <Label htmlFor="all_day">Tutto il giorno</Label>
+            </div>
+
+            {!newEvent.all_day && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="start_time">Ora inizio</Label>
+                  <Input
+                    id="start_time"
+                    type="time"
+                    value={newEvent.start_time}
+                    onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end_time">Ora fine</Label>
+                  <Input
+                    id="end_time"
+                    type="time"
+                    value={newEvent.end_time}
+                    onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleCreateEvent}>
+              Crea Evento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -349,15 +684,18 @@ export default function CalendarioAziendale() {
               {selectedItem?.item_type === 'work_order' && <Wrench className="w-5 h-5 text-orange-600" />}
               {selectedItem?.item_type === 'shipping_order' && <Truck className="w-5 h-5 text-green-600" />}
               {selectedItem?.item_type === 'content_task' && <FileEdit className="w-5 h-5 text-purple-600" />}
+              {selectedItem?.item_type === 'event' && <Calendar className="w-5 h-5 text-indigo-600" />}
               {selectedItem?.item_type === 'task' && selectedItem.title}
               {selectedItem?.item_type === 'work_order' && `${selectedItem.number}${selectedItem.title ? ` - ${selectedItem.title}` : ''}`}
               {selectedItem?.item_type === 'shipping_order' && `${selectedItem.order_number}${selectedItem.customer_name ? ` - ${selectedItem.customer_name}` : ''}`}
               {selectedItem?.item_type === 'content_task' && selectedItem.title}
+              {selectedItem?.item_type === 'event' && selectedItem.title}
             </DialogTitle>
             <DialogDescription>
               {selectedItem?.item_type === 'task' ? 'Task Aziendale' : 
                selectedItem?.item_type === 'work_order' ? 'Ordine di Lavoro' :
-               selectedItem?.item_type === 'shipping_order' ? 'Ordine di Spedizione' : 'Attività Contenuto'}
+               selectedItem?.item_type === 'shipping_order' ? 'Ordine di Spedizione' : 
+               selectedItem?.item_type === 'event' ? 'Evento Aziendale' : 'Attività Contenuto'}
             </DialogDescription>
           </DialogHeader>
           
@@ -486,6 +824,35 @@ export default function CalendarioAziendale() {
                       </p>
                     </div>
                   )}
+                </>
+              )}
+
+              {selectedItem?.item_type === 'event' && (
+                <>
+                  {selectedItem.description && (
+                    <div>
+                      <h4 className="font-medium mb-1">Descrizione</h4>
+                      <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Tipo</h4>
+                    <p className="text-sm text-muted-foreground capitalize">{selectedItem.event_type}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-1">Data e Ora</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedItem.all_day 
+                        ? format(parseISO(selectedItem.event_date), "PPP", { locale: it })
+                        : format(parseISO(selectedItem.event_date), "PPP 'alle' HH:mm", { locale: it })
+                      }
+                      {selectedItem.end_date && !selectedItem.all_day && (
+                        <> - {format(parseISO(selectedItem.end_date), "HH:mm")}</>
+                      )}
+                    </p>
+                  </div>
                 </>
               )}
             </div>
