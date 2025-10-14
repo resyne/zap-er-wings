@@ -7,7 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, X, Clock, Trash2, Check, ChevronDown } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus, X, Clock, Trash2, Check, ChevronDown, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +25,7 @@ interface WeeklyRecurringTasksProps {
 
 interface RecurringTask {
   id: string;
+  task_template_id: string;
   title: string;
   description?: string;
   category: TaskCategory;
@@ -31,6 +35,19 @@ interface RecurringTask {
   is_active: boolean;
   completed?: boolean;
   completion_id?: string;
+  assigned_to?: string;
+  assigned_user?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  };
+}
+
+interface Profile {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
 }
 
 const weekDays = [
@@ -43,7 +60,9 @@ const weekDays = [
 
 export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<RecurringTask | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -55,12 +74,14 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    day: 0, // Single day
+    day: 0,
     estimated_hours: '',
-    priority: 'medium' as const
+    priority: 'medium' as const,
+    assigned_to: ''
   });
 
   useEffect(() => {
+    fetchProfiles();
     fetchRecurringTasks();
   }, [category]);
 
@@ -79,7 +100,8 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
             description,
             category,
             estimated_hours,
-            priority
+            priority,
+            assigned_to
           )
         `)
         .eq('recurrence_type', 'weekly')
@@ -101,12 +123,23 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
         completions?.map(c => [c.recurring_task_id, c]) || []
       );
 
+      // Fetch assigned users info separately
+      const assignedUserIds = [...new Set(data?.map(item => item.tasks?.assigned_to).filter(Boolean))] as string[];
+      const { data: usersData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', assignedUserIds.length > 0 ? assignedUserIds : ['00000000-0000-0000-0000-000000000000']);
+
+      const usersMap = new Map(usersData?.map(u => [u.id, u]) || []);
+
       // Filter by category and map the data with completion status
       const recurringTasks = data?.filter(item => item.tasks?.category === category)
         .map(item => {
           const completion = completionsMap.get(item.id);
+          const assignedUser = item.tasks?.assigned_to ? usersMap.get(item.tasks.assigned_to) : undefined;
           return {
             id: item.id,
+            task_template_id: item.task_template_id,
             title: item.tasks?.title || '',
             description: item.tasks?.description || '',
             category: item.tasks?.category as TaskCategory,
@@ -115,7 +148,9 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
             priority: item.tasks?.priority || 'medium',
             is_active: item.is_active,
             completed: completion?.completed || false,
-            completion_id: completion?.id
+            completion_id: completion?.id,
+            assigned_to: item.tasks?.assigned_to,
+            assigned_user: assignedUser
           };
         }) || [];
 
@@ -139,8 +174,10 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
     }));
   };
 
-  const handleSubmit = async () => {
-    if (!newTask.title.trim() || newTask.day === 0) {
+  const handleSubmit = async (taskData?: typeof newTask) => {
+    const data = taskData || newTask;
+    
+    if (!data.title.trim() || data.day === 0) {
       toast({
         title: "Errore",
         description: "Inserisci un titolo e seleziona un giorno",
@@ -154,12 +191,13 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
       const { data: templateTask, error: taskError } = await supabase
         .from('tasks')
         .insert({
-          title: newTask.title,
-          description: newTask.description || null,
+          title: data.title,
+          description: data.description || null,
           category,
-          estimated_hours: newTask.estimated_hours ? parseFloat(newTask.estimated_hours) : null,
-          priority: newTask.priority,
-          status: 'todo'
+          estimated_hours: data.estimated_hours ? parseFloat(data.estimated_hours) : null,
+          priority: data.priority,
+          status: 'todo',
+          assigned_to: data.assigned_to || null
         })
         .select()
         .single();
@@ -173,7 +211,7 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
           task_template_id: templateTask.id,
           recurrence_type: 'weekly',
           recurrence_interval: 1,
-          recurrence_days: [newTask.day], // Single day in array
+          recurrence_days: [data.day],
           is_active: true
         });
 
@@ -190,7 +228,8 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
         description: '',
         day: 0,
         estimated_hours: '',
-        priority: 'medium'
+        priority: 'medium',
+        assigned_to: ''
       });
       setIsAddingTask(false);
       
@@ -402,8 +441,28 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assegna a:</label>
+              <Select 
+                value={newTask.assigned_to} 
+                onValueChange={(value) => setNewTask(prev => ({ ...prev, assigned_to: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nessuno" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessuno</SelectItem>
+                  {profiles.map(profile => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.first_name} {profile.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex gap-2">
-              <Button onClick={handleSubmit} size="sm">
+              <Button onClick={() => handleSubmit()} size="sm">
                 Salva
               </Button>
               <Button 
@@ -452,8 +511,28 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
                         </Badge>
                       )}
                     </div>
+                    {task.assigned_user && (
+                      <div className="flex items-center gap-1">
+                        <Avatar className="h-5 w-5">
+                          <AvatarFallback className="text-[10px]">
+                            {task.assigned_user.first_name?.[0]}{task.assigned_user.last_name?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs text-muted-foreground">
+                          {task.assigned_user.first_name}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditingTask(task)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
                     {task.description && (
                       <CollapsibleTrigger asChild>
                         <Button
