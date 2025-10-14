@@ -84,13 +84,15 @@ interface Supplier {
 const levelLabels = {
   0: "Machinery Models",
   1: "Parent Groups", 
-  2: "Child Elements"
+  2: "Child Elements",
+  3: "Accessories"
 };
 
 const levelIcons = {
   0: Factory,
   1: Package,
-  2: Component
+  2: Component,
+  3: Wrench
 };
 
 export default function BomPage() {
@@ -120,6 +122,8 @@ export default function BomPage() {
     machinery_model: "",
     material_id: ""
   });
+
+  const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
 
   const [machineryFormData, setMachineryFormData] = useState({
     name: "",
@@ -985,8 +989,8 @@ export default function BomPage() {
       </Dialog>
 
       {/* Level Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[0, 1, 2].map((level) => {
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((level) => {
           const Icon = levelIcons[level as keyof typeof levelIcons];
           const count = groupedBoms[level]?.length || 0;
           return (
@@ -1046,7 +1050,7 @@ export default function BomPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="0" className="flex items-center space-x-2">
                 <Factory className="h-4 w-4" />
                 <span>Level 0 - Machinery</span>
@@ -1062,9 +1066,14 @@ export default function BomPage() {
                 <span>Level 2 - Elements</span>
                 <Badge variant="outline">{groupedBoms[2]?.length || 0}</Badge>
               </TabsTrigger>
+              <TabsTrigger value="3" className="flex items-center space-x-2">
+                <Wrench className="h-4 w-4" />
+                <span>Level 3 - Accessories</span>
+                <Badge variant="outline">{groupedBoms[3]?.length || 0}</Badge>
+              </TabsTrigger>
             </TabsList>
             
-            {[0, 1, 2].map((level) => (
+            {[0, 1, 2, 3].map((level) => (
               <TabsContent key={level} value={level.toString()}>
                 <div className="rounded-md border">
                   <Table>
