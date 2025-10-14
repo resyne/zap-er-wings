@@ -57,7 +57,7 @@ import CompliancePage from "./pages/documentation/CompliancePage";
 import ManualsPage from "./pages/documentation/ManualsPage";
 import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
-import CalendarPage from "./pages/planning/CalendarPage";
+
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
@@ -96,7 +96,7 @@ const App = () => (
               }>
               <Route index element={<Index />} />
                 <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
-                <Route path="calendar" element={<CalendarPage />} />
+                
                 <Route path="personal-area" element={<DashboardPage />} />
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
