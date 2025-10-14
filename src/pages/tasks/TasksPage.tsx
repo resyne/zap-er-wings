@@ -136,8 +136,6 @@ export function TasksPage() {
 
             {taskView === 'active' ? (
               <>
-                <WeeklyRecurringTasks category={category.key} />
-                
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -155,6 +153,8 @@ export function TasksPage() {
                     )}
                   </CardContent>
                 </Card>
+
+                <WeeklyRecurringTasks category={category.key} />
               </>
             ) : (
               <Card>
