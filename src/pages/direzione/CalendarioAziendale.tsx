@@ -105,7 +105,7 @@ const priorityLabels = {
 
 export default function CalendarioAziendale() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'year'>('week');
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
@@ -134,13 +134,18 @@ export default function CalendarioAziendale() {
       const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
       const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
       return { start: weekStart, end: weekEnd, days: weekDays };
-    } else {
+    } else if (viewMode === 'month') {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
       const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
       const monthDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
       return { start: monthStart, end: monthEnd, days: monthDays };
+    } else {
+      // Year view
+      const yearStart = new Date(currentDate.getFullYear(), 0, 1);
+      const yearEnd = new Date(currentDate.getFullYear(), 11, 31, 23, 59, 59);
+      return { start: yearStart, end: yearEnd, days: [] };
     }
   };
 
@@ -362,8 +367,10 @@ export default function CalendarioAziendale() {
       setCurrentDate(addDays(currentDate, -1));
     } else if (viewMode === 'week') {
       setCurrentDate(subWeeks(currentDate, 1));
-    } else {
+    } else if (viewMode === 'month') {
       setCurrentDate(subMonths(currentDate, 1));
+    } else {
+      setCurrentDate(new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), currentDate.getDate()));
     }
   };
 
@@ -372,8 +379,10 @@ export default function CalendarioAziendale() {
       setCurrentDate(addDays(currentDate, 1));
     } else if (viewMode === 'week') {
       setCurrentDate(addWeeks(currentDate, 1));
-    } else {
+    } else if (viewMode === 'month') {
       setCurrentDate(addMonths(currentDate, 1));
+    } else {
+      setCurrentDate(new Date(currentDate.getFullYear() + 1, currentDate.getMonth(), currentDate.getDate()));
     }
   };
 
@@ -388,9 +397,31 @@ export default function CalendarioAziendale() {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
       return `${format(weekStart, "d MMM", { locale: it })} - ${format(weekEnd, "d MMM yyyy", { locale: it })}`;
-    } else {
+    } else if (viewMode === 'month') {
       return format(currentDate, "MMMM yyyy", { locale: it });
+    } else {
+      return format(currentDate, "yyyy", { locale: it });
     }
+  };
+
+  const getItemsForMonth = (month: number, year: number) => {
+    return items.filter(item => {
+      let itemDate: Date | null = null;
+      
+      if (item.item_type === 'task' && item.due_date) {
+        itemDate = parseISO(item.due_date);
+      } else if (item.item_type === 'work_order' && item.scheduled_start) {
+        itemDate = parseISO(item.scheduled_start);
+      } else if (item.item_type === 'shipping_order' && item.scheduled_date) {
+        itemDate = parseISO(item.scheduled_date);
+      } else if (item.item_type === 'content_task' && item.scheduled_date) {
+        itemDate = parseISO(item.scheduled_date);
+      } else if (item.item_type === 'event' && item.event_date) {
+        itemDate = parseISO(item.event_date);
+      }
+      
+      return itemDate && itemDate.getMonth() === month && itemDate.getFullYear() === year;
+    });
   };
 
   return (
@@ -437,6 +468,13 @@ export default function CalendarioAziendale() {
             >
               Mese
             </Button>
+            <Button 
+              variant={viewMode === 'year' ? 'default' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('year')}
+            >
+              Anno
+            </Button>
           </div>
           <Button onClick={goToToday}>
             <Calendar className="w-4 h-4 mr-2" />
@@ -452,13 +490,83 @@ export default function CalendarioAziendale() {
         </div>
       </div>
 
-      <div className={viewMode === 'month' ? 'grid grid-cols-7 gap-2' : viewMode === 'week' ? 'grid grid-cols-7 gap-4' : 'grid grid-cols-1 gap-4'}>
-        {viewMode === 'month' && ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
-          <div key={day} className="text-center font-semibold text-sm py-2">
-            {day}
-          </div>
-        ))}
-        {dateRange.days.map((day, index) => {
+      {viewMode === 'year' ? (
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 12 }, (_, i) => {
+            const monthDate = new Date(currentDate.getFullYear(), i, 1);
+            const monthItems = getItemsForMonth(i, currentDate.getFullYear());
+            const isCurrentMonth = i === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
+            
+            return (
+              <Card key={i} className={`${isCurrentMonth ? 'ring-2 ring-primary' : ''}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className={`text-base ${isCurrentMonth ? 'text-primary' : ''}`}>
+                      {format(monthDate, "MMMM", { locale: it })}
+                    </CardTitle>
+                    <Badge variant="secondary">{monthItems.length}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1 max-h-[200px] overflow-y-auto">
+                  {monthItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      Nessuna attività
+                    </p>
+                  ) : (
+                    monthItems.slice(0, 10).map((item) => {
+                      let icon = <CheckSquare className="w-3 h-3" />;
+                      let title = '';
+                      
+                      if (item.item_type === 'task') {
+                        icon = <CheckSquare className="w-3 h-3" />;
+                        title = item.title;
+                      } else if (item.item_type === 'work_order') {
+                        icon = <Wrench className="w-3 h-3" />;
+                        title = item.number;
+                      } else if (item.item_type === 'shipping_order') {
+                        icon = <Truck className="w-3 h-3" />;
+                        title = item.order_number;
+                      } else if (item.item_type === 'content_task') {
+                        icon = <FileEdit className="w-3 h-3" />;
+                        title = item.title;
+                      } else if (item.item_type === 'event') {
+                        icon = <Calendar className="w-3 h-3" />;
+                        title = item.title;
+                      }
+                      
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setShowDetailsDialog(true);
+                          }}
+                        >
+                          {icon}
+                          <span className="truncate flex-1">{title}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                  {monthItems.length > 10 && (
+                    <p className="text-xs text-muted-foreground text-center pt-1">
+                      +{monthItems.length - 10} altri
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={viewMode === 'month' ? 'grid grid-cols-7 gap-2' : viewMode === 'week' ? 'grid grid-cols-7 gap-4' : 'grid grid-cols-1 gap-4'}>
+          {viewMode === 'month' && ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day) => (
+            <div key={day} className="text-center font-semibold text-sm py-2">
+              {day}
+            </div>
+          ))}
+          {dateRange.days.map((day, index) => {
           const dayItems = getItemsForDay(day);
           const isToday = isSameDay(day, new Date());
           const isCurrentMonth = viewMode === 'month' ? isSameMonth(day, currentDate) : true;
@@ -560,10 +668,11 @@ export default function CalendarioAziendale() {
                   })
                 )}
               </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Create Event Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
