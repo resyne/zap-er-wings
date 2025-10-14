@@ -911,7 +911,6 @@ export default function WorkOrdersPage() {
                 <TableRow>
                   <TableHead>Numero</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Lead</TableHead>
                   <TableHead>Ordine di Vendita</TableHead>
                   <TableHead>Priorità</TableHead>
                   <TableHead>Stato</TableHead>
@@ -921,13 +920,13 @@ export default function WorkOrdersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Caricamento ordini di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Nessun ordine di produzione trovato
                     </TableCell>
                   </TableRow>
@@ -951,19 +950,6 @@ export default function WorkOrdersPage() {
                             <div className="font-medium">{wo.customers.name}</div>
                             <div className="text-sm text-muted-foreground">({wo.customers.code})</div>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {wo.leads ? (
-                          <Link 
-                            to={`/crm/opportunities?lead=${wo.lead_id}`}
-                            className="text-primary hover:underline flex items-center gap-1"
-                          >
-                            {wo.leads.company_name}
-                            <ExternalLink className="h-3 w-3" />
-                          </Link>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
