@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import { WeeklyCalendar } from "@/components/dashboard/WeeklyCalendar";
 import { 
   CheckCircle2, 
   Clock, 
@@ -14,9 +15,7 @@ import {
   Calendar,
   User,
   LogOut,
-  Settings,
-  Plus,
-  Receipt
+  Settings
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -468,25 +467,8 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Actions Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Funzioni Rapide
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <Button variant="default" asChild>
-              <a href="/finance/prima-nota">
-                <Receipt className="w-4 h-4 mr-2" />
-                Nuovo Movimento Prima Nota
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Weekly Calendar Section */}
+      <WeeklyCalendar />
     </div>
   );
 }

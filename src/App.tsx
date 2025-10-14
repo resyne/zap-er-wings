@@ -99,7 +99,7 @@ const App = () => (
                 <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
                 <Route path="direzione/calendario" element={<CalendarioAziendale />} />
                 <Route path="personal-area" element={<DashboardPage />} />
-                <Route path="personal-area/calendario" element={<CalendarioPersonale />} />
+                
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />
