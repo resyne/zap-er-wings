@@ -510,12 +510,13 @@ export default function WorkOrdersPage() {
   const statusCounts = {
     all: workOrders.length,
     to_do: workOrders.filter(wo => normalizeStatus(wo.status) === 'to_do').length,
-    in_progress: workOrders.filter(wo => normalizeStatus(wo.status) === 'in_progress').length,
-    testing: workOrders.filter(wo => normalizeStatus(wo.status) === 'testing').length,
-    completed: workOrders.filter(wo => normalizeStatus(wo.status) === 'completed' || normalizeStatus(wo.status) === 'closed').length,
+    in_lavorazione: workOrders.filter(wo => normalizeStatus(wo.status) === 'in_lavorazione').length,
+    test: workOrders.filter(wo => normalizeStatus(wo.status) === 'test').length,
+    pronti: workOrders.filter(wo => normalizeStatus(wo.status) === 'pronti').length,
+    spediti_consegnati: workOrders.filter(wo => normalizeStatus(wo.status) === 'spediti_consegnati').length,
   };
 
-  const workOrderStatuses = ["to_do", "in_progress", "testing", "completed"];
+  const workOrderStatuses = ['to_do', 'in_lavorazione', 'test', 'pronti', 'spediti_consegnati'];
 
   return (
     <div className="space-y-6">
@@ -1017,7 +1018,7 @@ export default function WorkOrdersPage() {
           </div>
           ) : viewMode === "kanban" ? (
             <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-4">
                 {workOrderStatuses.map((status) => (
                   <div key={status} className="space-y-3">
                     <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
