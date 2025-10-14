@@ -71,13 +71,14 @@ const navigationGroups: NavGroup[] = [
     title: "Direzione",
     items: [
       { title: "Dashboard Direzionale", url: "/direzione/dashboard", icon: LayoutDashboard },
+      { title: "Calendario Aziendale", url: "/direzione/calendario", icon: Calendar },
     ]
   },
   {
     title: "Area Personale",
     items: [
       { title: "Dashboard", url: "/personal-area", icon: LayoutDashboard },
-      { title: "Calendario", url: "/calendar", icon: Calendar },
+      { title: "Calendario Personale", url: "/personal-area/calendario", icon: Calendar },
     ]
   },
   {
