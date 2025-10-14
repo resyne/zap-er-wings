@@ -13,6 +13,7 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
+  const savedImageRef = useRef<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -23,40 +24,55 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
 
     // Set canvas size based on container
     const resizeCanvas = () => {
-      // Save current canvas content if not empty
-      const savedData = !isEmpty ? canvas.toDataURL() : null;
-      
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      
-      // Set display size
-      canvas.style.width = '100%';
-      canvas.style.height = '200px';
-      
-      // Set actual size in memory (scaled to account for extra pixel density)
-      canvas.width = rect.width * dpr;
-      canvas.height = 200 * dpr;
-      
-      // Scale context to ensure correct drawing operations
-      context.scale(dpr, dpr);
-      
-      // Set up drawing context
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-      context.lineWidth = 2;
-      context.strokeStyle = '#000000';
+      // Save current canvas content before resize
+      if (savedImageRef.current) {
+        const tempImage = savedImageRef.current;
+        
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Set display size
+        canvas.style.width = '100%';
+        canvas.style.height = '200px';
+        
+        // Set actual size in memory (scaled to account for extra pixel density)
+        canvas.width = rect.width * dpr;
+        canvas.height = 200 * dpr;
+        
+        // Scale context to ensure correct drawing operations
+        context.scale(dpr, dpr);
+        
+        // Set up drawing context
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 2;
+        context.strokeStyle = '#000000';
 
-      // Clear canvas with white background
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Restore saved content if exists
-      if (savedData) {
+        // Clear canvas with white background
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Restore saved content
         const img = new Image();
         img.onload = () => {
           context.drawImage(img, 0, 0, rect.width, 200);
         };
-        img.src = savedData;
+        img.src = tempImage;
+      } else {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        
+        canvas.style.width = '100%';
+        canvas.style.height = '200px';
+        canvas.width = rect.width * dpr;
+        canvas.height = 200 * dpr;
+        context.scale(dpr, dpr);
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 2;
+        context.strokeStyle = '#000000';
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
       }
     };
 
@@ -66,7 +82,7 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [isEmpty]);
+  }, []);
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -130,6 +146,7 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     if (!canvas) return;
 
     const dataURL = canvas.toDataURL();
+    savedImageRef.current = dataURL;
     onSignatureChange(dataURL);
   };
 
@@ -144,6 +161,7 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, rect.width, 200);
     
+    savedImageRef.current = null;
     setIsEmpty(true);
     onSignatureChange('');
   };
