@@ -504,7 +504,7 @@ export default function BomPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this BOM? This will also delete all child BOMs and inclusions.")) return;
+    if (!confirm("Are you sure you want to delete this BOM? This will remove it and its inclusions, but not the included BOMs.")) return;
 
     try {
       // Check if this BOM is used in any work orders
@@ -525,6 +525,15 @@ export default function BomPage() {
         return;
       }
 
+      // First, delete all inclusions where this BOM is the parent
+      const { error: inclusionsError } = await supabase
+        .from('bom_inclusions')
+        .delete()
+        .eq('parent_bom_id', id);
+
+      if (inclusionsError) throw inclusionsError;
+
+      // Then delete the BOM itself
       const { error } = await supabase
         .from('boms')
         .delete()
