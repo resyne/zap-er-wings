@@ -98,10 +98,7 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
       // Fetch only regular tasks - exclude template tasks and recurring tasks
       const { data: regularTasks, error: tasksError } = await supabase
         .from('tasks')
-        .select(`
-          *,
-          profiles!assigned_to(first_name, last_name, email)
-        `)
+        .select('*')
         .eq('category', category as any)
         .eq('archived', archived)
         .eq('is_template', false) // Exclude template tasks
@@ -112,7 +109,32 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
 
       console.log('Fetched tasks:', regularTasks);
       
-      setTasks((regularTasks || []) as Task[]);
+      // Get unique user IDs from tasks
+      const userIds = [...new Set(regularTasks?.filter(t => t.assigned_to).map(t => t.assigned_to))];
+      
+      // Fetch profiles for assigned users
+      let profilesMap: Record<string, any> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', userIds);
+        
+        if (profiles) {
+          profilesMap = profiles.reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+      
+      // Merge profiles with tasks
+      const tasksWithProfiles = regularTasks?.map(task => ({
+        ...task,
+        profiles: task.assigned_to ? profilesMap[task.assigned_to] : null
+      }));
+      
+      setTasks((tasksWithProfiles || []) as Task[]);
       setRecurringTasks([]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
