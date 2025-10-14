@@ -1096,58 +1096,68 @@ export default function LeadsPage() {
                                    </div>
                                  )}
                                </div>
-                                
-                                {/* Prossima attività */}
-                                {(lead.next_activity_type || lead.next_activity_date) && (
-                                  <div className="border-t pt-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Calendar className="h-3 w-3 text-blue-600 flex-shrink-0" />
-                                      <span className="text-xs font-medium text-blue-600">Prossima attività</span>
-                                    </div>
-                                    <div className="ml-5 space-y-1">
-                                      {lead.next_activity_type && (
-                                        <div className="text-xs text-muted-foreground">
-                                          <span className="font-medium">
-                                            {lead.next_activity_type === "call" ? "Chiamata" :
-                                             lead.next_activity_type === "email" ? "Email" :
-                                             lead.next_activity_type === "meeting" ? "Incontro" :
-                                             lead.next_activity_type === "demo" ? "Demo" :
-                                             lead.next_activity_type === "follow_up" ? "Follow-up" :
-                                             lead.next_activity_type === "quote" ? "Preventivo" :
-                                             lead.next_activity_type}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {lead.next_activity_date && (
-                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                          <Clock className="h-3 w-3" />
-                                          <span>
-                                            {new Date(lead.next_activity_date).toLocaleDateString('it-IT', {
-                                              day: '2-digit',
-                                              month: '2-digit',
-                                              year: 'numeric',
-                                              hour: '2-digit',
-                                              minute: '2-digit'
-                                            })}
-                                          </span>
-                                        </div>
-                                      )}
-                                       {lead.next_activity_notes && (
-                                         <div className="text-xs text-muted-foreground italic truncate">
-                                           {lead.next_activity_notes}
-                                         </div>
+                                 
+                                 {/* Prossima attività */}
+                                 {(lead.next_activity_type || lead.next_activity_date) && (() => {
+                                   const isOverdue = lead.next_activity_date && new Date(lead.next_activity_date) < new Date();
+                                   return (
+                                   <div className={`border-t pt-2 ${isOverdue ? 'bg-destructive/10 -mx-4 px-4 py-2 rounded-b-lg border-l-4 border-l-destructive' : ''}`}>
+                                     <div className="flex items-center gap-2 mb-1">
+                                       <Calendar className={`h-3 w-3 flex-shrink-0 ${isOverdue ? 'text-destructive' : 'text-blue-600'}`} />
+                                       <span className={`text-xs font-medium ${isOverdue ? 'text-destructive' : 'text-blue-600'}`}>
+                                         Prossima attività
+                                       </span>
+                                       {isOverdue && (
+                                         <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 animate-pulse">
+                                           Scaduta!
+                                         </Badge>
                                        )}
-                                       {lead.next_activity_assigned_to && (
-                                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                           <User className="h-3 w-3" />
-                                           <span>
-                                             {users.find(u => u.id === lead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === lead.next_activity_assigned_to)?.last_name}
+                                     </div>
+                                     <div className="ml-5 space-y-1">
+                                       {lead.next_activity_type && (
+                                         <div className={`text-xs ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                           <span className="font-medium">
+                                             {lead.next_activity_type === "call" ? "Chiamata" :
+                                              lead.next_activity_type === "email" ? "Email" :
+                                              lead.next_activity_type === "meeting" ? "Incontro" :
+                                              lead.next_activity_type === "demo" ? "Demo" :
+                                              lead.next_activity_type === "follow_up" ? "Follow-up" :
+                                              lead.next_activity_type === "quote" ? "Preventivo" :
+                                              lead.next_activity_type}
                                            </span>
                                          </div>
                                        )}
-                                     </div>
-                                  </div>
-                                 )}
+                                       {lead.next_activity_date && (
+                                         <div className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                           <Clock className="h-3 w-3" />
+                                           <span>
+                                             {new Date(lead.next_activity_date).toLocaleDateString('it-IT', {
+                                               day: '2-digit',
+                                               month: '2-digit',
+                                               year: 'numeric',
+                                               hour: '2-digit',
+                                               minute: '2-digit'
+                                             })}
+                                           </span>
+                                         </div>
+                                       )}
+                                        {lead.next_activity_notes && (
+                                          <div className={`text-xs italic truncate ${isOverdue ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+                                            {lead.next_activity_notes}
+                                          </div>
+                                        )}
+                                        {lead.next_activity_assigned_to && (
+                                          <div className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                            <User className="h-3 w-3" />
+                                            <span>
+                                              {users.find(u => u.id === lead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === lead.next_activity_assigned_to)?.last_name}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                   </div>
+                                   );
+                                 })()}
 
                                   {/* Offerta collegata o pulsante per collegarla */}
                                   <div className="border-t pt-2">
