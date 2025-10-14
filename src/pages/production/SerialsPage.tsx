@@ -85,7 +85,7 @@ export default function SerialsPage() {
       const { data, error } = await supabase
         .from('work_orders')
         .select('id, number, title')
-        .in('status', ['in_progress', 'testing'])
+        .in('status', ['in_lavorazione', 'test'])
         .order('number');
 
       if (error) throw error;

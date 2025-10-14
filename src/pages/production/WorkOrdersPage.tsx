@@ -23,7 +23,7 @@ interface WorkOrder {
   id: string;
   number: string;
   title: string;
-  status: 'to_do' | 'in_progress' | 'testing' | 'completed' | 'closed' | 'planned' | 'completato' | 'in_lavorazione' | 'in_corso';
+  status: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati';
   planned_start_date?: string;
   planned_end_date?: string;
   assigned_to?: string;
@@ -251,7 +251,7 @@ export default function WorkOrdersPage() {
             planned_start_date: formData.planned_start_date || null,
             planned_end_date: formData.planned_end_date || null,
             notes: formData.notes,
-            status: 'planned' 
+            status: 'to_do'
           }])
           .select()
           .single();
@@ -271,7 +271,7 @@ export default function WorkOrdersPage() {
               contact_id: null,
               assigned_to: formData.assigned_to || null,
               priority: formData.priority,
-              status: 'planned',
+              status: 'to_do',
               notes: formData.serviceOrderNotes
             }]);
 
@@ -367,7 +367,7 @@ export default function WorkOrdersPage() {
     document.body.removeChild(link);
   };
 
-  const handleStatusChange = async (woId: string, newStatus: 'planned' | 'in_progress' | 'testing' | 'closed') => {
+  const handleStatusChange = async (woId: string, newStatus: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati') => {
     try {
       const { error } = await supabase
         .from('work_orders')
@@ -843,10 +843,11 @@ export default function WorkOrdersPage() {
                 <div className="text-2xl font-bold">{count}</div>
                 <div className="text-sm text-muted-foreground capitalize">
                   {status === 'all' ? 'Tutti' : 
-                   status === 'to_do' ? 'To Do' :
-                   status === 'in_progress' ? 'In Corso' :
-                   status === 'testing' ? 'Test' :
-                   status === 'completed' ? 'Completati' : status.replace('_', ' ')}
+                   status === 'to_do' ? 'Da Fare' :
+                   status === 'in_lavorazione' ? 'In Lavorazione' :
+                   status === 'test' ? 'Test' :
+                   status === 'pronti' ? 'Pronti' :
+                   status === 'spediti_consegnati' ? 'Spediti' : status.replace('_', ' ')}
                 </div>
               </div>
             </CardContent>
@@ -965,32 +966,35 @@ export default function WorkOrdersPage() {
                         </Badge>
                       </TableCell>
                        <TableCell>
-                         <Select 
-                           value={wo.status} 
-                           onValueChange={(value: 'planned' | 'in_progress' | 'testing' | 'closed') => 
-                             handleStatusChange(wo.id, value)
-                           }
-                         >
-                           <SelectTrigger className="w-32">
-                             <SelectValue>
-                               <StatusBadge status={wo.status} />
-                             </SelectValue>
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="planned">
-                               <StatusBadge status="planned" />
-                             </SelectItem>
-                             <SelectItem value="in_progress">
-                               <StatusBadge status="in_progress" />
-                             </SelectItem>
-                             <SelectItem value="testing">
-                               <StatusBadge status="testing" />
-                             </SelectItem>
-                             <SelectItem value="closed">
-                               <StatusBadge status="closed" />
-                             </SelectItem>
-                           </SelectContent>
-                          </Select>
+                          <Select 
+                            value={wo.status} 
+                            onValueChange={(value: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati') => 
+                              handleStatusChange(wo.id, value)
+                            }
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue>
+                                <StatusBadge status={wo.status} />
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="to_do">
+                                <Badge className="bg-gray-500">Da Fare</Badge>
+                              </SelectItem>
+                              <SelectItem value="in_lavorazione">
+                                <Badge className="bg-blue-600">In Lavorazione</Badge>
+                              </SelectItem>
+                              <SelectItem value="test">
+                                <Badge className="bg-orange-500">Test</Badge>
+                              </SelectItem>
+                              <SelectItem value="pronti">
+                                <Badge className="bg-green-600">Pronti</Badge>
+                              </SelectItem>
+                              <SelectItem value="spediti_consegnati">
+                                <Badge className="bg-purple-600">Spediti</Badge>
+                              </SelectItem>
+                            </SelectContent>
+                           </Select>
                        </TableCell>
                        <TableCell className="text-right">
                          <div className="flex items-center justify-end space-x-2">

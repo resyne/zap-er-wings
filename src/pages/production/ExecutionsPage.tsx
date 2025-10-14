@@ -89,7 +89,7 @@ export default function ExecutionsPage() {
       const { data, error } = await supabase
         .from('work_orders')
         .select('id, number, title')
-        .in('status', ['planned', 'in_progress', 'testing'])
+        .in('status', ['to_do', 'in_lavorazione', 'test'])
         .order('number');
 
       if (error) throw error;
