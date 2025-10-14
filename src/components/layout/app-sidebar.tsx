@@ -72,6 +72,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Dashboard Direzionale", url: "/direzione/dashboard", icon: LayoutDashboard },
       { title: "Calendario Aziendale", url: "/direzione/calendario", icon: Calendar },
+      { title: "Task Management", url: "/tasks", icon: CheckSquare },
     ]
   },
   {
@@ -172,12 +173,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },
       { title: "Fluida", url: "/hr/fluida", icon: Users },
       { title: "Ticket Restaurant", url: "/hr/ticket-restaurant", icon: UtensilsCrossed },
-    ]
-  },
-  {
-    title: "Planning",
-    items: [
-      { title: "Task Management", url: "/tasks", icon: CheckSquare },
     ]
   },
   {
