@@ -1061,10 +1061,21 @@ export default function CalendarioAziendale() {
               {selectedItem?.item_type === 'lead_activity' && (
                 <>
                   <div>
-                    <h4 className="font-medium mb-1">Azienda Lead</h4>
+                    <h4 className="font-medium mb-1">Lead</h4>
                     <p className="text-sm font-semibold">{selectedItem.leads?.company_name || 'N/A'}</p>
                     {selectedItem.leads?.contact_name && (
                       <p className="text-sm text-muted-foreground">Contatto: {selectedItem.leads.contact_name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-1">Assegnato a</h4>
+                    {selectedItem.profiles ? (
+                      <p className="text-sm text-muted-foreground">
+                        {selectedItem.profiles.first_name} {selectedItem.profiles.last_name}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Non assegnato</p>
                     )}
                   </div>
 
@@ -1086,15 +1097,6 @@ export default function CalendarioAziendale() {
                       {selectedItem.status === 'completed' ? 'Completata' : 'Pianificata'}
                     </Badge>
                   </div>
-
-                  {selectedItem.profiles && (
-                    <div>
-                      <h4 className="font-medium mb-1">Assegnato a</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedItem.profiles.first_name} {selectedItem.profiles.last_name}
-                      </p>
-                    </div>
-                  )}
 
                   <div>
                     <h4 className="font-medium mb-1">Data e Ora</h4>
