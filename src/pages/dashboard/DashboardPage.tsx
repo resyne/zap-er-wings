@@ -316,20 +316,20 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* All Activities Combined */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* CRM Activities (Lead + Opportunities) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Tutte le Attività
+              <Users className="w-5 h-5" />
+              Attività CRM
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {totalTasks === 0 ? (
+              {(leadActivities.length + activities.length) === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
-                  Nessuna attività assegnata
+                  Nessuna attività CRM
                 </p>
               ) : (
                 <>
@@ -376,51 +376,13 @@ export function DashboardPage() {
                     );
                   })}
 
-                  {/* Tasks */}
-                  {tasks.map((task) => (
-                    <div key={`task-${task.id}`} className="p-3 border rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Task</Badge>
-                            <h4 className="font-medium">{task.title}</h4>
-                            <Badge variant={getPriorityColor(task.priority) as any}>
-                              {task.priority}
-                            </Badge>
-                          </div>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {task.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span className="capitalize">{task.category}</span>
-                            {task.due_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {format(new Date(task.due_date), "dd MMM yyyy", { locale: it })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markTaskCompleted(task.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* CRM Activities */}
+                  {/* Opportunity Activities */}
                   {activities.map((activity) => (
                     <div key={`crm-${activity.id}`} className="p-3 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">CRM</Badge>
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Opportunità</Badge>
                             <h4 className="font-medium">{activity.title}</h4>
                           </div>
                           {activity.description && (
@@ -430,7 +392,7 @@ export function DashboardPage() {
                           )}
                           {activity.opportunity?.name && (
                             <p className="text-sm text-blue-600 mt-1">
-                              Opportunità: {activity.opportunity.name}
+                              {activity.opportunity.name}
                             </p>
                           )}
                           {activity.scheduled_date && (
@@ -450,45 +412,117 @@ export function DashboardPage() {
                       </div>
                     </div>
                   ))}
-
-                  {/* General Requests */}
-                  {requests.map((request) => (
-                    <div key={`request-${request.id}`} className="p-3 border rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Richiesta</Badge>
-                            <h4 className="font-medium">{request.title}</h4>
-                            <Badge variant={getPriorityColor(request.priority) as any}>
-                              {request.priority}
-                            </Badge>
-                          </div>
-                          {request.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {request.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>Tipo: {request.type}</span>
-                            {request.due_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {format(new Date(request.due_date), "dd MMM yyyy", { locale: it })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markRequestCompleted(request.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
                 </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recurring Tasks */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Attività Ricorrenti
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {tasks.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nessuna attività ricorrente
+                </p>
+              ) : (
+                tasks.map((task) => (
+                  <div key={`task-${task.id}`} className="p-3 border rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium">{task.title}</h4>
+                          <Badge variant={getPriorityColor(task.priority) as any}>
+                            {task.priority}
+                          </Badge>
+                        </div>
+                        {task.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {task.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span className="capitalize">{task.category}</span>
+                          {task.due_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(task.due_date), "dd MMM yyyy", { locale: it })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => markTaskCompleted(task.id)}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Requests */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Attività Richieste
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {requests.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nessuna richiesta
+                </p>
+              ) : (
+                requests.map((request) => (
+                  <div key={`request-${request.id}`} className="p-3 border rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium">{request.title}</h4>
+                          <Badge variant={getPriorityColor(request.priority) as any}>
+                            {request.priority}
+                          </Badge>
+                        </div>
+                        {request.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {request.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span>Tipo: {request.type}</span>
+                          {request.due_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(request.due_date), "dd MMM yyyy", { locale: it })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => markRequestCompleted(request.id)}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </CardContent>
