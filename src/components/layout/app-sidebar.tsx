@@ -177,7 +177,6 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Planning",
     items: [
-      { title: "Calendario", url: "/calendar", icon: Calendar },
       { title: "Task Management", url: "/tasks", icon: CheckSquare },
     ]
   },
