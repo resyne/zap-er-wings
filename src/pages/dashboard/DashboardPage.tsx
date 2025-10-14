@@ -275,7 +275,7 @@ export function DashboardPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Attività Totali</CardTitle>
@@ -284,7 +284,7 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalTasks}</div>
             <p className="text-xs text-muted-foreground">
-              Tutte le attività
+              Tutte le attività assegnate
             </p>
           </CardContent>
         </Card>
@@ -297,269 +297,198 @@ export function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold text-destructive">{urgentTasks}</div>
             <p className="text-xs text-muted-foreground">
-              Entro 24h
+              Scadono entro 24h
             </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Task</CardTitle>
+            <CardTitle className="text-sm font-medium">Task Generali</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{tasks.length}</div>
             <p className="text-xs text-muted-foreground">
-              Task assegnate
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lead</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{leadActivities.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Attività lead
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CRM</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activities.length + requests.length}</div>
-            <p className="text-xs text-muted-foreground">
-              CRM e richieste
+              Task sistema
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Tasks */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* All Activities Combined */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5" />
-              Task
+              <Clock className="w-5 h-5" />
+              Tutte le Attività
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {tasks.length === 0 ? (
+              {totalTasks === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
-                  Nessuna task assegnata
+                  Nessuna attività assegnata
                 </p>
               ) : (
-                tasks.map((task) => (
-                  <div key={task.id} className="p-3 border rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium">{task.title}</h4>
-                          <Badge variant={getPriorityColor(task.priority) as any}>
-                            {task.priority}
-                          </Badge>
-                        </div>
-                        {task.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {task.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                          <span className="capitalize">{task.category}</span>
-                          {task.due_date && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(task.due_date), "dd MMM yyyy", { locale: it })}
+                <>
+                  {/* Lead Activities */}
+                  {leadActivities.map((activity) => {
+                    const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
+                    return (
+                      <div key={`lead-${activity.id}`} className={`p-3 border rounded-lg ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Lead</Badge>
+                              <h4 className="font-medium capitalize">{activity.activity_type}</h4>
+                              {isOverdue && <Badge variant="destructive">Scaduta</Badge>}
                             </div>
-                          )}
+                            <p className="text-sm text-muted-foreground">
+                              {activity.leads?.company_name || 'Lead'}
+                            </p>
+                            {activity.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {activity.notes}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(activity.activity_date), "dd MMM yyyy", { locale: it })}
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={async () => {
+                              await supabase
+                                .from('lead_activities')
+                                .update({ status: 'completed' })
+                                .eq('id', activity.id);
+                              loadUserTasks();
+                            }}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => markTaskCompleted(task.id)}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    );
+                  })}
 
-        {/* Lead Activities */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Attività Lead
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {leadActivities.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nessuna attività lead
-                </p>
-              ) : (
-                leadActivities.map((activity) => {
-                  const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
-                  return (
-                    <div key={activity.id} className={`p-3 border rounded-lg ${isOverdue ? 'border-l-4 border-l-destructive bg-red-50/50' : ''}`}>
+                  {/* Tasks */}
+                  {tasks.map((task) => (
+                    <div key={`task-${task.id}`} className="p-3 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium capitalize">{activity.activity_type}</h4>
-                            {isOverdue && <Badge variant="destructive">Scaduta</Badge>}
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Task</Badge>
+                            <h4 className="font-medium">{task.title}</h4>
+                            <Badge variant={getPriorityColor(task.priority) as any}>
+                              {task.priority}
+                            </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {activity.leads?.company_name || 'Lead'}
-                          </p>
-                          {activity.notes && (
+                          {task.description && (
                             <p className="text-sm text-muted-foreground mt-1">
-                              {activity.notes}
+                              {task.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(activity.activity_date), "dd MMM yyyy", { locale: it })}
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span className="capitalize">{task.category}</span>
+                            {task.due_date && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(task.due_date), "dd MMM yyyy", { locale: it })}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={async () => {
-                            await supabase
-                              .from('lead_activities')
-                              .update({ status: 'completed' })
-                              .eq('id', activity.id);
-                            loadUserTasks();
-                          }}
+                          onClick={() => markTaskCompleted(task.id)}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  ))}
 
-        {/* CRM Activities */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Attività CRM
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {activities.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nessuna attività CRM assegnata
-                </p>
-              ) : (
-                activities.map((activity) => (
-                  <div key={activity.id} className="p-3 border rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{activity.title}</h4>
-                        {activity.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {activity.description}
-                          </p>
-                        )}
-                        {activity.opportunity?.name && (
-                          <p className="text-sm text-blue-600 mt-1">
-                            Opportunità: {activity.opportunity.name}
-                          </p>
-                        )}
-                        {activity.scheduled_date && (
-                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(activity.scheduled_date), "dd MMM yyyy HH:mm", { locale: it })}
+                  {/* CRM Activities */}
+                  {activities.map((activity) => (
+                    <div key={`crm-${activity.id}`} className="p-3 border rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">CRM</Badge>
+                            <h4 className="font-medium">{activity.title}</h4>
                           </div>
-                        )}
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => markActivityCompleted(activity.id)}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* General Requests */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              Richieste Assegnate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {requests.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nessuna richiesta assegnata
-                </p>
-              ) : (
-                requests.map((request) => (
-                  <div key={request.id} className="p-3 border rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium">{request.title}</h4>
-                          <Badge variant={getPriorityColor(request.priority) as any}>
-                            {request.priority}
-                          </Badge>
-                        </div>
-                        {request.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {request.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                          <span>Tipo: {request.type}</span>
-                          {request.due_date && (
-                            <div className="flex items-center gap-1">
+                          {activity.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {activity.description}
+                            </p>
+                          )}
+                          {activity.opportunity?.name && (
+                            <p className="text-sm text-blue-600 mt-1">
+                              Opportunità: {activity.opportunity.name}
+                            </p>
+                          )}
+                          {activity.scheduled_date && (
+                            <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
                               <Calendar className="w-3 h-3" />
-                              {format(new Date(request.due_date), "dd MMM yyyy", { locale: it })}
+                              {format(new Date(activity.scheduled_date), "dd MMM yyyy HH:mm", { locale: it })}
                             </div>
                           )}
                         </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => markActivityCompleted(activity.id)}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => markRequestCompleted(request.id)}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                  </div>
-                ))
+                  ))}
+
+                  {/* General Requests */}
+                  {requests.map((request) => (
+                    <div key={`request-${request.id}`} className="p-3 border rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Richiesta</Badge>
+                            <h4 className="font-medium">{request.title}</h4>
+                            <Badge variant={getPriorityColor(request.priority) as any}>
+                              {request.priority}
+                            </Badge>
+                          </div>
+                          {request.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {request.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span>Tipo: {request.type}</span>
+                            {request.due_date && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(request.due_date), "dd MMM yyyy", { locale: it })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => markRequestCompleted(request.id)}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           </CardContent>
