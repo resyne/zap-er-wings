@@ -911,7 +911,6 @@ export default function WorkOrdersPage() {
                 <TableRow>
                   <TableHead>Numero</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Ordine di Vendita</TableHead>
                   <TableHead>Priorità</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
@@ -920,13 +919,13 @@ export default function WorkOrdersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       Caricamento ordini di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       Nessun ordine di produzione trovato
                     </TableCell>
                   </TableRow>
@@ -950,13 +949,6 @@ export default function WorkOrdersPage() {
                             <div className="font-medium">{wo.customers.name}</div>
                             <div className="text-sm text-muted-foreground">({wo.customers.code})</div>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {wo.sales_orders ? (
-                          <Badge variant="outline">{wo.sales_orders.number}</Badge>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
