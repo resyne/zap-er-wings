@@ -458,14 +458,14 @@ export function WeeklyRecurringTasks({ category }: WeeklyRecurringTasksProps) {
             <div className="space-y-2">
               <label className="text-sm font-medium">Assegna a:</label>
               <Select 
-                value={newTask.assigned_to} 
-                onValueChange={(value) => setNewTask(prev => ({ ...prev, assigned_to: value }))}
+                value={newTask.assigned_to || "unassigned"} 
+                onValueChange={(value) => setNewTask(prev => ({ ...prev, assigned_to: value === "unassigned" ? "" : value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Nessuno" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
+                  <SelectItem value="unassigned">Nessuno</SelectItem>
                   {profiles.map(profile => (
                     <SelectItem key={profile.id} value={profile.id}>
                       {profile.first_name} {profile.last_name}
