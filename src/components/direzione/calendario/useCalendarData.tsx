@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarItem } from "./types";
@@ -8,9 +8,13 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Memoizza le stringhe ISO per evitare loop infiniti
+  const startISO = useMemo(() => startDate.toISOString(), [startDate.getTime()]);
+  const endISO = useMemo(() => endDate.toISOString(), [endDate.getTime()]);
+
   useEffect(() => {
     loadAllItems();
-  }, [startDate, endDate]);
+  }, [startISO, endISO]);
 
   const loadAllItems = async () => {
     setLoading(true);
@@ -21,8 +25,8 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('id, title, description, due_date, status, priority, category, assigned_to')
-        .gte('due_date', startDate.toISOString())
-        .lte('due_date', endDate.toISOString())
+        .gte('due_date', startISO)
+        .lte('due_date', endISO)
         .not('due_date', 'is', null)
         .eq('is_template', false);
 
@@ -38,8 +42,8 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
       const { data: workOrders, error: woError } = await supabase
         .from('work_orders')
         .select('id, number, title, status, scheduled_date, actual_start_date, actual_end_date')
-        .gte('scheduled_date', startDate.toISOString())
-        .lte('scheduled_date', endDate.toISOString())
+        .gte('scheduled_date', startISO)
+        .lte('scheduled_date', endISO)
         .not('scheduled_date', 'is', null);
 
       if (woError) console.error('Error loading work orders:', woError);
@@ -55,8 +59,8 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
       const { data: serviceOrders, error: soError } = await supabase
         .from('service_work_orders')
         .select('id, number, title, status, scheduled_date, completed_date')
-        .gte('scheduled_date', startDate.toISOString())
-        .lte('scheduled_date', endDate.toISOString())
+        .gte('scheduled_date', startISO)
+        .lte('scheduled_date', endISO)
         .not('scheduled_date', 'is', null);
 
       if (soError) console.error('Error loading service orders:', soError);
@@ -71,8 +75,8 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
       const { data: shippingOrders, error: shipError } = await supabase
         .from('shipping_orders')
         .select('id, number, status, order_date, preparation_date, ready_date, shipped_date')
-        .gte('order_date', startDate.toISOString())
-        .lte('order_date', endDate.toISOString())
+        .gte('order_date', startISO)
+        .lte('order_date', endISO)
         .not('order_date', 'is', null);
 
       if (shipError) console.error('Error loading shipping orders:', shipError);
@@ -87,8 +91,8 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
       const { data: events, error: eventsError } = await supabase
         .from('calendar_events')
         .select('*')
-        .gte('event_date', startDate.toISOString())
-        .lte('event_date', endDate.toISOString());
+        .gte('event_date', startISO)
+        .lte('event_date', endISO);
 
       if (eventsError) console.error('Error loading events:', eventsError);
       if (events) {
@@ -106,8 +110,8 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
           leads (company_name, contact_name),
           profiles!lead_activities_assigned_to_fkey (first_name, last_name)
         `)
-        .gte('activity_date', startDate.toISOString())
-        .lte('activity_date', endDate.toISOString())
+        .gte('activity_date', startISO)
+        .lte('activity_date', endISO)
         .order('activity_date', { ascending: true });
 
       if (leadError) console.error('Error loading lead activities:', leadError);
