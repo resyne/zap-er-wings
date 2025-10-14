@@ -102,13 +102,12 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
         })));
       }
 
-      // Carica lead activities con i profili assegnati
+      // Carica lead activities
       const { data: leadActivities, error: leadError } = await supabase
         .from('lead_activities')
         .select(`
           *,
-          leads (company_name, contact_name),
-          profiles!lead_activities_assigned_to_fkey (first_name, last_name)
+          leads (company_name, contact_name)
         `)
         .gte('activity_date', startISO)
         .lte('activity_date', endISO)
