@@ -97,8 +97,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Distinte Base", url: "/mfg/bom", icon: Database },
       { title: "Ordini di Produzione", url: "/mfg/work-orders", icon: Wrench },
       { title: "Esecuzioni", url: "/mfg/executions", icon: Clock },
-      { title: "Seriali", url: "/mfg/serials", icon: Package },
-      { title: "RMA", url: "/mfg/rma", icon: ClipboardCheck },
     ]
   },
   {
