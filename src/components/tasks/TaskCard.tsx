@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash, CalendarDays, Clock, RotateCcw } from "lucide-react";
+import { MoreHorizontal, Edit, Trash, CalendarDays, Clock, RotateCcw, Archive } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EditTaskDialog } from "./EditTaskDialog";
@@ -32,6 +32,7 @@ interface Task {
   updated_at: string;
   is_recurring?: boolean;
   recurring_day?: number;
+  archived?: boolean;
   profiles?: {
     first_name?: string;
     last_name?: string;
@@ -63,6 +64,33 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+
+  const handleArchive = async () => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ archived: !task.archived })
+        .eq('id', task.id);
+
+      if (error) throw error;
+
+      toast({
+        title: task.archived ? "Task ripristinata" : "Task archiviata",
+        description: task.archived 
+          ? "La task è stata ripristinata dall'archivio" 
+          : "La task è stata archiviata con successo",
+      });
+      
+      onUpdate();
+    } catch (error) {
+      console.error('Error archiving task:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile archiviare/ripristinare il task",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -134,6 +162,28 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                     <Edit className="h-4 w-4 mr-2" />
                     Modifica
                   </DropdownMenuItem>
+                  {task.status === 'completed' && !task.archived && (
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleArchive();
+                      }}
+                    >
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archivia
+                    </DropdownMenuItem>
+                  )}
+                  {task.archived && (
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleArchive();
+                      }}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Ripristina
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem 
                     onClick={(e) => {
                       e.stopPropagation();

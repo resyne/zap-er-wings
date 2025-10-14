@@ -40,6 +40,7 @@ interface Task {
 
 interface TaskKanbanProps {
   category: string;
+  archived?: boolean;
 }
 
 const statusConfig = {
@@ -75,7 +76,7 @@ const statusConfig = {
   }
 };
 
-export function TaskKanban({ category }: TaskKanbanProps) {
+export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recurringTasks, setRecurringTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,22 +85,23 @@ export function TaskKanban({ category }: TaskKanbanProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('Category changed to:', category);
-    setTasks([]); // Clear existing tasks first
+    console.log('Category or archived changed to:', category, archived);
+    setTasks([]);
     setLoading(true);
     fetchTasks();
-  }, [category]);
+  }, [category, archived]);
 
   const fetchTasks = async () => {
     try {
-      console.log('Fetching tasks for category:', category);
+      console.log('Fetching tasks for category:', category, 'archived:', archived);
       
       // Fetch only regular tasks - recurring tasks are excluded from Kanban
       const { data: regularTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('category', category as any)
-        .is('parent_task_id', null) // Exclude tasks that are instances of recurring tasks
+        .eq('archived', archived)
+        .is('parent_task_id', null)
         .order('created_at', { ascending: false });
 
       if (tasksError) throw tasksError;
@@ -107,7 +109,7 @@ export function TaskKanban({ category }: TaskKanbanProps) {
       console.log('Fetched tasks:', regularTasks);
       
       setTasks((regularTasks || []) as Task[]);
-      setRecurringTasks([]); // No recurring tasks in Kanban
+      setRecurringTasks([]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast({

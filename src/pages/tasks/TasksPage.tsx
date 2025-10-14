@@ -3,11 +3,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Kanban } from "lucide-react";
+import { Plus, Calendar, Kanban, Archive } from "lucide-react";
 import { TaskKanban } from "@/components/tasks/TaskKanban";
 import { TaskCalendar } from "@/components/tasks/TaskCalendar";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { WeeklyRecurringTasks } from "@/components/tasks/WeeklyRecurringTasks";
+
+type TaskView = 'active' | 'archive';
 
 type TaskCategory = 'amministrazione' | 'back_office' | 'ricerca_sviluppo' | 'tecnico';
 type ViewMode = 'kanban' | 'calendar';
@@ -15,6 +17,7 @@ type ViewMode = 'kanban' | 'calendar';
 export function TasksPage() {
   const [activeCategory, setActiveCategory] = useState<TaskCategory>('amministrazione');
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [taskView, setTaskView] = useState<TaskView>('active');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const categories = [
@@ -58,28 +61,52 @@ export function TasksPage() {
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-lg border">
             <Button
-              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              variant={taskView === 'active' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setViewMode('kanban')}
+              onClick={() => setTaskView('active')}
               className="rounded-r-none"
             >
               <Kanban className="w-4 h-4 mr-2" />
-              Kanban
+              Attive
             </Button>
             <Button
-              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              variant={taskView === 'archive' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setViewMode('calendar')}
+              onClick={() => setTaskView('archive')}
               className="rounded-l-none"
             >
-              <Calendar className="w-4 h-4 mr-2" />
-              Calendario
+              <Archive className="w-4 h-4 mr-2" />
+              Archivio
             </Button>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuovo Task
-          </Button>
+          {taskView === 'active' && (
+            <>
+              <div className="flex items-center rounded-lg border">
+                <Button
+                  variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('kanban')}
+                  className="rounded-r-none"
+                >
+                  <Kanban className="w-4 h-4 mr-2" />
+                  Kanban
+                </Button>
+                <Button
+                  variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                  className="rounded-l-none"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Calendario
+                </Button>
+              </div>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nuovo Task
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -107,25 +134,44 @@ export function TasksPage() {
               </CardHeader>
             </Card>
 
-            <WeeklyRecurringTasks category={category.key} />
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Task Richieste
-                </CardTitle>
-                <CardDescription>
-                  Gestisci le task assegnate e i loro stati di avanzamento
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {viewMode === 'kanban' ? (
-                  <TaskKanban category={category.key} />
-                ) : (
-                  <TaskCalendar category={category.key} />
-                )}
-              </CardContent>
-            </Card>
+            {taskView === 'active' ? (
+              <>
+                <WeeklyRecurringTasks category={category.key} />
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      Task Richieste
+                    </CardTitle>
+                    <CardDescription>
+                      Gestisci le task assegnate e i loro stati di avanzamento
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {viewMode === 'kanban' ? (
+                      <TaskKanban category={category.key} archived={false} />
+                    ) : (
+                      <TaskCalendar category={category.key} />
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Archive className="w-5 h-5" />
+                    Archivio Task
+                  </CardTitle>
+                  <CardDescription>
+                    Task completate e archiviate
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TaskKanban category={category.key} archived={true} />
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         ))}
       </Tabs>

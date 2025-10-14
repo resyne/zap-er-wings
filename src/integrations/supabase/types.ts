@@ -4599,6 +4599,7 @@ export type Database = {
       tasks: {
         Row: {
           actual_hours: number | null
+          archived: boolean
           assigned_to: string | null
           category: Database["public"]["Enums"]["task_category"]
           completed_at: string | null
@@ -4618,6 +4619,7 @@ export type Database = {
         }
         Insert: {
           actual_hours?: number | null
+          archived?: boolean
           assigned_to?: string | null
           category: Database["public"]["Enums"]["task_category"]
           completed_at?: string | null
@@ -4637,6 +4639,7 @@ export type Database = {
         }
         Update: {
           actual_hours?: number | null
+          archived?: boolean
           assigned_to?: string | null
           category?: Database["public"]["Enums"]["task_category"]
           completed_at?: string | null
