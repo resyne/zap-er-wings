@@ -1,8 +1,25 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogIn, ArrowRight } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 
 const Index = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Se l'utente è loggato, reindirizza alla dashboard personale
+    if (user) {
+      navigate("/personal-area");
+    }
+  }, [user, navigate]);
+
+  // Se l'utente è loggato, non mostrare nulla (sta per essere reindirizzato)
+  if (user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
       <div className="text-center space-y-6 max-w-4xl w-full">
@@ -15,12 +32,6 @@ const Index = () => {
             <Button size="lg" className="gap-2 w-full sm:w-auto">
               <LogIn className="w-4 h-4 md:w-5 md:h-5" />
               <span className="text-sm md:text-base">Accedi alla Dashboard</span>
-            </Button>
-          </Link>
-          <Link to="/dashboard" className="w-full sm:w-auto">
-            <Button variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
-              <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-sm md:text-base">Dashboard (se già loggato)</span>
             </Button>
           </Link>
         </div>
