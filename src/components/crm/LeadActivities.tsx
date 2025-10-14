@@ -61,6 +61,8 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [activityToComplete, setActivityToComplete] = useState<LeadActivity | null>(null);
   const [editingActivity, setEditingActivity] = useState<LeadActivity | null>(null);
   const [newActivity, setNewActivity] = useState({
     activity_type: "",
@@ -68,6 +70,13 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
     assigned_to: "",
     notes: "",
     status: "scheduled"
+  });
+  const [completionData, setCompletionData] = useState({
+    notes: "",
+    next_activity_type: "",
+    next_activity_date: "",
+    next_activity_assigned_to: "",
+    next_activity_notes: ""
   });
   const { toast } = useToast();
 
@@ -196,26 +205,101 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
   };
 
   const handleCompleteActivity = async (activity: LeadActivity) => {
+    setActivityToComplete(activity);
+    setCompletionData({
+      notes: "",
+      next_activity_type: "",
+      next_activity_date: "",
+      next_activity_assigned_to: "",
+      next_activity_notes: ""
+    });
+    setIsCompleteDialogOpen(true);
+  };
+
+  const confirmCompleteActivity = async () => {
+    if (!activityToComplete) return;
+
+    // Validazione obbligatoria
+    if (!completionData.notes.trim()) {
+      toast({
+        title: "Nota obbligatoria",
+        description: "Devi inserire una nota per completare l'attività",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!completionData.next_activity_type || !completionData.next_activity_date) {
+      toast({
+        title: "Prossima attività obbligatoria",
+        description: "Devi pianificare la prossima attività",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      const { error } = await supabase
+      // Completa l'attività corrente con la nota
+      const { error: updateError } = await supabase
         .from("lead_activities")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
-          completed_by: user.id
+          completed_by: user.id,
+          notes: completionData.notes
         })
-        .eq("id", activity.id);
+        .eq("id", activityToComplete.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Crea la prossima attività
+      const { error: insertError } = await supabase
+        .from("lead_activities")
+        .insert([{
+          lead_id: leadId,
+          activity_type: completionData.next_activity_type,
+          activity_date: new Date(completionData.next_activity_date).toISOString(),
+          assigned_to: completionData.next_activity_assigned_to || null,
+          notes: completionData.next_activity_notes || null,
+          status: "scheduled",
+          created_by: user.id
+        }]);
+
+      if (insertError) throw insertError;
+
+      // Aggiorna il lead con la prossima attività
+      await supabase
+        .from("leads")
+        .update({
+          next_activity_type: completionData.next_activity_type,
+          next_activity_date: new Date(completionData.next_activity_date).toISOString(),
+          next_activity_assigned_to: completionData.next_activity_assigned_to || null,
+          next_activity_notes: completionData.next_activity_notes || null
+        })
+        .eq("id", leadId);
+
+      // Aggiungi al calendario se assegnata
+      if (completionData.next_activity_assigned_to) {
+        await supabase.from("calendar_events").insert([{
+          user_id: completionData.next_activity_assigned_to,
+          title: `Lead Activity: ${completionData.next_activity_type}`,
+          description: completionData.next_activity_notes || "",
+          event_date: new Date(completionData.next_activity_date).toISOString(),
+          event_type: "lead_activity",
+          color: "blue"
+        }]);
+      }
 
       toast({
         title: "Attività completata",
-        description: "L'attività è stata segnata come completata",
+        description: "L'attività è stata completata e la prossima attività è stata pianificata",
       });
 
+      setIsCompleteDialogOpen(false);
+      setActivityToComplete(null);
       loadActivities();
     } catch (error: any) {
       toast({
@@ -547,6 +631,141 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Dialog per completamento attività */}
+      <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Completa Attività</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-1">Attività da completare:</p>
+              <p className="text-sm text-muted-foreground capitalize">
+                {activityToComplete && getActivityTypeLabel(activityToComplete.activity_type)}
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="completion_notes">Nota di chiusura *</Label>
+              <Textarea
+                id="completion_notes"
+                value={completionData.notes}
+                onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })}
+                placeholder="Descrivi l'esito dell'attività..."
+                rows={3}
+                className="mt-1"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Campo obbligatorio
+              </p>
+            </div>
+
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Prossima Attività *</h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="next_type">Tipo Attività *</Label>
+                  <Select
+                    value={completionData.next_activity_type}
+                    onValueChange={(value) => setCompletionData({ ...completionData, next_activity_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activityTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="next_date">Data e Ora *</Label>
+                  <div className="flex gap-2 mb-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const date = new Date();
+                        date.setDate(date.getDate() + 1);
+                        setCompletionData({ ...completionData, next_activity_date: date.toISOString().slice(0, 16) });
+                      }}
+                    >
+                      +1 giorno
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const date = new Date();
+                        date.setDate(date.getDate() + 7);
+                        setCompletionData({ ...completionData, next_activity_date: date.toISOString().slice(0, 16) });
+                      }}
+                    >
+                      +7 giorni
+                    </Button>
+                  </div>
+                  <Input
+                    id="next_date"
+                    type="datetime-local"
+                    value={completionData.next_activity_date}
+                    onChange={(e) => setCompletionData({ ...completionData, next_activity_date: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="next_assigned">Assegnato a</Label>
+                  <Select
+                    value={completionData.next_activity_assigned_to}
+                    onValueChange={(value) => setCompletionData({ ...completionData, next_activity_assigned_to: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona utente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="next_notes">Note</Label>
+                  <Textarea
+                    id="next_notes"
+                    value={completionData.next_activity_notes}
+                    onChange={(e) => setCompletionData({ ...completionData, next_activity_notes: e.target.value })}
+                    placeholder="Note sulla prossima attività..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={confirmCompleteActivity}>
+              Completa e Pianifica
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
