@@ -23,6 +23,9 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
 
     // Set canvas size based on container
     const resizeCanvas = () => {
+      // Save current canvas content if not empty
+      const savedData = !isEmpty ? canvas.toDataURL() : null;
+      
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       
@@ -46,6 +49,15 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
       // Clear canvas with white background
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Restore saved content if exists
+      if (savedData) {
+        const img = new Image();
+        img.onload = () => {
+          context.drawImage(img, 0, 0, rect.width, 200);
+        };
+        img.src = savedData;
+      }
     };
 
     resizeCanvas();
@@ -54,7 +66,7 @@ export function SignatureCanvas({ onSignatureChange, placeholder = "Firma qui" }
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, []);
+  }, [isEmpty]);
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
