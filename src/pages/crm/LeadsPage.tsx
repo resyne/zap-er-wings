@@ -745,11 +745,11 @@ export default function LeadsPage() {
                 Nuovo Lead
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crea Nuovo Lead</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 pb-4">
                 <div className="col-span-2">
                   <Label htmlFor="company_name">Nome Azienda *</Label>
                   <Input
@@ -1787,11 +1787,11 @@ export default function LeadsPage() {
 
       {/* Edit Lead Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifica Lead</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 pb-4">
             <div className="col-span-2">
               <Label htmlFor="edit_company_name">Nome Azienda *</Label>
               <Input
