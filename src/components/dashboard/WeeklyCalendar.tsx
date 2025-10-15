@@ -34,7 +34,18 @@ interface CalendarEvent {
   all_day: boolean;
 }
 
-type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' });
+interface Ticket {
+  id: string;
+  number: string;
+  title: string;
+  description?: string | null;
+  scheduled_date: string;
+  status: string;
+  priority: string;
+  customer_name: string;
+}
+
+type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' });
 
 const statusColors = {
   todo: "bg-blue-100 text-blue-800 border-blue-200",
@@ -66,6 +77,7 @@ export function WeeklyCalendar() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -118,8 +130,20 @@ export function WeeklyCalendar() {
 
       if (eventsError) throw eventsError;
 
+      // Load tickets with scheduled date
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('assigned_to', user.id)
+        .not('scheduled_date', 'is', null)
+        .gte('scheduled_date', weekStart.toISOString())
+        .lte('scheduled_date', weekEnd.toISOString());
+
+      if (ticketsError) throw ticketsError;
+
       setTasks(tasksData || []);
       setEvents(eventsData || []);
+      setTickets(ticketsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -148,7 +172,14 @@ export function WeeklyCalendar() {
       })
       .map(event => ({ ...event, item_type: 'event' as const }));
 
-    return [...dayTasks, ...dayEvents];
+    const dayTickets = tickets
+      .filter(ticket => {
+        const ticketDate = parseISO(ticket.scheduled_date);
+        return isSameDay(ticketDate, day);
+      })
+      .map(ticket => ({ ...ticket, item_type: 'ticket' as const }));
+
+    return [...dayTasks, ...dayEvents, ...dayTickets];
   };
 
   const handleCreateEvent = async () => {
@@ -290,7 +321,8 @@ export function WeeklyCalendar() {
                 ) : (
                   dayItems.map((item) => {
                     const isTask = item.item_type === 'task';
-                    const borderColor = isTask ? 'border-l-primary' : `border-l-${item.color}-400`;
+                    const isTicket = item.item_type === 'ticket';
+                    const borderColor = isTask ? 'border-l-primary' : isTicket ? 'border-l-orange-400' : `border-l-${item.color}-400`;
                     
                     return (
                       <div
@@ -309,6 +341,11 @@ export function WeeklyCalendar() {
                             <Badge className={priorityColors[(item as Task).priority as keyof typeof priorityColors] + " text-[10px] h-4"}>
                               {priorityLabels[(item as Task).priority as keyof typeof priorityLabels]}
                             </Badge>
+                          ) : isTicket ? (
+                            <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <Badge variant="outline" className="text-[10px] h-4">Ticket</Badge>
+                              {format(parseISO((item as Ticket).scheduled_date), "HH:mm")}
+                            </div>
                           ) : (
                             <div className="text-[10px] text-muted-foreground">
                               {!(item as CalendarEvent).all_day && format(parseISO((item as CalendarEvent).event_date), "HH:mm")}
@@ -443,7 +480,7 @@ export function WeeklyCalendar() {
               {selectedItem?.title}
             </DialogTitle>
             <DialogDescription>
-              {selectedItem?.item_type === 'task' ? 'Task' : 'Evento'}
+              {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : 'Evento'}
             </DialogDescription>
           </DialogHeader>
           
@@ -485,6 +522,38 @@ export function WeeklyCalendar() {
                       </p>
                     </div>
                   )}
+                </>
+              ) : selectedItem.item_type === 'ticket' ? (
+                <>
+                  <div>
+                    <h4 className="font-medium mb-1">Numero</h4>
+                    <p className="text-sm text-muted-foreground">{(selectedItem as Ticket).number}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Cliente</h4>
+                    <p className="text-sm text-muted-foreground">{(selectedItem as Ticket).customer_name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge className="text-sm">
+                      {(selectedItem as Ticket).status === 'open' ? 'Aperto' :
+                       (selectedItem as Ticket).status === 'in_progress' ? 'In Lavorazione' :
+                       (selectedItem as Ticket).status === 'resolved' ? 'Risolto' : 'Chiuso'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Priorità</h4>
+                    <Badge className="text-sm">
+                      {(selectedItem as Ticket).priority === 'low' ? 'Bassa' :
+                       (selectedItem as Ticket).priority === 'medium' ? 'Media' : 'Alta'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Data di Gestione</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {format(parseISO((selectedItem as Ticket).scheduled_date), "PPP 'alle' HH:mm", { locale: it })}
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>
