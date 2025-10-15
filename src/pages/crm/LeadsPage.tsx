@@ -38,6 +38,17 @@ interface Lead {
   next_activity_assigned_to?: string;
   created_at: string;
   updated_at: string;
+  custom_fields?: {
+    // ZAPPER fields
+    tipo_attivita?: string;
+    diametro_canna_fumaria?: string;
+    luogo?: string;
+    installazione?: boolean;
+    // VESUVIANO fields
+    dimensioni_forno?: string;
+    alimentazione?: string;
+    pronta_consegna?: boolean;
+  };
 }
 
 interface Offer {
@@ -105,6 +116,14 @@ export default function LeadsPage() {
     next_activity_date: "",
     next_activity_notes: "",
     next_activity_assigned_to: null,
+    // Custom fields
+    tipo_attivita: "",
+    diametro_canna_fumaria: "",
+    luogo: "",
+    installazione: false,
+    dimensioni_forno: "",
+    alimentazione: "",
+    pronta_consegna: false,
   });
   const { toast } = useToast();
 
@@ -168,12 +187,35 @@ export default function LeadsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Prepare custom fields based on pipeline
+      const custom_fields: any = {};
+      if (newLead.pipeline === "ZAPPER") {
+        custom_fields.tipo_attivita = newLead.tipo_attivita;
+        custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria;
+        custom_fields.luogo = newLead.luogo;
+        custom_fields.installazione = newLead.installazione;
+      } else if (newLead.pipeline === "Vesuviano") {
+        custom_fields.dimensioni_forno = newLead.dimensioni_forno;
+        custom_fields.alimentazione = newLead.alimentazione;
+        custom_fields.pronta_consegna = newLead.pronta_consegna;
+      }
+
       const leadData = {
-        ...newLead,
+        company_name: newLead.company_name,
+        contact_name: newLead.contact_name,
+        email: newLead.email,
+        phone: newLead.phone,
         value: newLead.value ? parseFloat(newLead.value) : null,
+        source: newLead.source,
+        status: newLead.status,
         pipeline: newLead.pipeline || selectedPipeline,
+        country: newLead.country,
+        notes: newLead.notes,
+        next_activity_type: newLead.next_activity_type,
         next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null,
-        next_activity_assigned_to: newLead.next_activity_assigned_to || null
+        next_activity_notes: newLead.next_activity_notes,
+        next_activity_assigned_to: newLead.next_activity_assigned_to || null,
+        custom_fields
       };
       
       const { data: newLeadData, error } = await supabase
@@ -243,6 +285,14 @@ export default function LeadsPage() {
       next_activity_date: lead.next_activity_date ? new Date(lead.next_activity_date).toISOString().slice(0, 16) : "",
       next_activity_notes: lead.next_activity_notes || "",
       next_activity_assigned_to: lead.next_activity_assigned_to || "",
+      // Custom fields
+      tipo_attivita: lead.custom_fields?.tipo_attivita || "",
+      diametro_canna_fumaria: lead.custom_fields?.diametro_canna_fumaria || "",
+      luogo: lead.custom_fields?.luogo || "",
+      installazione: lead.custom_fields?.installazione || false,
+      dimensioni_forno: lead.custom_fields?.dimensioni_forno || "",
+      alimentazione: lead.custom_fields?.alimentazione || "",
+      pronta_consegna: lead.custom_fields?.pronta_consegna || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -254,10 +304,35 @@ export default function LeadsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Prepare custom fields based on pipeline
+      const custom_fields: any = {};
+      if (newLead.pipeline === "ZAPPER") {
+        custom_fields.tipo_attivita = newLead.tipo_attivita;
+        custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria;
+        custom_fields.luogo = newLead.luogo;
+        custom_fields.installazione = newLead.installazione;
+      } else if (newLead.pipeline === "Vesuviano") {
+        custom_fields.dimensioni_forno = newLead.dimensioni_forno;
+        custom_fields.alimentazione = newLead.alimentazione;
+        custom_fields.pronta_consegna = newLead.pronta_consegna;
+      }
+
       const leadData = {
-        ...newLead,
+        company_name: newLead.company_name,
+        contact_name: newLead.contact_name,
+        email: newLead.email,
+        phone: newLead.phone,
         value: newLead.value ? parseFloat(newLead.value) : null,
-        next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null
+        source: newLead.source,
+        status: newLead.status,
+        pipeline: newLead.pipeline,
+        country: newLead.country,
+        notes: newLead.notes,
+        next_activity_type: newLead.next_activity_type,
+        next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null,
+        next_activity_notes: newLead.next_activity_notes,
+        next_activity_assigned_to: newLead.next_activity_assigned_to || null,
+        custom_fields
       };
       
       const { error } = await supabase
@@ -372,6 +447,14 @@ export default function LeadsPage() {
       next_activity_date: "",
       next_activity_notes: "",
       next_activity_assigned_to: null,
+      // Custom fields
+      tipo_attivita: "",
+      diametro_canna_fumaria: "",
+      luogo: "",
+      installazione: false,
+      dimensioni_forno: "",
+      alimentazione: "",
+      pronta_consegna: false,
     });
   };
 
@@ -790,6 +873,98 @@ export default function LeadsPage() {
                     rows={3}
                   />
                 </div>
+
+                {/* Custom fields based on pipeline */}
+                {newLead.pipeline === "ZAPPER" && (
+                  <div className="col-span-2 border-t pt-4">
+                    <h4 className="font-medium mb-3">Informazioni ZAPPER</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="tipo_attivita">Tipo di attività</Label>
+                        <Input
+                          id="tipo_attivita"
+                          value={newLead.tipo_attivita}
+                          onChange={(e) => setNewLead({...newLead, tipo_attivita: e.target.value})}
+                          placeholder="Es. Ristorante, Pizzeria..."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="diametro_canna_fumaria">Diametro canna fumaria</Label>
+                        <Input
+                          id="diametro_canna_fumaria"
+                          value={newLead.diametro_canna_fumaria}
+                          onChange={(e) => setNewLead({...newLead, diametro_canna_fumaria: e.target.value})}
+                          placeholder="Es. 250mm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="luogo">Luogo</Label>
+                        <Input
+                          id="luogo"
+                          value={newLead.luogo}
+                          onChange={(e) => setNewLead({...newLead, luogo: e.target.value})}
+                          placeholder="Indirizzo di installazione"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="installazione"
+                          checked={newLead.installazione}
+                          onChange={(e) => setNewLead({...newLead, installazione: e.target.checked})}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="installazione" className="cursor-pointer">
+                          Richiede installazione
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {newLead.pipeline === "Vesuviano" && (
+                  <div className="col-span-2 border-t pt-4">
+                    <h4 className="font-medium mb-3">Informazioni Vesuviano</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="dimensioni_forno">Dimensioni forno richiesto</Label>
+                        <Input
+                          id="dimensioni_forno"
+                          value={newLead.dimensioni_forno}
+                          onChange={(e) => setNewLead({...newLead, dimensioni_forno: e.target.value})}
+                          placeholder="Es. 80cm, 100cm, 120cm..."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="alimentazione">Alimentazione</Label>
+                        <Select value={newLead.alimentazione} onValueChange={(value) => setNewLead({...newLead, alimentazione: value})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona alimentazione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gas">Gas</SelectItem>
+                            <SelectItem value="legna">Legna</SelectItem>
+                            <SelectItem value="elettrico">Elettrico</SelectItem>
+                            <SelectItem value="misto">Misto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <input
+                          type="checkbox"
+                          id="pronta_consegna"
+                          checked={newLead.pronta_consegna}
+                          onChange={(e) => setNewLead({...newLead, pronta_consegna: e.target.checked})}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="pronta_consegna" className="cursor-pointer">
+                          Pronta consegna
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="col-span-2 border-t pt-4">
                   <h4 className="font-medium mb-3">Prossima Attività</h4>
                   <div className="grid grid-cols-2 gap-4">
@@ -1725,6 +1900,98 @@ export default function LeadsPage() {
                 rows={3}
               />
             </div>
+
+            {/* Custom fields based on pipeline - EDIT MODE */}
+            {newLead.pipeline === "ZAPPER" && (
+              <div className="col-span-2 border-t pt-4">
+                <h4 className="font-medium mb-3">Informazioni ZAPPER</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_tipo_attivita">Tipo di attività</Label>
+                    <Input
+                      id="edit_tipo_attivita"
+                      value={newLead.tipo_attivita}
+                      onChange={(e) => setNewLead({...newLead, tipo_attivita: e.target.value})}
+                      placeholder="Es. Ristorante, Pizzeria..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_diametro_canna_fumaria">Diametro canna fumaria</Label>
+                    <Input
+                      id="edit_diametro_canna_fumaria"
+                      value={newLead.diametro_canna_fumaria}
+                      onChange={(e) => setNewLead({...newLead, diametro_canna_fumaria: e.target.value})}
+                      placeholder="Es. 250mm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_luogo">Luogo</Label>
+                    <Input
+                      id="edit_luogo"
+                      value={newLead.luogo}
+                      onChange={(e) => setNewLead({...newLead, luogo: e.target.value})}
+                      placeholder="Indirizzo di installazione"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="edit_installazione"
+                      checked={newLead.installazione}
+                      onChange={(e) => setNewLead({...newLead, installazione: e.target.checked})}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="edit_installazione" className="cursor-pointer">
+                      Richiede installazione
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {newLead.pipeline === "Vesuviano" && (
+              <div className="col-span-2 border-t pt-4">
+                <h4 className="font-medium mb-3">Informazioni Vesuviano</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_dimensioni_forno">Dimensioni forno richiesto</Label>
+                    <Input
+                      id="edit_dimensioni_forno"
+                      value={newLead.dimensioni_forno}
+                      onChange={(e) => setNewLead({...newLead, dimensioni_forno: e.target.value})}
+                      placeholder="Es. 80cm, 100cm, 120cm..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_alimentazione">Alimentazione</Label>
+                    <Select value={newLead.alimentazione} onValueChange={(value) => setNewLead({...newLead, alimentazione: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona alimentazione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gas">Gas</SelectItem>
+                        <SelectItem value="legna">Legna</SelectItem>
+                        <SelectItem value="elettrico">Elettrico</SelectItem>
+                        <SelectItem value="misto">Misto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2 col-span-2">
+                    <input
+                      type="checkbox"
+                      id="edit_pronta_consegna"
+                      checked={newLead.pronta_consegna}
+                      onChange={(e) => setNewLead({...newLead, pronta_consegna: e.target.checked})}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="edit_pronta_consegna" className="cursor-pointer">
+                      Pronta consegna
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="col-span-2 border-t pt-4">
               <h4 className="font-medium mb-3">Prossima Attività</h4>
               <div className="grid grid-cols-2 gap-4">
