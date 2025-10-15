@@ -143,13 +143,13 @@ export function DashboardPage() {
 
       if (requestsError) throw requestsError;
 
-      // Load tasks assigned to user
+      // Load tasks assigned to user (including recurring tasks)
       const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
         .select("*")
         .eq("assigned_to", user.id)
         .neq("status", "completed")
-        .or("is_template.is.null,is_template.eq.false")
+        .eq("is_template", false)
         .order("due_date", { ascending: true, nullsFirst: false });
 
       if (tasksError) throw tasksError;
