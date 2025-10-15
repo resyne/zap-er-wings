@@ -906,40 +906,42 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {/* Accessori selection - Always available */}
-              <div>
-                <Label htmlFor="accessori">Accessori (Opzionali)</Label>
-                <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
-                  {accessori.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nessun accessorio disponibile</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {accessori.map(accessorio => (
-                        <div key={accessorio.id} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`accessorio-${accessorio.id}`}
-                            checked={newOrder.accessori_ids.includes(accessorio.id)}
-                            onChange={(e) => {
-                              const isChecked = e.target.checked;
-                              setNewOrder(prev => ({
-                                ...prev,
-                                accessori_ids: isChecked 
-                                  ? [...prev.accessori_ids, accessorio.id]
-                                  : prev.accessori_ids.filter(id => id !== accessorio.id)
-                              }));
-                            }}
-                            className="rounded"
-                          />
-                          <label htmlFor={`accessorio-${accessorio.id}`} className="text-sm">
-                            {accessorio.name} (v{accessorio.version})
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Accessori selection - Only for production orders */}
+              {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
+                <div>
+                  <Label htmlFor="accessori">Accessori (Opzionali)</Label>
+                  <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
+                    {accessori.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nessun accessorio disponibile</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {accessori.map(accessorio => (
+                          <div key={accessorio.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`accessorio-${accessorio.id}`}
+                              checked={newOrder.accessori_ids.includes(accessorio.id)}
+                              onChange={(e) => {
+                                const isChecked = e.target.checked;
+                                setNewOrder(prev => ({
+                                  ...prev,
+                                  accessori_ids: isChecked 
+                                    ? [...prev.accessori_ids, accessorio.id]
+                                    : prev.accessori_ids.filter(id => id !== accessorio.id)
+                                }));
+                              }}
+                              className="rounded"
+                            />
+                            <label htmlFor={`accessorio-${accessorio.id}`} className="text-sm">
+                              {accessorio.name} (v{accessorio.version})
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {(newOrder.order_type === 'odl' || newOrder.order_type === 'odpel') && (
                 <div>
