@@ -66,7 +66,7 @@ export default function WorkOrdersPage() {
   
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
   const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
@@ -502,18 +502,30 @@ export default function WorkOrdersPage() {
       wo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       wo.boms?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === "all" || wo.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === "all") {
+      matchesStatus = true;
+    } else if (statusFilter === "active") {
+      // Mostra solo ordini non completati
+      matchesStatus = wo.status !== 'spediti_consegnati' && wo.status !== 'completed' && wo.status !== 'closed';
+    } else if (statusFilter === "archive") {
+      // Mostra solo ordini archiviati (completati/spediti)
+      matchesStatus = wo.status === 'spediti_consegnati' || wo.status === 'completed' || wo.status === 'closed';
+    } else {
+      matchesStatus = wo.status === statusFilter;
+    }
     
     return matchesSearch && matchesStatus;
   });
 
   const statusCounts = {
     all: workOrders.length,
+    active: workOrders.filter(wo => wo.status !== 'spediti_consegnati' && wo.status !== 'completed' && wo.status !== 'closed').length,
     to_do: workOrders.filter(wo => normalizeStatus(wo.status) === 'to_do').length,
     in_lavorazione: workOrders.filter(wo => normalizeStatus(wo.status) === 'in_lavorazione').length,
     test: workOrders.filter(wo => normalizeStatus(wo.status) === 'test').length,
     pronti: workOrders.filter(wo => normalizeStatus(wo.status) === 'pronti').length,
-    spediti_consegnati: workOrders.filter(wo => normalizeStatus(wo.status) === 'spediti_consegnati').length,
+    archive: workOrders.filter(wo => wo.status === 'spediti_consegnati' || wo.status === 'completed' || wo.status === 'closed').length,
   };
 
   const workOrderStatuses = ['to_do', 'in_lavorazione', 'test', 'pronti', 'spediti_consegnati'];
@@ -832,7 +844,7 @@ export default function WorkOrdersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
         {Object.entries(statusCounts).map(([status, count]) => (
           <Card 
             key={status} 
@@ -844,11 +856,12 @@ export default function WorkOrdersPage() {
                 <div className="text-2xl font-bold">{count}</div>
                 <div className="text-sm text-muted-foreground capitalize">
                   {status === 'all' ? 'Tutti' : 
+                   status === 'active' ? 'Attivi' :
                    status === 'to_do' ? 'Da Fare' :
                    status === 'in_lavorazione' ? 'In Lavorazione' :
                    status === 'test' ? 'Test' :
                    status === 'pronti' ? 'Pronti' :
-                   status === 'spediti_consegnati' ? 'Spediti' : status.replace('_', ' ')}
+                   status === 'archive' ? 'Archivio' : status.replace('_', ' ')}
                 </div>
               </div>
             </CardContent>
