@@ -17,12 +17,14 @@ import {
   LogOut,
   Settings,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Check
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek } from "date-fns";
 import { it } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserActivity {
   id: string;
@@ -93,6 +95,19 @@ interface Ticket {
   created_at: string;
 }
 
+interface RecurringTask {
+  id: string;
+  task_template_id: string;
+  title: string;
+  description?: string;
+  day: number;
+  priority: string;
+  category: string;
+  is_active: boolean;
+  completed?: boolean;
+  completion_id?: string;
+}
+
 // Component to display user role
 function RoleDisplay() {
   const { userRole } = useUserRole();
@@ -102,14 +117,27 @@ function RoleDisplay() {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
+  const { toast } = useToast();
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [requests, setRequests] = useState<UserRequest[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+
+  const weekDays = [
+    { value: 1, label: 'Lunedì', short: 'Lun' },
+    { value: 2, label: 'Martedì', short: 'Mar' },
+    { value: 3, label: 'Mercoledì', short: 'Mer' },
+    { value: 4, label: 'Giovedì', short: 'Gio' },
+    { value: 5, label: 'Venerdì', short: 'Ven' }
+  ];
 
   useEffect(() => {
     if (user) {
@@ -174,11 +202,63 @@ export function DashboardPage() {
 
       if (ticketsError) console.error("Error loading tickets:", ticketsError);
 
+      // Load recurring tasks assigned to user
+      const { data: recurringData, error: recurringError } = await supabase
+        .from('recurring_tasks')
+        .select(`
+          *,
+          tasks!recurring_tasks_task_template_id_fkey (
+            id,
+            title,
+            description,
+            category,
+            priority,
+            assigned_to
+          )
+        `)
+        .eq('recurrence_type', 'weekly')
+        .eq('is_active', true);
+
+      if (recurringError) console.error("Error loading recurring tasks:", recurringError);
+
+      // Fetch completions for this week
+      const { data: completions, error: completionsError } = await supabase
+        .from('recurring_task_completions')
+        .select('*')
+        .gte('week_start', format(weekStart, 'yyyy-MM-dd'))
+        .lte('week_end', format(weekEnd, 'yyyy-MM-dd'));
+
+      if (completionsError) console.error("Error loading completions:", completionsError);
+
+      const completionsMap = new Map(
+        completions?.map(c => [c.recurring_task_id, c]) || []
+      );
+
+      // Filter recurring tasks assigned to current user
+      const userRecurringTasks = recurringData?.filter(item => 
+        item.tasks?.assigned_to === user.id
+      ).map(item => {
+        const completion = completionsMap.get(item.id);
+        return {
+          id: item.id,
+          task_template_id: item.task_template_id,
+          title: item.tasks?.title || '',
+          description: item.tasks?.description || '',
+          category: item.tasks?.category,
+          day: item.recurrence_days?.[0] || 1,
+          priority: item.tasks?.priority || 'medium',
+          is_active: item.is_active,
+          completed: completion?.completed || false,
+          completion_id: completion?.id
+        };
+      }) || [];
+
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
       setTasks(tasksData || []);
       setLeadActivities(leadActivitiesData || []);
       setTickets(ticketsData || []);
+      setRecurringTasks(userRecurringTasks);
     } catch (error) {
       console.error("Error loading user tasks:", error);
     } finally {
@@ -688,6 +768,137 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Weekly Recurring Tasks Section */}
+      {recurringTasks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Task Ricorrenti Settimanali
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm font-medium text-muted-foreground mb-3">
+              Settimana: {format(weekStart, 'dd MMM', { locale: it })} - {format(weekEnd, 'dd MMM yyyy', { locale: it })}
+            </div>
+            
+            <div className="space-y-4">
+              {weekDays.map(day => {
+                const dayTasks = recurringTasks.filter(t => t.day === day.value);
+                if (dayTasks.length === 0) return null;
+
+                return (
+                  <div key={day.value} className="space-y-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">{day.label}</h4>
+                    <div className="space-y-2">
+                      {dayTasks.map(task => {
+                        const getPriorityColorClass = (priority: string) => {
+                          switch (priority) {
+                            case 'urgent': return 'bg-red-500';
+                            case 'high': return 'bg-orange-500';
+                            case 'medium': return 'bg-yellow-500';
+                            case 'low': return 'bg-green-500';
+                            default: return 'bg-gray-500';
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={task.id}
+                            className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
+                              task.completed ? 'bg-muted/50' : 'hover:shadow-md'
+                            }`}
+                          >
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={async () => {
+                                if (!user) return;
+                                
+                                try {
+                                  if (task.completed && task.completion_id) {
+                                    await supabase
+                                      .from('recurring_task_completions')
+                                      .update({ 
+                                        completed: false,
+                                        completed_at: null,
+                                        completed_by: null
+                                      })
+                                      .eq('id', task.completion_id);
+                                  } else if (task.completion_id) {
+                                    await supabase
+                                      .from('recurring_task_completions')
+                                      .update({ 
+                                        completed: true,
+                                        completed_at: new Date().toISOString(),
+                                        completed_by: user.id
+                                      })
+                                      .eq('id', task.completion_id);
+                                  } else {
+                                    await supabase
+                                      .from('recurring_task_completions')
+                                      .insert({
+                                        recurring_task_id: task.id,
+                                        week_start: format(weekStart, 'yyyy-MM-dd'),
+                                        week_end: format(weekEnd, 'yyyy-MM-dd'),
+                                        completed: true,
+                                        completed_at: new Date().toISOString(),
+                                        completed_by: user.id
+                                      });
+                                  }
+
+                                  toast({
+                                    title: "Successo",
+                                    description: task.completed ? "Task segnata come non completata" : "Task completata!"
+                                  });
+
+                                  loadUserTasks();
+                                } catch (error) {
+                                  console.error('Error toggling completion:', error);
+                                  toast({
+                                    title: "Errore",
+                                    description: "Impossibile aggiornare lo stato",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                            >
+                              {task.completed ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border-2 border-muted-foreground" />
+                              )}
+                            </Button>
+
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${getPriorityColorClass(task.priority)}`} />
+                                <span className={task.completed ? 'line-through text-muted-foreground' : 'font-medium'}>
+                                  {task.title}
+                                </span>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {task.category}
+                                </Badge>
+                              </div>
+                              {task.description && (
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                                  {task.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Weekly Calendar Section */}
       <WeeklyCalendar />
