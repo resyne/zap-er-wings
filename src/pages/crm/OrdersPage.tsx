@@ -85,6 +85,12 @@ export default function OrdersPage() {
   const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
+    open: boolean;
+    orderId: string;
+    newStatus: string;
+  } | null>(null);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
@@ -111,7 +117,7 @@ export default function OrdersPage() {
   useEffect(() => {
     loadOrders();
     loadRelatedData();
-  }, []);
+  }, [showArchivedOrders]);
 
   const loadOrders = async () => {
     try {
@@ -493,44 +499,37 @@ export default function OrdersPage() {
     }
   };
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo ordine? Questa azione non può essere annullata.")) {
-      return;
-    }
-
+  const handleArchiveOrder = async (orderId: string) => {
     try {
-      // Prima controlla e gestisci i work orders collegati
-      const { data: linkedWorkOrders, error: checkError } = await supabase
-        .from('work_orders')
-        .select('id')
-        .eq('customer_id', orderId);
+      const { error } = await supabase
+        .from("sales_orders")
+        .update({ archived: true })
+        .eq("id", orderId);
 
-      if (checkError) throw checkError;
+      if (error) throw error;
 
-      if (linkedWorkOrders && linkedWorkOrders.length > 0) {
-        const shouldProceed = confirm(
-          `Questo ordine ha ${linkedWorkOrders.length} ordini di lavoro collegati. Eliminandolo, anche questi verranno eliminati. Vuoi continuare?`
-        );
-        
-        if (!shouldProceed) return;
+      toast({
+        title: "Ordine archiviato",
+        description: "L'ordine è stato archiviato con successo",
+      });
 
-        // Elimina prima i work orders collegati
-        for (const wo of linkedWorkOrders) {
-          // Prima scollega eventuali service work orders
-          await supabase
-            .from('service_work_orders')
-            .update({ production_work_order_id: null })
-            .eq('production_work_order_id', wo.id);
+      loadOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile archiviare l'ordine",
+        variant: "destructive",
+      });
+    }
+  };
 
-          // Elimina il work order
-          await supabase
-            .from('work_orders')
-            .delete()
-            .eq('id', wo.id);
-        }
-      }
-
-      // Ora elimina l'ordine principale
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      // Delete related records first
+      await supabase.from("work_orders").delete().eq("sales_order_id", orderId);
+      await supabase.from("service_work_orders").delete().eq("sales_order_id", orderId);
+      await supabase.from("shipping_orders").delete().eq("sales_order_id", orderId);
+      
       const { error } = await supabase
         .from("sales_orders")
         .delete()
@@ -539,8 +538,8 @@ export default function OrdersPage() {
       if (error) throw error;
 
       toast({
-        title: "Successo",
-        description: "Ordine eliminato con successo",
+        title: "Ordine eliminato",
+        description: "L'ordine è stato eliminato con successo",
       });
 
       await loadOrders();
@@ -599,7 +598,7 @@ export default function OrdersPage() {
     return statusMap[status.toLowerCase()] || status;
   };
 
-  const handleDragEnd = async (result: any) => {
+  const handleDragEnd = (result: any) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
@@ -608,6 +607,19 @@ export default function OrdersPage() {
 
     const newStatus = destination.droppableId;
     const orderId = draggableId;
+
+    // Show confirmation dialog
+    setStatusChangeConfirm({
+      open: true,
+      orderId,
+      newStatus
+    });
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusChangeConfirm) return;
+
+    const { orderId, newStatus } = statusChangeConfirm;
 
     try {
       const { error } = await supabase
@@ -629,6 +641,8 @@ export default function OrdersPage() {
         description: "Impossibile aggiornare lo stato dell'ordine",
         variant: "destructive",
       });
+    } finally {
+      setStatusChangeConfirm(null);
     }
   };
 
@@ -741,6 +755,10 @@ export default function OrdersPage() {
     setSelectedOrder(order);
     setIsDetailsDialogOpen(true);
   };
+
+  useEffect(() => {
+    loadOrders();
+  }, [showArchivedOrders]);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
@@ -1257,6 +1275,14 @@ export default function OrdersPage() {
                 </Button>
               </div>
               
+              <Button
+                variant={showArchivedOrders ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowArchivedOrders(!showArchivedOrders)}
+              >
+                {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
+              </Button>
+              
               {/* Filtri per tipo di ordine */}
               <Select value={orderFilter} onValueChange={(value: any) => setOrderFilter(value)}>
                 <SelectTrigger className="w-[200px]">
@@ -1393,22 +1419,32 @@ export default function OrdersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditOrder(order)}>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditOrder(order);
+                        }}>
                           <Edit className="w-4 h-4 mr-2" />
                           Modifica
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleArchiveOrder(order.id);
+                        }}>
+                          <Package className="w-4 h-4 mr-2" />
+                          Archivia
+                        </DropdownMenuItem>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
                               <Trash2 className="w-4 h-4 mr-2" />
                               Elimina
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Sei sicuro di voler eliminare l'ordine {order.number}? Questa azione non può essere annullata.
+                                Questa azione eliminerà permanentemente l'ordine {order.number} e tutti i sotto-ordini associati (OdP, OdL, OdS). Questa azione non può essere annullata.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -1463,29 +1499,79 @@ export default function OrdersPage() {
                               .map((order, index) => (
                                 <Draggable key={order.id} draggableId={order.id} index={index}>
                                    {(provided, snapshot) => (
-                                     <div
-                                       ref={provided.innerRef}
-                                       {...provided.draggableProps}
-                                       {...provided.dragHandleProps}
-                                       onClick={() => handleOrderClick(order)}
-                                       className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                         snapshot.isDragging ? 'shadow-lg opacity-90' : ''
-                                       }`}
-                                     >
-                                      <div className="space-y-2">
-                                        <div className="flex items-start justify-between">
-                                          <div>
-                                            <div className="font-semibold">{order.number}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                              {order.customers?.name}
-                                            </div>
-                                          </div>
-                                          {order.order_type && (
-                                            <Badge className={getOrderTypeColor(order.order_type)} variant="outline">
-                                              {getOrderTypeLabel(order.order_type)?.split(" ")[0]}
-                                            </Badge>
-                                          )}
-                                        </div>
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        onClick={() => handleOrderClick(order)}
+                                        className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                          snapshot.isDragging ? 'shadow-lg opacity-90' : ''
+                                        }`}
+                                      >
+                                       <div className="space-y-2">
+                                         <div className="flex items-start justify-between">
+                                           <div className="flex-1">
+                                             <div className="font-semibold">{order.number}</div>
+                                             <div className="text-sm text-muted-foreground">
+                                               {order.customers?.name}
+                                             </div>
+                                           </div>
+                                           <div className="flex items-center gap-2">
+                                             {order.order_type && (
+                                               <Badge className={getOrderTypeColor(order.order_type)} variant="outline">
+                                                 {getOrderTypeLabel(order.order_type)?.split(" ")[0]}
+                                               </Badge>
+                                             )}
+                                             <DropdownMenu>
+                                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                 <Button variant="ghost" size="sm">
+                                                   <MoreHorizontal className="h-4 w-4" />
+                                                 </Button>
+                                               </DropdownMenuTrigger>
+                                               <DropdownMenuContent align="end">
+                                                 <DropdownMenuItem onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   handleEditOrder(order);
+                                                 }}>
+                                                   <Edit className="mr-2 h-4 w-4" />
+                                                   Modifica
+                                                 </DropdownMenuItem>
+                                                 <DropdownMenuItem onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   handleArchiveOrder(order.id);
+                                                 }}>
+                                                   <Package className="mr-2 h-4 w-4" />
+                                                   Archivia
+                                                 </DropdownMenuItem>
+                                                 <AlertDialog>
+                                                   <AlertDialogTrigger asChild>
+                                                     <DropdownMenuItem
+                                                       onSelect={(e) => e.preventDefault()}
+                                                       className="text-destructive"
+                                                     >
+                                                       <Trash2 className="mr-2 h-4 w-4" />
+                                                       Elimina
+                                                     </DropdownMenuItem>
+                                                   </AlertDialogTrigger>
+                                                   <AlertDialogContent>
+                                                     <AlertDialogHeader>
+                                                       <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                                                       <AlertDialogDescription>
+                                                         Questa azione eliminerà permanentemente l'ordine e tutti i sotto-ordini associati (OdP, OdL, OdS). Questa azione non può essere annullata.
+                                                       </AlertDialogDescription>
+                                                     </AlertDialogHeader>
+                                                     <AlertDialogFooter>
+                                                       <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                                       <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                                                         Elimina
+                                                       </AlertDialogAction>
+                                                     </AlertDialogFooter>
+                                                   </AlertDialogContent>
+                                                 </AlertDialog>
+                                               </DropdownMenuContent>
+                                             </DropdownMenu>
+                                           </div>
+                                         </div>
                                         {order.order_date && (
                                           <div className="text-xs text-muted-foreground">
                                             {new Date(order.order_date).toLocaleDateString('it-IT')}
@@ -1831,11 +1917,29 @@ export default function OrdersPage() {
       </Dialog>
 
       {/* Create Customer Dialog */}
-        <CreateCustomerDialog
-          open={isCreateCustomerDialogOpen}
-          onOpenChange={setIsCreateCustomerDialogOpen}
-          onCustomerCreated={handleCustomerCreated}
-        />
-      </div>
-    );
-  }
+      <CreateCustomerDialog
+        open={isCreateCustomerDialogOpen}
+        onOpenChange={setIsCreateCustomerDialogOpen}
+        onCustomerCreated={handleCustomerCreated}
+      />
+
+      {/* Status Change Confirmation Dialog */}
+      <AlertDialog open={statusChangeConfirm?.open} onOpenChange={(open) => !open && setStatusChangeConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma cambio stato</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler cambiare lo stato di questo ordine? Questa azione modificherà anche lo stato di tutti i sotto-ordini associati (OdP, OdL, OdS).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStatusChange}>
+              Conferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
