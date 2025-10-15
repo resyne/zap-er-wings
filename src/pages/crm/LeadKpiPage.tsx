@@ -3,11 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity } from "lucide-react";
-import { format, subDays, differenceInDays, differenceInHours } from "date-fns";
+import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter } from "lucide-react";
+import { format, subDays, differenceInDays, differenceInHours, startOfDay, startOfWeek, startOfMonth, endOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 
 interface LeadKPI {
@@ -118,10 +119,37 @@ export default function LeadKpiPage() {
   const [timeline, setTimeline] = useState<LeadTimeline[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [userActivityStats, setUserActivityStats] = useState<UserActivityStats[]>([]);
+  const [activityFilter, setActivityFilter] = useState<'today' | 'week' | 'month' | 'all'>('week');
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  const getFilteredActivityLogs = () => {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (activityFilter) {
+      case 'today':
+        startDate = startOfDay(now);
+        break;
+      case 'week':
+        startDate = startOfWeek(now, { weekStartsOn: 1 }); // Lunedì
+        break;
+      case 'month':
+        startDate = startOfMonth(now);
+        break;
+      case 'all':
+        return activityLogs;
+      default:
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+    }
+
+    return activityLogs.filter(log => {
+      const logDate = new Date(log.activityDate);
+      return logDate >= startDate && logDate <= endOfDay(now);
+    });
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -530,6 +558,24 @@ export default function LeadKpiPage() {
         </TabsContent>
 
         <TabsContent value="activities" className="space-y-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtra per periodo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Oggi</SelectItem>
+                <SelectItem value="week">Questa Settimana</SelectItem>
+                <SelectItem value="month">Questo Mese</SelectItem>
+                <SelectItem value="all">Tutto</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">
+              {getFilteredActivityLogs().length} attività trovate
+            </span>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3 mb-4">
             {userActivityStats.map(stats => (
               <Card key={stats.userId}>
@@ -560,8 +606,13 @@ export default function LeadKpiPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Log Attività Recenti</CardTitle>
-              <CardDescription>Ultimi 100 log di attività su lead</CardDescription>
+              <CardTitle>Log Attività</CardTitle>
+              <CardDescription>
+                {activityFilter === 'today' && 'Attività di oggi'}
+                {activityFilter === 'week' && 'Attività di questa settimana'}
+                {activityFilter === 'month' && 'Attività di questo mese'}
+                {activityFilter === 'all' && 'Tutte le attività'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -576,7 +627,7 @@ export default function LeadKpiPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activityLogs.slice(0, 100).map((log) => (
+                  {getFilteredActivityLogs().map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(log.activityDate), 'dd/MM/yyyy HH:mm', { locale: it })}
@@ -604,10 +655,10 @@ export default function LeadKpiPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {activityLogs.length === 0 && (
+                  {getFilteredActivityLogs().length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        Nessuna attività registrata
+                        Nessuna attività trovata per il periodo selezionato
                       </TableCell>
                     </TableRow>
                   )}
