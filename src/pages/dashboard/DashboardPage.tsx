@@ -20,7 +20,7 @@ import {
   ExternalLink,
   Check
 } from "lucide-react";
-import { format, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfWeek, endOfWeek, getDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -788,9 +788,16 @@ export function DashboardPage() {
                 const dayTasks = recurringTasks.filter(t => t.day === day.value);
                 if (dayTasks.length === 0) return null;
 
+                // Check if this is today (getDay returns 0 for Sunday, so we adjust)
+                const today = new Date();
+                const currentDayOfWeek = getDay(today) === 0 ? 7 : getDay(today); // Convert Sunday from 0 to 7
+                const isToday = currentDayOfWeek === day.value;
+
                 return (
                   <div key={day.value} className="space-y-2">
-                    <h4 className="font-medium text-sm text-muted-foreground">{day.label}</h4>
+                    <h4 className={`font-medium text-sm ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                      {day.label} {isToday && <Badge variant="default" className="ml-2">Oggi</Badge>}
+                    </h4>
                     <div className="space-y-2">
                       {dayTasks.map(task => {
                         const getPriorityColorClass = (priority: string) => {
@@ -807,7 +814,11 @@ export function DashboardPage() {
                           <div
                             key={task.id}
                             className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
-                              task.completed ? 'bg-muted/50' : 'hover:shadow-md'
+                              task.completed 
+                                ? 'bg-muted/50' 
+                                : isToday 
+                                  ? 'border-primary border-2 bg-primary/5 shadow-md hover:shadow-lg' 
+                                  : 'hover:shadow-md'
                             }`}
                           >
                             <Button
