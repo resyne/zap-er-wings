@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, File, Image, Video, Trash2, Download, FileText } from "lucide-react";
+import { Upload, File, Image as ImageIcon, Video, Trash2, Download, FileText, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import ImageSlideshow from "./ImageSlideshow";
 
 interface LeadFile {
   id: string;
@@ -23,6 +24,8 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
   const [files, setFiles] = useState<LeadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [slideshowOpen, setSlideshowOpen] = useState(false);
+  const [slideshowStartIndex, setSlideshowStartIndex] = useState(0);
   const { toast } = useToast();
 
   const loadFiles = useCallback(async () => {
@@ -40,9 +43,9 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
     }
   }, [leadId]);
 
-  useState(() => {
+  useEffect(() => {
     loadFiles();
-  });
+  }, [loadFiles]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -189,10 +192,51 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith("image/")) return <Image className="w-5 h-5 text-blue-500" />;
+    if (fileType.startsWith("image/")) return <ImageIcon className="w-5 h-5 text-blue-500" />;
     if (fileType.startsWith("video/")) return <Video className="w-5 h-5 text-purple-500" />;
     if (fileType.includes("pdf")) return <FileText className="w-5 h-5 text-red-500" />;
     return <File className="w-5 h-5 text-gray-500" />;
+  };
+
+  const isImageFile = (fileType: string) => fileType.startsWith("image/");
+
+  const getImageFiles = () => {
+    return files
+      .filter(file => isImageFile(file.file_type))
+      .map(file => ({
+        url: `${supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl}`,
+        name: file.file_name
+      }));
+  };
+
+  const openSlideshow = (fileIndex: number) => {
+    const imageFiles = files.filter(file => isImageFile(file.file_type));
+    const imageIndex = imageFiles.findIndex(imgFile => imgFile.id === files[fileIndex].id);
+    if (imageIndex !== -1) {
+      setSlideshowStartIndex(imageIndex);
+      setSlideshowOpen(true);
+    }
+  };
+
+  const handleSlideshowDownload = async (url: string, name: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile scaricare l'immagine: " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -245,8 +289,52 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
         {files.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium">File caricati ({files.length})</h4>
+            
+            {/* Image Gallery Preview */}
+            {getImageFiles().length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-muted-foreground">
+                    {getImageFiles().length} {getImageFiles().length === 1 ? 'immagine' : 'immagini'}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSlideshowStartIndex(0);
+                      setSlideshowOpen(true);
+                    }}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Visualizza Slideshow
+                  </Button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {files
+                    .filter(file => isImageFile(file.file_type))
+                    .slice(0, 8)
+                    .map((file, index) => {
+                      const imageUrl = supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl;
+                      return (
+                        <div
+                          key={file.id}
+                          className="aspect-square rounded-lg overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          onClick={() => openSlideshow(files.indexOf(file))}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={file.file_name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
-              {files.map((file) => (
+              {files.map((file, index) => (
                 <div
                   key={file.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -261,6 +349,16 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    {isImageFile(file.file_type) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openSlideshow(index)}
+                        title="Visualizza"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -296,6 +394,15 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
             </div>
           </div>
         )}
+
+        {/* Image Slideshow */}
+        <ImageSlideshow
+          images={getImageFiles()}
+          initialIndex={slideshowStartIndex}
+          open={slideshowOpen}
+          onOpenChange={setSlideshowOpen}
+          onDownload={handleSlideshowDownload}
+        />
       </CardContent>
     </Card>
   );
