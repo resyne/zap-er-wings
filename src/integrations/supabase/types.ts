@@ -3041,6 +3041,64 @@ export type Database = {
         }
         Relationships: []
       }
+      order_comments: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          mentions: string[] | null
+          service_work_order_id: string | null
+          shipping_order_id: string | null
+          updated_at: string
+          user_id: string
+          work_order_id: string | null
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          service_work_order_id?: string | null
+          shipping_order_id?: string | null
+          updated_at?: string
+          user_id: string
+          work_order_id?: string | null
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          service_work_order_id?: string | null
+          shipping_order_id?: string | null
+          updated_at?: string
+          user_id?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_comments_service_work_order_id_fkey"
+            columns: ["service_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_comments_shipping_order_id_fkey"
+            columns: ["shipping_order_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_comments_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           billing_address: string | null
@@ -4271,6 +4329,7 @@ export type Database = {
           actual_hours: number | null
           actual_start_date: string | null
           assigned_to: string | null
+          back_office_manager: string | null
           contact_id: string | null
           created_at: string
           created_by: string | null
@@ -4296,6 +4355,7 @@ export type Database = {
           actual_hours?: number | null
           actual_start_date?: string | null
           assigned_to?: string | null
+          back_office_manager?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -4321,6 +4381,7 @@ export type Database = {
           actual_hours?: number | null
           actual_start_date?: string | null
           assigned_to?: string | null
+          back_office_manager?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -4432,6 +4493,7 @@ export type Database = {
       }
       shipping_orders: {
         Row: {
+          back_office_manager: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -4452,6 +4514,7 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
+          back_office_manager?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -4472,6 +4535,7 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
+          back_office_manager?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -5258,6 +5322,7 @@ export type Database = {
           actual_end_date: string | null
           actual_start_date: string | null
           assigned_to: string | null
+          back_office_manager: string | null
           bom_id: string | null
           completed_date: string | null
           created_at: string | null
@@ -5284,6 +5349,7 @@ export type Database = {
           actual_end_date?: string | null
           actual_start_date?: string | null
           assigned_to?: string | null
+          back_office_manager?: string | null
           bom_id?: string | null
           completed_date?: string | null
           created_at?: string | null
@@ -5310,6 +5376,7 @@ export type Database = {
           actual_end_date?: string | null
           actual_start_date?: string | null
           assigned_to?: string | null
+          back_office_manager?: string | null
           bom_id?: string | null
           completed_date?: string | null
           created_at?: string | null

@@ -18,15 +18,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
+import { OrderComments } from "@/components/orders/OrderComments";
 
 interface WorkOrder {
   id: string;
   number: string;
   title: string;
-  status: string; // Accetta qualsiasi stato per compatibilità con la migrazione
+  status: string;
   planned_start_date?: string;
   planned_end_date?: string;
   assigned_to?: string;
+  back_office_manager?: string;
   customer_id?: string;
   contact_id?: string;
   priority?: string;
@@ -49,6 +51,11 @@ interface WorkOrder {
     last_name: string;
     employee_code: string;
   };
+  back_office?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  };
   sales_orders?: {
     number: string;
   };
@@ -63,7 +70,7 @@ export default function WorkOrdersPage() {
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
-  
+  const [users, setUsers] = useState<any[]>([]); // Per back office manager
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
@@ -82,6 +89,7 @@ export default function WorkOrdersPage() {
     accessori_ids: [] as string[],
     customer_id: "",
     assigned_to: "",
+    back_office_manager: "",
     priority: "medium",
     planned_start_date: "",
     planned_end_date: "",
@@ -95,7 +103,7 @@ export default function WorkOrdersPage() {
     fetchWorkOrders();
     fetchBoms();
     fetchCustomers();
-    
+    fetchUsers();
     fetchTechnicians();
   }, []);
 
@@ -174,6 +182,20 @@ export default function WorkOrdersPage() {
       setCustomers(data || []);
     } catch (error: any) {
       console.error("Errore durante il caricamento dei clienti:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .order('first_name');
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error: any) {
+      console.error("Errore durante il caricamento degli utenti:", error);
     }
   };
 
@@ -304,6 +326,7 @@ export default function WorkOrdersPage() {
         accessori_ids: [],
         customer_id: "",
         assigned_to: "",
+        back_office_manager: "",
         priority: "medium",
         planned_start_date: "", 
         planned_end_date: "", 
@@ -335,6 +358,7 @@ export default function WorkOrdersPage() {
       accessori_ids: wo.accessori_ids || [],
       customer_id: wo.customer_id || "",
       assigned_to: wo.assigned_to || "",
+      back_office_manager: wo.back_office_manager || "",
       priority: wo.priority || "medium",
       planned_start_date: wo.planned_start_date || "",
       planned_end_date: wo.planned_end_date || "",
@@ -561,6 +585,7 @@ export default function WorkOrdersPage() {
                 accessori_ids: [],
                 customer_id: "",
                 assigned_to: "",
+                back_office_manager: "",
                 priority: "medium",
                 planned_start_date: "", 
                 planned_end_date: "", 
