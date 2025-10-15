@@ -85,6 +85,7 @@ export default function OrdersPage() {
   const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
@@ -99,6 +100,8 @@ export default function OrdersPage() {
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
+    expected_delivery_date: "",
+    contact_id: "",
     status: "commissionato",
     notes: "",
     work_description: "",
@@ -150,12 +153,13 @@ export default function OrdersPage() {
 
   const loadRelatedData = async () => {
     try {
-      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes] = await Promise.all([
+      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes, contactsRes] = await Promise.all([
         supabase.from("customers").select("id, name, code").eq("active", true),
         supabase.from("boms").select("id, name, version, level").in("level", [0, 1, 2]).order("name"),
         supabase.from("boms").select("id, name, version, level").eq("level", 3).order("name"),
         supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true),
-        supabase.from("profiles").select("id, email, first_name, last_name").order("first_name")
+        supabase.from("profiles").select("id, email, first_name, last_name").order("first_name"),
+        supabase.from("crm_contacts").select("id, first_name, last_name, company_name, email").order("first_name")
       ]);
 
       if (customersRes.error) throw customersRes.error;
@@ -163,12 +167,14 @@ export default function OrdersPage() {
       if (accessoriRes.error) throw accessoriRes.error;
       if (techniciansRes.error) throw techniciansRes.error;
       if (usersRes.error) throw usersRes.error;
+      if (contactsRes.error) throw contactsRes.error;
 
       setCustomers(customersRes.data || []);
       setBoms(bomsRes.data || []);
       setAccessori(accessoriRes.data || []);
       setTechnicians(techniciansRes.data || []);
       setUsers(usersRes.data || []);
+      setContacts(contactsRes.data || []);
     } catch (error: any) {
       console.error("Error loading related data:", error);
     }
@@ -264,13 +270,14 @@ export default function OrdersPage() {
   const createShippingOrder = async (orderId: string, orderData: any) => {
     const shippingData = {
       number: '', // Auto-generated
+      contact_id: newOrder.contact_id || null,
       back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
+      expected_delivery_date: newOrder.expected_delivery_date || null,
       notes: newOrder.notes,
       shipping_address: newOrder.shipping_address || null,
       sales_order_id: orderId
-      // Non passiamo customer_id perché shipping_orders usa companies/crm_contacts, non customers
     };
 
     const { data: shippingOrder, error } = await supabase
@@ -395,6 +402,8 @@ export default function OrdersPage() {
         order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
+        expected_delivery_date: "",
+        contact_id: "",
         status: "commissionato",
         notes: "",
         work_description: "",
@@ -428,6 +437,8 @@ export default function OrdersPage() {
       order_source: (order as any).order_source || "sale",
       order_date: order.order_date || new Date().toISOString().split('T')[0],
       delivery_date: order.delivery_date || "",
+      expected_delivery_date: "",
+      contact_id: "",
       status: order.status || "draft",
       notes: order.notes || "",
       work_description: "",
@@ -486,6 +497,8 @@ export default function OrdersPage() {
         order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
+        expected_delivery_date: "",
+        contact_id: "",
         status: "draft",
         notes: "",
         work_description: "",
@@ -878,24 +891,40 @@ export default function OrdersPage() {
                 </div>
               </div>
 
-              {/* Order Source - Sale or Warranty */}
-              <div>
-                <Label htmlFor="order_source">Categoria Ordine *</Label>
-                <Select value={newOrder.order_source} onValueChange={(value) => setNewOrder({...newOrder, order_source: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {orderSources.map(source => (
-                      <SelectItem key={source.value} value={source.value}>
-                        {source.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Indica se l'ordine è relativo a una vendita o una garanzia
-                </p>
+              {/* Contact and Order Source */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contact_id">Contatto CRM</Label>
+                  <Select value={newOrder.contact_id} onValueChange={(value) => setNewOrder({...newOrder, contact_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona contatto (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contacts.map(contact => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.first_name} {contact.last_name} 
+                          {contact.company_name && ` - ${contact.company_name}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="order_source">Categoria Ordine *</Label>
+                  <Select value={newOrder.order_source} onValueChange={(value) => setNewOrder({...newOrder, order_source: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orderSources.map(source => (
+                        <SelectItem key={source.value} value={source.value}>
+                          {source.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Conditional fields based on order type */}
@@ -1018,7 +1047,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="order_date">Data Ordine</Label>
                   <Input
@@ -1028,6 +1057,18 @@ export default function OrdersPage() {
                     onChange={(e) => setNewOrder({...newOrder, order_date: e.target.value})}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="expected_delivery_date">Data Consegna Prevista</Label>
+                  <Input
+                    id="expected_delivery_date"
+                    type="date"
+                    value={newOrder.expected_delivery_date}
+                    onChange={(e) => setNewOrder({...newOrder, expected_delivery_date: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="planned_start_date">Inizio Pianificato</Label>
                   <Input
