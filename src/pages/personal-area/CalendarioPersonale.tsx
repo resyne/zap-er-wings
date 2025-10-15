@@ -18,9 +18,11 @@ interface Task {
   title: string;
   description?: string;
   due_date?: string;
+  start_date?: string;
   status: string;
   priority: string;
   category: string;
+  parent_task_id?: string;
 }
 
 interface CalendarEvent {
@@ -78,7 +80,7 @@ export default function CalendarioPersonale() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Load tasks
+      // Load regular tasks
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
@@ -90,6 +92,21 @@ export default function CalendarioPersonale() {
 
       if (tasksError) throw tasksError;
 
+      // Load recurring tasks that fall in the current month
+      const { data: recurringTasksData, error: recurringError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('assigned_to', user.id)
+        .eq('is_template', false)
+        .not('parent_task_id', 'is', null)
+        .gte('start_date', monthStart.toISOString())
+        .lte('start_date', monthEnd.toISOString());
+
+      if (recurringError) throw recurringError;
+
+      // Combine regular and recurring tasks
+      const allTasks = [...(tasksData || []), ...(recurringTasksData || [])];
+
       // Load calendar events
       const { data: eventsData, error: eventsError } = await supabase
         .from('calendar_events')
@@ -100,7 +117,7 @@ export default function CalendarioPersonale() {
 
       if (eventsError) throw eventsError;
 
-      setTasks(tasksData || []);
+      setTasks(allTasks);
       setEvents(eventsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -117,8 +134,9 @@ export default function CalendarioPersonale() {
   const getItemsForDay = (day: Date): CalendarItem[] => {
     const dayTasks = tasks
       .filter(task => {
-        if (!task.due_date) return false;
-        const taskDate = parseISO(task.due_date);
+        // Check if task has due_date or start_date
+        const taskDate = task.due_date ? parseISO(task.due_date) : (task.start_date ? parseISO(task.start_date) : null);
+        if (!taskDate) return false;
         return isSameDay(taskDate, day);
       })
       .map(task => ({ ...task, item_type: 'task' as const }));
