@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, TrendingUp, Clock, Target, Award, AlertCircle } from "lucide-react";
+import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity } from "lucide-react";
 import { format, subDays, differenceInDays, differenceInHours } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -48,6 +50,30 @@ interface LeadTimeline {
   lostLeads: number;
 }
 
+interface ActivityLog {
+  id: string;
+  leadId: string;
+  leadName: string;
+  activityType: string;
+  activityDate: string;
+  assignedTo: string;
+  assignedToName: string;
+  status: string;
+  notes: string;
+  createdAt: string;
+}
+
+interface UserActivityStats {
+  userId: string;
+  userName: string;
+  totalActivities: number;
+  completedActivities: number;
+  scheduledActivities: number;
+  cancelledActivities: number;
+  avgActivitiesPerDay: number;
+  lastActivityDate: string;
+}
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 const statusLabels: Record<string, string> = {
@@ -56,6 +82,21 @@ const statusLabels: Record<string, string> = {
   'negotiation': 'Negoziazione',
   'won': 'Vinto',
   'lost': 'Perso'
+};
+
+const activityTypeLabels: Record<string, string> = {
+  'call': 'Chiamata',
+  'email': 'Email',
+  'meeting': 'Incontro',
+  'demo': 'Demo',
+  'follow_up': 'Follow-up',
+  'other': 'Altro'
+};
+
+const activityStatusLabels: Record<string, string> = {
+  'scheduled': 'Programmata',
+  'completed': 'Completata',
+  'cancelled': 'Annullata'
 };
 
 export default function LeadKpiPage() {
@@ -75,6 +116,8 @@ export default function LeadKpiPage() {
   const [leadsByStatus, setLeadsByStatus] = useState<LeadsByStatus[]>([]);
   const [leadsByPipeline, setLeadsByPipeline] = useState<LeadsByPipeline[]>([]);
   const [timeline, setTimeline] = useState<LeadTimeline[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [userActivityStats, setUserActivityStats] = useState<UserActivityStats[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -101,7 +144,17 @@ export default function LeadKpiPage() {
       // Fetch lead activities for response time calculation
       const { data: activities, error: activitiesError } = await supabase
         .from('lead_activities')
-        .select('*');
+        .select(`
+          id,
+          lead_id,
+          activity_type,
+          activity_date,
+          assigned_to,
+          status,
+          notes,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
 
       if (activitiesError) throw activitiesError;
 
@@ -261,6 +314,74 @@ export default function LeadKpiPage() {
 
       setTimeline(Array.from(timelineMap.values()));
 
+      // Process activity logs
+      const activityLogsData: ActivityLog[] = (activities || []).map(activity => {
+        const lead = leads?.find(l => l.id === activity.lead_id);
+        const assignedProfile = profiles?.find(p => p.id === activity.assigned_to);
+        const assignedToName = assignedProfile 
+          ? `${assignedProfile.first_name || ''} ${assignedProfile.last_name || ''}`.trim() || 'Non assegnato'
+          : 'Non assegnato';
+
+        return {
+          id: activity.id,
+          leadId: activity.lead_id,
+          leadName: lead?.company_name || 'Lead eliminato',
+          activityType: activity.activity_type,
+          activityDate: activity.activity_date,
+          assignedTo: activity.assigned_to || '',
+          assignedToName,
+          status: activity.status || 'scheduled',
+          notes: activity.notes || '',
+          createdAt: activity.created_at,
+        };
+      });
+
+      setActivityLogs(activityLogsData);
+
+      // Calculate user activity stats
+      const userStatsMap = new Map<string, UserActivityStats>();
+      
+      activityLogsData.forEach(activity => {
+        if (!activity.assignedTo) return;
+
+        if (!userStatsMap.has(activity.assignedTo)) {
+          userStatsMap.set(activity.assignedTo, {
+            userId: activity.assignedTo,
+            userName: activity.assignedToName,
+            totalActivities: 0,
+            completedActivities: 0,
+            scheduledActivities: 0,
+            cancelledActivities: 0,
+            avgActivitiesPerDay: 0,
+            lastActivityDate: activity.createdAt,
+          });
+        }
+
+        const stats = userStatsMap.get(activity.assignedTo)!;
+        stats.totalActivities++;
+        
+        if (activity.status === 'completed') stats.completedActivities++;
+        else if (activity.status === 'scheduled') stats.scheduledActivities++;
+        else if (activity.status === 'cancelled') stats.cancelledActivities++;
+
+        // Update last activity date
+        if (new Date(activity.createdAt) > new Date(stats.lastActivityDate)) {
+          stats.lastActivityDate = activity.createdAt;
+        }
+      });
+
+      // Calculate average activities per day
+      userStatsMap.forEach(stats => {
+        const userActivities = activityLogsData.filter(a => a.assignedTo === stats.userId);
+        if (userActivities.length > 0) {
+          const oldestActivity = userActivities[userActivities.length - 1];
+          const daysSinceFirst = differenceInDays(now, new Date(oldestActivity.createdAt)) || 1;
+          stats.avgActivitiesPerDay = stats.totalActivities / daysSinceFirst;
+        }
+      });
+
+      setUserActivityStats(Array.from(userStatsMap.values()));
+
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -354,6 +475,7 @@ export default function LeadKpiPage() {
         <TabsList>
           <TabsTrigger value="overview">Panoramica</TabsTrigger>
           <TabsTrigger value="sales">Performance Sales</TabsTrigger>
+          <TabsTrigger value="activities">Log Attività</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
 
@@ -405,6 +527,94 @@ export default function LeadKpiPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="activities" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3 mb-4">
+            {userActivityStats.map(stats => (
+              <Card key={stats.userId}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{stats.userName}</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalActivities}</div>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <Badge variant="outline" className="text-xs">
+                      ✓ {stats.completedActivities} Completate
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      ⏰ {stats.scheduledActivities} Programmate
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Media: {stats.avgActivitiesPerDay.toFixed(1)} attività/giorno
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ultima: {format(new Date(stats.lastActivityDate), 'dd/MM/yyyy HH:mm', { locale: it })}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Log Attività Recenti</CardTitle>
+              <CardDescription>Ultimi 100 log di attività su lead</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Lead</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Assegnato a</TableHead>
+                    <TableHead>Stato</TableHead>
+                    <TableHead>Note</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activityLogs.slice(0, 100).map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(log.activityDate), 'dd/MM/yyyy HH:mm', { locale: it })}
+                      </TableCell>
+                      <TableCell className="font-medium">{log.leadName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {activityTypeLabels[log.activityType] || log.activityType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{log.assignedToName}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            log.status === 'completed' ? 'default' : 
+                            log.status === 'cancelled' ? 'destructive' : 
+                            'secondary'
+                          }
+                        >
+                          {activityStatusLabels[log.status] || log.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {log.notes}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {activityLogs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        Nessuna attività registrata
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="sales" className="space-y-4">
