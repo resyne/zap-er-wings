@@ -42,16 +42,33 @@ interface WorkOrder {
   type: 'service' | 'production';
 }
 
+interface ServiceReport {
+  id: string;
+  intervention_date: string;
+  intervention_type: string;
+  work_performed: string;
+  status: string;
+  contact_id: string;
+  technician_id: string;
+  created_at: string;
+  crm_contacts?: Contact;
+  technicians?: Technician;
+  work_orders?: WorkOrder;
+  service_work_orders?: WorkOrder;
+}
+
 export default function ServiceReportsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [reports, setReports] = useState<ServiceReport[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showCreateContact, setShowCreateContact] = useState(false);
   const [showSignatures, setShowSignatures] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -112,6 +129,37 @@ export default function ServiceReportsPage() {
       const productionOrders: WorkOrder[] = (productionOrdersRes.data || []).map(wo => ({ ...wo, type: 'production' as const }));
       
       setWorkOrders([...serviceOrders, ...productionOrders]);
+
+      // Load existing reports
+      const { data: reportsData, error: reportsError } = await supabase
+        .from('service_reports')
+        .select(`
+          id,
+          intervention_date,
+          intervention_type,
+          work_performed,
+          status,
+          contact_id,
+          technician_id,
+          created_at,
+          crm_contacts (
+            id,
+            first_name,
+            last_name,
+            company_name,
+            email
+          ),
+          technicians (
+            id,
+            first_name,
+            last_name,
+            employee_code
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (reportsError) throw reportsError;
+      setReports(reportsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -428,18 +476,97 @@ export default function ServiceReportsPage() {
     setShowSignatures(false);
     setShowActions(false);
     setSavedReportId(null);
+    setShowCreateForm(false);
+    loadInitialData();
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Rapporti di Intervento</h1>
-        <p className="text-muted-foreground">
-          Crea e gestisci rapporti di intervento tecnico con firma digitale
-        </p>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Rapporti di Intervento</h1>
+          <p className="text-muted-foreground">
+            Crea e gestisci rapporti di intervento tecnico con firma digitale
+          </p>
+        </div>
+        {!showCreateForm && !showActions && (
+          <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Nuovo Rapporto di Intervento
+          </Button>
+        )}
       </div>
 
-      {showActions ? (
+      {!showCreateForm && !showActions ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rapporti Esistenti</CardTitle>
+            <CardDescription>
+              Elenco di tutti i rapporti di intervento generati
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {reports.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">Nessun rapporto di intervento trovato</p>
+                <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2 mx-auto">
+                  <Plus className="w-4 h-4" />
+                  Crea il Primo Rapporto
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reports.map((report) => (
+                  <div key={report.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">
+                            {report.crm_contacts?.first_name} {report.crm_contacts?.last_name}
+                          </h3>
+                          {report.crm_contacts?.company_name && (
+                            <span className="text-sm text-muted-foreground">
+                              ({report.crm_contacts.company_name})
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Data:</span>
+                            <p className="font-medium">
+                              {new Date(report.intervention_date).toLocaleDateString('it-IT')}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Tipo:</span>
+                            <p className="font-medium capitalize">{report.intervention_type}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Tecnico:</span>
+                            <p className="font-medium">
+                              {report.technicians?.first_name} {report.technicians?.last_name}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Stato:</span>
+                            <p className="font-medium capitalize">{report.status}</p>
+                          </div>
+                        </div>
+                        {report.work_performed && (
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                            {report.work_performed}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : showActions ? (
         <Card>
           <CardHeader>
             <CardTitle>Rapporto Completato</CardTitle>
@@ -473,9 +600,31 @@ export default function ServiceReportsPage() {
             >
               Crea Nuovo Rapporto
             </Button>
+            
+            <Button 
+              onClick={() => {
+                setShowActions(false);
+                setShowCreateForm(false);
+                setSavedReportId(null);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              Torna all'Elenco
+            </Button>
           </CardContent>
         </Card>
       ) : !showSignatures ? (
+        <div>
+          <div className="mb-4">
+            <Button
+              variant="ghost"
+              onClick={() => setShowCreateForm(false)}
+              className="flex items-center gap-2"
+            >
+              ← Torna all'Elenco
+            </Button>
+          </div>
         <div className="space-y-6">
           {/* Ordine di Lavoro (Optional) */}
           <Card>
@@ -689,6 +838,7 @@ export default function ServiceReportsPage() {
               Genera Rapporto
             </Button>
           </div>
+        </div>
         </div>
       ) : (
         <Card>
