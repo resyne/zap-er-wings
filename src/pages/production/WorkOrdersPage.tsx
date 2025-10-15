@@ -993,19 +993,19 @@ export default function WorkOrdersPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="to_do">
-                                <Badge className="bg-gray-500">Da Fare</Badge>
+                                <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
                               </SelectItem>
                               <SelectItem value="in_lavorazione">
-                                <Badge className="bg-blue-600">In Lavorazione</Badge>
+                                <Badge className="bg-primary text-primary-foreground">In Lavorazione</Badge>
                               </SelectItem>
                               <SelectItem value="test">
-                                <Badge className="bg-orange-500">Test</Badge>
+                                <Badge className="bg-info text-info-foreground">Test</Badge>
                               </SelectItem>
                               <SelectItem value="pronti">
-                                <Badge className="bg-green-600">Pronti</Badge>
+                                <Badge className="bg-success text-success-foreground">Pronti</Badge>
                               </SelectItem>
                               <SelectItem value="spediti_consegnati">
-                                <Badge className="bg-purple-600">Spediti</Badge>
+                                <Badge className="bg-success text-success-foreground">Spediti</Badge>
                               </SelectItem>
                             </SelectContent>
                            </Select>
