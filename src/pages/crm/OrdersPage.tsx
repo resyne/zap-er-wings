@@ -264,13 +264,13 @@ export default function OrdersPage() {
   const createShippingOrder = async (orderId: string, orderData: any) => {
     const shippingData = {
       number: '', // Auto-generated
-      customer_id: newOrder.customer_id,
       back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
       shipping_address: newOrder.shipping_address || null,
       sales_order_id: orderId
+      // Non passiamo customer_id perché shipping_orders usa companies/crm_contacts, non customers
     };
 
     const { data: shippingOrder, error } = await supabase
