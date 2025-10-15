@@ -4,6 +4,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3,
   Users,
+  TrendingUp,
   ShoppingCart,
   Package,
   Package2,
@@ -87,6 +88,7 @@ const navigationGroups: NavGroup[] = [
     title: "CRM", 
     items: [
       { title: "Lead", url: "/crm/leads", icon: Users },
+      { title: "Lead KPI", url: "/crm/leads/kpi", icon: TrendingUp },
       { title: "Clienti", url: "/crm/customers", icon: Building2 },
       { title: "Offerte", url: "/crm/offers", icon: FileText },
     ]
