@@ -329,148 +329,165 @@ export default function ServiceReportsPage() {
     const doc = new jsPDF();
     let y = 20;
 
-    // Intestazione
-    doc.setFontSize(18);
-    doc.text("Rapporto di Intervento", 105, y, { align: "center" });
-    y += 15;
-
-    // Informazioni cliente
-    doc.setFontSize(12);
-    doc.setFont(undefined, "bold");
-    doc.text("Cliente:", 20, y);
-    doc.setFont(undefined, "normal");
-    y += 7;
-    doc.text(`${selectedContact.first_name} ${selectedContact.last_name}`, 20, y);
-    if (selectedContact.company_name) {
-      y += 7;
-      doc.text(selectedContact.company_name, 20, y);
-    }
-    if (selectedContact.email) {
-      y += 7;
-      doc.text(`Email: ${selectedContact.email}`, 20, y);
-    }
-    if (selectedContact.phone) {
-      y += 7;
-      doc.text(`Tel: ${selectedContact.phone}`, 20, y);
-    }
-    if (selectedContact.address) {
-      y += 7;
-      doc.text(`Indirizzo: ${selectedContact.address}`, 20, y);
-    }
-    y += 10;
-
-    // Ordine di lavoro
-    if (selectedWorkOrder) {
+    // Logo aziendale
+    const logoImg = new Image();
+    logoImg.src = '/images/logo-zapper.png';
+    logoImg.onload = () => {
+      doc.addImage(logoImg, 'PNG', 15, 10, 40, 15);
+      
+      // Intestazione
+      doc.setFontSize(18);
       doc.setFont(undefined, "bold");
-      doc.text("Ordine di Lavoro:", 20, y);
+      doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
+      y = 35;
+
+      // Informazioni cliente
+      doc.setFontSize(12);
+      doc.setFont(undefined, "bold");
+      doc.text("Cliente:", 20, y);
       doc.setFont(undefined, "normal");
       y += 7;
-      doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
+      doc.text(`${selectedContact.first_name} ${selectedContact.last_name}`, 20, y);
+      if (selectedContact.company_name) {
+        y += 7;
+        doc.text(selectedContact.company_name, 20, y);
+      }
+      if (selectedContact.email) {
+        y += 7;
+        doc.text(`Email: ${selectedContact.email}`, 20, y);
+      }
+      if (selectedContact.phone) {
+        y += 7;
+        doc.text(`Tel: ${selectedContact.phone}`, 20, y);
+      }
+      if (selectedContact.address) {
+        y += 7;
+        doc.text(`Indirizzo: ${selectedContact.address}`, 20, y);
+      }
       y += 10;
-    }
 
-    // Dettagli intervento
-    doc.setFont(undefined, "bold");
-    doc.text("Dettagli Intervento:", 20, y);
-    doc.setFont(undefined, "normal");
-    y += 7;
-    doc.text(`Data: ${formData.intervention_date}`, 20, y);
-    y += 7;
-    if (formData.start_time && formData.end_time) {
-      doc.text(`Orario: ${formData.start_time} - ${formData.end_time}`, 20, y);
-      y += 7;
-    }
-    doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
-    y += 7;
-    doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
-    y += 10;
+      // Ordine di lavoro
+      if (selectedWorkOrder) {
+        doc.setFont(undefined, "bold");
+        doc.text("Ordine di Lavoro:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
+        y += 10;
+      }
 
-    if (formData.description) {
+      // Dettagli intervento
       doc.setFont(undefined, "bold");
-      doc.text("Descrizione Problema:", 20, y);
+      doc.text("Dettagli Intervento:", 20, y);
       doc.setFont(undefined, "normal");
       y += 7;
-      const descLines = doc.splitTextToSize(formData.description, 170);
-      doc.text(descLines, 20, y);
-      y += descLines.length * 7 + 3;
-    }
-
-    if (formData.work_performed) {
-      doc.setFont(undefined, "bold");
-      doc.text("Lavori Eseguiti:", 20, y);
-      doc.setFont(undefined, "normal");
+      doc.text(`Data: ${formData.intervention_date}`, 20, y);
       y += 7;
-      const workLines = doc.splitTextToSize(formData.work_performed, 170);
-      doc.text(workLines, 20, y);
-      y += workLines.length * 7 + 3;
-    }
-
-    if (formData.materials_used) {
-      doc.setFont(undefined, "bold");
-      doc.text("Materiali Utilizzati:", 20, y);
-      doc.setFont(undefined, "normal");
+      if (formData.start_time && formData.end_time) {
+        doc.text(`Orario: ${formData.start_time} - ${formData.end_time}`, 20, y);
+        y += 7;
+      }
+      doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
       y += 7;
-      const matLines = doc.splitTextToSize(formData.materials_used, 170);
-      doc.text(matLines, 20, y);
-      y += matLines.length * 7 + 3;
-    }
+      doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
+      y += 10;
 
-    if (formData.notes) {
-      doc.setFont(undefined, "bold");
-      doc.text("Note:", 20, y);
-      doc.setFont(undefined, "normal");
-      y += 7;
-      const noteLines = doc.splitTextToSize(formData.notes, 170);
-      doc.text(noteLines, 20, y);
-      y += noteLines.length * 7 + 3;
-    }
+      if (formData.description) {
+        doc.setFont(undefined, "bold");
+        doc.text("Descrizione Problema:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        const descLines = doc.splitTextToSize(formData.description, 170);
+        doc.text(descLines, 20, y);
+        y += descLines.length * 7 + 3;
+      }
 
-    // Dettagli economici
-    if (formData.amount) {
+      if (formData.work_performed) {
+        doc.setFont(undefined, "bold");
+        doc.text("Lavori Eseguiti:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        const workLines = doc.splitTextToSize(formData.work_performed, 170);
+        doc.text(workLines, 20, y);
+        y += workLines.length * 7 + 3;
+      }
+
+      if (formData.materials_used) {
+        doc.setFont(undefined, "bold");
+        doc.text("Materiali Utilizzati:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        const matLines = doc.splitTextToSize(formData.materials_used, 170);
+        doc.text(matLines, 20, y);
+        y += matLines.length * 7 + 3;
+      }
+
+      if (formData.notes) {
+        doc.setFont(undefined, "bold");
+        doc.text("Note:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        const noteLines = doc.splitTextToSize(formData.notes, 170);
+        doc.text(noteLines, 20, y);
+        y += noteLines.length * 7 + 3;
+      }
+
+      // Dettagli economici
+      if (formData.amount) {
+        if (y > 220) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 10;
+        doc.setFont(undefined, "bold");
+        doc.text("Dettagli Economici:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        doc.text(`Importo: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
+        y += 7;
+        doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y);
+        y += 7;
+        doc.setFont(undefined, "bold");
+        doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
+        doc.setFont(undefined, "normal");
+        y += 10;
+      }
+
+      // Firme
       if (y > 220) {
         doc.addPage();
         y = 20;
       }
       y += 10;
+
       doc.setFont(undefined, "bold");
-      doc.text("Dettagli Economici:", 20, y);
+      doc.text("Firma Cliente:", 20, y);
+      if (customerSignature) {
+        doc.addImage(customerSignature, "PNG", 20, y + 5, 70, 30);
+      }
+
+      doc.text("Firma Tecnico:", 110, y);
+      if (technicianSignature) {
+        doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
+      }
+
+      // Footer con contatti aziendali
+      const pageHeight = doc.internal.pageSize.height;
+      doc.setFontSize(8);
       doc.setFont(undefined, "normal");
-      y += 7;
-      doc.text(`Importo: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
-      y += 7;
-      doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y);
-      y += 7;
-      doc.setFont(undefined, "bold");
-      doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
-      doc.setFont(undefined, "normal");
-      y += 10;
-    }
+      doc.text("CLIMATEL DI ELEFANTE Pasquale", 105, pageHeight - 20, { align: "center" });
+      doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
+      doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
+      doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
 
-    // Firme
-    if (y > 220) {
-      doc.addPage();
-      y = 20;
-    }
-    y += 10;
+      const fileName = `rapporto_intervento_${formData.intervention_date}_${selectedContact.last_name}.pdf`;
+      doc.save(fileName);
 
-    doc.setFont(undefined, "bold");
-    doc.text("Firma Cliente:", 20, y);
-    if (customerSignature) {
-      doc.addImage(customerSignature, "PNG", 20, y + 5, 70, 30);
-    }
-
-    doc.text("Firma Tecnico:", 110, y);
-    if (technicianSignature) {
-      doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
-    }
-
-    const fileName = `rapporto_intervento_${formData.intervention_date}_${selectedContact.last_name}.pdf`;
-    doc.save(fileName);
-
-    toast({
-      title: "PDF Scaricato",
-      description: "Il rapporto è stato scaricato in formato PDF",
-    });
+      toast({
+        title: "PDF Scaricato",
+        description: "Il rapporto è stato scaricato in formato PDF",
+      });
+    };
   };
 
   const sendEmail = async () => {
@@ -1034,142 +1051,159 @@ export default function ServiceReportsPage() {
             const contact = selectedReport.crm_contacts;
             const technician = selectedReport.technicians;
 
-            // Intestazione
-            doc.setFontSize(18);
-            doc.text("Rapporto di Intervento", 105, y, { align: "center" });
-            y += 15;
-
-            // Informazioni cliente
-            doc.setFontSize(12);
-            doc.setFont(undefined, "bold");
-            doc.text("Cliente:", 20, y);
-            doc.setFont(undefined, "normal");
-            y += 7;
-            doc.text(`${contact?.first_name} ${contact?.last_name}`, 20, y);
-            if (contact?.company_name) {
-              y += 7;
-              doc.text(contact.company_name, 20, y);
-            }
-            if (contact?.email) {
-              y += 7;
-              doc.text(`Email: ${contact.email}`, 20, y);
-            }
-            if (contact?.phone) {
-              y += 7;
-              doc.text(`Tel: ${contact.phone}`, 20, y);
-            }
-            if (contact?.address) {
-              y += 7;
-              doc.text(`Indirizzo: ${contact.address}`, 20, y);
-            }
-            y += 10;
-
-            // Dettagli intervento
-            doc.setFont(undefined, "bold");
-            doc.text("Dettagli Intervento:", 20, y);
-            doc.setFont(undefined, "normal");
-            y += 7;
-            doc.text(`Data: ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}`, 20, y);
-            y += 7;
-            if (selectedReport.start_time && selectedReport.end_time) {
-              doc.text(`Orario: ${selectedReport.start_time} - ${selectedReport.end_time}`, 20, y);
-              y += 7;
-            }
-            doc.text(`Tipo: ${selectedReport.intervention_type}`, 20, y);
-            y += 7;
-            doc.text(`Tecnico: ${technician?.first_name} ${technician?.last_name}`, 20, y);
-            y += 10;
-
-            if (selectedReport.description) {
+            // Logo aziendale
+            const logoImg = new Image();
+            logoImg.src = '/images/logo-zapper.png';
+            logoImg.onload = () => {
+              doc.addImage(logoImg, 'PNG', 15, 10, 40, 15);
+              
+              // Intestazione
+              doc.setFontSize(18);
               doc.setFont(undefined, "bold");
-              doc.text("Descrizione Problema:", 20, y);
+              doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
+              y = 35;
+
+              // Informazioni cliente
+              doc.setFontSize(12);
+              doc.setFont(undefined, "bold");
+              doc.text("Cliente:", 20, y);
               doc.setFont(undefined, "normal");
               y += 7;
-              const descLines = doc.splitTextToSize(selectedReport.description, 170);
-              doc.text(descLines, 20, y);
-              y += descLines.length * 7 + 3;
-            }
+              doc.text(`${contact?.first_name} ${contact?.last_name}`, 20, y);
+              if (contact?.company_name) {
+                y += 7;
+                doc.text(contact.company_name, 20, y);
+              }
+              if (contact?.email) {
+                y += 7;
+                doc.text(`Email: ${contact.email}`, 20, y);
+              }
+              if (contact?.phone) {
+                y += 7;
+                doc.text(`Tel: ${contact.phone}`, 20, y);
+              }
+              if (contact?.address) {
+                y += 7;
+                doc.text(`Indirizzo: ${contact.address}`, 20, y);
+              }
+              y += 10;
 
-            if (selectedReport.work_performed) {
+              // Dettagli intervento
               doc.setFont(undefined, "bold");
-              doc.text("Lavori Eseguiti:", 20, y);
+              doc.text("Dettagli Intervento:", 20, y);
               doc.setFont(undefined, "normal");
               y += 7;
-              const workLines = doc.splitTextToSize(selectedReport.work_performed, 170);
-              doc.text(workLines, 20, y);
-              y += workLines.length * 7 + 3;
-            }
-
-            if (selectedReport.materials_used) {
-              doc.setFont(undefined, "bold");
-              doc.text("Materiali Utilizzati:", 20, y);
-              doc.setFont(undefined, "normal");
+              doc.text(`Data: ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}`, 20, y);
               y += 7;
-              const matLines = doc.splitTextToSize(selectedReport.materials_used, 170);
-              doc.text(matLines, 20, y);
-              y += matLines.length * 7 + 3;
-            }
-
-            if (selectedReport.notes) {
-              doc.setFont(undefined, "bold");
-              doc.text("Note:", 20, y);
-              doc.setFont(undefined, "normal");
+              if (selectedReport.start_time && selectedReport.end_time) {
+                doc.text(`Orario: ${selectedReport.start_time} - ${selectedReport.end_time}`, 20, y);
+                y += 7;
+              }
+              doc.text(`Tipo: ${selectedReport.intervention_type}`, 20, y);
               y += 7;
-              const noteLines = doc.splitTextToSize(selectedReport.notes, 170);
-              doc.text(noteLines, 20, y);
-              y += noteLines.length * 7 + 3;
-            }
+              doc.text(`Tecnico: ${technician?.first_name} ${technician?.last_name}`, 20, y);
+              y += 10;
 
-            // Dettagli economici
-            if (selectedReport.amount) {
+              if (selectedReport.description) {
+                doc.setFont(undefined, "bold");
+                doc.text("Descrizione Problema:", 20, y);
+                doc.setFont(undefined, "normal");
+                y += 7;
+                const descLines = doc.splitTextToSize(selectedReport.description, 170);
+                doc.text(descLines, 20, y);
+                y += descLines.length * 7 + 3;
+              }
+
+              if (selectedReport.work_performed) {
+                doc.setFont(undefined, "bold");
+                doc.text("Lavori Eseguiti:", 20, y);
+                doc.setFont(undefined, "normal");
+                y += 7;
+                const workLines = doc.splitTextToSize(selectedReport.work_performed, 170);
+                doc.text(workLines, 20, y);
+                y += workLines.length * 7 + 3;
+              }
+
+              if (selectedReport.materials_used) {
+                doc.setFont(undefined, "bold");
+                doc.text("Materiali Utilizzati:", 20, y);
+                doc.setFont(undefined, "normal");
+                y += 7;
+                const matLines = doc.splitTextToSize(selectedReport.materials_used, 170);
+                doc.text(matLines, 20, y);
+                y += matLines.length * 7 + 3;
+              }
+
+              if (selectedReport.notes) {
+                doc.setFont(undefined, "bold");
+                doc.text("Note:", 20, y);
+                doc.setFont(undefined, "normal");
+                y += 7;
+                const noteLines = doc.splitTextToSize(selectedReport.notes, 170);
+                doc.text(noteLines, 20, y);
+                y += noteLines.length * 7 + 3;
+              }
+
+              // Dettagli economici
+              if (selectedReport.amount) {
+                if (y > 220) {
+                  doc.addPage();
+                  y = 20;
+                }
+                y += 10;
+                doc.setFont(undefined, "bold");
+                doc.text("Dettagli Economici:", 20, y);
+                doc.setFont(undefined, "normal");
+                y += 7;
+                doc.text(`Importo: €${selectedReport.amount.toFixed(2)}`, 20, y);
+                y += 7;
+                if (selectedReport.vat_rate) {
+                  doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y);
+                  y += 7;
+                }
+                if (selectedReport.total_amount) {
+                  doc.setFont(undefined, "bold");
+                  doc.text(`Totale: €${selectedReport.total_amount.toFixed(2)}`, 20, y);
+                  doc.setFont(undefined, "normal");
+                  y += 10;
+                }
+              }
+
+              // Firme
               if (y > 220) {
                 doc.addPage();
                 y = 20;
               }
               y += 10;
+
               doc.setFont(undefined, "bold");
-              doc.text("Dettagli Economici:", 20, y);
+              doc.text("Firma Cliente:", 20, y);
+              if (selectedReport.customer_signature) {
+                doc.addImage(selectedReport.customer_signature, "PNG", 20, y + 5, 70, 30);
+              }
+
+              doc.text("Firma Tecnico:", 110, y);
+              if (selectedReport.technician_signature) {
+                doc.addImage(selectedReport.technician_signature, "PNG", 110, y + 5, 70, 30);
+              }
+
+              // Footer con contatti aziendali
+              const pageHeight = doc.internal.pageSize.height;
+              doc.setFontSize(8);
               doc.setFont(undefined, "normal");
-              y += 7;
-              doc.text(`Importo: €${selectedReport.amount.toFixed(2)}`, 20, y);
-              y += 7;
-              if (selectedReport.vat_rate) {
-                doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y);
-                y += 7;
-              }
-              if (selectedReport.total_amount) {
-                doc.setFont(undefined, "bold");
-                doc.text(`Totale: €${selectedReport.total_amount.toFixed(2)}`, 20, y);
-                doc.setFont(undefined, "normal");
-                y += 10;
-              }
-            }
+              doc.text("CLIMATEL DI ELEFANTE Pasquale", 105, pageHeight - 20, { align: "center" });
+              doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
+              doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
+              doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
 
-            // Firme
-            if (y > 220) {
-              doc.addPage();
-              y = 20;
-            }
-            y += 10;
+              const fileName = `rapporto_intervento_${selectedReport.intervention_date}_${contact?.last_name || 'report'}.pdf`;
+              doc.save(fileName);
 
-            doc.setFont(undefined, "bold");
-            doc.text("Firma Cliente:", 20, y);
-            if (selectedReport.customer_signature) {
-              doc.addImage(selectedReport.customer_signature, "PNG", 20, y + 5, 70, 30);
-            }
-
-            doc.text("Firma Tecnico:", 110, y);
-            if (selectedReport.technician_signature) {
-              doc.addImage(selectedReport.technician_signature, "PNG", 110, y + 5, 70, 30);
-            }
-
-            const fileName = `rapporto_intervento_${selectedReport.intervention_date}_${contact?.last_name || 'report'}.pdf`;
-            doc.save(fileName);
-
-            toast({
-              title: "PDF Scaricato",
-              description: "Il rapporto è stato scaricato in formato PDF",
-            });
+              toast({
+                title: "PDF Scaricato",
+                description: "Il rapporto è stato scaricato in formato PDF",
+              });
+            };
           }
         }}
         onSendEmail={async () => {
