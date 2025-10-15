@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail } from "lucide-react";
 import { CreateContactDialog } from "@/components/support/CreateContactDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
+import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
 import jsPDF from "jspdf";
 
 interface Contact {
@@ -51,6 +51,16 @@ interface ServiceReport {
   contact_id: string;
   technician_id: string;
   created_at: string;
+  amount?: string;
+  vat_rate?: string;
+  total_amount?: string;
+  customer_signature?: string;
+  technician_signature?: string;
+  description?: string;
+  materials_used?: string;
+  notes?: string;
+  start_time?: string;
+  end_time?: string;
   crm_contacts?: Contact;
   technicians?: Technician;
   work_orders?: WorkOrder;
@@ -71,6 +81,8 @@ export default function ServiceReportsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
+  const [selectedReport, setSelectedReport] = useState<ServiceReport | null>(null);
+  const [showReportDetails, setShowReportDetails] = useState(false);
   const [formData, setFormData] = useState({
     intervention_type: '',
     description: '',
@@ -79,7 +91,10 @@ export default function ServiceReportsPage() {
     notes: '',
     intervention_date: new Date().toISOString().split('T')[0],
     start_time: '',
-    end_time: ''
+    end_time: '',
+    amount: '',
+    vat_rate: '22',
+    total_amount: ''
   });
   const [customerSignature, setCustomerSignature] = useState<string>('');
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
@@ -171,7 +186,19 @@ export default function ServiceReportsPage() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-calculate total when amount or vat changes
+      if (field === 'amount' || field === 'vat_rate') {
+        const amount = parseFloat(field === 'amount' ? value : newData.amount) || 0;
+        const vatRate = parseFloat(field === 'vat_rate' ? value : newData.vat_rate) || 0;
+        const total = amount + (amount * vatRate / 100);
+        newData.total_amount = total.toFixed(2);
+      }
+      
+      return newData;
+    });
   };
 
   const handleContactSelect = (contactId: string) => {
@@ -252,6 +279,9 @@ export default function ServiceReportsPage() {
           intervention_date: formData.intervention_date,
           start_time: formData.start_time,
           end_time: formData.end_time,
+          amount: formData.amount ? parseFloat(formData.amount) : null,
+          vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : null,
+          total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
           customer_signature: customerSignature,
           technician_signature: technicianSignature,
           status: 'completed'
@@ -383,6 +413,27 @@ export default function ServiceReportsPage() {
       y += noteLines.length * 7 + 3;
     }
 
+    // Dettagli economici
+    if (formData.amount) {
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
+      y += 10;
+      doc.setFont(undefined, "bold");
+      doc.text("Dettagli Economici:", 20, y);
+      doc.setFont(undefined, "normal");
+      y += 7;
+      doc.text(`Importo: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
+      y += 7;
+      doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y);
+      y += 7;
+      doc.setFont(undefined, "bold");
+      doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
+      doc.setFont(undefined, "normal");
+      y += 10;
+    }
+
     // Firme
     if (y > 220) {
       doc.addPage();
@@ -466,7 +517,10 @@ export default function ServiceReportsPage() {
       notes: '',
       intervention_date: new Date().toISOString().split('T')[0],
       start_time: '',
-      end_time: ''
+      end_time: '',
+      amount: '',
+      vat_rate: '22',
+      total_amount: ''
     });
     setSelectedContact(null);
     setSelectedTechnician(null);
@@ -518,7 +572,14 @@ export default function ServiceReportsPage() {
             ) : (
               <div className="space-y-4">
                 {reports.map((report) => (
-                  <div key={report.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div 
+                    key={report.id} 
+                    className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedReport(report);
+                      setShowReportDetails(true);
+                    }}
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -556,6 +617,11 @@ export default function ServiceReportsPage() {
                         {report.work_performed && (
                           <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                             {report.work_performed}
+                          </p>
+                        )}
+                        {report.total_amount && (
+                          <p className="text-sm font-semibold text-primary mt-2">
+                            Totale: €{parseFloat(report.total_amount).toFixed(2)}
                           </p>
                         )}
                       </div>
@@ -832,6 +898,60 @@ export default function ServiceReportsPage() {
             </CardContent>
           </Card>
 
+          {/* Dettagli Economici */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Dettagli Economici
+              </CardTitle>
+              <CardDescription>
+                Inserisci l'importo dell'intervento e l'IVA applicata
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Importo (€)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.amount}
+                    onChange={(e) => handleInputChange('amount', e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vat_rate">IVA (%)</Label>
+                  <Select value={formData.vat_rate} onValueChange={(value) => handleInputChange('vat_rate', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona IVA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0%</SelectItem>
+                      <SelectItem value="4">4%</SelectItem>
+                      <SelectItem value="10">10%</SelectItem>
+                      <SelectItem value="22">22%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="total_amount">Totale (€)</Label>
+                  <Input
+                    id="total_amount"
+                    type="text"
+                    value={formData.total_amount}
+                    readOnly
+                    className="bg-muted font-semibold"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
             <Button onClick={generateReport} className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
@@ -889,6 +1009,201 @@ export default function ServiceReportsPage() {
         open={showCreateContact}
         onOpenChange={setShowCreateContact}
         onContactCreated={handleContactCreated}
+      />
+
+      <ReportDetailsDialog
+        open={showReportDetails}
+        onOpenChange={setShowReportDetails}
+        report={selectedReport}
+        onDownloadPDF={() => {
+          if (selectedReport) {
+            const doc = new jsPDF();
+            let y = 20;
+            const contact = selectedReport.crm_contacts;
+            const technician = selectedReport.technicians;
+
+            // Intestazione
+            doc.setFontSize(18);
+            doc.text("Rapporto di Intervento", 105, y, { align: "center" });
+            y += 15;
+
+            // Informazioni cliente
+            doc.setFontSize(12);
+            doc.setFont(undefined, "bold");
+            doc.text("Cliente:", 20, y);
+            doc.setFont(undefined, "normal");
+            y += 7;
+            doc.text(`${contact?.first_name} ${contact?.last_name}`, 20, y);
+            if (contact?.company_name) {
+              y += 7;
+              doc.text(contact.company_name, 20, y);
+            }
+            if (contact?.email) {
+              y += 7;
+              doc.text(`Email: ${contact.email}`, 20, y);
+            }
+            if (contact?.phone) {
+              y += 7;
+              doc.text(`Tel: ${contact.phone}`, 20, y);
+            }
+            if (contact?.address) {
+              y += 7;
+              doc.text(`Indirizzo: ${contact.address}`, 20, y);
+            }
+            y += 10;
+
+            // Dettagli intervento
+            doc.setFont(undefined, "bold");
+            doc.text("Dettagli Intervento:", 20, y);
+            doc.setFont(undefined, "normal");
+            y += 7;
+            doc.text(`Data: ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}`, 20, y);
+            y += 7;
+            if (selectedReport.start_time && selectedReport.end_time) {
+              doc.text(`Orario: ${selectedReport.start_time} - ${selectedReport.end_time}`, 20, y);
+              y += 7;
+            }
+            doc.text(`Tipo: ${selectedReport.intervention_type}`, 20, y);
+            y += 7;
+            doc.text(`Tecnico: ${technician?.first_name} ${technician?.last_name}`, 20, y);
+            y += 10;
+
+            if (selectedReport.description) {
+              doc.setFont(undefined, "bold");
+              doc.text("Descrizione Problema:", 20, y);
+              doc.setFont(undefined, "normal");
+              y += 7;
+              const descLines = doc.splitTextToSize(selectedReport.description, 170);
+              doc.text(descLines, 20, y);
+              y += descLines.length * 7 + 3;
+            }
+
+            if (selectedReport.work_performed) {
+              doc.setFont(undefined, "bold");
+              doc.text("Lavori Eseguiti:", 20, y);
+              doc.setFont(undefined, "normal");
+              y += 7;
+              const workLines = doc.splitTextToSize(selectedReport.work_performed, 170);
+              doc.text(workLines, 20, y);
+              y += workLines.length * 7 + 3;
+            }
+
+            if (selectedReport.materials_used) {
+              doc.setFont(undefined, "bold");
+              doc.text("Materiali Utilizzati:", 20, y);
+              doc.setFont(undefined, "normal");
+              y += 7;
+              const matLines = doc.splitTextToSize(selectedReport.materials_used, 170);
+              doc.text(matLines, 20, y);
+              y += matLines.length * 7 + 3;
+            }
+
+            if (selectedReport.notes) {
+              doc.setFont(undefined, "bold");
+              doc.text("Note:", 20, y);
+              doc.setFont(undefined, "normal");
+              y += 7;
+              const noteLines = doc.splitTextToSize(selectedReport.notes, 170);
+              doc.text(noteLines, 20, y);
+              y += noteLines.length * 7 + 3;
+            }
+
+            // Dettagli economici
+            if (selectedReport.amount) {
+              if (y > 220) {
+                doc.addPage();
+                y = 20;
+              }
+              y += 10;
+              doc.setFont(undefined, "bold");
+              doc.text("Dettagli Economici:", 20, y);
+              doc.setFont(undefined, "normal");
+              y += 7;
+              doc.text(`Importo: €${parseFloat(selectedReport.amount).toFixed(2)}`, 20, y);
+              y += 7;
+              if (selectedReport.vat_rate) {
+                doc.text(`IVA: ${parseFloat(selectedReport.vat_rate).toFixed(2)}%`, 20, y);
+                y += 7;
+              }
+              if (selectedReport.total_amount) {
+                doc.setFont(undefined, "bold");
+                doc.text(`Totale: €${parseFloat(selectedReport.total_amount).toFixed(2)}`, 20, y);
+                doc.setFont(undefined, "normal");
+                y += 10;
+              }
+            }
+
+            // Firme
+            if (y > 220) {
+              doc.addPage();
+              y = 20;
+            }
+            y += 10;
+
+            doc.setFont(undefined, "bold");
+            doc.text("Firma Cliente:", 20, y);
+            if (selectedReport.customer_signature) {
+              doc.addImage(selectedReport.customer_signature, "PNG", 20, y + 5, 70, 30);
+            }
+
+            doc.text("Firma Tecnico:", 110, y);
+            if (selectedReport.technician_signature) {
+              doc.addImage(selectedReport.technician_signature, "PNG", 110, y + 5, 70, 30);
+            }
+
+            const fileName = `rapporto_intervento_${selectedReport.intervention_date}_${contact?.last_name || 'report'}.pdf`;
+            doc.save(fileName);
+
+            toast({
+              title: "PDF Scaricato",
+              description: "Il rapporto è stato scaricato in formato PDF",
+            });
+          }
+        }}
+        onSendEmail={async () => {
+          if (!selectedReport) return;
+          
+          const contact = selectedReport.crm_contacts;
+          const technician = selectedReport.technicians;
+
+          if (!contact?.email) {
+            toast({
+              title: "Email mancante",
+              description: "Il cliente non ha un indirizzo email registrato",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          setLoading(true);
+          try {
+            const { error } = await supabase.functions.invoke('send-customer-emails', {
+              body: {
+                to: contact.email,
+                subject: `Rapporto di Intervento - ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}`,
+                recipientName: `${contact.first_name} ${contact.last_name}`,
+                message: `Gentile ${contact.first_name} ${contact.last_name},\n\nin allegato trovi il rapporto di intervento del ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}.\n\nTipo intervento: ${selectedReport.intervention_type}\nTecnico: ${technician?.first_name} ${technician?.last_name}\n\n${selectedReport.work_performed ? `Lavori eseguiti:\n${selectedReport.work_performed}\n\n` : ''}Grazie per averci scelto.\n\nCordiali saluti`,
+                reportData: selectedReport
+              }
+            });
+
+            if (error) throw error;
+
+            toast({
+              title: "Email Inviata",
+              description: `Il rapporto è stato inviato a ${contact.email}`,
+            });
+          } catch (error) {
+            console.error('Error sending email:', error);
+            toast({
+              title: "Errore",
+              description: "Errore nell'invio dell'email",
+              variant: "destructive",
+            });
+          } finally {
+            setLoading(false);
+          }
+        }}
       />
     </div>
   );

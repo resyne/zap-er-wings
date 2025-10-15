@@ -4080,6 +4080,7 @@ export type Database = {
       }
       service_reports: {
         Row: {
+          amount: number | null
           contact_id: string | null
           created_at: string
           customer_signature: string
@@ -4096,11 +4097,14 @@ export type Database = {
           technician_id: string | null
           technician_name: string | null
           technician_signature: string
+          total_amount: number | null
           updated_at: string
+          vat_rate: number | null
           work_order_id: string | null
           work_performed: string | null
         }
         Insert: {
+          amount?: number | null
           contact_id?: string | null
           created_at?: string
           customer_signature: string
@@ -4117,11 +4121,14 @@ export type Database = {
           technician_id?: string | null
           technician_name?: string | null
           technician_signature: string
+          total_amount?: number | null
           updated_at?: string
+          vat_rate?: number | null
           work_order_id?: string | null
           work_performed?: string | null
         }
         Update: {
+          amount?: number | null
           contact_id?: string | null
           created_at?: string
           customer_signature?: string
@@ -4138,7 +4145,9 @@ export type Database = {
           technician_id?: string | null
           technician_name?: string | null
           technician_signature?: string
+          total_amount?: number | null
           updated_at?: string
+          vat_rate?: number | null
           work_order_id?: string | null
           work_performed?: string | null
         }
