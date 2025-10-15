@@ -63,7 +63,7 @@ interface Offer {
 }
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
-const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro"];
+const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro", "RESYNE"];
 const countries = ["Italia", "Francia", "Germania"];
 // Tutte le colonne per la Kanban
 const kanbanStatuses = [
