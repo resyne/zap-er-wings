@@ -36,6 +36,7 @@ type Ticket = {
   attachments: string[] | null;
   watchers?: string[];
   assigned_user?: User | null;
+  scheduled_date?: string | null;
 };
 
 const statusConfig = {
@@ -70,7 +71,8 @@ export default function TicketsPage() {
     customer: "",
     priority: "medium",
     description: "",
-    status: "open"
+    status: "open",
+    scheduled_date: ""
   });
 
   // Load users and tickets on component mount
@@ -180,7 +182,8 @@ export default function TicketsPage() {
           customer_name: formData.customer,
           priority: formData.priority,
           assigned_to: selectedAssignee === 'none' ? null : selectedAssignee || null,
-          attachments: uploadedFiles.map(file => file.name)
+          attachments: uploadedFiles.map(file => file.name),
+          scheduled_date: formData.scheduled_date || null
         } as any)
         .select()
         .single();
@@ -202,7 +205,7 @@ export default function TicketsPage() {
       }
 
       // Reset form
-      setFormData({ title: "", customer: "", priority: "medium", description: "", status: "open" });
+      setFormData({ title: "", customer: "", priority: "medium", description: "", status: "open", scheduled_date: "" });
       setSelectedAssignee("none");
       setSelectedWatchers([]);
       setUploadedFiles([]);
@@ -232,7 +235,8 @@ export default function TicketsPage() {
       customer: ticket.customer_name,
       priority: ticket.priority,
       description: ticket.description || "",
-      status: ticket.status
+      status: ticket.status,
+      scheduled_date: ticket.scheduled_date || ""
     });
     setSelectedAssignee(ticket.assigned_to || "none");
     setSelectedWatchers(ticket.watchers || []);
@@ -256,6 +260,7 @@ export default function TicketsPage() {
           priority: formData.priority,
           status: formData.status,
           assigned_to: selectedAssignee === 'none' ? null : selectedAssignee || null,
+          scheduled_date: formData.scheduled_date || null
         })
         .eq('id', selectedTicket.id);
 
@@ -281,7 +286,7 @@ export default function TicketsPage() {
       }
 
       // Reset form
-      setFormData({ title: "", customer: "", priority: "medium", description: "", status: "open" });
+      setFormData({ title: "", customer: "", priority: "medium", description: "", status: "open", scheduled_date: "" });
       setSelectedAssignee("none");
       setSelectedWatchers([]);
       setIsEditDialogOpen(false);
@@ -427,6 +432,16 @@ export default function TicketsPage() {
                   rows={4}
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="scheduled_date">Data di Gestione</Label>
+                <Input 
+                  id="scheduled_date" 
+                  type="datetime-local"
+                  value={formData.scheduled_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))}
                 />
               </div>
               
@@ -716,6 +731,21 @@ export default function TicketsPage() {
                 </div>
               </div>
 
+              {selectedTicket.scheduled_date && (
+                <div>
+                  <Label className="text-sm font-medium">Data di Gestione</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {new Date(selectedTicket.scheduled_date).toLocaleString('it-IT', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Label className="text-sm font-medium">Descrizione</Label>
                 <div className="mt-1 p-3 bg-muted rounded-md">
@@ -859,6 +889,16 @@ export default function TicketsPage() {
                 rows={4}
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-scheduled_date">Data di Gestione</Label>
+              <Input 
+                id="edit-scheduled_date" 
+                type="datetime-local"
+                value={formData.scheduled_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))}
               />
             </div>
           </div>

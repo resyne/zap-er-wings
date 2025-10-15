@@ -36,7 +36,18 @@ interface CalendarEvent {
   all_day: boolean;
 }
 
-type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' });
+interface Ticket {
+  id: string;
+  number: string;
+  title: string;
+  description?: string | null;
+  scheduled_date: string;
+  status: string;
+  priority: string;
+  customer_name: string;
+}
+
+type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' });
 
 const priorityColors = {
   low: "bg-slate-100 text-slate-800",
@@ -48,6 +59,7 @@ export default function CalendarioPersonale() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -117,8 +129,20 @@ export default function CalendarioPersonale() {
 
       if (eventsError) throw eventsError;
 
+      // Load tickets with scheduled date
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('assigned_to', user.id)
+        .not('scheduled_date', 'is', null)
+        .gte('scheduled_date', monthStart.toISOString())
+        .lte('scheduled_date', monthEnd.toISOString());
+
+      if (ticketsError) throw ticketsError;
+
       setTasks(allTasks);
       setEvents(eventsData || []);
+      setTickets(ticketsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -148,7 +172,14 @@ export default function CalendarioPersonale() {
       })
       .map(event => ({ ...event, item_type: 'event' as const }));
 
-    return [...dayTasks, ...dayEvents];
+    const dayTickets = tickets
+      .filter(ticket => {
+        const ticketDate = parseISO(ticket.scheduled_date);
+        return isSameDay(ticketDate, day);
+      })
+      .map(ticket => ({ ...ticket, item_type: 'ticket' as const }));
+
+    return [...dayTasks, ...dayEvents, ...dayTickets];
   };
 
   const handleCreateEvent = async () => {
@@ -329,12 +360,15 @@ export default function CalendarioPersonale() {
                   <CardContent className="p-2 space-y-1">
                     {dayItems.slice(0, 3).map((item) => {
                       const isTask = item.item_type === 'task';
+                      const isTicket = item.item_type === 'ticket';
                       
                       return (
                         <div
                           key={item.id}
                           className={`text-xs p-1 rounded cursor-pointer hover:bg-muted/50 transition-colors truncate ${
-                            isTask ? 'bg-primary/10 text-primary' : `bg-${item.color}-100 text-${item.color}-800`
+                            isTask ? 'bg-primary/10 text-primary' : 
+                            isTicket ? 'bg-orange-100 text-orange-800' :
+                            `bg-${item.color}-100 text-${item.color}-800`
                           }`}
                           onClick={() => {
                             setSelectedItem(item);
@@ -473,7 +507,7 @@ export default function CalendarioPersonale() {
           <DialogHeader>
             <DialogTitle>{selectedItem?.title}</DialogTitle>
             <DialogDescription>
-              {selectedItem?.item_type === 'task' ? 'Task' : 'Evento'}
+              {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : 'Evento'}
             </DialogDescription>
           </DialogHeader>
           
@@ -484,6 +518,46 @@ export default function CalendarioPersonale() {
                   <h4 className="font-medium mb-1">Descrizione</h4>
                   <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
                 </div>
+              )}
+
+              {selectedItem.item_type === 'ticket' && (
+                <>
+                  <div>
+                    <h4 className="font-medium mb-1">Numero</h4>
+                    <p className="text-sm text-muted-foreground">{(selectedItem as Ticket).number}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Cliente</h4>
+                    <p className="text-sm text-muted-foreground">{(selectedItem as Ticket).customer_name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Stato</h4>
+                    <Badge className="text-sm">
+                      {(selectedItem as Ticket).status === 'open' ? 'Aperto' :
+                       (selectedItem as Ticket).status === 'in_progress' ? 'In Lavorazione' :
+                       (selectedItem as Ticket).status === 'resolved' ? 'Risolto' : 'Chiuso'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Priorità</h4>
+                    <Badge className="text-sm">
+                      {(selectedItem as Ticket).priority === 'low' ? 'Bassa' :
+                       (selectedItem as Ticket).priority === 'medium' ? 'Media' : 'Alta'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Data di Gestione</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date((selectedItem as Ticket).scheduled_date).toLocaleString('it-IT', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </>
               )}
               
               {selectedItem.item_type === 'event' && (
