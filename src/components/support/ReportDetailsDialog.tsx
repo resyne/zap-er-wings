@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Mail } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +28,9 @@ export function ReportDetailsDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Dettagli Rapporto di Intervento</DialogTitle>
+          <DialogDescription>
+            Visualizza tutti i dettagli del rapporto, incluse le firme digitali
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -114,11 +117,11 @@ export function ReportDetailsDialog({
               <div>
                 <h3 className="font-semibold text-lg mb-3">Dettagli Economici</h3>
                 <div className="bg-muted p-4 rounded-lg space-y-2">
-                  {report.amount && <p><strong>Importo:</strong> €{parseFloat(report.amount).toFixed(2)}</p>}
-                  {report.vat_rate !== null && <p><strong>IVA:</strong> {parseFloat(report.vat_rate).toFixed(2)}%</p>}
+                  {report.amount && <p><strong>Importo:</strong> €{report.amount.toFixed(2)}</p>}
+                  {report.vat_rate !== null && <p><strong>IVA:</strong> {report.vat_rate.toFixed(2)}%</p>}
                   {report.total_amount && (
                     <p className="text-lg font-bold text-primary">
-                      <strong>Totale:</strong> €{parseFloat(report.total_amount).toFixed(2)}
+                      <strong>Totale:</strong> €{report.total_amount.toFixed(2)}
                     </p>
                   )}
                 </div>

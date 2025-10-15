@@ -51,9 +51,9 @@ interface ServiceReport {
   contact_id: string;
   technician_id: string;
   created_at: string;
-  amount?: string;
-  vat_rate?: string;
-  total_amount?: string;
+  amount?: number;
+  vat_rate?: number;
+  total_amount?: number;
   customer_signature?: string;
   technician_signature?: string;
   description?: string;
@@ -157,12 +157,24 @@ export default function ServiceReportsPage() {
           contact_id,
           technician_id,
           created_at,
+          description,
+          materials_used,
+          notes,
+          start_time,
+          end_time,
+          amount,
+          vat_rate,
+          total_amount,
+          customer_signature,
+          technician_signature,
           crm_contacts (
             id,
             first_name,
             last_name,
             company_name,
-            email
+            email,
+            phone,
+            address
           ),
           technicians (
             id,
@@ -621,7 +633,7 @@ export default function ServiceReportsPage() {
                         )}
                         {report.total_amount && (
                           <p className="text-sm font-semibold text-primary mt-2">
-                            Totale: €{parseFloat(report.total_amount).toFixed(2)}
+                            Totale: €{report.total_amount.toFixed(2)}
                           </p>
                         )}
                       </div>
@@ -1119,15 +1131,15 @@ export default function ServiceReportsPage() {
               doc.text("Dettagli Economici:", 20, y);
               doc.setFont(undefined, "normal");
               y += 7;
-              doc.text(`Importo: €${parseFloat(selectedReport.amount).toFixed(2)}`, 20, y);
+              doc.text(`Importo: €${selectedReport.amount.toFixed(2)}`, 20, y);
               y += 7;
               if (selectedReport.vat_rate) {
-                doc.text(`IVA: ${parseFloat(selectedReport.vat_rate).toFixed(2)}%`, 20, y);
+                doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y);
                 y += 7;
               }
               if (selectedReport.total_amount) {
                 doc.setFont(undefined, "bold");
-                doc.text(`Totale: €${parseFloat(selectedReport.total_amount).toFixed(2)}`, 20, y);
+                doc.text(`Totale: €${selectedReport.total_amount.toFixed(2)}`, 20, y);
                 doc.setFont(undefined, "normal");
                 y += 10;
               }
