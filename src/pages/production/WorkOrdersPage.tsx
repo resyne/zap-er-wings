@@ -443,21 +443,17 @@ export default function WorkOrdersPage() {
   };
 
   const normalizeStatus = (status: string): string => {
-    const statusMap: Record<string, string> = {
-      "planned": "to_do",
-      "completato": "completed",
-      "in_lavorazione": "in_progress",
-      "in_corso": "in_progress"
-    };
-    return statusMap[status] || status;
+    // Non normalizziamo più - usiamo gli stati come sono nel DB
+    return status;
   };
 
   const getStatusColor = (status: string) => {
-    const normalized = normalizeStatus(status);
-    switch (normalized) {
+    switch (status) {
       case 'to_do': return 'bg-info';
-      case 'in_progress': return 'bg-primary';
-      case 'testing': return 'bg-warning';
+      case 'in_lavorazione': return 'bg-primary';
+      case 'test': return 'bg-info';
+      case 'pronti': return 'bg-success';
+      case 'spediti_consegnati': return 'bg-success';
       case 'completed':
       case 'closed': return 'bg-success';
       default: return 'bg-muted';
@@ -521,10 +517,10 @@ export default function WorkOrdersPage() {
   const statusCounts = {
     all: workOrders.length,
     active: workOrders.filter(wo => wo.status !== 'spediti_consegnati' && wo.status !== 'completed' && wo.status !== 'closed').length,
-    to_do: workOrders.filter(wo => normalizeStatus(wo.status) === 'to_do').length,
-    in_lavorazione: workOrders.filter(wo => normalizeStatus(wo.status) === 'in_lavorazione').length,
-    test: workOrders.filter(wo => normalizeStatus(wo.status) === 'test').length,
-    pronti: workOrders.filter(wo => normalizeStatus(wo.status) === 'pronti').length,
+    to_do: workOrders.filter(wo => wo.status === 'to_do').length,
+    in_lavorazione: workOrders.filter(wo => wo.status === 'in_lavorazione').length,
+    test: workOrders.filter(wo => wo.status === 'test').length,
+    pronti: workOrders.filter(wo => wo.status === 'pronti').length,
     archive: workOrders.filter(wo => wo.status === 'spediti_consegnati' || wo.status === 'completed' || wo.status === 'closed').length,
   };
 
@@ -1055,7 +1051,7 @@ export default function WorkOrdersPage() {
                         >
                           <div className="space-y-2">
                             {filteredWorkOrders
-                              .filter(wo => normalizeStatus(wo.status) === status)
+                              .filter(wo => wo.status === status)
                               .map((wo, index) => (
                                 <Draggable key={wo.id} draggableId={wo.id} index={index}>
                                   {(provided, snapshot) => (
