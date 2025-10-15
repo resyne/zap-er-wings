@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { OrderComments } from "@/components/orders/OrderComments";
+import { BomComposition } from "@/components/production/BomComposition";
 
 interface WorkOrder {
   id: string;
@@ -156,15 +157,12 @@ export default function WorkOrdersPage() {
       const { data, error } = await supabase
         .from('boms')
         .select('id, name, version, level')
-        .in('level', [0, 3]) // Solo livello 0 (macchine complete) e livello 3 (accessori)
-        .order('level')
+        .eq('level', 0) // Solo livello 0 (macchine complete)
         .order('name');
 
       if (error) throw error;
       
-      // Separa BOMs e accessori
-      setBoms(data?.filter(bom => bom.level === 0) || []);
-      setAccessori(data?.filter(bom => bom.level === 3) || []);
+      setBoms(data || []);
     } catch (error: any) {
       console.error("Errore durante il caricamento delle distinte base:", error);
     }
@@ -618,71 +616,35 @@ export default function WorkOrdersPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <Label htmlFor="bom_id">Macchina/Prodotto Principale</Label>
-                   <Select value={formData.bom_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bom_id: value }))}>
-                     <SelectTrigger>
-                       <SelectValue placeholder="Seleziona Macchina Principale" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       {boms.map((bom) => (
-                         <SelectItem key={bom.id} value={bom.id}>
-                           {bom.name} ({bom.version})
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="priority">Priorità</Label>
-                  <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona priorità" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Bassa</SelectItem>
-                      <SelectItem value="medium">Media</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                      <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-               </div>
-
-              {/* Accessori selection */}
               <div className="space-y-2">
-                <Label htmlFor="accessori">Accessori (Opzionali)</Label>
-                <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
-                  {accessori.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nessun accessorio disponibile</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {accessori.map(accessorio => (
-                        <div key={accessorio.id} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`accessorio-${accessorio.id}`}
-                            checked={formData.accessori_ids.includes(accessorio.id)}
-                            onChange={(e) => {
-                              const isChecked = e.target.checked;
-                              setFormData(prev => ({
-                                ...prev,
-                                accessori_ids: isChecked 
-                                  ? [...prev.accessori_ids, accessorio.id]
-                                  : prev.accessori_ids.filter(id => id !== accessorio.id)
-                              }));
-                            }}
-                            className="rounded"
-                          />
-                          <label htmlFor={`accessorio-${accessorio.id}`} className="text-sm">
-                            {accessorio.name} (v{accessorio.version})
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <Label htmlFor="bom_id">Macchina/Prodotto (Livello 0)</Label>
+                <Select value={formData.bom_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bom_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona Macchina" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boms.map((bom) => (
+                      <SelectItem key={bom.id} value={bom.id}>
+                        {bom.name} (v{bom.version})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="priority">Priorità</Label>
+                <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona priorità" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Bassa</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -1288,6 +1250,13 @@ export default function WorkOrdersPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Composizione BOM */}
+              {selectedWO.bom_id && (
+                <div className="border-t pt-4">
+                  <BomComposition bomId={selectedWO.bom_id} />
+                </div>
+              )}
 
               {(selectedWO.planned_start_date || selectedWO.planned_end_date) && (
                 <div className="border-t pt-4">
