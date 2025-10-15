@@ -5,15 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, Package, Truck, CheckCircle, MapPin } from "lucide-react";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Plus, FileText, MapPin } from "lucide-react";
+import { ShippingOrderDetailsDialog } from "@/components/warehouse/ShippingOrderDetailsDialog";
 
 interface ShippingOrder {
   id: string;
@@ -94,7 +94,9 @@ export default function ShippingOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<ShippingOrder | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -273,6 +275,30 @@ export default function ShippingOrdersPage() {
     },
   });
 
+  const deleteOrderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("shipping_orders")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      setIsDetailsDialogOpen(false);
+      setSelectedOrder(null);
+      toast({ title: "Ordine eliminato con successo" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Errore nell'eliminazione dell'ordine", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
   const generateDDTMutation = useMutation({
     mutationFn: async (orderId: string) => {
       // This would typically call an edge function to generate the PDF
@@ -367,105 +393,184 @@ export default function ShippingOrdersPage() {
             Gestisci gli ordini di spedizione e genera i DDT
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuovo Ordine
-        </Button>
+        <div className="flex gap-2">
+          <div className="flex gap-1 border rounded-md p-1">
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+            >
+              Tabella
+            </Button>
+            <Button
+              variant={viewMode === "kanban" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("kanban")}
+            >
+              Kanban
+            </Button>
+          </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuovo Ordine
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Ordini di Spedizione</CardTitle>
-          <CardDescription>
-            Elenco di tutti gli ordini di spedizione
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Data Ordine</TableHead>
-                <TableHead>Stato</TableHead>
-                <TableHead>Pagamento alla Consegna</TableHead>
-                <TableHead>Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shippingOrders?.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.number}</TableCell>
-                  <TableCell>
-                    {getCustomerDisplayName(order)}
-                  </TableCell>
-                  <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={order.status}
-                      onValueChange={(value) => handleStatusChange(order.id, value)}
-                    >
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {order.payment_on_delivery ? (
-                      <Badge variant="outline">
-                        Sì - €{order.payment_amount || 0}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">No</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      {order.status === "pronto" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleGenerateDDT(order)}
-                          disabled={generateDDTMutation.isPending}
-                        >
-                          <FileText className="w-4 h-4 mr-1" />
-                          Genera DDT
-                        </Button>
-                      )}
-                      {order.status === "spedito" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => window.open('http://dg.netup.eu:3683/esLogin.aspx', '_blank', 'noopener,noreferrer')}
-                        >
-                          <MapPin className="w-4 h-4 mr-1" />
-                          Tracking
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setIsEditDialogOpen(true);
-                        }}
-                      >
-                        Dettagli
-                      </Button>
-                    </div>
-                  </TableCell>
+      {viewMode === "table" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ordini di Spedizione</CardTitle>
+            <CardDescription>
+              Elenco di tutti gli ordini di spedizione
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Numero</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Data Ordine</TableHead>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Pagamento alla Consegna</TableHead>
+                  <TableHead>Azioni</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {shippingOrders?.map((order) => (
+                  <TableRow 
+                    key={order.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setIsDetailsDialogOpen(true);
+                    }}
+                  >
+                    <TableCell className="font-medium">{order.number}</TableCell>
+                    <TableCell>
+                      {getCustomerDisplayName(order)}
+                    </TableCell>
+                    <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={order.status}
+                        onValueChange={(value) => handleStatusChange(order.id, value)}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      {order.payment_on_delivery ? (
+                        <Badge variant="outline">
+                          Sì - €{order.payment_amount || 0}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">No</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2">
+                        {order.status === "pronto" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleGenerateDDT(order)}
+                            disabled={generateDDTMutation.isPending}
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            DDT
+                          </Button>
+                        )}
+                        {order.status === "spedito" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open('http://dg.netup.eu:3683/esLogin.aspx', '_blank', 'noopener,noreferrer')}
+                          >
+                            <MapPin className="w-4 h-4 mr-1" />
+                            Track
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-5 gap-4">
+          {statusOptions.map((status) => {
+            const ordersInStatus = shippingOrders?.filter(o => o.status === status.value) || [];
+            return (
+              <Card key={status.value}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center justify-between">
+                    <span>{status.label}</span>
+                    <Badge variant="secondary">{ordersInStatus.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {ordersInStatus.map((order) => (
+                    <Card
+                      key={order.id}
+                      className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setIsDetailsDialogOpen(true);
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <div className="font-medium text-sm">{order.number}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {getCustomerDisplayName(order)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(order.order_date).toLocaleDateString()}
+                        </div>
+                        {order.payment_on_delivery && (
+                          <Badge variant="outline" className="text-xs">
+                            €{order.payment_amount || 0}
+                          </Badge>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                  {ordersInStatus.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      Nessun ordine
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Details Dialog */}
+      <ShippingOrderDetailsDialog
+        order={selectedOrder}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        onEdit={(order) => {
+          setIsDetailsDialogOpen(false);
+          setSelectedOrder(order);
+          setIsEditDialogOpen(true);
+        }}
+        onDelete={deleteOrderMutation.mutate}
+        onGenerateDDT={handleGenerateDDT}
+      />
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

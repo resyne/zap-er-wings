@@ -1,0 +1,176 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Pencil, Trash2, FileText, MapPin } from "lucide-react";
+
+interface ShippingOrder {
+  id: string;
+  number: string;
+  status: string;
+  order_date: string;
+  shipping_address?: string;
+  payment_on_delivery: boolean;
+  payment_amount?: number;
+  notes?: string;
+  companies?: { name: string; address?: string };
+  work_orders?: { number: string; title: string };
+  sales_orders?: { number: string };
+  shipping_order_items?: any[];
+}
+
+interface ShippingOrderDetailsDialogProps {
+  order: ShippingOrder | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEdit: (order: ShippingOrder) => void;
+  onDelete: (id: string) => void;
+  onGenerateDDT: (order: ShippingOrder) => void;
+}
+
+const statusOptions = [
+  { value: "da_preparare", label: "Da preparare", color: "bg-gray-100 text-gray-800" },
+  { value: "in_preparazione", label: "In preparazione", color: "bg-yellow-100 text-yellow-800" },
+  { value: "pronto", label: "Pronto", color: "bg-blue-100 text-blue-800" },
+  { value: "spedito", label: "Spedito", color: "bg-orange-100 text-orange-800" },
+  { value: "consegnato", label: "Consegnato", color: "bg-green-100 text-green-800" },
+];
+
+export function ShippingOrderDetailsDialog({
+  order,
+  open,
+  onOpenChange,
+  onEdit,
+  onDelete,
+  onGenerateDDT,
+}: ShippingOrderDetailsDialogProps) {
+  if (!order) return null;
+
+  const statusOption = statusOptions.find(s => s.value === order.status);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Dettagli Ordine: {order.number}</span>
+            <Badge className={statusOption?.color}>{statusOption?.label}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => onEdit(order)}>
+              <Pencil className="w-4 h-4 mr-2" />
+              Modifica
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => {
+              if (confirm("Sei sicuro di voler eliminare questo ordine?")) {
+                onDelete(order.id);
+              }
+            }}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Elimina
+            </Button>
+            {order.status === "pronto" && (
+              <Button size="sm" variant="outline" onClick={() => onGenerateDDT(order)}>
+                <FileText className="w-4 h-4 mr-2" />
+                Genera DDT
+              </Button>
+            )}
+            {order.status === "spedito" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open('http://dg.netup.eu:3683/esLogin.aspx', '_blank', 'noopener,noreferrer')}
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                Tracking
+              </Button>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Order Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground">Cliente</h4>
+              <p>{order.companies?.name || "N/A"}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground">Data Ordine</h4>
+              <p>{new Date(order.order_date).toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          {order.shipping_address && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground">Indirizzo di Spedizione</h4>
+              <p className="whitespace-pre-wrap">{order.shipping_address}</p>
+            </div>
+          )}
+
+          {order.payment_on_delivery && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground">Pagamento alla Consegna</h4>
+              <p>€{order.payment_amount || 0}</p>
+            </div>
+          )}
+
+          {/* Linked Orders */}
+          {(order.work_orders || order.sales_orders) && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Ordini Collegati</h4>
+              <div className="space-y-1">
+                {order.work_orders && (
+                  <p className="text-sm">
+                    <strong>OdP:</strong> {order.work_orders.number} - {order.work_orders.title}
+                  </p>
+                )}
+                {order.sales_orders && (
+                  <p className="text-sm">
+                    <strong>OdV:</strong> {order.sales_orders.number}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Order Items */}
+          {order.shipping_order_items && order.shipping_order_items.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli</h4>
+              <div className="border rounded-lg divide-y">
+                {order.shipping_order_items.map((item: any, index: number) => (
+                  <div key={index} className="p-3 flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{item.materials?.name || "N/A"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Codice: {item.materials?.code || "N/A"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p>Quantità: {item.quantity}</p>
+                      <p className="text-sm text-muted-foreground">
+                        €{item.unit_price} x {item.quantity} = €{item.total_price}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {order.notes && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground">Note</h4>
+              <p className="whitespace-pre-wrap">{order.notes}</p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
