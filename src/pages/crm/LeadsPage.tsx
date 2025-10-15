@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle } from "lucide-react";
+import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
@@ -92,6 +93,8 @@ export default function LeadsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
   const [currentLeadForOffer, setCurrentLeadForOffer] = useState<Lead | null>(null);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [wonLeadForOrder, setWonLeadForOrder] = useState<Lead | null>(null);
   const [newOffer, setNewOffer] = useState({
     title: "",
     customer_name: "",
@@ -503,42 +506,19 @@ export default function LeadsPage() {
 
       if (leadError) throw leadError;
 
-      // 2. Crea un cliente nella tabella customers
-      const { data: customer, error: customerError } = await supabase
-        .from("customers")
-        .insert([{
-          name: lead.contact_name || lead.company_name,
-          company_name: lead.company_name,
-          email: lead.email,
-          phone: lead.phone,
-          address: lead.country,
-          code: `CUST-${Date.now()}`
-        }])
-        .select()
-        .single();
+      // 2. Salva il lead e apri la dialog per creare l'ordine
+      setWonLeadForOrder(lead);
+      setIsOrderDialogOpen(true);
 
-      if (customerError) throw customerError;
-
-      // 3. Crea un ordine di vendita collegato al lead
-      const { error: salesOrderError } = await supabase
-        .from("sales_orders")
-        .insert([{
-          customer_id: customer.id,
-          lead_id: lead.id,
-          status: "draft",
-          notes: `Ordine creato da lead vinto: ${lead.company_name}`,
-          order_type: "lead_conversion",
-          number: `SO-${Date.now()}`
-        }]);
-
-      if (salesOrderError) throw salesOrderError;
+      // Aggiorna la lista
+      setLeads(prev => prev.map(l => 
+        l.id === lead.id ? { ...l, status: "won" } : l
+      ));
 
       toast({
         title: "Lead vinto!",
-        description: "Cliente creato e ordine di vendita generato",
+        description: "Procedi con la creazione dell'ordine",
       });
-
-      await loadLeads();
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -2130,6 +2110,16 @@ export default function LeadsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Creazione Ordine */}
+      <CreateOrderDialog
+        open={isOrderDialogOpen}
+        onOpenChange={setIsOrderDialogOpen}
+        onSuccess={() => {
+          loadLeads();
+          setWonLeadForOrder(null);
+        }}
+      />
 
     </div>
   );
