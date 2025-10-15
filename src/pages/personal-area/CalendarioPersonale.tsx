@@ -47,6 +47,16 @@ interface Ticket {
   customer_name: string;
 }
 
+interface AssignedOrder {
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  order_type: 'work_order' | 'service_order' | 'shipping_order';
+  customer_name?: string;
+  created_at: string;
+}
+
 type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' });
 
 const priorityColors = {
@@ -60,6 +70,7 @@ export default function CalendarioPersonale() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -140,9 +151,90 @@ export default function CalendarioPersonale() {
 
       if (ticketsError) throw ticketsError;
 
+      // Load assigned orders (work orders, service orders, shipping orders)
+      const assignedOrdersList: AssignedOrder[] = [];
+
+      // Work orders
+      const { data: workOrders } = await supabase
+        .from('work_orders')
+        .select(`
+          id,
+          number,
+          title,
+          status,
+          created_at,
+          customers:customer_id(name)
+        `)
+        .eq('back_office_manager', user.id)
+        .order('created_at', { ascending: false });
+
+      workOrders?.forEach(wo => {
+        assignedOrdersList.push({
+          id: wo.id,
+          number: wo.number,
+          title: wo.title,
+          status: wo.status,
+          order_type: 'work_order',
+          customer_name: (wo.customers as any)?.name,
+          created_at: wo.created_at
+        });
+      });
+
+      // Service work orders
+      const { data: serviceOrders } = await supabase
+        .from('service_work_orders')
+        .select(`
+          id,
+          number,
+          title,
+          status,
+          created_at,
+          customers:customer_id(name)
+        `)
+        .eq('back_office_manager', user.id)
+        .order('created_at', { ascending: false });
+
+      serviceOrders?.forEach(so => {
+        assignedOrdersList.push({
+          id: so.id,
+          number: so.number,
+          title: so.title,
+          status: so.status,
+          order_type: 'service_order',
+          customer_name: (so.customers as any)?.name,
+          created_at: so.created_at
+        });
+      });
+
+      // Shipping orders
+      const { data: shippingOrders } = await supabase
+        .from('shipping_orders')
+        .select(`
+          id,
+          number,
+          status,
+          created_at,
+          companies:customer_id(name)
+        `)
+        .eq('back_office_manager', user.id)
+        .order('created_at', { ascending: false });
+
+      shippingOrders?.forEach(ship => {
+        assignedOrdersList.push({
+          id: ship.id,
+          number: ship.number,
+          title: `Ordine di Spedizione ${ship.number}`,
+          status: ship.status,
+          order_type: 'shipping_order',
+          customer_name: (ship.companies as any)?.name,
+          created_at: ship.created_at
+        });
+      });
+
       setTasks(allTasks);
       setEvents(eventsData || []);
       setTickets(ticketsData || []);
+      setAssignedOrders(assignedOrdersList);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -317,6 +409,57 @@ export default function CalendarioPersonale() {
           </Button>
         </div>
       </div>
+
+      {/* Ordini Assegnati */}
+      {assignedOrders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>I Miei Ordini Assegnati ({assignedOrders.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assignedOrders.map((order) => {
+                const orderTypeLabel = order.order_type === 'work_order' 
+                  ? 'Ordine di Produzione' 
+                  : order.order_type === 'service_order'
+                  ? 'Ordine di Lavoro'
+                  : 'Ordine di Spedizione';
+                
+                const statusColors: Record<string, string> = {
+                  'planned': 'bg-gray-100 text-gray-800',
+                  'in_progress': 'bg-blue-100 text-blue-800',
+                  'completed': 'bg-green-100 text-green-800',
+                  'da_preparare': 'bg-yellow-100 text-yellow-800',
+                  'pronto': 'bg-green-100 text-green-800',
+                };
+
+                return (
+                  <Card key={order.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="p-4">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">{order.number}</CardTitle>
+                        <Badge className={statusColors[order.status] || 'bg-gray-100'}>
+                          {order.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-2">
+                      <p className="text-sm font-semibold">{order.title}</p>
+                      <p className="text-xs text-muted-foreground">{orderTypeLabel}</p>
+                      {order.customer_name && (
+                        <p className="text-xs text-muted-foreground">Cliente: {order.customer_name}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Creato il: {format(new Date(order.created_at), "PPP", { locale: it })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-4">

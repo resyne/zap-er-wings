@@ -84,6 +84,7 @@ export default function OrdersPage() {
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
@@ -104,6 +105,7 @@ export default function OrdersPage() {
     bom_id: "",
     accessori_ids: [], // Array of selected accessori IDs
     assigned_technician: "",
+    back_office_manager: "",
     priority: "medium",
     planned_start_date: "",
     planned_end_date: "",
@@ -148,22 +150,25 @@ export default function OrdersPage() {
 
   const loadRelatedData = async () => {
     try {
-      const [customersRes, bomsRes, accessoriRes, techniciansRes] = await Promise.all([
+      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes] = await Promise.all([
         supabase.from("customers").select("id, name, code").eq("active", true),
         supabase.from("boms").select("id, name, version, level").in("level", [0, 1, 2]).order("name"),
         supabase.from("boms").select("id, name, version, level").eq("level", 3).order("name"),
-        supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true)
+        supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true),
+        supabase.from("profiles").select("id, email, first_name, last_name").order("first_name")
       ]);
 
       if (customersRes.error) throw customersRes.error;
       if (bomsRes.error) throw bomsRes.error;
       if (accessoriRes.error) throw accessoriRes.error;
       if (techniciansRes.error) throw techniciansRes.error;
+      if (usersRes.error) throw usersRes.error;
 
       setCustomers(customersRes.data || []);
       setBoms(bomsRes.data || []);
       setAccessori(accessoriRes.data || []);
       setTechnicians(techniciansRes.data || []);
+      setUsers(usersRes.data || []);
     } catch (error: any) {
       console.error("Error loading related data:", error);
     }
@@ -209,6 +214,7 @@ export default function OrdersPage() {
       bom_id: newOrder.bom_id || null,
       customer_id: newOrder.customer_id,
       assigned_to: null, // Set to null for now - requires auth.users ID
+      back_office_manager: newOrder.back_office_manager || null,
       priority: newOrder.priority,
       planned_start_date: newOrder.planned_start_date || null,
       planned_end_date: newOrder.planned_end_date || null,
@@ -235,6 +241,7 @@ export default function OrdersPage() {
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
       assigned_to: null, // Set to null for now - requires auth.users ID
+      back_office_manager: newOrder.back_office_manager || null,
       priority: newOrder.priority,
       scheduled_date: newOrder.planned_start_date ? new Date(newOrder.planned_start_date).toISOString() : null,
       location: newOrder.location || null,
@@ -258,6 +265,7 @@ export default function OrdersPage() {
     const shippingData = {
       number: '', // Auto-generated
       customer_id: newOrder.customer_id,
+      back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
@@ -393,6 +401,7 @@ export default function OrdersPage() {
         bom_id: "",
         accessori_ids: [],
         assigned_technician: "",
+        back_office_manager: "",
         priority: "medium",
         planned_start_date: "",
         planned_end_date: "",
@@ -425,6 +434,7 @@ export default function OrdersPage() {
       bom_id: "",
       accessori_ids: [],
       assigned_technician: "",
+      back_office_manager: "",
       priority: "medium",
       planned_start_date: "",
       planned_end_date: "",
@@ -482,6 +492,7 @@ export default function OrdersPage() {
         bom_id: "",
         accessori_ids: [],
         assigned_technician: "",
+        back_office_manager: "",
         priority: "medium",
         planned_start_date: "",
         planned_end_date: "",
@@ -957,7 +968,7 @@ export default function OrdersPage() {
               )}
 
               {/* Work Order Details */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="assigned_technician">Tecnico Assegnato</Label>
                   <Select value={newOrder.assigned_technician} onValueChange={(value) => setNewOrder({...newOrder, assigned_technician: value})}>
@@ -968,6 +979,22 @@ export default function OrdersPage() {
                       {technicians.map(tech => (
                         <SelectItem key={tech.id} value={tech.id}>
                           {tech.first_name} {tech.last_name} ({tech.employee_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="back_office_manager">Responsabile Back Office</Label>
+                  <Select value={newOrder.back_office_manager} onValueChange={(value) => setNewOrder({...newOrder, back_office_manager: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona responsabile" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map(user => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name} ({user.email})
                         </SelectItem>
                       ))}
                     </SelectContent>
