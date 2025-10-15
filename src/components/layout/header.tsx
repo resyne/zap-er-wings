@@ -8,9 +8,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { 
-  Bell, 
   Moon, 
   Sun, 
   User, 
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface HeaderProps {
   user?: {
@@ -56,12 +55,7 @@ export function Header({ user, onLogout }: HeaderProps) {
         {/* Right side */}
         <div className="flex items-center gap-2">
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-            <Bell className="h-4 w-4" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-              3
-            </Badge>
-          </Button>
+          <NotificationBell />
 
           {/* Theme Toggle */}
           <Button
