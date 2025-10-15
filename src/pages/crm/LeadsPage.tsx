@@ -64,19 +64,17 @@ interface Offer {
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
 const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro"];
 const countries = ["Italia", "Francia", "Germania"];
-// Solo le fasi principali per la Kanban
+// Tutte le colonne per la Kanban
 const kanbanStatuses = [
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
   { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
-  { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" }
-];
-
-// Tutti gli stati per i form
-const allStatuses = [
-  ...kanbanStatuses,
+  { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
   { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
   { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" }
 ];
+
+// Tutti gli stati per i form (stessi del kanban)
+const allStatuses = kanbanStatuses;
 
 export default function LeadsPage() {
   const navigate = useNavigate();
@@ -141,7 +139,7 @@ export default function LeadsPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setLeads(data || []);
+      setLeads((data || []) as Lead[]);
     } catch (error: any) {
       toast({
         title: "Errore",
