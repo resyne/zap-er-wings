@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle } from "lucide-react";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
+import LeadComments from "@/components/crm/LeadComments";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useNavigate } from "react-router-dom";
@@ -1550,6 +1551,7 @@ export default function LeadsPage() {
               {/* Lead Activities Component */}
               <div className="border-t pt-4 space-y-4">
                 <LeadActivities leadId={selectedLead.id} />
+                <LeadComments leadId={selectedLead.id} />
                 <LeadFileUpload leadId={selectedLead.id} />
               </div>
 
