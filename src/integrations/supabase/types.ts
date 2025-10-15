@@ -2263,6 +2263,7 @@ export type Database = {
           contact_name: string | null
           country: string | null
           created_at: string | null
+          custom_fields: Json | null
           email: string | null
           id: string
           next_activity_assigned_to: string | null
@@ -2284,6 +2285,7 @@ export type Database = {
           contact_name?: string | null
           country?: string | null
           created_at?: string | null
+          custom_fields?: Json | null
           email?: string | null
           id?: string
           next_activity_assigned_to?: string | null
@@ -2305,6 +2307,7 @@ export type Database = {
           contact_name?: string | null
           country?: string | null
           created_at?: string | null
+          custom_fields?: Json | null
           email?: string | null
           id?: string
           next_activity_assigned_to?: string | null
