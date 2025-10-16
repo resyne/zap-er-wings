@@ -84,7 +84,49 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
   useEffect(() => {
     loadActivities();
     loadUsers();
+    syncNextActivityToTable();
   }, [leadId]);
+
+  const syncNextActivityToTable = async () => {
+    try {
+      // Controlla se il lead ha next_activity_* ma non ha attività corrispondente
+      const { data: leadData, error: leadError } = await supabase
+        .from("leads")
+        .select("next_activity_type, next_activity_date, next_activity_assigned_to, next_activity_notes")
+        .eq("id", leadId)
+        .single();
+
+      if (leadError || !leadData?.next_activity_type || !leadData?.next_activity_date) return;
+
+      // Verifica se esiste già l'attività
+      const { data: existingActivity } = await supabase
+        .from("lead_activities")
+        .select("id")
+        .eq("lead_id", leadId)
+        .eq("activity_type", leadData.next_activity_type)
+        .eq("status", "scheduled")
+        .maybeSingle();
+
+      // Se non esiste, creala
+      if (!existingActivity) {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("lead_activities").insert([{
+          lead_id: leadId,
+          activity_type: leadData.next_activity_type,
+          activity_date: leadData.next_activity_date,
+          assigned_to: leadData.next_activity_assigned_to || null,
+          notes: leadData.next_activity_notes || null,
+          status: "scheduled",
+          created_by: user?.id
+        }]);
+        
+        // Ricarica le attività
+        loadActivities();
+      }
+    } catch (error) {
+      console.error("Error syncing next activity:", error);
+    }
+  };
 
   const loadActivities = async () => {
     try {

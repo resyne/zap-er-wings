@@ -1618,9 +1618,14 @@ export default function LeadsPage() {
               {/* Next Activity */}
               {(selectedLead.next_activity_type || selectedLead.next_activity_date) && (
                 <div className="border-t pt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <label className="text-sm font-medium text-blue-600">Prossima Attività</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <label className="text-sm font-medium text-blue-600">Prossima Attività</label>
+                      {selectedLead.next_activity_date && new Date(selectedLead.next_activity_date) < new Date() && (
+                        <Badge variant="destructive" className="animate-pulse">Scaduta</Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="ml-6 space-y-2">
                     {selectedLead.next_activity_type && (
