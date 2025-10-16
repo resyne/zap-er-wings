@@ -38,6 +38,7 @@ interface User {
 
 interface LeadActivitiesProps {
   leadId: string;
+  onActivityCompleted?: () => void;
 }
 
 const activityTypes = [
@@ -56,7 +57,7 @@ const activityStatuses = [
   { value: "cancelled", label: "Cancellata" }
 ];
 
-export default function LeadActivities({ leadId }: LeadActivitiesProps) {
+export default function LeadActivities({ leadId, onActivityCompleted }: LeadActivitiesProps) {
   const [activities, setActivities] = useState<LeadActivity[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -301,6 +302,11 @@ export default function LeadActivities({ leadId }: LeadActivitiesProps) {
       setIsCompleteDialogOpen(false);
       setActivityToComplete(null);
       loadActivities();
+      
+      // Notifica il componente padre per ricaricare i lead
+      if (onActivityCompleted) {
+        onActivityCompleted();
+      }
     } catch (error: any) {
       toast({
         title: "Errore",

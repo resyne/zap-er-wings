@@ -1703,7 +1703,7 @@ export default function LeadsPage() {
 
               {/* Lead Activities Component */}
               <div className="border-t pt-4 space-y-4">
-                <LeadActivities leadId={selectedLead.id} />
+                <LeadActivities leadId={selectedLead.id} onActivityCompleted={loadLeads} />
                 <LeadComments leadId={selectedLead.id} />
                 <LeadFileUpload leadId={selectedLead.id} />
               </div>
