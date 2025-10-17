@@ -2126,6 +2126,10 @@ export default function LeadsPage() {
       <CreateOrderDialog
         open={isOrderDialogOpen}
         onOpenChange={setIsOrderDialogOpen}
+        leadId={wonLeadForOrder?.id}
+        prefilledData={{
+          notes: wonLeadForOrder ? `Ordine da lead vinto: ${wonLeadForOrder.company_name}${wonLeadForOrder.contact_name ? ' - ' + wonLeadForOrder.contact_name : ''}` : undefined
+        }}
         onSuccess={() => {
           loadLeads();
           setWonLeadForOrder(null);

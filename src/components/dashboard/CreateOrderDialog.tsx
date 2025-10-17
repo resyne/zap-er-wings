@@ -12,6 +12,11 @@ interface CreateOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  leadId?: string;
+  prefilledData?: {
+    customer_id?: string;
+    notes?: string;
+  };
 }
 
 const orderTypes = [
@@ -26,7 +31,7 @@ const orderSources = [
   { value: "warranty", label: "Garanzia" }
 ];
 
-export function CreateOrderDialog({ open, onOpenChange, onSuccess }: CreateOrderDialogProps) {
+export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefilledData }: CreateOrderDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
@@ -52,8 +57,15 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess }: CreateOrder
   useEffect(() => {
     if (open) {
       loadData();
+      // Pre-popola i dati se forniti
+      if (prefilledData) {
+        setNewOrder(prev => ({
+          ...prev,
+          ...prefilledData
+        }));
+      }
     }
-  }, [open]);
+  }, [open, prefilledData]);
 
   const loadData = async () => {
     const [customersData, bomsData] = await Promise.all([
@@ -174,7 +186,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess }: CreateOrder
         status: newOrder.status,
         notes: newOrder.notes || null,
         order_type: newOrder.order_type,
-        order_source: newOrder.order_source
+        order_source: newOrder.order_source,
+        lead_id: leadId || null
       };
 
       const { data: salesOrder, error: salesError } = await supabase
