@@ -86,7 +86,7 @@ export default function OrdersPage() {
   const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
@@ -97,12 +97,12 @@ export default function OrdersPage() {
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
+    lead_id: "",
     order_type: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
     expected_delivery_date: "",
-    contact_id: "",
     status: "commissionato",
     notes: "",
     work_description: "",
@@ -126,6 +126,7 @@ export default function OrdersPage() {
       const { leadId, leadData } = location.state;
       setNewOrder(prev => ({
         ...prev,
+        lead_id: leadId,
         notes: `Ordine da lead vinto: ${leadData.company_name}${leadData.contact_name ? ' - ' + leadData.contact_name : ''}\n\nContatto: ${leadData.contact_name || 'N/A'}\nEmail: ${leadData.email || 'N/A'}\nTelefono: ${leadData.phone || 'N/A'}\n\n${leadData.notes || ''}`
       }));
       setIsDialogOpen(true);
@@ -169,13 +170,13 @@ export default function OrdersPage() {
 
   const loadRelatedData = async () => {
     try {
-      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes, contactsRes] = await Promise.all([
+      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes, leadsRes] = await Promise.all([
         supabase.from("customers").select("id, name, code").eq("active", true),
         supabase.from("boms").select("id, name, version, level").in("level", [0, 1, 2]).order("name"),
         supabase.from("boms").select("id, name, version, level").eq("level", 3).order("name"),
         supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true),
         supabase.from("profiles").select("id, email, first_name, last_name").order("first_name"),
-        supabase.from("crm_contacts").select("id, first_name, last_name, company_name, email").order("first_name")
+        supabase.from("leads").select("id, company_name, contact_name, status, pipeline").order("company_name")
       ]);
 
       if (customersRes.error) throw customersRes.error;
@@ -183,14 +184,14 @@ export default function OrdersPage() {
       if (accessoriRes.error) throw accessoriRes.error;
       if (techniciansRes.error) throw techniciansRes.error;
       if (usersRes.error) throw usersRes.error;
-      if (contactsRes.error) throw contactsRes.error;
+      if (leadsRes.error) throw leadsRes.error;
 
       setCustomers(customersRes.data || []);
       setBoms(bomsRes.data || []);
       setAccessori(accessoriRes.data || []);
       setTechnicians(techniciansRes.data || []);
       setUsers(usersRes.data || []);
-      setContacts(contactsRes.data || []);
+      setLeads(leadsRes.data || []);
     } catch (error: any) {
       console.error("Error loading related data:", error);
     }
@@ -286,7 +287,6 @@ export default function OrdersPage() {
   const createShippingOrder = async (orderId: string, orderData: any) => {
     const shippingData = {
       number: '', // Auto-generated
-      contact_id: newOrder.contact_id || null,
       back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
@@ -418,12 +418,12 @@ export default function OrdersPage() {
       setIsDialogOpen(false);
       setNewOrder({
         customer_id: "",
+        lead_id: "",
         order_type: "",
         order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
         expected_delivery_date: "",
-        contact_id: "",
         status: "commissionato",
         notes: "",
         work_description: "",
@@ -453,12 +453,12 @@ export default function OrdersPage() {
     setEditingOrder(order);
     setNewOrder({
       customer_id: order.customer_id || "",
+      lead_id: order.lead_id || "",
       order_type: order.order_type || "",
       order_source: (order as any).order_source || "sale",
       order_date: order.order_date || new Date().toISOString().split('T')[0],
       delivery_date: order.delivery_date || "",
       expected_delivery_date: "",
-      contact_id: "",
       status: order.status || "draft",
       notes: order.notes || "",
       work_description: "",
@@ -513,12 +513,12 @@ export default function OrdersPage() {
       setEditingOrder(null);
       setNewOrder({
         customer_id: "",
+        lead_id: "",
         order_type: "",
         order_source: "sale",
         order_date: new Date().toISOString().split('T')[0],
         delivery_date: "",
         expected_delivery_date: "",
-        contact_id: "",
         status: "draft",
         notes: "",
         work_description: "",
@@ -911,19 +911,20 @@ export default function OrdersPage() {
                 </div>
               </div>
 
-              {/* Contact and Order Source */}
+              {/* Lead and Order Source */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="contact_id">Contatto CRM</Label>
-                  <Select value={newOrder.contact_id} onValueChange={(value) => setNewOrder({...newOrder, contact_id: value})}>
+                  <Label htmlFor="lead_id">Lead di Riferimento</Label>
+                  <Select value={newOrder.lead_id} onValueChange={(value) => setNewOrder({...newOrder, lead_id: value})}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona contatto (opzionale)" />
+                      <SelectValue placeholder="Seleziona lead (opzionale)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {contacts.map(contact => (
-                        <SelectItem key={contact.id} value={contact.id}>
-                          {contact.first_name} {contact.last_name} 
-                          {contact.company_name && ` - ${contact.company_name}`}
+                      {leads.map(lead => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {lead.company_name} 
+                          {lead.contact_name && ` - ${lead.contact_name}`}
+                          {lead.pipeline && ` [${lead.pipeline}]`}
                         </SelectItem>
                       ))}
                     </SelectContent>
