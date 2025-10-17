@@ -264,11 +264,15 @@ export function AppSidebar() {
         {/* Logo/Brand */}
         <div className="p-4 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-2">
-            <img 
-              src="/images/logo-zapper.png" 
-              alt="ZAPPER PRO" 
-              className={showText ? "h-8" : "h-8 w-8 object-contain"}
-            />
+            <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">Z</span>
+            </div>
+            {showText && (
+              <div className="flex flex-col">
+                <span className="font-semibold text-gray-900 text-base">ZAPPER</span>
+                <span className="text-xs text-gray-500">ERP System</span>
+              </div>
+            )}
           </div>
         </div>
 

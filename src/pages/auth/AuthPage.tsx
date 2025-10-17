@@ -92,18 +92,11 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-2">
           <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="w-4 h-4" />
             Torna alla home
           </Link>
-          <div className="flex justify-center">
-            <img 
-              src="/images/logo-zapper.png" 
-              alt="ZAPPER PRO" 
-              className="h-16"
-            />
-          </div>
           <h1 className="text-3xl font-bold">CRM Dashboard</h1>
           <p className="text-muted-foreground">
             Accedi al tuo account
