@@ -35,20 +35,30 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
+  const [accessori, setAccessori] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
+    contact_id: "",
     order_type: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
+    expected_delivery_date: "",
     status: "commissionato",
     notes: "",
     work_description: "",
     bom_id: "",
+    accessori_ids: [] as string[],
+    assigned_technician: "",
+    back_office_manager: "",
     priority: "medium",
     planned_start_date: "",
+    planned_end_date: "",
     location: "",
     equipment_needed: "",
     shipping_address: ""
@@ -68,13 +78,21 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   }, [open, prefilledData]);
 
   const loadData = async () => {
-    const [customersData, bomsData] = await Promise.all([
+    const [customersData, bomsData, accessoriData, contactsData, techniciansData, usersData] = await Promise.all([
       supabase.from("customers").select("id, code, name, company_name").eq("active", true).order("name"),
-      supabase.from("boms").select("id, name, description, level").order("name")
+      supabase.from("boms").select("id, name, description, level").in("level", [0, 1, 2]).order("name"),
+      supabase.from("boms").select("id, name, description, level").eq("level", 3).order("name"),
+      supabase.from("crm_contacts").select("id, first_name, last_name, company_name, email").order("first_name"),
+      supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true).order("first_name"),
+      supabase.from("profiles").select("id, email, first_name, last_name").order("first_name")
     ]);
     
     setCustomers(customersData.data || []);
     setBoms(bomsData.data || []);
+    setAccessori(accessoriData.data || []);
+    setContacts(contactsData.data || []);
+    setTechnicians(techniciansData.data || []);
+    setUsers(usersData.data || []);
   };
 
   const createProductionWorkOrder = async (orderId: string, orderData: any) => {
@@ -85,8 +103,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
       bom_id: newOrder.bom_id || null,
-      includes_installation: newOrder.order_type === 'odpel',
+      accessori_ids: newOrder.accessori_ids.length > 0 ? newOrder.accessori_ids : null,
+      assigned_to: newOrder.assigned_technician || null,
+      back_office_manager: newOrder.back_office_manager || null,
+      priority: newOrder.priority,
       planned_start_date: newOrder.planned_start_date || null,
+      planned_end_date: newOrder.planned_end_date || null,
+      notes: newOrder.notes,
+      includes_installation: newOrder.order_type === 'odpel',
       sales_order_id: orderId
     };
 
@@ -107,7 +131,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       description: newOrder.work_description || newOrder.notes,
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
-      assigned_to: null,
+      contact_id: newOrder.contact_id || null,
+      assigned_to: newOrder.assigned_technician || null,
+      back_office_manager: newOrder.back_office_manager || null,
       priority: newOrder.priority,
       scheduled_date: newOrder.planned_start_date ? new Date(newOrder.planned_start_date).toISOString() : null,
       location: newOrder.location || null,
@@ -131,8 +157,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id,
+      contact_id: newOrder.contact_id || null,
+      back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
+      expected_delivery_date: newOrder.expected_delivery_date || null,
       notes: newOrder.notes,
       shipping_address: newOrder.shipping_address || null,
       sales_order_id: orderId
@@ -251,16 +280,22 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const resetForm = () => {
     setNewOrder({
       customer_id: "",
+      contact_id: "",
       order_type: "",
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
       delivery_date: "",
+      expected_delivery_date: "",
       status: "commissionato",
       notes: "",
       work_description: "",
       bom_id: "",
+      accessori_ids: [],
+      assigned_technician: "",
+      back_office_manager: "",
       priority: "medium",
       planned_start_date: "",
+      planned_end_date: "",
       location: "",
       equipment_needed: "",
       shipping_address: ""
@@ -337,6 +372,30 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           )}
 
+          {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && accessori.length > 0 && (
+            <div>
+              <Label>Accessori</Label>
+              <Select 
+                value={newOrder.accessori_ids.join(',')} 
+                onValueChange={(value) => {
+                  const ids = value ? value.split(',').filter(Boolean) : [];
+                  setNewOrder({ ...newOrder, accessori_ids: ids });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona accessori (opzionale)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accessori.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} {acc.description && `- ${acc.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {newOrder.order_type === 'ods' && (
             <div>
               <Label>Indirizzo di Spedizione</Label>
@@ -348,6 +407,105 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               />
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Contatto</Label>
+              <Select value={newOrder.contact_id} onValueChange={(value) => setNewOrder({ ...newOrder, contact_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona contatto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.id}>
+                      {contact.first_name} {contact.last_name} {contact.company_name && `(${contact.company_name})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Priorità</Label>
+              <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({ ...newOrder, priority: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Bassa</SelectItem>
+                  <SelectItem value="medium">Media</SelectItem>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="urgent">Urgente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Tecnico Assegnato</Label>
+                <Select value={newOrder.assigned_technician} onValueChange={(value) => setNewOrder({ ...newOrder, assigned_technician: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona tecnico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {technicians.map((tech) => (
+                      <SelectItem key={tech.id} value={tech.id}>
+                        {tech.first_name} {tech.last_name} ({tech.employee_code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Back Office Manager</Label>
+                <Select value={newOrder.back_office_manager} onValueChange={(value) => setNewOrder({ ...newOrder, back_office_manager: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {(newOrder.order_type === 'odl' || newOrder.order_type === 'odpel') && (
+            <div>
+              <Label>Luogo Intervento</Label>
+              <Input
+                value={newOrder.location}
+                onChange={(e) => setNewOrder({ ...newOrder, location: e.target.value })}
+                placeholder="Indirizzo dell'intervento..."
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Data Inizio Pianificata</Label>
+              <Input
+                type="date"
+                value={newOrder.planned_start_date}
+                onChange={(e) => setNewOrder({ ...newOrder, planned_start_date: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Data Fine Pianificata</Label>
+              <Input
+                type="date"
+                value={newOrder.planned_end_date}
+                onChange={(e) => setNewOrder({ ...newOrder, planned_end_date: e.target.value })}
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -516,6 +516,8 @@ export default function LeadsPage() {
       setWonLeadForOrder(lead);
       setIsOrderDialogOpen(true);
 
+      console.log("Opening order dialog for lead:", lead.id, "Dialog state:", true);
+
       // Aggiorna la lista
       setLeads(prev => prev.map(l => 
         l.id === lead.id ? { ...l, status: "won" } : l
