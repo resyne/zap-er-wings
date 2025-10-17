@@ -75,7 +75,7 @@ export default function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
-  const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("table");
+  const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("kanban");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
