@@ -514,8 +514,8 @@ export default function LeadsPage() {
         description: "Reindirizzamento alla pagina ordini...",
       });
 
-      // 2. Redirect alla pagina ordini con il leadId
-      navigate('/crm/orders', { 
+      // 2. Redirect alla pagina direzione ordini con il leadId
+      navigate('/direzione/orders', { 
         state: { 
           openCreateDialog: true,
           leadId: lead.id,
