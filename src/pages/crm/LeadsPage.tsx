@@ -468,6 +468,12 @@ export default function LeadsPage() {
     const lead = leads.find(l => l.id === draggableId);
     if (!lead) return;
 
+    // Se il lead viene spostato in "won", mostra il dialogo per creare l'ordine
+    if (destination.droppableId === "won") {
+      await handleWinLead(lead);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("leads")
