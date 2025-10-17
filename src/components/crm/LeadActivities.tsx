@@ -6,9 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, CheckCircle, Calendar, User, Clock, Edit, Trash2 } from "lucide-react";
+import { Plus, CheckCircle, Calendar, User, Clock, Edit, Trash2, MessageSquare, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
@@ -65,6 +68,10 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [activityToComplete, setActivityToComplete] = useState<LeadActivity | null>(null);
   const [editingActivity, setEditingActivity] = useState<LeadActivity | null>(null);
+  const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [newComment, setNewComment] = useState<Record<string, string>>({});
+  const [showMentions, setShowMentions] = useState<Record<string, boolean>>({});
+  const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
   const [newActivity, setNewActivity] = useState({
     activity_type: "",
     activity_date: "",
@@ -86,6 +93,14 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
     loadUsers();
     syncNextActivityToTable();
   }, [leadId]);
+
+  useEffect(() => {
+    if (activities.length > 0) {
+      activities.forEach(activity => {
+        loadComments(activity.id);
+      });
+    }
+  }, [activities]);
 
   const syncNextActivityToTable = async () => {
     try {
@@ -125,6 +140,108 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
       }
     } catch (error) {
       console.error("Error syncing next activity:", error);
+    }
+  };
+
+  const loadComments = async (activityId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("lead_activity_comments")
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq("activity_id", activityId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setComments(prev => ({ ...prev, [activityId]: data || [] }));
+    } catch (error) {
+      console.error("Error loading comments:", error);
+    }
+  };
+
+  const handleAddComment = async (activityId: string) => {
+    const comment = newComment[activityId]?.trim();
+    if (!comment) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Estrai le mentions dal testo (@username)
+      const mentionMatches = comment.match(/@(\w+)/g);
+      const mentionedUsers: string[] = [];
+      
+      if (mentionMatches) {
+        for (const mention of mentionMatches) {
+          const username = mention.substring(1);
+          const foundUser = users.find(u => 
+            `${u.first_name}${u.last_name}`.toLowerCase().includes(username.toLowerCase())
+          );
+          if (foundUser) {
+            mentionedUsers.push(foundUser.id);
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from("lead_activity_comments")
+        .insert([{
+          activity_id: activityId,
+          user_id: user.id,
+          comment,
+          mentions: mentionedUsers
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Commento aggiunto",
+        description: "Il commento è stato aggiunto con successo",
+      });
+      setNewComment(prev => ({ ...prev, [activityId]: "" }));
+      setShowMentions(prev => ({ ...prev, [activityId]: false }));
+      loadComments(activityId);
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const insertMention = (activityId: string, userName: string) => {
+    const currentComment = newComment[activityId] || "";
+    const lastAtIndex = currentComment.lastIndexOf("@");
+    
+    if (lastAtIndex !== -1) {
+      const beforeMention = currentComment.substring(0, lastAtIndex);
+      const newText = `${beforeMention}@${userName} `;
+      setNewComment(prev => ({ ...prev, [activityId]: newText }));
+    } else {
+      setNewComment(prev => ({ ...prev, [activityId]: `${currentComment}@${userName} ` }));
+    }
+    
+    setShowMentions(prev => ({ ...prev, [activityId]: false }));
+  };
+
+  const handleCommentChange = (activityId: string, value: string) => {
+    setNewComment(prev => ({ ...prev, [activityId]: value }));
+    
+    // Mostra suggerimenti mention se l'ultimo carattere è @
+    const lastChar = value[value.length - 1];
+    const beforeLastChar = value[value.length - 2];
+    
+    if (lastChar === "@" && (!beforeLastChar || beforeLastChar === " ")) {
+      setShowMentions(prev => ({ ...prev, [activityId]: true }));
+    } else if (!value.includes("@")) {
+      setShowMentions(prev => ({ ...prev, [activityId]: false }));
     }
   };
 
@@ -629,6 +746,94 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
                       {activity.notes && (
                         <p className="text-sm text-muted-foreground italic">{activity.notes}</p>
                       )}
+
+                      {/* Sezione Commenti */}
+                      <div className="mt-4 border-t pt-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mb-2"
+                          onClick={() => setExpandedActivities(prev => ({ 
+                            ...prev, 
+                            [activity.id]: !prev[activity.id] 
+                          }))}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Commenti ({comments[activity.id]?.length || 0})
+                        </Button>
+
+                        {expandedActivities[activity.id] && (
+                          <div className="space-y-3 mt-3">
+                            {/* Commenti esistenti */}
+                            {comments[activity.id]?.map((comment: any) => (
+                              <div key={comment.id} className="flex gap-2 bg-muted/50 p-3 rounded-lg">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                    {comment.profiles?.first_name?.[0]}{comment.profiles?.last_name?.[0]}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium">
+                                      {comment.profiles?.first_name} {comment.profiles?.last_name}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(comment.created_at), "dd MMM HH:mm", { locale: it })}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm whitespace-pre-wrap">
+                                    {comment.comment}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Input nuovo commento */}
+                            <div className="relative">
+                              <Textarea
+                                placeholder="Scrivi un commento... (usa @ per taggare utenti)"
+                                value={newComment[activity.id] || ""}
+                                onChange={(e) => handleCommentChange(activity.id, e.target.value)}
+                                className="min-h-[80px] resize-none"
+                              />
+                              
+                              {/* Suggerimenti mentions */}
+                              {showMentions[activity.id] && (
+                                <div className="absolute z-10 w-64 mt-1 bg-popover border rounded-md shadow-md">
+                                  <Command>
+                                    <CommandInput placeholder="Cerca utente..." />
+                                    <CommandEmpty>Nessun utente trovato</CommandEmpty>
+                                    <CommandGroup>
+                                      {users.map((user) => (
+                                        <CommandItem
+                                          key={user.id}
+                                          onSelect={() => insertMention(
+                                            activity.id, 
+                                            `${user.first_name}${user.last_name}`
+                                          )}
+                                        >
+                                          <User className="mr-2 h-4 w-4" />
+                                          <span>{user.first_name} {user.last_name}</span>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </Command>
+                                </div>
+                              )}
+
+                              <Button
+                                size="sm"
+                                className="mt-2"
+                                onClick={() => handleAddComment(activity.id)}
+                                disabled={!newComment[activity.id]?.trim()}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Invia commento
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1">

@@ -2173,6 +2173,44 @@ export type Database = {
           },
         ]
       }
+      lead_activity_comments: {
+        Row: {
+          activity_id: string
+          comment: string
+          created_at: string
+          id: string
+          mentions: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          comment: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activity_comments_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "lead_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_comments: {
         Row: {
           content: string
