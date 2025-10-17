@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,7 @@ const orderSources = [
 ];
 
 export default function OrdersPage() {
+  const location = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -118,6 +119,21 @@ export default function OrdersPage() {
   });
   
   const { toast } = useToast();
+
+  // Gestisci l'apertura automatica del dialogo quando si arriva da un lead vinto
+  useEffect(() => {
+    if (location.state?.openCreateDialog && location.state?.leadId) {
+      const { leadId, leadData } = location.state;
+      setNewOrder(prev => ({
+        ...prev,
+        notes: `Ordine da lead vinto: ${leadData.company_name}${leadData.contact_name ? ' - ' + leadData.contact_name : ''}\n\nContatto: ${leadData.contact_name || 'N/A'}\nEmail: ${leadData.email || 'N/A'}\nTelefono: ${leadData.phone || 'N/A'}\n\n${leadData.notes || ''}`
+      }));
+      setIsDialogOpen(true);
+      
+      // Pulisci lo state per evitare riaperture
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     loadOrders();
@@ -319,6 +335,9 @@ export default function OrdersPage() {
     }
 
     try {
+      // Ottieni il leadId dallo state se presente
+      const leadId = location.state?.leadId || null;
+      
       // Create main sales order
       const orderData = {
         number: "", // Auto-generated
@@ -328,7 +347,8 @@ export default function OrdersPage() {
         status: newOrder.status,
         notes: newOrder.notes || null,
         order_type: newOrder.order_type,
-        order_source: newOrder.order_source
+        order_source: newOrder.order_source,
+        lead_id: leadId
       };
 
       const { data: salesOrder, error: salesError } = await supabase

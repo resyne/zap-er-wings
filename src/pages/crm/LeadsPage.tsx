@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle } from "lucide-react";
-import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
@@ -93,8 +92,6 @@ export default function LeadsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
   const [currentLeadForOffer, setCurrentLeadForOffer] = useState<Lead | null>(null);
-  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
-  const [wonLeadForOrder, setWonLeadForOrder] = useState<Lead | null>(null);
   const [newOffer, setNewOffer] = useState({
     title: "",
     customer_name: "",
@@ -512,20 +509,24 @@ export default function LeadsPage() {
 
       if (leadError) throw leadError;
 
-      // 2. Salva il lead e apri la dialog per creare l'ordine
-      setWonLeadForOrder(lead);
-      setIsOrderDialogOpen(true);
-
-      console.log("Opening order dialog for lead:", lead.id, "Dialog state:", true);
-
-      // Aggiorna la lista
-      setLeads(prev => prev.map(l => 
-        l.id === lead.id ? { ...l, status: "won" } : l
-      ));
-
       toast({
         title: "Lead vinto!",
-        description: "Procedi con la creazione dell'ordine",
+        description: "Reindirizzamento alla pagina ordini...",
+      });
+
+      // 2. Redirect alla pagina ordini con il leadId
+      navigate('/crm/orders', { 
+        state: { 
+          openCreateDialog: true,
+          leadId: lead.id,
+          leadData: {
+            company_name: lead.company_name,
+            contact_name: lead.contact_name,
+            email: lead.email,
+            phone: lead.phone,
+            notes: lead.notes
+          }
+        } 
       });
     } catch (error: any) {
       toast({
@@ -2123,20 +2124,6 @@ export default function LeadsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Dialog Creazione Ordine */}
-      <CreateOrderDialog
-        open={isOrderDialogOpen}
-        onOpenChange={setIsOrderDialogOpen}
-        leadId={wonLeadForOrder?.id}
-        prefilledData={{
-          notes: wonLeadForOrder ? `Ordine da lead vinto: ${wonLeadForOrder.company_name}${wonLeadForOrder.contact_name ? ' - ' + wonLeadForOrder.contact_name : ''}` : undefined
-        }}
-        onSuccess={() => {
-          loadLeads();
-          setWonLeadForOrder(null);
-        }}
-      />
 
     </div>
   );
