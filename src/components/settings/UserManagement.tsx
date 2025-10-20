@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Eye, EyeOff } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { UserPageVisibilityDialog } from "./UserPageVisibilityDialog";
+import { Switch } from "@/components/ui/switch";
 
 interface UserWithRole {
   id: string;
@@ -23,6 +24,7 @@ interface UserWithRole {
   role: "admin" | "moderator" | "user";
   user_type: "erp" | "website";
   created_at: string;
+  hide_amounts?: boolean;
 }
 
 export function UserManagement() {
@@ -54,7 +56,7 @@ export function UserManagement() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, user_type, created_at");
+        .select("id, email, first_name, last_name, user_type, created_at, hide_amounts");
 
       if (profilesError) throw profilesError;
 
@@ -73,7 +75,8 @@ export function UserManagement() {
         last_name: profile.last_name || "",
         user_type: (profile.user_type as "erp" | "website") || "website",
         role: (roles?.find(r => r.user_id === profile.id)?.role || "user") as "admin" | "moderator" | "user",
-        created_at: profile.created_at
+        created_at: profile.created_at,
+        hide_amounts: profile.hide_amounts || false
       })) || [];
 
       setUsers(usersWithRoles);
@@ -126,6 +129,31 @@ export function UserManagement() {
       toast({
         title: "Errore",
         description: "Impossibile aggiornare il ruolo utente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleHideAmounts = async (userId: string, currentValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ hide_amounts: !currentValue })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: `Importi ${!currentValue ? 'nascosti' : 'visibili'} per questo utente`,
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating hide_amounts:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare le impostazioni",
         variant: "destructive",
       });
     }
@@ -418,6 +446,7 @@ export function UserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Ruolo</TableHead>
+                <TableHead>Nascondi Importi</TableHead>
                 <TableHead>Data Registrazione</TableHead>
                 {isAdmin && <TableHead className="text-right">Azioni</TableHead>}
               </TableRow>
@@ -441,6 +470,20 @@ export function UserManagement() {
                     <Badge variant={getRoleBadgeVariant(user.role)}>
                       {user.role}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={user.hide_amounts || false}
+                        onCheckedChange={() => toggleHideAmounts(user.id, user.hide_amounts || false)}
+                        disabled={!isAdmin || user.id === currentUser?.id}
+                      />
+                      {user.hide_amounts ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {new Date(user.created_at).toLocaleDateString('it-IT')}

@@ -3360,6 +3360,7 @@ export type Database = {
           created_at: string
           email: string
           first_name: string | null
+          hide_amounts: boolean | null
           id: string
           last_name: string | null
           site_origin: string | null
@@ -3370,6 +3371,7 @@ export type Database = {
           created_at?: string
           email: string
           first_name?: string | null
+          hide_amounts?: boolean | null
           id: string
           last_name?: string | null
           site_origin?: string | null
@@ -3380,6 +3382,7 @@ export type Database = {
           created_at?: string
           email?: string
           first_name?: string | null
+          hide_amounts?: boolean | null
           id?: string
           last_name?: string | null
           site_origin?: string | null
@@ -5652,6 +5655,10 @@ export type Database = {
       }
       is_user_admin: {
         Args: { user_uuid?: string }
+        Returns: boolean
+      }
+      should_hide_amounts: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       user_created_quote: {
