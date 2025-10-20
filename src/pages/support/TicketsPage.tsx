@@ -13,6 +13,7 @@ import { Plus, Search, AlertCircle, CheckCircle, Clock, X, Trash2, Eye, Papercli
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { TicketComments } from "@/components/support/TicketComments";
 
 type User = {
   id: string;
@@ -766,6 +767,11 @@ export default function TicketsPage() {
                   </div>
                 </div>
               )}
+
+              {/* Comments Section */}
+              <div className="pt-4 border-t">
+                <TicketComments ticketId={selectedTicket.id} />
+              </div>
             </div>
           )}
           <div className="flex justify-end">
