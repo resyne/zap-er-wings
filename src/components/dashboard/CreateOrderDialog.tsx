@@ -177,6 +177,62 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     return shippingOrder;
   };
 
+  const copyLeadPhotosToOrder = async (leadId: string, orderId: string) => {
+    try {
+      // Get all files from the lead
+      const { data: leadFiles, error: leadFilesError } = await supabase
+        .from('lead_files')
+        .select('*')
+        .eq('lead_id', leadId);
+
+      if (leadFilesError) throw leadFilesError;
+      if (!leadFiles || leadFiles.length === 0) return;
+
+      // Filter only image files
+      const imageFiles = leadFiles.filter(file => 
+        file.file_type?.startsWith('image/') || 
+        /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.file_name)
+      );
+
+      if (imageFiles.length === 0) return;
+
+      // Copy each image file to opportunity-files bucket
+      for (const file of imageFiles) {
+        // Download file from lead-files bucket
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('lead-files')
+          .download(file.file_path);
+
+        if (downloadError) {
+          console.error(`Error downloading file ${file.file_name}:`, downloadError);
+          continue;
+        }
+
+        // Upload to opportunity-files bucket
+        const fileExt = file.file_name.split('.').pop();
+        const newFileName = `${orderId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('opportunity-files')
+          .upload(newFileName, fileData, {
+            contentType: file.file_type || 'application/octet-stream'
+          });
+
+        if (uploadError) {
+          console.error(`Error uploading file ${file.file_name}:`, uploadError);
+        }
+      }
+
+      toast({
+        title: "Foto copiate",
+        description: `${imageFiles.length} foto copiate dal lead all'ordine`,
+      });
+    } catch (error) {
+      console.error('Error copying lead photos:', error);
+      // Don't throw - we don't want to block order creation if photo copy fails
+    }
+  };
+
   const handleCreateOrder = async () => {
     if (!newOrder.customer_id || !newOrder.order_type) {
       toast({
@@ -226,6 +282,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         .single();
 
       if (salesError) throw salesError;
+
+      // Copy photos from lead to order if lead is connected
+      if (leadId) {
+        await copyLeadPhotosToOrder(leadId, salesOrder.id);
+      }
 
       let productionWO = null;
       let serviceWO = null;
