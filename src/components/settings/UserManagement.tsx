@@ -194,16 +194,14 @@ export function UserManagement() {
     try {
       setLoading(true);
       
-      // Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Create user with Admin API (doesn't auto-login the new user)
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newUserForm.email,
         password: newUserForm.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            first_name: newUserForm.firstName,
-            last_name: newUserForm.lastName,
-          }
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          first_name: newUserForm.firstName,
+          last_name: newUserForm.lastName,
         }
       });
 
@@ -253,7 +251,7 @@ export function UserManagement() {
       console.error("Error creating user:", error);
       toast({
         title: "Errore",
-        description: "Impossibile creare il nuovo utente",
+        description: "Impossibile creare il nuovo utente. Verifica di avere i permessi di amministratore.",
         variant: "destructive",
       });
     } finally {
