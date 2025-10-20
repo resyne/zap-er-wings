@@ -219,6 +219,14 @@ export function UserManagement() {
       }
 
       if (authData.user) {
+        // Update profile to set user_type to "erp"
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ user_type: "erp" })
+          .eq("id", authData.user.id);
+
+        if (profileError) throw profileError;
+
         // Add user role
         const { error: roleError } = await supabase
           .from("user_roles")
@@ -231,7 +239,7 @@ export function UserManagement() {
 
         toast({
           title: "Successo",
-          description: "Nuovo utente creato con successo",
+          description: "Nuovo utente ERP creato con successo",
         });
 
         // Reset form and close dialog
