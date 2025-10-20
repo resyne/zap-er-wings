@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, FileText, Calendar, Building2, Eye, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { formatAmount } from "@/lib/formatAmount";
 
 interface RFQ {
   id: string;
@@ -22,6 +24,7 @@ interface RFQ {
 
 const RfqPage = () => {
   const { toast } = useToast();
+  const { hideAmounts } = useHideAmounts();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -205,7 +208,7 @@ const RfqPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              €{rfqs.reduce((acc, r) => acc + r.estimatedValue, 0).toLocaleString()}
+              {formatAmount(rfqs.reduce((acc, r) => acc + r.estimatedValue, 0), hideAmounts)}
             </div>
             <p className="text-xs text-muted-foreground">
               Valore stimato
@@ -257,7 +260,7 @@ const RfqPage = () => {
                     </div>
                   </TableCell>
                   <TableCell>{rfq.totalItems}</TableCell>
-                  <TableCell>€{rfq.estimatedValue.toLocaleString()}</TableCell>
+                  <TableCell>{formatAmount(rfq.estimatedValue, hideAmounts)}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(rfq.status)}>
                       {getStatusLabel(rfq.status)}

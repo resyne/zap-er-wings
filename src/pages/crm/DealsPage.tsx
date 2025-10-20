@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, RefreshCw, TrendingUp, Calendar, DollarSign } from "lucide-react";
+import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { formatAmount } from "@/lib/formatAmount";
 
 interface Deal {
   id: string;
@@ -38,6 +40,7 @@ const dealStages = [
 ];
 
 export default function DealsPage() {
+  const { hideAmounts } = useHideAmounts();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -304,7 +307,7 @@ export default function DealsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(totalValue, hideAmounts)}</div>
             <p className="text-xs text-muted-foreground">
               {filteredDeals.length} deal attivi
             </p>
@@ -316,7 +319,7 @@ export default function DealsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{wonValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(wonValue, hideAmounts)}</div>
             <p className="text-xs text-muted-foreground">
               {wonDeals.length} deal chiusi con successo
             </p>
@@ -388,7 +391,7 @@ export default function DealsPage() {
                   </TableCell>
                   <TableCell>
                     {deal.amount && (
-                      <span className="font-medium">€{deal.amount.toLocaleString()}</span>
+                      <span className="font-medium">{formatAmount(deal.amount, hideAmounts)}</span>
                     )}
                   </TableCell>
                   <TableCell>

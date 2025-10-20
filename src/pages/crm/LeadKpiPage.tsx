@@ -10,6 +10,8 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter } from "lucide-react";
 import { format, subDays, differenceInDays, differenceInHours, startOfDay, startOfWeek, startOfMonth, endOfDay } from "date-fns";
 import { it } from "date-fns/locale";
+import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { formatAmount } from "@/lib/formatAmount";
 
 interface LeadKPI {
   totalLeads: number;
@@ -102,6 +104,7 @@ const activityStatusLabels: Record<string, string> = {
 
 export default function LeadKpiPage() {
   const { toast } = useToast();
+  const { hideAmounts } = useHideAmounts();
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<LeadKPI>({
     totalLeads: 0,
@@ -491,7 +494,7 @@ export default function LeadKpiPage() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{kpis.totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(kpis.totalValue, hideAmounts)}</div>
             <p className="text-xs text-muted-foreground">
               Da {kpis.wonDeals} deal vinti
             </p>
@@ -718,7 +721,7 @@ export default function LeadKpiPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="userName" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `€${Number(value).toLocaleString()}`} />
+                    <Tooltip formatter={(value) => hideAmounts ? '•••' : `€${Number(value).toLocaleString()}`} />
                     <Bar dataKey="totalValue" fill="#FFBB28" name="Valore Totale €" />
                   </BarChart>
                 </ResponsiveContainer>

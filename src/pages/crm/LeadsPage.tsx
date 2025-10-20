@@ -16,6 +16,8 @@ import LeadComments from "@/components/crm/LeadComments";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useNavigate } from "react-router-dom";
+import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { formatAmount } from "@/lib/formatAmount";
 
 
 interface Lead {
@@ -78,6 +80,7 @@ const allStatuses = kanbanStatuses;
 
 export default function LeadsPage() {
   const navigate = useNavigate();
+  const { hideAmounts } = useHideAmounts();
   const [users, setUsers] = useState<Array<{id: string, first_name: string, last_name: string, email: string}>>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -1085,7 +1088,7 @@ export default function LeadsPage() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(totalValue, hideAmounts)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -1419,7 +1422,7 @@ export default function LeadsPage() {
                                   <div className="flex items-center gap-2">
                                     {lead.value && (
                                       <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
-                                        €{lead.value.toLocaleString()}
+                                        {formatAmount(lead.value, hideAmounts)}
                                       </span>
                                     )}
                                   </div>
@@ -1593,7 +1596,7 @@ export default function LeadsPage() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Valore Stimato</label>
                   <p className="text-sm font-semibold text-green-600">
-                    {selectedLead.value ? `€${selectedLead.value.toLocaleString('it-IT')}` : '-'}
+                    {selectedLead.value ? formatAmount(selectedLead.value, hideAmounts) : '-'}
                   </p>
                 </div>
                 <div>
