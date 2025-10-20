@@ -77,6 +77,7 @@ import IntegrationsPage from "./pages/integrations/IntegrationsPage";
 import { TasksPage } from "./pages/tasks/TasksPage";
 import ContentCreationPage from "./pages/marketing/ContentCreationPage";
 import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
+import TaskKpiPage from "./pages/direzione/TaskKpiPage";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,7 @@ const App = () => (
               <Route index element={<Index />} />
                 <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
                 <Route path="direzione/calendario" element={<CalendarioAziendale />} />
+                <Route path="direzione/task-kpi" element={<TaskKpiPage />} />
                 <Route path="direzione/orders" element={<OrdersPage />} />
                 <Route path="personal-area" element={<DashboardPage />} />
                 
