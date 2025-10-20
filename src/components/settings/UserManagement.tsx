@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { UserPageVisibilityDialog } from "./UserPageVisibilityDialog";
 
 interface UserWithRole {
   id: string;
@@ -34,6 +35,8 @@ export function UserManagement() {
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedUserType, setSelectedUserType] = useState("erp"); // Default to ERP users only
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [visibilityDialogOpen, setVisibilityDialogOpen] = useState(false);
+  const [selectedUserForVisibility, setSelectedUserForVisibility] = useState<UserWithRole | null>(null);
   const [newUserForm, setNewUserForm] = useState({
     email: "",
     password: "",
@@ -416,7 +419,7 @@ export function UserManagement() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Ruolo</TableHead>
                 <TableHead>Data Registrazione</TableHead>
-                {isAdmin && <TableHead>Azioni</TableHead>}
+                {isAdmin && <TableHead className="text-right">Azioni</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -444,7 +447,7 @@ export function UserManagement() {
                   </TableCell>
                   {isAdmin && (
                     <TableCell>
-                       <div className="flex items-center gap-2">
+                       <div className="flex items-center justify-end gap-2">
                         <Select
                           value={user.role}
                           onValueChange={(newRole) => updateUserRole(user.id, newRole)}
@@ -459,6 +462,17 @@ export function UserManagement() {
                             <SelectItem value="admin">Admin</SelectItem>
                           </SelectContent>
                         </Select>
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUserForVisibility(user);
+                            setVisibilityDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         
                         {user.id !== currentUser?.id && (
                           <AlertDialog>
@@ -493,6 +507,15 @@ export function UserManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedUserForVisibility && (
+        <UserPageVisibilityDialog
+          open={visibilityDialogOpen}
+          onOpenChange={setVisibilityDialogOpen}
+          userId={selectedUserForVisibility.id}
+          userName={`${selectedUserForVisibility.first_name} ${selectedUserForVisibility.last_name}` || selectedUserForVisibility.email}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as React from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import {
   BarChart3,
   Users,
@@ -231,6 +233,9 @@ export function AppSidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const currentPath = location.pathname;
+  const { user } = useAuth();
+  const { isPageVisible, loading: visibilityLoading } = usePageVisibility(user?.id);
+  
   const [openGroups, setOpenGroups] = useState<string[]>(
     navigationGroups
       .filter(group => group.items.some(item => 
@@ -278,28 +283,35 @@ export function AppSidebar() {
         </div>
 
         <div className="flex-1 overflow-auto p-2 bg-white">
-          {navigationGroups.map((group) => (
-            <SidebarGroup key={group.title}>
-              <Collapsible
-                open={openGroups.includes(group.title)}
-                onOpenChange={() => toggleGroup(group.title)}
-                className="space-y-1"
-              >
-                <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors cursor-pointer py-2 px-2 uppercase tracking-wide">
-                    {group.title}
-                    {openGroups.includes(group.title) ? 
-                      <ChevronDown className="h-3 w-3 text-gray-400" /> : 
-                      <ChevronRight className="h-3 w-3 text-gray-400" />
-                    }
-                  </SidebarGroupLabel>
-                </CollapsibleTrigger>
+          {navigationGroups.map((group) => {
+            // Filter items based on visibility
+            const visibleItems = group.items.filter(item => isPageVisible(item.url));
+            
+            // Skip the group if no items are visible
+            if (visibleItems.length === 0) return null;
+            
+            return (
+              <SidebarGroup key={group.title}>
+                <Collapsible
+                  open={openGroups.includes(group.title)}
+                  onOpenChange={() => toggleGroup(group.title)}
+                  className="space-y-1"
+                >
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className="flex items-center justify-between w-full text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors cursor-pointer py-2 px-2 uppercase tracking-wide">
+                      {group.title}
+                      {openGroups.includes(group.title) ? 
+                        <ChevronDown className="h-3 w-3 text-gray-400" /> : 
+                        <ChevronRight className="h-3 w-3 text-gray-400" />
+                      }
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
 
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {group.items.map((item) => (
-                        <SidebarMenuItem key={item.url}>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {visibleItems.map((item) => (
+                          <SidebarMenuItem key={item.url}>
                           <SidebarMenuButton asChild>
                             {item.external ? (
                               <a
@@ -340,13 +352,14 @@ export function AppSidebar() {
                             )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </Collapsible>
-            </SidebarGroup>
-          ))}
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            );
+          })}
         </div>
       </SidebarContent>
     </Sidebar>
