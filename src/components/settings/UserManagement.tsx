@@ -194,67 +194,59 @@ export function UserManagement() {
     try {
       setLoading(true);
       
-      // Create user with Admin API (doesn't auto-login the new user)
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUserForm.email,
-        password: newUserForm.password,
-        email_confirm: true, // Auto-confirm email
-        user_metadata: {
-          first_name: newUserForm.firstName,
-          last_name: newUserForm.lastName,
-        }
-      });
-
-      if (authError) {
-        if (authError.message.includes("User already registered")) {
-          toast({
-            title: "Errore",
-            description: "Un utente con questa email esiste già",
-            variant: "destructive",
-          });
-        } else {
-          throw authError;
-        }
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Errore",
+          description: "Sessione non valida. Effettua nuovamente il login.",
+          variant: "destructive",
+        });
         return;
       }
 
-      if (authData.user) {
-        // Update profile to set user_type to "erp"
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ user_type: "erp" })
-          .eq("id", authData.user.id);
+      // Call edge function to create user
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: newUserForm.email,
+          password: newUserForm.password,
+          firstName: newUserForm.firstName,
+          lastName: newUserForm.lastName,
+          role: newUserForm.role
+        }
+      });
 
-        if (profileError) throw profileError;
-
-        // Add user role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ 
-            user_id: authData.user.id, 
-            role: newUserForm.role as any 
-          });
-
-        if (roleError) throw roleError;
-
-        toast({
-          title: "Successo",
-          description: "Nuovo utente ERP creato con successo",
-        });
-
-        // Reset form and close dialog
-        setNewUserForm({
-          email: "",
-          password: "",
-          firstName: "",
-          lastName: "",
-          role: "user"
-        });
-        setIsDialogOpen(false);
-        
-        // Refresh users list
-        fetchUsers();
+      if (error) {
+        throw error;
       }
+
+      if (data?.error) {
+        toast({
+          title: "Errore",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Successo",
+        description: "Nuovo utente ERP creato con successo",
+      });
+
+      // Reset form and close dialog
+      setNewUserForm({
+        email: "",
+        password: "",
+        firstName: "",
+        lastName: "",
+        role: "user"
+      });
+      setIsDialogOpen(false);
+      
+      // Refresh users list
+      fetchUsers();
     } catch (error) {
       console.error("Error creating user:", error);
       toast({
