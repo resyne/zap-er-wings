@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { formatAmount } from "@/lib/formatAmount";
 
 interface BOM {
   id: string;
@@ -112,6 +114,7 @@ export default function BomPage() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("all");
   const [bomDetails, setBomDetails] = useState<any>(null);
   const { toast } = useToast();
+  const { hideAmounts } = useHideAmounts();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -930,7 +933,7 @@ export default function BomPage() {
                              <TableCell>
                                {inclusion.included_bom.material?.cost ? (
                                  <span className="font-medium text-green-600">
-                                   €{(Number(inclusion.included_bom.material.cost) * inclusion.quantity).toFixed(2)}
+                                   {formatAmount(Number(inclusion.included_bom.material.cost) * inclusion.quantity, hideAmounts)}
                                  </span>
                                ) : (
                                  <span className="text-muted-foreground">-</span>
@@ -1155,7 +1158,7 @@ export default function BomPage() {
                                {bom.totalCost && bom.totalCost > 0 ? (
                                  <div className="flex flex-col">
                                    <span className="font-medium text-green-600">
-                                     €{bom.totalCost.toFixed(2)}
+                                     {formatAmount(bom.totalCost, hideAmounts)}
                                    </span>
                                    <span className="text-xs text-muted-foreground">
                                      Total BOM cost

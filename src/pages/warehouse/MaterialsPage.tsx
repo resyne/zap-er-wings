@@ -15,6 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { formatAmount } from "@/lib/formatAmount";
 
 const materialSchema = z.object({
   name: z.string().min(1, "Nome obbligatorio"),
@@ -80,6 +82,7 @@ export default function MaterialsPage() {
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { hideAmounts } = useHideAmounts();
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -655,7 +658,7 @@ export default function MaterialsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>€ {material.cost.toFixed(2)}</TableCell>
+                      <TableCell>{formatAmount(material.cost, hideAmounts)}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button
