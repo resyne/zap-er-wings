@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Users, CheckCircle2, Mail, Send } from "lucide-react";
+import { Plus, Users, CheckCircle2, Mail, Send, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
@@ -43,6 +44,7 @@ export default function ImportersPage() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const {
     toast
   } = useToast();
@@ -122,12 +124,25 @@ export default function ImportersPage() {
       });
     }
   };
-  const importersWithLocation = importers.filter(p => p.latitude && p.longitude);
-  const activeImporters = importers.filter(i => i.acquisition_status === 'attivo' || !i.acquisition_status);
-  const regions = [...new Set(importers.map(i => i.region).filter(Boolean))];
+  const filteredImporters = importers.filter(importer => {
+    if (!searchQuery) return true;
+    const search = searchQuery.toLowerCase();
+    return (
+      importer.first_name?.toLowerCase().includes(search) ||
+      importer.last_name?.toLowerCase().includes(search) ||
+      importer.company_name?.toLowerCase().includes(search) ||
+      importer.email?.toLowerCase().includes(search) ||
+      importer.phone?.toLowerCase().includes(search) ||
+      importer.region?.toLowerCase().includes(search)
+    );
+  });
+
+  const importersWithLocation = filteredImporters.filter(p => p.latitude && p.longitude);
+  const activeImporters = filteredImporters.filter(i => i.acquisition_status === 'attivo' || !i.acquisition_status);
+  const regions = [...new Set(filteredImporters.map(i => i.region).filter(Boolean))];
   const getImportersByRegion = () => {
     const regionGroups: Record<string, Importer[]> = {};
-    importers.forEach(importer => {
+    filteredImporters.forEach(importer => {
       const region = importer.region || 'No Region';
       if (!regionGroups[region]) {
         regionGroups[region] = [];
@@ -174,6 +189,17 @@ export default function ImportersPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Cerca per nome, azienda, email, telefono o regione..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -182,7 +208,7 @@ export default function ImportersPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{importers.length}</div>
+            <div className="text-2xl font-bold">{filteredImporters.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -211,8 +237,8 @@ export default function ImportersPage() {
 
         <TabsContent value="regions">
           <div className="space-y-6">
-            {loading ? <div className="text-center py-4">Loading importers...</div> : importers.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-                No importers found. Add your first importer to get started.
+            {loading ? <div className="text-center py-4">Loading importers...</div> : filteredImporters.length === 0 ? <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? "Nessun importatore trovato per questa ricerca." : "No importers found. Add your first importer to get started."}
               </div> : Object.entries(getImportersByRegion()).map(([region, regionImporters]) => <Card key={region}>
                   <CardHeader>
                     <CardTitle>{region} ({regionImporters.length})</CardTitle>
@@ -268,7 +294,7 @@ export default function ImportersPage() {
 
         <TabsContent value="pricelists">
           <div className="space-y-6">
-            {importers.map((importer) => (
+            {filteredImporters.map((importer) => (
               <div key={importer.id}>
                 <PartnerPriceLists
                   partnerId={importer.id}
@@ -279,9 +305,9 @@ export default function ImportersPage() {
                 />
               </div>
             ))}
-            {importers.length === 0 && (
+            {filteredImporters.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No importers found. Add your first importer to get started.
+                {searchQuery ? "Nessun importatore trovato per questa ricerca." : "No importers found. Add your first importer to get started."}
               </div>
             )}
           </div>

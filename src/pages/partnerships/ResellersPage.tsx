@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Users, CheckCircle2, Mail, Send } from "lucide-react";
+import { Plus, Users, CheckCircle2, Mail, Send, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PartnerMap } from "@/components/partnerships/PartnerMap";
@@ -44,6 +45,7 @@ export default function ResellersPage() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -128,14 +130,27 @@ export default function ResellersPage() {
     }
   };
 
-  const resellersWithLocation = resellers.filter(p => p.latitude && p.longitude);
-  const activeResellers = resellers.filter(r => r.acquisition_status === 'attivo' || !r.acquisition_status);
-  const regions = [...new Set(resellers.map(r => r.region).filter(Boolean))];
+  const filteredResellers = resellers.filter(reseller => {
+    if (!searchQuery) return true;
+    const search = searchQuery.toLowerCase();
+    return (
+      reseller.first_name?.toLowerCase().includes(search) ||
+      reseller.last_name?.toLowerCase().includes(search) ||
+      reseller.company_name?.toLowerCase().includes(search) ||
+      reseller.email?.toLowerCase().includes(search) ||
+      reseller.phone?.toLowerCase().includes(search) ||
+      reseller.region?.toLowerCase().includes(search)
+    );
+  });
+
+  const resellersWithLocation = filteredResellers.filter(p => p.latitude && p.longitude);
+  const activeResellers = filteredResellers.filter(r => r.acquisition_status === 'attivo' || !r.acquisition_status);
+  const regions = [...new Set(filteredResellers.map(r => r.region).filter(Boolean))];
   
   const getResellersByRegion = () => {
     const regionGroups: Record<string, Reseller[]> = {};
     
-    resellers.forEach(reseller => {
+    filteredResellers.forEach(reseller => {
       const region = reseller.region || 'No Region';
       if (!regionGroups[region]) {
         regionGroups[region] = [];
@@ -230,6 +245,17 @@ export default function ResellersPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Cerca per nome, azienda, email, telefono o regione..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -238,7 +264,7 @@ export default function ResellersPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resellers.length}</div>
+            <div className="text-2xl font-bold">{filteredResellers.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -269,9 +295,9 @@ export default function ResellersPage() {
           <div className="space-y-6">
             {loading ? (
               <div className="text-center py-4">Loading resellers...</div>
-            ) : resellers.length === 0 ? (
+            ) : filteredResellers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No resellers found. Add your first reseller to get started.
+                {searchQuery ? "Nessun rivenditore trovato per questa ricerca." : "No resellers found. Add your first reseller to get started."}
               </div>
             ) : (
               Object.entries(getResellersByRegion()).map(([region, regionResellers]) => (
@@ -334,7 +360,7 @@ export default function ResellersPage() {
 
         <TabsContent value="pricelists">
           <div className="space-y-6">
-            {resellers.map((reseller) => (
+            {filteredResellers.map((reseller) => (
               <div key={reseller.id}>
                 <PartnerPriceLists
                   partnerId={reseller.id}
@@ -345,9 +371,9 @@ export default function ResellersPage() {
                 />
               </div>
             ))}
-            {resellers.length === 0 && (
+            {filteredResellers.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No resellers found. Add your first reseller to get started.
+                {searchQuery ? "Nessun rivenditore trovato per questa ricerca." : "No resellers found. Add your first reseller to get started."}
               </div>
             )}
           </div>
