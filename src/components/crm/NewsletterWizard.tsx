@@ -188,12 +188,20 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const fetchRecipientCount = async () => {
     try {
       if (targetAudience === 'custom_list' && customListIds.length > 0) {
-        // Sum up contacts from all selected lists
-        const totalContacts = customListIds.reduce((sum, listId) => {
-          const list = emailLists.find(l => l.id === listId);
-          return sum + (list?.contact_count || 0);
-        }, 0);
-        setRecipientCount(totalContacts);
+        // Fetch unique contacts from selected lists by email
+        const { data, error } = await supabase
+          .from('email_list_contacts')
+          .select('email')
+          .in('email_list_id', customListIds)
+          .not('email', 'is', null);
+
+        if (error) throw error;
+
+        // Remove duplicates based on email (case-insensitive)
+        const uniqueEmails = new Set(
+          (data || []).map(contact => contact.email.toLowerCase())
+        );
+        setRecipientCount(uniqueEmails.size);
       } else if (targetAudience === 'customers') {
         const { count } = await supabase
           .from('customers')
