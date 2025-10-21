@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
+import { useUndoableAction } from "@/hooks/useUndoableAction";
 
 interface ServiceWorkOrder {
   id: string;
@@ -34,6 +35,7 @@ interface ServiceWorkOrder {
   production_work_order_id?: string;
   sales_order_id?: string;
   lead_id?: string;
+  archived?: boolean;
   customers?: {
     name: string;
     code: string;
@@ -105,6 +107,7 @@ export default function WorkOrdersServicePage() {
     notes: ""
   });
   const { toast } = useToast();
+  const { executeWithUndo } = useUndoableAction();
 
   useEffect(() => {
     loadServiceWorkOrders();
@@ -136,6 +139,7 @@ export default function WorkOrdersServicePage() {
             company_name
           )
         `)
+        .eq('archived', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -366,28 +370,69 @@ export default function WorkOrdersServicePage() {
   };
 
   const updateWorkOrderStatus = async (workOrderId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('service_work_orders')
-        .update({ status: newStatus })
-        .eq('id', workOrderId);
+    const workOrder = serviceWorkOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return;
 
-      if (error) throw error;
+    const previousStatus = workOrder.status;
 
-      toast({
-        title: "Stato aggiornato",
-        description: "Lo stato dell'ordine di lavoro è stato aggiornato",
-      });
+    await executeWithUndo(
+      async () => {
+        const { error } = await supabase
+          .from('service_work_orders')
+          .update({ status: newStatus })
+          .eq('id', workOrderId);
 
-      loadServiceWorkOrders();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nell'aggiornamento dello stato",
-        variant: "destructive",
-      });
-    }
+        if (error) throw error;
+        await loadServiceWorkOrders();
+      },
+      async () => {
+        const { error } = await supabase
+          .from('service_work_orders')
+          .update({ status: previousStatus as any })
+          .eq('id', workOrderId);
+
+        if (error) throw error;
+        await loadServiceWorkOrders();
+      },
+      {
+        duration: 10000,
+        successMessage: "Stato aggiornato",
+        errorMessage: "Errore nell'aggiornamento dello stato"
+      }
+    );
+  };
+
+  const handleArchive = async (workOrderId: string) => {
+    const workOrder = serviceWorkOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return;
+
+    const newArchivedStatus = !workOrder.archived;
+
+    await executeWithUndo(
+      async () => {
+        const { error } = await supabase
+          .from('service_work_orders')
+          .update({ archived: newArchivedStatus })
+          .eq('id', workOrderId);
+
+        if (error) throw error;
+        await loadServiceWorkOrders();
+      },
+      async () => {
+        const { error } = await supabase
+          .from('service_work_orders')
+          .update({ archived: !newArchivedStatus })
+          .eq('id', workOrderId);
+
+        if (error) throw error;
+        await loadServiceWorkOrders();
+      },
+      {
+        duration: 10000,
+        successMessage: newArchivedStatus ? "Ordine archiviato" : "Ordine ripristinato",
+        errorMessage: newArchivedStatus ? "Errore nell'archiviazione" : "Errore nel ripristino"
+      }
+    );
   };
 
   const handleDeleteWorkOrder = async (workOrderId: string) => {
@@ -813,6 +858,14 @@ export default function WorkOrdersServicePage() {
                           >
                             <Trash2 className="w-4 h-4" />
                          </Button>
+                         <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleArchive(workOrder.id)}
+                            title="Archivia ordine"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </Button>
                        </div>
                      </TableCell>
                   </TableRow>

@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, MapPin } from "lucide-react";
+import { Plus, FileText, MapPin, Archive } from "lucide-react";
 import { ShippingOrderDetailsDialog } from "@/components/warehouse/ShippingOrderDetailsDialog";
+import { useUndoableAction } from "@/hooks/useUndoableAction";
 
 interface ShippingOrder {
   id: string;
@@ -31,6 +32,7 @@ interface ShippingOrder {
   payment_amount?: number;
   notes?: string;
   shipping_address?: string;
+  archived?: boolean;
   companies?: { name: string; address?: string };
   work_orders?: { number: string; title: string };
   sales_orders?: { number: string };
@@ -99,6 +101,7 @@ export default function ShippingOrdersPage() {
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { executeWithUndo } = useUndoableAction();
 
   const { data: shippingOrders, isLoading } = useQuery({
     queryKey: ["shipping-orders"],
@@ -115,6 +118,7 @@ export default function ShippingOrdersPage() {
             materials(name, code)
           )
         `)
+        .eq('archived', false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -348,8 +352,89 @@ export default function ShippingOrdersPage() {
     );
   };
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    updateStatusMutation.mutate({ id: orderId, status: newStatus });
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const order = shippingOrders?.find(o => o.id === orderId);
+    if (!order) return;
+
+    const previousStatus = order.status;
+
+    await executeWithUndo(
+      async () => {
+        const updateData: any = { status: newStatus };
+        
+        // Set timestamp based on status
+        const now = new Date().toISOString();
+        switch (newStatus) {
+          case "in_preparazione":
+            updateData.preparation_date = now;
+            break;
+          case "pronto":
+            updateData.ready_date = now;
+            break;
+          case "spedito":
+            updateData.shipped_date = now;
+            break;
+          case "consegnato":
+            updateData.delivered_date = now;
+            break;
+        }
+
+        const { error } = await supabase
+          .from("shipping_orders")
+          .update(updateData)
+          .eq("id", orderId);
+
+        if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      },
+      async () => {
+        const { error } = await supabase
+          .from("shipping_orders")
+          .update({ status: previousStatus as any })
+          .eq("id", orderId);
+
+        if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      },
+      {
+        duration: 10000,
+        successMessage: "Stato aggiornato",
+        errorMessage: "Errore nell'aggiornamento dello stato"
+      }
+    );
+  };
+
+  const handleArchive = async (orderId: string) => {
+    const order = shippingOrders?.find(o => o.id === orderId);
+    if (!order) return;
+
+    const newArchivedStatus = !order.archived;
+
+    await executeWithUndo(
+      async () => {
+        const { error } = await supabase
+          .from('shipping_orders')
+          .update({ archived: newArchivedStatus })
+          .eq('id', orderId);
+
+        if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      },
+      async () => {
+        const { error } = await supabase
+          .from('shipping_orders')
+          .update({ archived: !newArchivedStatus })
+          .eq('id', orderId);
+
+        if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+      },
+      {
+        duration: 10000,
+        successMessage: newArchivedStatus ? "Ordine archiviato" : "Ordine ripristinato",
+        errorMessage: newArchivedStatus ? "Errore nell'archiviazione" : "Errore nel ripristino"
+      }
+    );
   };
 
   const handleGenerateDDT = (order: ShippingOrder) => {
@@ -500,6 +585,14 @@ export default function ShippingOrdersPage() {
                             Track
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleArchive(order.id)}
+                          title="Archivia ordine"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
