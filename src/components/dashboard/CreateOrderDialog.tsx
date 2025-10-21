@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -61,7 +62,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     planned_end_date: "",
     location: "",
     equipment_needed: "",
-    shipping_address: ""
+    shipping_address: "",
+    payment_on_delivery: false,
+    payment_amount: ""
   });
 
   useEffect(() => {
@@ -111,6 +114,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       planned_end_date: newOrder.planned_end_date || null,
       notes: newOrder.notes,
       includes_installation: newOrder.order_type === 'odpel',
+      payment_on_delivery: newOrder.payment_on_delivery,
+      payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
     };
 
@@ -156,13 +161,15 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const createShippingOrder = async (orderId: string, orderData: any) => {
     const shippingData = {
       number: '',
-      customer_id: newOrder.customer_id,
+      customer_id: newOrder.customer_id || null,
       contact_id: newOrder.contact_id || null,
       back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
       shipping_address: newOrder.shipping_address || null,
+      payment_on_delivery: newOrder.payment_on_delivery,
+      payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
     };
 
@@ -358,7 +365,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       planned_end_date: "",
       location: "",
       equipment_needed: "",
-      shipping_address: ""
+      shipping_address: "",
+      payment_on_delivery: false,
+      payment_amount: ""
     });
   };
 
@@ -595,6 +604,40 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               rows={2}
             />
           </div>
+
+          {(newOrder.order_type === 'ods' || newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="payment_on_delivery"
+                  checked={newOrder.payment_on_delivery}
+                  onCheckedChange={(checked) => 
+                    setNewOrder({ ...newOrder, payment_on_delivery: checked === true })
+                  }
+                />
+                <Label 
+                  htmlFor="payment_on_delivery"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Pagamento alla Consegna
+                </Label>
+              </div>
+
+              {newOrder.payment_on_delivery && (
+                <div>
+                  <Label>Importo Pagamento (€)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newOrder.payment_amount}
+                    onChange={(e) => setNewOrder({ ...newOrder, payment_amount: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-4">

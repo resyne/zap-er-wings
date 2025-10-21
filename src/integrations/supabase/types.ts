@@ -5441,6 +5441,8 @@ export type Database = {
           location: string | null
           notes: string | null
           number: string
+          payment_amount: number | null
+          payment_on_delivery: boolean | null
           planned_end_date: string | null
           planned_start_date: string | null
           priority: string | null
@@ -5468,6 +5470,8 @@ export type Database = {
           location?: string | null
           notes?: string | null
           number: string
+          payment_amount?: number | null
+          payment_on_delivery?: boolean | null
           planned_end_date?: string | null
           planned_start_date?: string | null
           priority?: string | null
@@ -5495,6 +5499,8 @@ export type Database = {
           location?: string | null
           notes?: string | null
           number?: string
+          payment_amount?: number | null
+          payment_on_delivery?: boolean | null
           planned_end_date?: string | null
           planned_start_date?: string | null
           priority?: string | null
