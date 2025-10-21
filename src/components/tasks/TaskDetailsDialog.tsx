@@ -7,6 +7,7 @@ import { CalendarDays, Clock, User, Tag, FileText, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { EditTaskDialog } from "./EditTaskDialog";
+import { TaskComments } from "./TaskComments";
 
 interface Task {
   id: string;
@@ -228,6 +229,11 @@ export function TaskDetailsDialog({ task, open, onOpenChange, onTaskUpdated }: T
                   <p>{format(new Date(task.updated_at), 'dd/MM/yyyy HH:mm', { locale: it })}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Comments Section */}
+            <div className="pt-4 border-t">
+              <TaskComments taskId={task.id} />
             </div>
           </div>
         </DialogContent>
