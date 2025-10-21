@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, MapPin, Archive } from "lucide-react";
+import { Plus, FileText, MapPin, Archive, Trash2 } from "lucide-react";
 import { ShippingOrderDetailsDialog } from "@/components/warehouse/ShippingOrderDetailsDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 
@@ -40,8 +40,8 @@ interface ShippingOrder {
 }
 
 interface ShippingOrderItem {
-  id: string;
-  material_id?: string;
+  id?: string;
+  material_id: string;
   quantity: number;
   unit_price: number;
   total_price: number;
@@ -99,6 +99,7 @@ export default function ShippingOrdersPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  const [orderItems, setOrderItems] = useState<ShippingOrderItem[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { executeWithUndo } = useUndoableAction();
@@ -235,15 +236,37 @@ export default function ShippingOrdersPage() {
 
   const createOrderMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase
+      const { items, ...orderData } = data;
+      
+      const { data: newOrder, error: orderError } = await supabase
         .from("shipping_orders")
-        .insert([data]);
+        .insert([orderData])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (orderError) throw orderError;
+
+      if (items && items.length > 0) {
+        const itemsToInsert = items.map((item: ShippingOrderItem) => ({
+          shipping_order_id: newOrder.id,
+          material_id: item.material_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          notes: item.notes || null
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("shipping_order_items")
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
       setIsCreateDialogOpen(false);
+      setOrderItems([]);
       toast({ title: "Ordine creato con successo" });
     },
     onError: (error) => {
@@ -256,18 +279,47 @@ export default function ShippingOrdersPage() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
-      const { error } = await supabase
+    mutationFn: async ({ id, items, ...data }: any) => {
+      const { error: orderError } = await supabase
         .from("shipping_orders")
         .update(data)
         .eq("id", id);
 
-      if (error) throw error;
+      if (orderError) throw orderError;
+
+      if (items) {
+        // Delete existing items
+        const { error: deleteError } = await supabase
+          .from("shipping_order_items")
+          .delete()
+          .eq("shipping_order_id", id);
+
+        if (deleteError) throw deleteError;
+
+        // Insert new items
+        if (items.length > 0) {
+          const itemsToInsert = items.map((item: ShippingOrderItem) => ({
+            shipping_order_id: id,
+            material_id: item.material_id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price,
+            notes: item.notes || null
+          }));
+
+          const { error: itemsError } = await supabase
+            .from("shipping_order_items")
+            .insert(itemsToInsert);
+
+          if (itemsError) throw itemsError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
       setIsEditDialogOpen(false);
       setSelectedOrder(null);
+      setOrderItems([]);
       toast({ title: "Ordine aggiornato con successo" });
     },
     onError: (error) => {
@@ -323,6 +375,7 @@ export default function ShippingOrdersPage() {
       payment_on_delivery: formData.get("payment_on_delivery") === "on",
       payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
       notes: formData.get("notes") || "",
+      items: orderItems,
     };
     createOrderMutation.mutate(data);
   };
@@ -339,8 +392,38 @@ export default function ShippingOrdersPage() {
       payment_on_delivery: formData.get("payment_on_delivery") === "on",
       payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
       notes: formData.get("notes") || "",
+      items: orderItems,
     };
     updateOrderMutation.mutate(data);
+  };
+
+  const handleAddItem = () => {
+    setOrderItems([...orderItems, {
+      material_id: "",
+      quantity: 1,
+      unit_price: 0,
+      total_price: 0,
+      notes: ""
+    }]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setOrderItems(orderItems.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItem = (index: number, field: keyof ShippingOrderItem, value: any) => {
+    const updatedItems = [...orderItems];
+    updatedItems[index] = {
+      ...updatedItems[index],
+      [field]: value
+    };
+    
+    // Auto-calculate total price
+    if (field === "quantity" || field === "unit_price") {
+      updatedItems[index].total_price = updatedItems[index].quantity * updatedItems[index].unit_price;
+    }
+    
+    setOrderItems(updatedItems);
   };
 
   const getStatusBadge = (status: string) => {
@@ -495,7 +578,10 @@ export default function ShippingOrdersPage() {
               Kanban
             </Button>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={() => {
+            setOrderItems([]);
+            setIsCreateDialogOpen(true);
+          }}>
             <Plus className="w-4 h-4 mr-2" />
             Nuovo Ordine
           </Button>
@@ -659,6 +745,7 @@ export default function ShippingOrdersPage() {
         onEdit={(order) => {
           setIsDetailsDialogOpen(false);
           setSelectedOrder(order);
+          setOrderItems(order.shipping_order_items || []);
           setIsEditDialogOpen(true);
         }}
         onDelete={deleteOrderMutation.mutate}
@@ -777,6 +864,114 @@ export default function ShippingOrdersPage() {
                 placeholder="Note aggiuntive"
                 rows={3}
               />
+            </div>
+
+            {/* Items Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Articoli</Label>
+                <Button type="button" size="sm" onClick={handleAddItem}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Aggiungi Articolo
+                </Button>
+              </div>
+              
+              {orderItems.length > 0 && (
+                <div className="border rounded-lg divide-y">
+                  {orderItems.map((item, index) => (
+                    <div key={index} className="p-3 space-y-3">
+                      <div className="grid grid-cols-12 gap-2">
+                        <div className="col-span-5">
+                          <Label className="text-xs">Materiale</Label>
+                          <Select
+                            value={item.material_id}
+                            onValueChange={(value) => {
+                              handleUpdateItem(index, "material_id", value);
+                              const material = materials?.find(m => m.id === value);
+                              if (material) {
+                                handleUpdateItem(index, "unit_price", material.cost);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Seleziona materiale" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {materials?.map((mat) => (
+                                <SelectItem key={mat.id} value={mat.id}>
+                                  {mat.code} - {mat.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-xs">Quantità</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleUpdateItem(index, "quantity", Number(e.target.value))}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-xs">Prezzo Unit.</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.unit_price}
+                            onChange={(e) => handleUpdateItem(index, "unit_price", Number(e.target.value))}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-xs">Totale</Label>
+                          <Input
+                            type="number"
+                            value={item.total_price.toFixed(2)}
+                            disabled
+                            className="h-8 bg-muted"
+                          />
+                        </div>
+                        <div className="col-span-1 flex items-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveItem(index)}
+                            className="h-8"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Note (opzionale)</Label>
+                        <Input
+                          value={item.notes || ""}
+                          onChange={(e) => handleUpdateItem(index, "notes", e.target.value)}
+                          placeholder="Note per questo articolo"
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="p-3 bg-muted">
+                    <div className="flex justify-between items-center font-semibold">
+                      <span>Totale Ordine:</span>
+                      <span>€{orderItems.reduce((sum, item) => sum + item.total_price, 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {orderItems.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+                  Nessun articolo aggiunto. Clicca su "Aggiungi Articolo" per iniziare.
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end space-x-2">
@@ -929,34 +1124,111 @@ export default function ShippingOrdersPage() {
                 />
               </div>
 
-              {/* Order Items Section */}
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-semibold mb-4">Materiali</h3>
-                {selectedOrder.shipping_order_items && selectedOrder.shipping_order_items.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Materiale</TableHead>
-                        <TableHead>Quantità</TableHead>
-                        <TableHead>Prezzo Unitario</TableHead>
-                        <TableHead>Totale</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedOrder.shipping_order_items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            {item.materials?.name} ({item.materials?.code})
-                          </TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>€{item.unit_price}</TableCell>
-                          <TableCell>€{item.total_price}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-muted-foreground">Nessun materiale aggiunto</p>
+              {/* Items Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Articoli</Label>
+                  <Button type="button" size="sm" onClick={handleAddItem}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Aggiungi Articolo
+                  </Button>
+                </div>
+                
+                {orderItems.length > 0 && (
+                  <div className="border rounded-lg divide-y">
+                    {orderItems.map((item, index) => (
+                      <div key={index} className="p-3 space-y-3">
+                        <div className="grid grid-cols-12 gap-2">
+                          <div className="col-span-5">
+                            <Label className="text-xs">Materiale</Label>
+                            <Select
+                              value={item.material_id}
+                              onValueChange={(value) => {
+                                handleUpdateItem(index, "material_id", value);
+                                const material = materials?.find(m => m.id === value);
+                                if (material) {
+                                  handleUpdateItem(index, "unit_price", material.cost);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Seleziona materiale" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {materials?.map((mat) => (
+                                  <SelectItem key={mat.id} value={mat.id}>
+                                    {mat.code} - {mat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs">Quantità</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleUpdateItem(index, "quantity", Number(e.target.value))}
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs">Prezzo Unit.</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.unit_price}
+                              onChange={(e) => handleUpdateItem(index, "unit_price", Number(e.target.value))}
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs">Totale</Label>
+                            <Input
+                              type="number"
+                              value={item.total_price.toFixed(2)}
+                              disabled
+                              className="h-8 bg-muted"
+                            />
+                          </div>
+                          <div className="col-span-1 flex items-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemoveItem(index)}
+                              className="h-8"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Note (opzionale)</Label>
+                          <Input
+                            value={item.notes || ""}
+                            onChange={(e) => handleUpdateItem(index, "notes", e.target.value)}
+                            placeholder="Note per questo articolo"
+                            className="h-8"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="p-3 bg-muted">
+                      <div className="flex justify-between items-center font-semibold">
+                        <span>Totale Ordine:</span>
+                        <span>€{orderItems.reduce((sum, item) => sum + item.total_price, 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {orderItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+                    Nessun articolo aggiunto. Clicca su "Aggiungi Articolo" per iniziare.
+                  </p>
                 )}
               </div>
 

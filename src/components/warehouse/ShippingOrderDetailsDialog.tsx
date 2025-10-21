@@ -97,11 +97,18 @@ export function ShippingOrderDetailsDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground">Cliente</h4>
-              <p>{order.companies?.name || "N/A"}</p>
+              <p className="font-medium">{order.companies?.name || "N/A"}</p>
+              {order.companies?.address && (
+                <p className="text-sm text-muted-foreground mt-1">{order.companies.address}</p>
+              )}
             </div>
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground">Data Ordine</h4>
-              <p>{new Date(order.order_date).toLocaleDateString()}</p>
+              <p>{new Date(order.order_date).toLocaleDateString('it-IT', { 
+                day: '2-digit', 
+                month: 'long', 
+                year: 'numeric' 
+              })}</p>
             </div>
           </div>
 
@@ -115,7 +122,9 @@ export function ShippingOrderDetailsDialog({
           {order.payment_on_delivery && (
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground">Pagamento alla Consegna</h4>
-              <p>€{order.payment_amount || 0}</p>
+              <p className="text-lg font-semibold text-primary">
+                €{typeof order.payment_amount === 'number' ? order.payment_amount.toFixed(2) : '0.00'}
+              </p>
             </div>
           )}
 
@@ -144,22 +153,48 @@ export function ShippingOrderDetailsDialog({
               <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli</h4>
               <div className="border rounded-lg divide-y">
                 {order.shipping_order_items.map((item: any, index: number) => (
-                  <div key={index} className="p-3 flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{item.materials?.name || "N/A"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Codice: {item.materials?.code || "N/A"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p>Quantità: {item.quantity}</p>
-                      <p className="text-sm text-muted-foreground">
-                        €{item.unit_price} x {item.quantity} = €{item.total_price}
-                      </p>
+                  <div key={index} className="p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{item.materials?.name || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Codice: <span className="font-mono">{item.materials?.code || "N/A"}</span>
+                        </p>
+                        {item.notes && (
+                          <p className="text-sm text-muted-foreground mt-1 italic">
+                            Note: {item.notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Quantità: <span className="font-semibold text-foreground">{item.quantity}</span></p>
+                        <p className="text-sm text-muted-foreground">
+                          €{typeof item.unit_price === 'number' ? item.unit_price.toFixed(2) : '0.00'} x {item.quantity}
+                        </p>
+                        <p className="text-lg font-semibold text-primary mt-1">
+                          €{typeof item.total_price === 'number' ? item.total_price.toFixed(2) : '0.00'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
+                <div className="p-4 bg-muted">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-lg">Totale Ordine:</span>
+                    <span className="font-bold text-xl text-primary">
+                      €{order.shipping_order_items.reduce((sum: number, item: any) => 
+                        sum + (typeof item.total_price === 'number' ? item.total_price : 0), 0
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
               </div>
+            </div>
+          )}
+          
+          {(!order.shipping_order_items || order.shipping_order_items.length === 0) && (
+            <div className="border rounded-lg p-4 text-center text-muted-foreground">
+              Nessun articolo presente in questo ordine
             </div>
           )}
 
