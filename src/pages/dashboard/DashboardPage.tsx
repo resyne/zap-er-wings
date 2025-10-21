@@ -108,6 +108,16 @@ interface RecurringTask {
   completion_id?: string;
 }
 
+interface AssignedOrder {
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  order_type: 'work_order' | 'service_order' | 'shipping_order';
+  customer_name?: string;
+  created_at: string;
+}
+
 // Component to display user role
 function RoleDisplay() {
   const { userRole } = useUserRole();
@@ -124,6 +134,7 @@ export function DashboardPage() {
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
+  const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -253,12 +264,93 @@ export function DashboardPage() {
         };
       }) || [];
 
+      // Load assigned orders (work orders, service orders, shipping orders)
+      const assignedOrdersList: AssignedOrder[] = [];
+
+      // Work orders
+      const { data: workOrders } = await supabase
+        .from('work_orders')
+        .select(`
+          id,
+          number,
+          title,
+          status,
+          created_at,
+          customers:customer_id(name)
+        `)
+        .eq('back_office_manager', user.id)
+        .order('created_at', { ascending: false });
+
+      workOrders?.forEach(wo => {
+        assignedOrdersList.push({
+          id: wo.id,
+          number: wo.number,
+          title: wo.title,
+          status: wo.status,
+          order_type: 'work_order',
+          customer_name: (wo.customers as any)?.name,
+          created_at: wo.created_at
+        });
+      });
+
+      // Service work orders
+      const { data: serviceOrders } = await supabase
+        .from('service_work_orders')
+        .select(`
+          id,
+          number,
+          title,
+          status,
+          created_at,
+          customers:customer_id(name)
+        `)
+        .eq('back_office_manager', user.id)
+        .order('created_at', { ascending: false });
+
+      serviceOrders?.forEach(so => {
+        assignedOrdersList.push({
+          id: so.id,
+          number: so.number,
+          title: so.title,
+          status: so.status,
+          order_type: 'service_order',
+          customer_name: (so.customers as any)?.name,
+          created_at: so.created_at
+        });
+      });
+
+      // Shipping orders
+      const { data: shippingOrders } = await supabase
+        .from('shipping_orders')
+        .select(`
+          id,
+          number,
+          status,
+          created_at,
+          companies:customer_id(name)
+        `)
+        .eq('back_office_manager', user.id)
+        .order('created_at', { ascending: false });
+
+      shippingOrders?.forEach(ship => {
+        assignedOrdersList.push({
+          id: ship.id,
+          number: ship.number,
+          title: `Ordine di Spedizione ${ship.number}`,
+          status: ship.status,
+          order_type: 'shipping_order',
+          customer_name: (ship.companies as any)?.name,
+          created_at: ship.created_at
+        });
+      });
+
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
       setTasks(tasksData || []);
       setLeadActivities(leadActivitiesData || []);
       setTickets(ticketsData || []);
       setRecurringTasks(userRecurringTasks);
+      setAssignedOrders(assignedOrdersList);
     } catch (error) {
       console.error("Error loading user tasks:", error);
     } finally {
@@ -700,6 +792,92 @@ export function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Assigned Orders */}
+        {assignedOrders.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                I Miei Ordini Assegnati ({assignedOrders.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {assignedOrders.map((order) => {
+                  const orderTypeLabel = order.order_type === 'work_order' 
+                    ? 'Ordine di Produzione' 
+                    : order.order_type === 'service_order'
+                    ? 'Ordine di Lavoro'
+                    : 'Ordine di Spedizione';
+                  
+                  const statusColors: Record<string, string> = {
+                    'planned': 'bg-gray-100 text-gray-800',
+                    'in_progress': 'bg-blue-100 text-blue-800',
+                    'completed': 'bg-green-100 text-green-800',
+                    'da_preparare': 'bg-yellow-100 text-yellow-800',
+                    'pronto': 'bg-green-100 text-green-800',
+                  };
+
+                  return (
+                    <div 
+                      key={order.id} 
+                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        if (order.order_type === 'work_order') {
+                          navigate('/mfg/work-orders');
+                        } else if (order.order_type === 'service_order') {
+                          navigate('/support/work-orders');
+                        } else {
+                          navigate('/warehouse/shipping-orders');
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs">{order.number}</Badge>
+                            <h4 className="font-medium">{order.title}</h4>
+                            <Badge className={statusColors[order.status] || 'bg-gray-100'}>
+                              {order.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span>{orderTypeLabel}</span>
+                            {order.customer_name && (
+                              <span><strong>Cliente:</strong> {order.customer_name}</span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(order.created_at), "dd MMM yyyy", { locale: it })}
+                            </div>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (order.order_type === 'work_order') {
+                              navigate('/mfg/work-orders');
+                            } else if (order.order_type === 'service_order') {
+                              navigate('/support/work-orders');
+                            } else {
+                              navigate('/warehouse/shipping-orders');
+                            }
+                          }}
+                          className="h-7 w-7 p-0"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tickets */}
         <Card>
