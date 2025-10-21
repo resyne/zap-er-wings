@@ -1836,7 +1836,53 @@ export default function OrdersPage() {
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Dettagli Ordine {selectedOrder?.number}</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Dettagli Ordine {selectedOrder?.number}</DialogTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsDetailsDialogOpen(false);
+                    setTimeout(() => {
+                      if (selectedOrder) handleEditOrder(selectedOrder);
+                    }, 100);
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Modifica
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Elimina
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Questa azione eliminerà permanentemente l'ordine {selectedOrder?.number} e tutti i sotto-ordini associati (OdP, OdL, OdS). Questa azione non può essere annullata.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annulla</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          if (selectedOrder) {
+                            handleDeleteOrder(selectedOrder.id);
+                            setIsDetailsDialogOpen(false);
+                          }
+                        }}
+                      >
+                        Elimina
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           </DialogHeader>
           
           {selectedOrder && (
