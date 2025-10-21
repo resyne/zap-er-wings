@@ -161,7 +161,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
-      expected_delivery_date: newOrder.expected_delivery_date || null,
       notes: newOrder.notes,
       shipping_address: newOrder.shipping_address || null,
       sales_order_id: orderId
