@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { OrderComments } from "@/components/orders/OrderComments";
 import { BomComposition } from "@/components/production/BomComposition";
+import { useUndoableAction } from "@/hooks/useUndoableAction";
 
 interface WorkOrder {
   id: string;
@@ -38,6 +39,7 @@ interface WorkOrder {
   accessori_ids?: string[];
   sales_order_id?: string;
   lead_id?: string;
+  archived?: boolean;
   boms?: {
     name: string;
     version: string;
@@ -83,6 +85,7 @@ export default function WorkOrdersPage() {
   const [showFiltersDialog, setShowFiltersDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { executeWithUndo } = useUndoableAction();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -390,18 +393,75 @@ export default function WorkOrdersPage() {
   };
 
   const handleStatusChange = async (woId: string, newStatus: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati') => {
-    try {
+    // Trova l'ordine corrente per salvare lo stato precedente
+    const currentWO = workOrders.find(wo => wo.id === woId);
+    if (!currentWO) return;
+    
+    const previousStatus = currentWO.status as string;
+    
+    // Funzione per cambiare lo stato
+    const changeStatus = async () => {
       const { error } = await supabase
         .from('work_orders')
         .update({ status: newStatus })
         .eq('id', woId);
 
       if (error) throw error;
+      
+      await fetchWorkOrders();
+      return { woId, previousStatus, newStatus };
+    };
+    
+    // Funzione per annullare il cambio di stato
+    const undoStatusChange = async () => {
+      const { error } = await supabase
+        .from('work_orders')
+        .update({ status: previousStatus as any })
+        .eq('id', woId);
+
+      if (error) throw error;
+      
+      await fetchWorkOrders();
+    };
+    
+    try {
+      await executeWithUndo(
+        changeStatus,
+        undoStatusChange,
+        {
+          successMessage: `Stato aggiornato a: ${
+            newStatus === 'to_do' ? 'Da Fare' :
+            newStatus === 'in_lavorazione' ? 'In Lavorazione' :
+            newStatus === 'test' ? 'Test' :
+            newStatus === 'pronti' ? 'Pronti' :
+            'Spediti/Consegnati'
+          }`,
+          errorMessage: 'Impossibile aggiornare lo stato',
+          duration: 10000 // 10 secondi
+        }
+      );
+    } catch (error: any) {
+      // Errore già gestito da executeWithUndo
+      console.error('Error changing status:', error);
+    }
+  };
+
+  const handleArchive = async (woId: string, currentArchived: boolean) => {
+    const newArchived = !currentArchived;
+    
+    try {
+      const { error } = await supabase
+        .from('work_orders')
+        .update({ archived: newArchived })
+        .eq('id', woId);
+
+      if (error) throw error;
 
       toast({
         title: "Successo",
-        description: `Stato ordine di produzione aggiornato a ${newStatus}`,
+        description: newArchived ? "Ordine archiviato" : "Ordine ripristinato",
       });
+      
       fetchWorkOrders();
     } catch (error: any) {
       toast({
@@ -522,28 +582,28 @@ export default function WorkOrdersPage() {
     
     let matchesStatus = true;
     if (statusFilter === "all") {
-      matchesStatus = true;
+      matchesStatus = !wo.archived; // Mostra tutti tranne gli archiviati
     } else if (statusFilter === "active") {
-      // Mostra solo ordini non completati
-      matchesStatus = wo.status !== 'spediti_consegnati' && wo.status !== 'completed' && wo.status !== 'closed';
+      // Mostra solo ordini attivi (non archiviati)
+      matchesStatus = !wo.archived;
     } else if (statusFilter === "archive") {
-      // Mostra solo ordini archiviati (completati/spediti)
-      matchesStatus = wo.status === 'spediti_consegnati' || wo.status === 'completed' || wo.status === 'closed';
+      // Mostra solo ordini archiviati
+      matchesStatus = wo.archived === true;
     } else {
-      matchesStatus = wo.status === statusFilter;
+      matchesStatus = wo.status === statusFilter && !wo.archived;
     }
     
     return matchesSearch && matchesStatus;
   });
 
   const statusCounts = {
-    all: workOrders.length,
-    active: workOrders.filter(wo => wo.status !== 'spediti_consegnati' && wo.status !== 'completed' && wo.status !== 'closed').length,
-    to_do: workOrders.filter(wo => wo.status === 'to_do').length,
-    in_lavorazione: workOrders.filter(wo => wo.status === 'in_lavorazione').length,
-    test: workOrders.filter(wo => wo.status === 'test').length,
-    pronti: workOrders.filter(wo => wo.status === 'pronti').length,
-    archive: workOrders.filter(wo => wo.status === 'spediti_consegnati' || wo.status === 'completed' || wo.status === 'closed').length,
+    all: workOrders.filter(wo => !wo.archived).length,
+    active: workOrders.filter(wo => !wo.archived).length,
+    to_do: workOrders.filter(wo => wo.status === 'to_do' && !wo.archived).length,
+    in_lavorazione: workOrders.filter(wo => wo.status === 'in_lavorazione' && !wo.archived).length,
+    test: workOrders.filter(wo => wo.status === 'test' && !wo.archived).length,
+    pronti: workOrders.filter(wo => wo.status === 'pronti' && !wo.archived).length,
+    archive: workOrders.filter(wo => wo.archived === true).length,
   };
 
   const workOrderStatuses = ['to_do', 'in_lavorazione', 'test', 'pronti', 'spediti_consegnati'];
@@ -1000,6 +1060,14 @@ export default function WorkOrdersPage() {
                            </Button>
                            <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
                              <Edit className="h-4 w-4" />
+                           </Button>
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             onClick={() => handleArchive(wo.id, wo.archived || false)}
+                             title={wo.archived ? "Ripristina" : "Archivia"}
+                           >
+                             <Archive className="h-4 w-4" />
                            </Button>
                            <Button variant="ghost" size="sm" onClick={() => handleDelete(wo.id)}>
                              <Trash2 className="h-4 w-4" />

@@ -4369,6 +4369,7 @@ export type Database = {
           actual_end_date: string | null
           actual_hours: number | null
           actual_start_date: string | null
+          archived: boolean | null
           assigned_to: string | null
           back_office_manager: string | null
           contact_id: string | null
@@ -4395,6 +4396,7 @@ export type Database = {
           actual_end_date?: string | null
           actual_hours?: number | null
           actual_start_date?: string | null
+          archived?: boolean | null
           assigned_to?: string | null
           back_office_manager?: string | null
           contact_id?: string | null
@@ -4421,6 +4423,7 @@ export type Database = {
           actual_end_date?: string | null
           actual_hours?: number | null
           actual_start_date?: string | null
+          archived?: boolean | null
           assigned_to?: string | null
           back_office_manager?: string | null
           contact_id?: string | null
@@ -4534,6 +4537,7 @@ export type Database = {
       }
       shipping_orders: {
         Row: {
+          archived: boolean | null
           back_office_manager: string | null
           created_at: string
           created_by: string | null
@@ -4555,6 +4559,7 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
+          archived?: boolean | null
           back_office_manager?: string | null
           created_at?: string
           created_by?: string | null
@@ -4576,6 +4581,7 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
+          archived?: boolean | null
           back_office_manager?: string | null
           created_at?: string
           created_by?: string | null
@@ -5427,6 +5433,7 @@ export type Database = {
           accessori_ids: string[] | null
           actual_end_date: string | null
           actual_start_date: string | null
+          archived: boolean | null
           assigned_to: string | null
           back_office_manager: string | null
           bom_id: string | null
@@ -5456,6 +5463,7 @@ export type Database = {
           accessori_ids?: string[] | null
           actual_end_date?: string | null
           actual_start_date?: string | null
+          archived?: boolean | null
           assigned_to?: string | null
           back_office_manager?: string | null
           bom_id?: string | null
@@ -5485,6 +5493,7 @@ export type Database = {
           accessori_ids?: string[] | null
           actual_end_date?: string | null
           actual_start_date?: string | null
+          archived?: boolean | null
           assigned_to?: string | null
           back_office_manager?: string | null
           bom_id?: string | null
