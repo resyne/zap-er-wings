@@ -17,7 +17,7 @@ import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 import BomPage from "./pages/production/BomPage";
-import WorkOrdersPage from "./pages/production/WorkOrdersPage";
+import ProductionOrdersPage from "./pages/production/ProductionOrdersPage";
 import ExecutionsPage from "./pages/production/ExecutionsPage";
 import SerialsPage from "./pages/production/SerialsPage";
 import RmaPage from "./pages/production/RmaPage";
@@ -62,11 +62,11 @@ import CalendarioAziendale from "./pages/direzione/CalendarioAziendaleNew";
 
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
-import WorkOrdersServicePage from "./pages/support/WorkOrdersServicePage";
+import ServiceOrdersPage from "./pages/support/ServiceOrdersPage";
 import TicketsPage from "./pages/support/TicketsPage";
 import WorkCostCalculatorPage from "./pages/support/WorkCostCalculatorPage";
 import MaterialsPage from "./pages/warehouse/MaterialsPage";
-import ShippingOrdersPage from "./pages/warehouse/ShippingOrdersPage";
+import ShippingCommissionsPage from "./pages/warehouse/ShippingCommissionsPage";
 import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
 import EmailPage from "./pages/communication/EmailPage";
 import ArchivePage from "./pages/marketing/ArchivePage";
@@ -109,7 +109,7 @@ const App = () => (
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />
                 <Route path="mfg/bom" element={<BomPage />} />
-                <Route path="mfg/work-orders" element={<WorkOrdersPage />} />
+                <Route path="mfg/work-orders" element={<ProductionOrdersPage />} />
                 <Route path="mfg/executions" element={<ExecutionsPage />} />
                 <Route path="mfg/serials" element={<SerialsPage />} />
                 <Route path="mfg/rma" element={<RmaPage />} />
@@ -119,7 +119,7 @@ const App = () => (
                 <Route path="crm/customers" element={<CustomersPage />} />
                 <Route path="crm/offers" element={<OffersPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
-                <Route path="warehouse/shipping-orders" element={<ShippingOrdersPage />} />
+                <Route path="warehouse/shipping-orders" element={<ShippingCommissionsPage />} />
                 <Route path="wms/stock" element={<StockPage />} />
                 <Route path="wms/movements" element={<MovementsPage />} />
                 
@@ -154,7 +154,7 @@ const App = () => (
                 <Route path="docs/price-lists" element={<PriceListsPage />} />
                 <Route path="support" element={<SupportPage />} />
                 <Route path="support/service-reports" element={<ServiceReportsPage />} />
-                <Route path="support/work-orders" element={<WorkOrdersServicePage />} />
+                <Route path="support/work-orders" element={<ServiceOrdersPage />} />
                 <Route path="support/work-cost-calculator" element={<WorkCostCalculatorPage />} />
                 <Route path="support/tickets" element={<TicketsPage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />

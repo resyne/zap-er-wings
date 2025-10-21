@@ -621,16 +621,16 @@ export default function WorkOrdersPage() {
             <BreadcrumbLink href="/mfg">Produzione</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbPage>Ordini di Produzione</BreadcrumbPage>
+          <BreadcrumbPage>Commesse di Produzione</BreadcrumbPage>
         </BreadcrumbList>
       </Breadcrumb>
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ordini di Produzione (OdP)</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Commesse di Produzione (CdP)</h1>
           <p className="text-muted-foreground">
-            Pianifica e monitora gli ordini di produzione durante il loro ciclo di vita
+            Pianifica e monitora le commesse di produzione durante il loro ciclo di vita
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -654,14 +654,14 @@ export default function WorkOrdersPage() {
               });
             }}>
               <Plus className="mr-2 h-4 w-4" />
-              Nuovo Ordine di Produzione
+              Nuova Commessa di Produzione
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{selectedWO ? "Modifica Ordine di Produzione" : "Crea Nuovo Ordine di Produzione"}</DialogTitle>
+              <DialogTitle>{selectedWO ? "Modifica Commessa di Produzione" : "Crea Nuova Commessa di Produzione"}</DialogTitle>
               <DialogDescription>
-                {selectedWO ? "Aggiorna i dettagli dell'ordine di produzione qui sotto." : "Crea un nuovo ordine di produzione. Il numero seriale verrà generato automaticamente."}
+                {selectedWO ? "Aggiorna i dettagli della commessa di produzione qui sotto." : "Crea una nuova commessa di produzione. Il numero verrà generato automaticamente."}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">

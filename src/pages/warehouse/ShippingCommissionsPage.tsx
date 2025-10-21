@@ -556,9 +556,9 @@ export default function ShippingOrdersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Ordini di Spedizione</h1>
+          <h1 className="text-3xl font-bold">Commesse di Spedizione</h1>
           <p className="text-muted-foreground">
-            Gestisci gli ordini di spedizione e genera i DDT
+            Gestisci le commesse di spedizione e genera i DDT
           </p>
         </div>
         <div className="flex gap-2">
@@ -591,9 +591,9 @@ export default function ShippingOrdersPage() {
       {viewMode === "table" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Ordini di Spedizione</CardTitle>
+            <CardTitle>Commesse di Spedizione</CardTitle>
             <CardDescription>
-              Elenco di tutti gli ordini di spedizione
+              Elenco di tutte le commesse di spedizione
             </CardDescription>
           </CardHeader>
           <CardContent>

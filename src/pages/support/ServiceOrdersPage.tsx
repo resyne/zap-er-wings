@@ -476,9 +476,9 @@ export default function WorkOrdersServicePage() {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Ordini di Lavoro (OdL)</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Commesse di Lavoro (CdL)</h1>
         <p className="text-muted-foreground">
-          Pianifica e monitora gli ordini di lavoro per l'assistenza tecnica
+          Pianifica e monitora le commesse di lavoro per l'assistenza tecnica
         </p>
       </div>
 
@@ -487,7 +487,7 @@ export default function WorkOrdersServicePage() {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Cerca ordini di lavoro..."
+            placeholder="Cerca commesse di lavoro..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -515,9 +515,9 @@ export default function WorkOrdersServicePage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Crea Nuovo Ordine di Lavoro</DialogTitle>
+              <DialogTitle>Crea Nuova Commessa di Lavoro</DialogTitle>
               <DialogDescription>
-                Inserisci i dettagli per il nuovo ordine di lavoro
+                Inserisci i dettagli per la nuova commessa di lavoro
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">

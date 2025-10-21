@@ -5692,7 +5692,7 @@ export type Database = {
         Returns: string
       }
       generate_production_work_order_number: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { sales_order_number?: string }
         Returns: string
       }
       generate_purchase_order_number: {
@@ -5712,11 +5712,11 @@ export type Database = {
         Returns: string
       }
       generate_service_work_order_number: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { sales_order_number?: string }
         Returns: string
       }
       generate_shipping_order_number: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { sales_order_number?: string }
         Returns: string
       }
       generate_ticket_number: {
