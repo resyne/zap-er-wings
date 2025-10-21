@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface WizardStep {
   step: number;
@@ -54,7 +55,7 @@ interface NewsletterWizardProps {
   onSend: (data: {
     template: NewsletterTemplate;
     targetAudience: string;
-    customListId?: string;
+    customListIds?: string[];
     senderEmail: SenderEmail;
     senderName: string;
     subject: string;
@@ -82,7 +83,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
 
   // Step 2: Destinatari
   const [targetAudience, setTargetAudience] = useState<'customers' | 'crm_contacts' | 'custom_list' | 'partners'>('customers');
-  const [customListId, setCustomListId] = useState<string>("");
+  const [customListIds, setCustomListIds] = useState<string[]>([]);
   const [recipientCount, setRecipientCount] = useState(0);
 
   // Step 3: Composizione
@@ -186,9 +187,13 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   // Fetch recipient counts
   const fetchRecipientCount = async () => {
     try {
-      if (targetAudience === 'custom_list' && customListId) {
-        const list = emailLists.find(l => l.id === customListId);
-        setRecipientCount(list?.contact_count || 0);
+      if (targetAudience === 'custom_list' && customListIds.length > 0) {
+        // Sum up contacts from all selected lists
+        const totalContacts = customListIds.reduce((sum, listId) => {
+          const list = emailLists.find(l => l.id === listId);
+          return sum + (list?.contact_count || 0);
+        }, 0);
+        setRecipientCount(totalContacts);
       } else if (targetAudience === 'customers') {
         const { count } = await supabase
           .from('customers')
@@ -217,7 +222,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     }
     if (currentStep === 2) {
       if (targetAudience === 'custom_list') {
-        return customListId !== "";
+        return customListIds.length > 0;
       }
       return true;
     }
@@ -276,7 +281,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
               trigger_type: "after_campaign",
               delay_days: automation.delayDays,
               target_audience: targetAudience,
-              email_list_id: targetAudience === 'custom_list' ? customListId : null,
+              email_list_id: targetAudience === 'custom_list' && customListIds.length > 0 ? customListIds[0] : null,
               sender_email: selectedSenderEmail.email,
               sender_name: senderName,
               subject: automation.subject,
@@ -305,7 +310,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
       onSend({
         template,
         targetAudience,
-        customListId: targetAudience === 'custom_list' ? customListId : undefined,
+        customListIds: targetAudience === 'custom_list' ? customListIds : undefined,
         senderEmail: selectedSenderEmail,
         senderName,
         subject,
@@ -583,33 +588,54 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
                 {/* Custom Lists */}
                 {emailLists.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Liste Personalizzate</div>
+                    <div className="text-xs font-medium text-muted-foreground mb-2">
+                      Liste Personalizzate {targetAudience === 'custom_list' && customListIds.length > 0 && (
+                        <span className="text-primary">({customListIds.length} selezionate)</span>
+                      )}
+                    </div>
                     <div className="grid gap-3">
-                      {emailLists.map((list) => (
-                        <div
-                          key={list.id}
-                          className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
-                            targetAudience === 'custom_list' && customListId === list.id ? 'border-primary bg-primary/5' : ''
-                          }`}
-                          onClick={() => {
-                            setTargetAudience('custom_list');
-                            setCustomListId(list.id);
-                            setRecipientCount(list.contact_count);
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="font-medium">{list.name}</div>
-                              {list.description && (
-                                <div className="text-xs text-muted-foreground mt-1">{list.description}</div>
-                              )}
+                      {emailLists.map((list) => {
+                        const isSelected = targetAudience === 'custom_list' && customListIds.includes(list.id);
+                        return (
+                          <div
+                            key={list.id}
+                            className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+                              isSelected ? 'border-primary bg-primary/5' : ''
+                            }`}
+                            onClick={() => {
+                              setTargetAudience('custom_list');
+                              if (isSelected) {
+                                // Remove from selection
+                                setCustomListIds(prev => prev.filter(id => id !== list.id));
+                                if (customListIds.length === 1) {
+                                  // If this was the last selected list, reset to customers
+                                  setTargetAudience('customers');
+                                }
+                              } else {
+                                // Add to selection
+                                setCustomListIds(prev => [...prev, list.id]);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={isSelected}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium">{list.name}</div>
+                                {list.description && (
+                                  <div className="text-xs text-muted-foreground mt-1">{list.description}</div>
+                                )}
+                              </div>
+                              <Badge variant="outline" className="ml-2">
+                                {list.contact_count} contatti
+                              </Badge>
                             </div>
-                            <Badge variant="outline" className="ml-2">
-                              {list.contact_count} contatti
-                            </Badge>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -673,9 +699,17 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
                     {targetAudience === 'crm_contacts' && 'Contatti CRM'}
                     {targetAudience === 'partners' && 'Partner'}
                     {targetAudience === 'custom_list' && (
-                      <>
-                        {emailLists.find(l => l.id === customListId)?.name || 'Lista personalizzata'}
-                      </>
+                      <div className="space-y-1">
+                        {customListIds.map(listId => {
+                          const list = emailLists.find(l => l.id === listId);
+                          return (
+                            <div key={listId} className="flex items-center gap-2">
+                              <Badge variant="outline">{list?.name || 'Lista'}</Badge>
+                              <span className="text-xs">({list?.contact_count || 0} contatti)</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                   {recipientCount > 0 && (

@@ -112,8 +112,8 @@ export default function NewsletterPage() {
         signature: data.template.signature,
       };
 
-      if (data.targetAudience === 'custom_list' && data.customListId) {
-        requestData.custom_list_id = data.customListId;
+      if (data.targetAudience === 'custom_list' && data.customListIds && data.customListIds.length > 0) {
+        requestData.custom_list_ids = data.customListIds;
         requestData.use_crm_contacts = false;
         requestData.use_partners = false;
       } else if (data.targetAudience === 'crm_contacts') {

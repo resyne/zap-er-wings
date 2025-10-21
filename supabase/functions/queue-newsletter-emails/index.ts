@@ -29,6 +29,7 @@ interface QueueEmailRequest {
   region?: string;
   excluded_countries?: string[];
   custom_list_id?: string;
+  custom_list_ids?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -55,12 +56,13 @@ const handler = async (req: Request): Promise<Response> => {
       acquisition_status,
       region,
       excluded_countries = [],
-      custom_list_id
+      custom_list_id,
+      custom_list_ids
     }: QueueEmailRequest = await req.json();
 
     console.log('Queue email request received:', { 
       active_only, city, country, subject, use_crm_contacts, use_partners, 
-      partner_type, acquisition_status, region, excluded_countries, custom_list_id,
+      partner_type, acquisition_status, region, excluded_countries, custom_list_id, custom_list_ids,
       sender_email, sender_name, logo, headerText, footerText, signature
     });
 
@@ -69,8 +71,37 @@ const handler = async (req: Request): Promise<Response> => {
 
     let recipients: Array<any> = [];
 
-    // Handle custom email list
-    if (custom_list_id) {
+    // Handle custom email lists (multiple lists support)
+    if (custom_list_ids && custom_list_ids.length > 0) {
+      console.log('Fetching contacts from multiple custom lists:', custom_list_ids);
+      const { data: listContacts, error: listError } = await supabase
+        .from('email_list_contacts')
+        .select('first_name, last_name, email, company')
+        .in('email_list_id', custom_list_ids)
+        .not('email', 'is', null);
+
+      if (listError) {
+        console.error('Error fetching list contacts:', listError);
+        throw listError;
+      }
+
+      // Remove duplicates based on email
+      const uniqueContactsMap = new Map();
+      (listContacts || []).forEach(contact => {
+        if (contact.email && !uniqueContactsMap.has(contact.email.toLowerCase())) {
+          uniqueContactsMap.set(contact.email.toLowerCase(), {
+            name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Cliente',
+            email: contact.email,
+            company_name: contact.company || ''
+          });
+        }
+      });
+      
+      recipients = Array.from(uniqueContactsMap.values());
+      console.log(`Found ${listContacts?.length || 0} total contacts, ${recipients.length} unique contacts`);
+    }
+    // Handle custom email list (single list - backward compatibility)
+    else if (custom_list_id) {
       console.log('Fetching contacts from custom list:', custom_list_id);
       const { data: listContacts, error: listError } = await supabase
         .from('email_list_contacts')
@@ -262,11 +293,12 @@ const handler = async (req: Request): Promise<Response> => {
         sender_name: senderEmail?.name || null,
         campaign_id: campaignId,
         metadata: {
-           campaign_type: custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
+           campaign_type: (custom_list_ids && custom_list_ids.length > 0) || custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
            active_only,
            city,
            country,
            custom_list_id,
+           custom_list_ids,
            use_crm_contacts,
            use_partners,
            partner_type,
@@ -306,7 +338,7 @@ const handler = async (req: Request): Promise<Response> => {
           id: campaignId,
           subject: subject,
           message: message,
-          campaign_type: custom_list_id ? 'Lista personalizzata' : (use_partners ? 'Partner' : (use_crm_contacts ? 'Contatti CRM' : 'Clienti')),
+          campaign_type: (custom_list_ids && custom_list_ids.length > 0) || custom_list_id ? 'Lista personalizzata' : (use_partners ? 'Partner' : (use_crm_contacts ? 'Contatti CRM' : 'Clienti')),
           recipients_count: totalQueued,
           success_count: 0,
           failure_count: 0,
@@ -330,11 +362,12 @@ const handler = async (req: Request): Promise<Response> => {
         action: 'QUEUE',
          new_values: {
            campaign_id: campaignId,
-           campaign_type: custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
+           campaign_type: (custom_list_ids && custom_list_ids.length > 0) || custom_list_id ? 'custom_list' : (use_partners ? 'partners' : (use_crm_contacts ? 'crm_contacts' : 'customer')),
            active_only,
            city,
            country,
            custom_list_id,
+           custom_list_ids,
            use_crm_contacts,
            use_partners,
            partner_type,
