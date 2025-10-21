@@ -1589,7 +1589,7 @@ export default function OrdersPage() {
                               .map((order, index) => (
                                 <Draggable key={order.id} draggableId={order.id} index={index}>
                                    {(provided, snapshot) => (
-                                      <div
+                                       <div
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
@@ -1598,15 +1598,20 @@ export default function OrdersPage() {
                                           snapshot.isDragging ? 'shadow-lg opacity-90' : ''
                                         }`}
                                       >
-                                       <div className="space-y-2">
-                                         <div className="flex items-start justify-between">
-                                           <div className="flex-1">
-                                             <div className="font-semibold">{order.number}</div>
-                                             <div className="text-sm text-muted-foreground">
+                                       <div className="space-y-3">
+                                         <div className="flex items-start justify-between gap-2">
+                                           <div className="flex-1 min-w-0">
+                                             <div className="font-semibold text-base">{order.number}</div>
+                                             <div className="text-sm text-muted-foreground truncate">
                                                {order.customers?.name}
                                              </div>
+                                             {order.order_date && (
+                                               <div className="text-xs text-muted-foreground mt-1">
+                                                 {new Date(order.order_date).toLocaleDateString('it-IT')}
+                                               </div>
+                                             )}
                                            </div>
-                                           <div className="flex items-center gap-2">
+                                           <div className="flex items-center gap-2 shrink-0">
                                              {order.order_type && (
                                                <Badge className={getOrderTypeColor(order.order_type)} variant="outline">
                                                  {getOrderTypeLabel(order.order_type)?.split(" ")[0]}
@@ -1662,25 +1667,39 @@ export default function OrdersPage() {
                                              </DropdownMenu>
                                            </div>
                                          </div>
-                                        {order.order_date && (
-                                          <div className="text-xs text-muted-foreground">
-                                            {new Date(order.order_date).toLocaleDateString('it-IT')}
-                                          </div>
-                                        )}
-                                        {getSubOrdersStatus(order).length > 0 && (
-                                          <div className="space-y-1">
-                                            {getSubOrdersStatus(order).map((subStatus, idx) => (
-                                              <div key={idx} className="flex items-center gap-1">
-                                                <Badge className={subStatus.color} variant="outline">
-                                                  {subStatus.type}
-                                                </Badge>
-                                                <span className="text-xs">
-                                                  {getSubOrderStatusLabel(subStatus.status)}
-                                                </span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
+                                         
+                                         {/* Riferimenti ordini collegati */}
+                                         {getSubOrdersStatus(order).length > 0 && (
+                                           <div className="pt-2 border-t space-y-2">
+                                             <div className="text-xs font-medium text-muted-foreground">
+                                               Ordini Collegati:
+                                             </div>
+                                             {getSubOrdersStatus(order).map((subStatus, idx) => (
+                                               <div key={idx} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded">
+                                                 <div className="flex items-center gap-2 min-w-0">
+                                                   <Badge className={subStatus.color} variant="outline">
+                                                     {subStatus.type}
+                                                   </Badge>
+                                                   <span className="text-xs font-mono truncate">
+                                                     {subStatus.number}
+                                                   </span>
+                                                 </div>
+                                                 <span className="text-xs font-medium whitespace-nowrap">
+                                                   {getSubOrderStatusLabel(subStatus.status)}
+                                                 </span>
+                                               </div>
+                                             ))}
+                                           </div>
+                                         )}
+                                         
+                                         {/* Note preview */}
+                                         {order.notes && order.notes.length > 0 && (
+                                           <div className="pt-2 border-t">
+                                             <div className="text-xs text-muted-foreground line-clamp-2">
+                                               {order.notes}
+                                             </div>
+                                           </div>
+                                         )}
                                       </div>
                                     </div>
                                   )}
