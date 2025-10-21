@@ -4056,6 +4056,85 @@ export type Database = {
           },
         ]
       }
+      sales_order_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          sales_order_id: string
+          tagged_users: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          sales_order_id: string
+          tagged_users?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          sales_order_id?: string
+          tagged_users?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_comments_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_order_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          sales_order_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          sales_order_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          sales_order_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_logs_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_orders: {
         Row: {
           archived: boolean | null
@@ -4064,6 +4143,9 @@ export type Database = {
           customer_id: string | null
           delivery_date: string | null
           id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          invoiced: boolean | null
           lead_id: string | null
           notes: string | null
           number: string
@@ -4072,6 +4154,7 @@ export type Database = {
           order_type: string | null
           quote_id: string | null
           status: string | null
+          total_amount: number | null
           updated_at: string | null
         }
         Insert: {
@@ -4081,6 +4164,9 @@ export type Database = {
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoiced?: boolean | null
           lead_id?: string | null
           notes?: string | null
           number: string
@@ -4089,6 +4175,7 @@ export type Database = {
           order_type?: string | null
           quote_id?: string | null
           status?: string | null
+          total_amount?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -4098,6 +4185,9 @@ export type Database = {
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoiced?: boolean | null
           lead_id?: string | null
           notes?: string | null
           number?: string
@@ -4106,6 +4196,7 @@ export type Database = {
           order_type?: string | null
           quote_id?: string | null
           status?: string | null
+          total_amount?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -4876,6 +4967,7 @@ export type Database = {
           comment: string
           created_at: string
           id: string
+          tagged_users: string[] | null
           task_id: string
           user_id: string
         }
@@ -4883,6 +4975,7 @@ export type Database = {
           comment: string
           created_at?: string
           id?: string
+          tagged_users?: string[] | null
           task_id: string
           user_id: string
         }
@@ -4890,6 +4983,7 @@ export type Database = {
           comment?: string
           created_at?: string
           id?: string
+          tagged_users?: string[] | null
           task_id?: string
           user_id?: string
         }

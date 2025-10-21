@@ -18,6 +18,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrderFinancialInfo } from "@/components/orders/OrderFinancialInfo";
+import { OrderActivityLog } from "@/components/orders/OrderActivityLog";
+import { OrderComments } from "@/components/orders/OrderComments";
 
 interface Order {
   id: string;
@@ -2066,6 +2069,22 @@ export default function OrdersPage() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Financial Information */}
+              <OrderFinancialInfo
+                orderId={selectedOrder.id}
+                totalAmount={(selectedOrder as any).total_amount || 0}
+                invoiced={(selectedOrder as any).invoiced || false}
+                invoiceNumber={(selectedOrder as any).invoice_number}
+                invoiceDate={(selectedOrder as any).invoice_date}
+                onUpdate={loadOrders}
+              />
+
+              {/* Activity Log */}
+              <OrderActivityLog orderId={selectedOrder.id} />
+
+              {/* Comments */}
+              <OrderComments orderId={selectedOrder.id} />
             </div>
           )}
         </DialogContent>
