@@ -2945,6 +2945,7 @@ export type Database = {
       offers: {
         Row: {
           amount: number
+          assigned_to: string | null
           attachments: string[] | null
           created_at: string
           customer_id: string | null
@@ -2953,6 +2954,8 @@ export type Database = {
           id: string
           lead_id: string | null
           number: string
+          payment_terms: string | null
+          priority: string | null
           status: string
           title: string
           updated_at: string
@@ -2960,6 +2963,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          assigned_to?: string | null
           attachments?: string[] | null
           created_at?: string
           customer_id?: string | null
@@ -2968,6 +2972,8 @@ export type Database = {
           id?: string
           lead_id?: string | null
           number: string
+          payment_terms?: string | null
+          priority?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -2975,6 +2981,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          assigned_to?: string | null
           attachments?: string[] | null
           created_at?: string
           customer_id?: string | null
@@ -2983,6 +2990,8 @@ export type Database = {
           id?: string
           lead_id?: string | null
           number?: string
+          payment_terms?: string | null
+          priority?: string | null
           status?: string
           title?: string
           updated_at?: string

@@ -17,7 +17,9 @@ interface CreateOfferDialogProps {
 export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [customPaymentTerms, setCustomPaymentTerms] = useState('');
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -25,12 +27,16 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
     description: '',
     amount: 0,
     valid_until: '',
-    status: 'richiesta_offerta' as const
+    status: 'richiesta_offerta' as const,
+    assigned_to: '',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
+    payment_terms: ''
   });
 
   useEffect(() => {
     if (open) {
       loadCustomers();
+      loadUsers();
     }
   }, [open]);
 
@@ -42,6 +48,15 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
       .order('name');
     
     setCustomers(data || []);
+  };
+
+  const loadUsers = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, email, first_name, last_name')
+      .order('first_name');
+    
+    setUsers(data || []);
   };
 
   const handleCreateOffer = async () => {
@@ -69,6 +84,11 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
 
       const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
+      // Determina i payment_terms
+      const finalPaymentTerms = newOffer.payment_terms === 'custom' 
+        ? customPaymentTerms 
+        : newOffer.payment_terms;
+
       // Crea l'offerta - il trigger creerà automaticamente il lead
       const { error } = await supabase
         .from('offers')
@@ -80,7 +100,10 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
           description: newOffer.description,
           amount: newOffer.amount,
           valid_until: newOffer.valid_until || null,
-          status: newOffer.status
+          status: newOffer.status,
+          assigned_to: newOffer.assigned_to || null,
+          priority: newOffer.priority,
+          payment_terms: finalPaymentTerms || null
         }]);
 
       if (error) throw error;
@@ -112,8 +135,12 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
       description: '',
       amount: 0,
       valid_until: '',
-      status: 'richiesta_offerta'
+      status: 'richiesta_offerta',
+      assigned_to: '',
+      priority: 'medium',
+      payment_terms: ''
     });
+    setCustomPaymentTerms('');
   };
 
   return (
@@ -163,6 +190,41 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <Label htmlFor="assigned_to">Assegnato a</Label>
+              <Select value={newOffer.assigned_to} onValueChange={(value) => setNewOffer({ ...newOffer, assigned_to: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona responsabile" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessuno</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.first_name && user.last_name 
+                        ? `${user.first_name} ${user.last_name}`
+                        : user.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="priority">Urgenza *</Label>
+              <Select value={newOffer.priority} onValueChange={(value: any) => setNewOffer({ ...newOffer, priority: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Bassa</SelectItem>
+                  <SelectItem value="medium">Media</SelectItem>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="urgent">Urgente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="amount">Importo Stimato (€)</Label>
               <Input
                 id="amount"
@@ -182,6 +244,36 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
               />
             </div>
           </div>
+
+          <div>
+            <Label htmlFor="payment_terms">Condizioni di Pagamento</Label>
+            <Select value={newOffer.payment_terms} onValueChange={(value) => setNewOffer({ ...newOffer, payment_terms: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona condizioni" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nessuna</SelectItem>
+                <SelectItem value="Alla consegna">Alla consegna</SelectItem>
+                <SelectItem value="30 giorni">30 giorni</SelectItem>
+                <SelectItem value="60 giorni">60 giorni</SelectItem>
+                <SelectItem value="90 giorni">90 giorni</SelectItem>
+                <SelectItem value="50% anticipo, 50% alla consegna">50% anticipo, 50% alla consegna</SelectItem>
+                <SelectItem value="custom">Altro (specificare)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {newOffer.payment_terms === 'custom' && (
+            <div>
+              <Label htmlFor="custom_payment">Specificare condizioni di pagamento</Label>
+              <Input
+                id="custom_payment"
+                value={customPaymentTerms}
+                onChange={(e) => setCustomPaymentTerms(e.target.value)}
+                placeholder="Es: 30% anticipo, saldo rateizzato in 3 mesi"
+              />
+            </div>
+          )}
 
           <div>
             <Label htmlFor="status">Stato</Label>

@@ -29,6 +29,9 @@ interface Offer {
   valid_until?: string;
   attachments?: string[];
   lead_id?: string;
+  assigned_to?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  payment_terms?: string;
 }
 
 interface Lead {
@@ -348,9 +351,9 @@ export default function OffersPage() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'richiesta_offerta': return 'Richiesta di Offerta';
-      case 'offerta_pronta': return 'Offerta Pronta';
-      case 'offerta_inviata': return 'Offerta Inviata';
+      case 'richiesta_offerta': return 'Richiesta';
+      case 'offerta_pronta': return 'Pronta';
+      case 'offerta_inviata': return 'Inviata';
       case 'negoziazione': return 'Negoziazione';
       case 'confermata': return 'Confermata';
       case 'rifiutata': return 'Rifiutata';
@@ -358,7 +361,27 @@ export default function OffersPage() {
     }
   };
 
-  const filteredOffers = statusFilter === 'all' 
+  const getPriorityColor = (priority?: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100';
+      case 'medium': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-100';
+      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
+    }
+  };
+
+  const getPriorityText = (priority?: string) => {
+    switch (priority) {
+      case 'urgent': return '🔴 Urgente';
+      case 'high': return '🟠 Alta';
+      case 'medium': return '🔵 Media';
+      case 'low': return '⚪ Bassa';
+      default: return '🔵 Media';
+    }
+  };
+
+  const filteredOffers = statusFilter === 'all'
     ? offers 
     : offers.filter(offer => offer.status === statusFilter);
 
@@ -656,13 +679,20 @@ export default function OffersPage() {
             <Card key={offer.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <CardTitle className="text-lg">{offer.number}</CardTitle>
                     <CardDescription className="text-xs">{offer.customer_name}</CardDescription>
                   </div>
-                  <Badge className={getStatusColor(offer.status)}>
-                    {getStatusText(offer.status)}
-                  </Badge>
+                  <div className="flex flex-col gap-1 items-end">
+                    <Badge className={getStatusColor(offer.status)}>
+                      {getStatusText(offer.status)}
+                    </Badge>
+                    {offer.priority && (
+                      <Badge variant="outline" className={getPriorityColor(offer.priority)}>
+                        {getPriorityText(offer.priority)}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -679,6 +709,12 @@ export default function OffersPage() {
                   <div className="text-xs bg-muted p-2 rounded">
                     <div className="font-medium">{relatedLead.company_name}</div>
                     <div className="text-muted-foreground">{relatedLead.contact_name}</div>
+                  </div>
+                )}
+
+                {offer.payment_terms && (
+                  <div className="text-xs bg-blue-50 p-2 rounded border border-blue-200">
+                    <span className="font-medium">Pagamento:</span> {offer.payment_terms}
                   </div>
                 )}
 
@@ -796,6 +832,20 @@ export default function OffersPage() {
                     {getStatusText(selectedOffer.status)}
                   </Badge>
                 </div>
+                {selectedOffer.priority && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Urgenza</label>
+                    <Badge className={`ml-2 ${getPriorityColor(selectedOffer.priority)}`} variant="outline">
+                      {getPriorityText(selectedOffer.priority)}
+                    </Badge>
+                  </div>
+                )}
+                {selectedOffer.payment_terms && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Condizioni Pagamento</label>
+                    <p className="text-sm">{selectedOffer.payment_terms}</p>
+                  </div>
+                )}
               </div>
 
               {selectedOffer.description && (
