@@ -191,12 +191,12 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="assigned_to">Assegnato a</Label>
-              <Select value={newOffer.assigned_to} onValueChange={(value) => setNewOffer({ ...newOffer, assigned_to: value })}>
+              <Select value={newOffer.assigned_to || "unassigned"} onValueChange={(value) => setNewOffer({ ...newOffer, assigned_to: value === "unassigned" ? "" : value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona responsabile" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
+                  <SelectItem value="unassigned">Nessuno</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.first_name && user.last_name 
@@ -247,12 +247,12 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
 
           <div>
             <Label htmlFor="payment_terms">Condizioni di Pagamento</Label>
-            <Select value={newOffer.payment_terms} onValueChange={(value) => setNewOffer({ ...newOffer, payment_terms: value })}>
+            <Select value={newOffer.payment_terms || "none"} onValueChange={(value) => setNewOffer({ ...newOffer, payment_terms: value === "none" ? "" : value })}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona condizioni" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna</SelectItem>
+                <SelectItem value="none">Nessuna</SelectItem>
                 <SelectItem value="Alla consegna">Alla consegna</SelectItem>
                 <SelectItem value="30 giorni">30 giorni</SelectItem>
                 <SelectItem value="60 giorni">60 giorni</SelectItem>
