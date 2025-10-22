@@ -45,7 +45,7 @@ export const ItemDetailsDialog = ({ item, open, onOpenChange }: ItemDetailsDialo
       case 'event':
         return item.title || `${item.item_type} - ${item.id.substring(0, 8)}`;
       case 'shipping_order':
-        return `Ordine di spedizione ${item.number}`;
+        return `Commessa di spedizione ${item.number}`;
       default:
         return 'Elemento';
     }

@@ -6,8 +6,8 @@ import { Link } from "react-router-dom";
 export default function SupportPage() {
   const supportSections = [
     {
-      title: "Ordini di Lavoro (OdL)",
-      description: "Gestisci ordini di lavoro per assistenza tecnica e manutenzione",
+      title: "Commesse di Lavoro (OdL)",
+      description: "Gestisci commesse di lavoro per assistenza tecnica e manutenzione",
       icon: Wrench,
       href: "/support/work-orders",
       color: "text-orange-600"

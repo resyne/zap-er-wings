@@ -756,7 +756,7 @@ export default function ShippingOrdersPage() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nuovo Ordine di Spedizione</DialogTitle>
+            <DialogTitle>Nuova Commessa di Spedizione</DialogTitle>
           </DialogHeader>
           <form onSubmit={(e) => {
             e.preventDefault();
@@ -789,7 +789,7 @@ export default function ShippingOrdersPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="work_order_id">Ordine di Produzione (OdP)</Label>
+                <Label htmlFor="work_order_id">Commessa di Produzione (OdP)</Label>
                 <Select name="work_order_id">
                   <SelectTrigger>
                     <SelectValue placeholder="Collega OdP (opzionale)" />
@@ -1024,7 +1024,7 @@ export default function ShippingOrdersPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="work_order_id">Ordine di Produzione (OdP)</Label>
+                  <Label htmlFor="work_order_id">Commessa di Produzione (OdP)</Label>
                   <Select name="work_order_id" defaultValue={selectedOrder.work_order_id || ""}>
                     <SelectTrigger>
                       <SelectValue placeholder="Collega OdP (opzionale)" />

@@ -24,10 +24,10 @@ interface CreateOrderDialogProps {
 }
 
 const orderTypes = [
-  { value: "odl", label: "Ordine di Lavoro (OdL)" },
-  { value: "odp", label: "Ordine di Produzione (OdP)" },
-  { value: "odpel", label: "Ordine Produzione e Installazione (OdPeL)" },
-  { value: "ods", label: "Ordine di Spedizione (OdS)" }
+  { value: "odl", label: "Commessa di Lavoro (OdL)" },
+  { value: "odp", label: "Commessa di Produzione (OdP)" },
+  { value: "odpel", label: "Commessa Produzione e Installazione (OdPeL)" },
+  { value: "ods", label: "Commessa di Spedizione (OdS)" }
 ];
 
 const orderSources = [

@@ -366,10 +366,10 @@ export default function ServiceReportsPage() {
       }
       y += 10;
 
-      // Ordine di lavoro
+      // Commessa di lavoro
       if (selectedWorkOrder) {
         doc.setFont(undefined, "bold");
-        doc.text("Ordine di Lavoro:", 20, y);
+        doc.text("Commessa di Lavoro:", 20, y);
         doc.setFont(undefined, "normal");
         y += 7;
         doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
@@ -726,16 +726,16 @@ export default function ServiceReportsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ClipboardList className="w-5 h-5" />
-                Ordine di Lavoro (Opzionale)
+                Commessa di Lavoro (Opzionale)
               </CardTitle>
               <CardDescription>
-                Collega il rapporto a un ordine di lavoro esistente per automaticamente inserire i dati
+                Collega il rapporto a una commessa di lavoro esistente per automaticamente inserire i dati
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Select onValueChange={handleWorkOrderSelect}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleziona un ordine di lavoro..." />
+                  <SelectValue placeholder="Seleziona una commessa di lavoro..." />
                 </SelectTrigger>
                 <SelectContent>
                   {workOrders.map((workOrder) => (
@@ -750,7 +750,7 @@ export default function ServiceReportsPage() {
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Ordine selezionato:</h4>
                   <p><strong>{selectedWorkOrder.number}</strong> - {selectedWorkOrder.title}</p>
-                  <p>Tipo: {selectedWorkOrder.type === 'service' ? 'Ordine di Lavoro (OdL)' : 'Ordine di Produzione (OdP)'}</p>
+                  <p>Tipo: {selectedWorkOrder.type === 'service' ? 'Commessa di Lavoro (OdL)' : 'Commessa di Produzione (OdP)'}</p>
                   {selectedWorkOrder.description && <p>Descrizione: {selectedWorkOrder.description}</p>}
                   {selectedWorkOrder.location && <p>Località: {selectedWorkOrder.location}</p>}
                 </div>

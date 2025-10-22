@@ -48,7 +48,7 @@ const navigationGroups: NavGroup[] = [
     title: "Produzione",
     items: [
       { title: "Distinte Base", url: "/mfg/bom" },
-      { title: "Ordini di Produzione", url: "/mfg/work-orders" },
+      { title: "Commesse di Produzione", url: "/mfg/work-orders" },
       { title: "Esecuzioni", url: "/mfg/executions" },
     ]
   },
@@ -56,7 +56,7 @@ const navigationGroups: NavGroup[] = [
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support" },
-      { title: "Ordini di Lavoro (OdL)", url: "/support/work-orders" },
+      { title: "Commesse di Lavoro (OdL)", url: "/support/work-orders" },
       { title: "Rapporti di Intervento", url: "/support/service-reports" },
       { title: "Ticket", url: "/support/tickets" },
     ]
@@ -65,7 +65,7 @@ const navigationGroups: NavGroup[] = [
     title: "Magazzino",
     items: [
       { title: "Anagrafica Materiali", url: "/warehouse/materials" },
-      { title: "Ordini di Spedizione", url: "/warehouse/shipping-orders" },
+      { title: "Commesse di Spedizione", url: "/warehouse/shipping-orders" },
       { title: "Scorte", url: "/wms/stock" },
       { title: "Movimenti", url: "/wms/movements" },
       { title: "Inventario", url: "/wms/inventory" },

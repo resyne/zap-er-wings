@@ -180,7 +180,7 @@ export default function WorkOrdersServicePage() {
       console.error('Error loading service work orders:', error);
       toast({
         title: "Errore",
-        description: "Errore nel caricamento degli ordini di lavoro",
+        description: "Errore nel caricamento delle commesse di lavoro",
         variant: "destructive",
       });
     }
@@ -282,7 +282,7 @@ export default function WorkOrdersServicePage() {
 
       toast({
         title: "Successo",
-        description: "Ordine di lavoro creato con successo",
+        description: "Commessa di lavoro creata con successo",
       });
 
       setFormData({
@@ -352,7 +352,7 @@ export default function WorkOrdersServicePage() {
 
       toast({
         title: "Successo",
-        description: "Ordine di lavoro aggiornato con successo",
+        description: "Commessa di lavoro aggiornata con successo",
       });
 
       setShowEditDialog(false);
@@ -361,7 +361,7 @@ export default function WorkOrdersServicePage() {
       console.error('Error updating work order:', error);
       toast({
         title: "Errore",
-        description: "Errore nell'aggiornamento dell'ordine di lavoro",
+        description: "Errore nell'aggiornamento della commessa di lavoro",
         variant: "destructive",
       });
     } finally {
@@ -436,7 +436,7 @@ export default function WorkOrdersServicePage() {
   };
 
   const handleDeleteWorkOrder = async (workOrderId: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo ordine di lavoro? Questa azione non può essere annullata.")) {
+    if (!confirm("Sei sicuro di voler eliminare questa commessa di lavoro? Questa azione non può essere annullata.")) {
       return;
     }
 
@@ -450,14 +450,14 @@ export default function WorkOrdersServicePage() {
 
       toast({
         title: "Successo",
-        description: "Ordine di lavoro eliminato con successo",
+        description: "Commessa di lavoro eliminata con successo",
       });
 
       loadServiceWorkOrders();
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile eliminare l'ordine di lavoro: " + error.message,
+        description: "Impossibile eliminare la commessa di lavoro: " + error.message,
         variant: "destructive",
       });
     }
@@ -527,7 +527,7 @@ export default function WorkOrdersServicePage() {
                   id="title"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="Titolo dell'ordine di lavoro"
+                  placeholder="Titolo della commessa di lavoro"
                 />
               </div>
               <div className="space-y-2">
@@ -660,12 +660,12 @@ export default function WorkOrdersServicePage() {
         </Dialog>
       </div>
 
-      {/* Tabella Ordini di Lavoro */}
+      {/* Tabella Commesse di Lavoro */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wrench className="w-5 h-5" />
-            Ordini di Lavoro ({filteredWorkOrders.length})
+            Commesse di Lavoro ({filteredWorkOrders.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -688,7 +688,7 @@ export default function WorkOrdersServicePage() {
               {filteredWorkOrders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                    Nessun ordine di lavoro trovato
+                    Nessuna commessa di lavoro trovata
                   </TableCell>
                 </TableRow>
               ) : (
@@ -845,7 +845,7 @@ export default function WorkOrdersServicePage() {
                              });
                              setShowEditDialog(true);
                            }}
-                            title="Modifica ordine di lavoro"
+                            title="Modifica commessa di lavoro"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -853,7 +853,7 @@ export default function WorkOrdersServicePage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteWorkOrder(workOrder.id)}
-                            title="Elimina ordine di lavoro"
+                            title="Elimina commessa di lavoro"
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -880,7 +880,7 @@ export default function WorkOrdersServicePage() {
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Dettagli Ordine di Lavoro</DialogTitle>
+            <DialogTitle>Dettagli Commessa di Lavoro</DialogTitle>
             <DialogDescription>
               {selectedWorkOrder?.number}
             </DialogDescription>
@@ -948,9 +948,9 @@ export default function WorkOrdersServicePage() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifica Ordine di Lavoro</DialogTitle>
+            <DialogTitle>Modifica Commessa di Lavoro</DialogTitle>
             <DialogDescription>
-              {selectedWorkOrder?.number} - Modifica i dettagli dell'ordine di lavoro
+              {selectedWorkOrder?.number} - Modifica i dettagli della commessa di lavoro
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -960,7 +960,7 @@ export default function WorkOrdersServicePage() {
                 id="edit_title"
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="Titolo dell'ordine di lavoro"
+                placeholder="Titolo della commessa di lavoro"
               />
             </div>
             <div className="space-y-2">

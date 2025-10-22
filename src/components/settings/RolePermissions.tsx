@@ -43,8 +43,8 @@ const permissions: Permission[] = [
   
   // Production
   { id: "production.view", name: "Visualizzare Produzione", description: "Accesso al modulo produzione", category: "production" },
-  { id: "production.create", name: "Creare Ordini Produzione", description: "Creare ordini di produzione", category: "production" },
-  { id: "production.edit", name: "Modificare Produzione", description: "Modificare ordini di produzione", category: "production" },
+  { id: "production.create", name: "Creare Commesse Produzione", description: "Creare commesse di produzione", category: "production" },
+  { id: "production.edit", name: "Modificare Produzione", description: "Modificare commesse di produzione", category: "production" },
   { id: "production.execute", name: "Eseguire Produzione", description: "Registrare esecuzioni produzione", category: "production" },
   
   // Warehouse

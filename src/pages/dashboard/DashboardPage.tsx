@@ -336,7 +336,7 @@ export function DashboardPage() {
         assignedOrdersList.push({
           id: ship.id,
           number: ship.number,
-          title: `Ordine di Spedizione ${ship.number}`,
+          title: `Commessa di Spedizione ${ship.number}`,
           status: ship.status,
           order_type: 'shipping_order',
           customer_name: (ship.companies as any)?.name,
@@ -806,10 +806,10 @@ export function DashboardPage() {
               <div className="space-y-3">
                 {assignedOrders.map((order) => {
                   const orderTypeLabel = order.order_type === 'work_order' 
-                    ? 'Ordine di Produzione' 
+                    ? 'Commessa di Produzione' 
                     : order.order_type === 'service_order'
-                    ? 'Ordine di Lavoro'
-                    : 'Ordine di Spedizione';
+                    ? 'Commessa di Lavoro'
+                    : 'Commessa di Spedizione';
                   
                   const statusColors: Record<string, string> = {
                     'planned': 'bg-gray-100 text-gray-800',

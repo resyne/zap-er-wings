@@ -199,7 +199,7 @@ export function DirectionalDashboardPage() {
         {/* Production Work Orders */}
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/production/work-orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ordini di Produzione</CardTitle>
+            <CardTitle className="text-sm font-medium">Commesse di Produzione</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -219,7 +219,7 @@ export function DirectionalDashboardPage() {
         {/* Service Work Orders */}
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support/work-orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ordini di Lavoro</CardTitle>
+            <CardTitle className="text-sm font-medium">Commesse di Lavoro</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -239,7 +239,7 @@ export function DirectionalDashboardPage() {
         {/* Shipping Orders */}
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/warehouse/shipping-orders')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ordini di Spedizione</CardTitle>
+            <CardTitle className="text-sm font-medium">Commesse di Spedizione</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

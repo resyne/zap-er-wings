@@ -487,7 +487,7 @@ export default function CalendarioAziendale() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Calendario Aziendale</h1>
         <p className="text-muted-foreground">
-          Visualizza tutte le attività aziendali pianificate: task, ordini di lavoro, spedizioni e contenuti
+          Visualizza tutte le attività aziendali pianificate: task, commesse di lavoro, spedizioni e contenuti
         </p>
       </div>
 
@@ -909,8 +909,8 @@ export default function CalendarioAziendale() {
             </DialogTitle>
             <DialogDescription>
               {selectedItem?.item_type === 'task' ? 'Task Aziendale' : 
-               selectedItem?.item_type === 'work_order' ? 'Ordine di Lavoro' :
-               selectedItem?.item_type === 'shipping_order' ? 'Ordine di Spedizione' : 
+               selectedItem?.item_type === 'work_order' ? 'Commessa di Lavoro' :
+               selectedItem?.item_type === 'shipping_order' ? 'Commessa di Spedizione' : 
                selectedItem?.item_type === 'event' ? 'Evento Aziendale' :
                selectedItem?.item_type === 'lead_activity' ? 'Attività CRM' : 'Attività Contenuto'}
             </DialogDescription>

@@ -213,7 +213,7 @@ export default function ExecutionsPage() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Raggruppa esecuzioni per ordine di produzione
+  // Raggruppa esecuzioni per commessa di produzione
   const executionsByWorkOrder = filteredExecutions.reduce((acc, execution) => {
     const woId = execution.work_order_id;
     if (!acc[woId]) {
@@ -264,7 +264,7 @@ export default function ExecutionsPage() {
             </DialogHeader>
             <form onSubmit={handleStartExecution} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="work_order_id">Ordine di Produzione *</Label>
+                <Label htmlFor="work_order_id">Commessa di Produzione *</Label>
                 <Select value={formData.work_order_id} onValueChange={(value) => setFormData(prev => ({ ...prev, work_order_id: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona ordine" />
@@ -700,7 +700,7 @@ export default function ExecutionsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Ordine di Produzione</Label>
+                  <Label className="text-muted-foreground">Commessa di Produzione</Label>
                   <div className="font-medium">{selectedExecution.work_orders?.number}</div>
                   <div className="text-sm text-muted-foreground">
                     {selectedExecution.work_orders?.title}

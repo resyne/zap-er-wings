@@ -63,10 +63,10 @@ interface Order {
 
 const orderStatuses = ["commissionato", "in_lavorazione", "completato"];
 const orderTypes = [
-  { value: "odl", label: "Ordine di Lavoro (OdL)" },
-  { value: "odp", label: "Ordine di Produzione (OdP)" },
-  { value: "odpel", label: "Ordine Produzione e Installazione (OdPeL)" },
-  { value: "ods", label: "Ordine di Spedizione (OdS)" }
+  { value: "odl", label: "Commessa di Lavoro (OdL)" },
+  { value: "odp", label: "Commessa di Produzione (OdP)" },
+  { value: "odpel", label: "Commessa Produzione e Installazione (OdPeL)" },
+  { value: "ods", label: "Commessa di Spedizione (OdS)" }
 ];
 const orderSources = [
   { value: "sale", label: "Vendita" },
@@ -345,7 +345,7 @@ export default function OrdersPage() {
     if ((newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && !newOrder.bom_id) {
       toast({
         title: "Errore",
-        description: "Per ordini di produzione è necessario selezionare una BOM",
+        description: "Per commesse di produzione è necessario selezionare una BOM",
         variant: "destructive",
       });
       return;
@@ -354,7 +354,7 @@ export default function OrdersPage() {
     if (newOrder.order_type === 'odl' && !newOrder.work_description) {
       toast({
         title: "Errore",
-        description: "Per ordini di lavoro è necessario descrivere il lavoro da fare",
+        description: "Per commesse di lavoro è necessario descrivere il lavoro da fare",
         variant: "destructive",
       });
       return;
@@ -427,13 +427,13 @@ export default function OrdersPage() {
 
       let successMessage = "Ordine creato con successo";
       if (productionWO && serviceWO) {
-        successMessage += ` - Ordine di Produzione: ${productionWO.number}, Ordine di Lavoro: ${serviceWO.number}`;
+        successMessage += ` - Commessa di Produzione: ${productionWO.number}, Commessa di Lavoro: ${serviceWO.number}`;
       } else if (productionWO) {
-        successMessage += ` - Ordine di Produzione: ${productionWO.number}`;
+        successMessage += ` - Commessa di Produzione: ${productionWO.number}`;
       } else if (serviceWO) {
-        successMessage += ` - Ordine di Lavoro: ${serviceWO.number}`;
+        successMessage += ` - Commessa di Lavoro: ${serviceWO.number}`;
       } else if (shippingOrder) {
-        successMessage += ` - Ordine di Spedizione: ${shippingOrder.number}`;
+        successMessage += ` - Commessa di Spedizione: ${shippingOrder.number}`;
       }
 
       toast({
@@ -725,7 +725,7 @@ export default function OrdersPage() {
   const getSubOrdersStatus = (order: Order) => {
     const statuses = [];
     
-    // Controlla ordini di produzione
+    // Controlla commesse di produzione
     if (order.work_orders && order.work_orders.length > 0) {
       order.work_orders.forEach(wo => {
         statuses.push({
@@ -739,7 +739,7 @@ export default function OrdersPage() {
       });
     }
     
-    // Controlla ordini di lavoro
+    // Controlla commesse di lavoro
     if (order.service_work_orders && order.service_work_orders.length > 0) {
       order.service_work_orders.forEach(swo => {
         statuses.push({
@@ -999,7 +999,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{odlOrders.length}</div>
-            <p className="text-xs text-muted-foreground">ordini di lavoro</p>
+            <p className="text-xs text-muted-foreground">commesse di lavoro</p>
           </CardContent>
         </Card>
 
@@ -1010,7 +1010,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{odpOrders.length}</div>
-            <p className="text-xs text-muted-foreground">ordini di produzione</p>
+            <p className="text-xs text-muted-foreground">commesse di produzione</p>
           </CardContent>
         </Card>
 
@@ -1021,7 +1021,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{odsOrders.length}</div>
-            <p className="text-xs text-muted-foreground">ordini di spedizione</p>
+            <p className="text-xs text-muted-foreground">commesse di spedizione</p>
           </CardContent>
         </Card>
 
@@ -1098,9 +1098,9 @@ export default function OrdersPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-white z-50">
                   <SelectItem value="all">Tutti gli ordini</SelectItem>
-                  <SelectItem value="work">Con Ordini di Produzione</SelectItem>
-                  <SelectItem value="installation">Con Ordini di Installazione</SelectItem>
-                  <SelectItem value="shipping">Con Ordini di Spedizione</SelectItem>
+                  <SelectItem value="work">Con Commesse di Produzione</SelectItem>
+                  <SelectItem value="installation">Con Commesse di Installazione</SelectItem>
+                  <SelectItem value="shipping">Con Commesse di Spedizione</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -1661,7 +1661,7 @@ export default function OrdersPage() {
               {selectedOrder.work_orders && selectedOrder.work_orders.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Ordini di Produzione</CardTitle>
+                    <CardTitle className="text-lg">Commesse di Produzione</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1698,7 +1698,7 @@ export default function OrdersPage() {
               {selectedOrder.service_work_orders && selectedOrder.service_work_orders.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Ordini di Lavoro/Installazione</CardTitle>
+                    <CardTitle className="text-lg">Commesse di Lavoro/Installazione</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1732,7 +1732,7 @@ export default function OrdersPage() {
               {selectedOrder.shipping_orders && selectedOrder.shipping_orders.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Ordini di Spedizione</CardTitle>
+                    <CardTitle className="text-lg">Commesse di Spedizione</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">

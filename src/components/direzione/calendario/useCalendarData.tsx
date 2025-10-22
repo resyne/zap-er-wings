@@ -38,7 +38,7 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
         })));
       }
 
-      // Carica ordini di produzione
+      // Carica commesse di produzione
       const { data: workOrders, error: woError } = await supabase
         .from('work_orders')
         .select('id, number, title, status, scheduled_date, actual_start_date, actual_end_date')
@@ -71,7 +71,7 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
         })));
       }
 
-      // Carica ordini di spedizione
+      // Carica commesse di spedizione
       const { data: shippingOrders, error: shipError } = await supabase
         .from('shipping_orders')
         .select('id, number, status, order_date, preparation_date, ready_date, shipped_date')
