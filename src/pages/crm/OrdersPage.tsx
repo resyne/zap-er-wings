@@ -76,6 +76,7 @@ const orderSources = [
 export default function OrdersPage() {
   const location = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [confirmedOffers, setConfirmedOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [orderFilter, setOrderFilter] = useState<"all" | "work" | "installation" | "shipping">("all");
@@ -94,6 +95,7 @@ export default function OrdersPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [selectedOfferForOrder, setSelectedOfferForOrder] = useState<any | null>(null);
   const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
     open: boolean;
     orderId: string;
@@ -144,7 +146,27 @@ export default function OrdersPage() {
   useEffect(() => {
     loadOrders();
     loadRelatedData();
+    loadConfirmedOffers();
   }, [showArchivedOrders]);
+
+  const loadConfirmedOffers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("offers")
+        .select(`
+          *,
+          customers(name, code),
+          leads(id, company_name)
+        `)
+        .eq("status", "confermata")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setConfirmedOffers(data || []);
+    } catch (error: any) {
+      console.error("Error loading confirmed offers:", error);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -804,6 +826,11 @@ export default function OrdersPage() {
     setIsDetailsDialogOpen(true);
   };
 
+  const handleCreateOrderFromOffer = (offer: any) => {
+    setSelectedOfferForOrder(offer);
+    setIsDialogOpen(true);
+  };
+
   useEffect(() => {
     loadOrders();
   }, [showArchivedOrders]);
@@ -853,22 +880,104 @@ export default function OrdersPage() {
           <h1 className="text-3xl font-bold">Ordini</h1>
           <p className="text-muted-foreground">Gestisci gli ordini e la creazione automatica di OdL/OdP/OdS</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={() => {
+          setSelectedOfferForOrder(null);
+          setIsDialogOpen(true);
+        }}>
           <Plus className="w-4 h-4 mr-2" />
           Nuovo Ordine
         </Button>
         
         <CreateOrderDialog
           open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          onSuccess={loadOrders}
-          leadId={location.state?.leadId}
-          prefilledData={location.state?.leadData ? {
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) setSelectedOfferForOrder(null);
+          }}
+          onSuccess={() => {
+            loadOrders();
+            loadConfirmedOffers();
+            setSelectedOfferForOrder(null);
+          }}
+          leadId={selectedOfferForOrder?.lead_id || location.state?.leadId}
+          prefilledData={selectedOfferForOrder ? {
+            customer_id: selectedOfferForOrder.customer_id,
+            notes: `Ordine da offerta ${selectedOfferForOrder.number}\n\nTitolo: ${selectedOfferForOrder.title}\nDescrizione: ${selectedOfferForOrder.description || 'N/A'}\nImporto: €${selectedOfferForOrder.amount}\n\n${selectedOfferForOrder.notes || ''}`
+          } : (location.state?.leadData ? {
             customer_id: location.state.leadData.customer_id,
             notes: `Ordine da lead vinto: ${location.state.leadData.company_name}${location.state.leadData.contact_name ? ' - ' + location.state.leadData.contact_name : ''}\n\nContatto: ${location.state.leadData.contact_name || 'N/A'}\nEmail: ${location.state.leadData.email || 'N/A'}\nTelefono: ${location.state.leadData.phone || 'N/A'}\n\n${location.state.leadData.notes || ''}`
-          } : undefined}
+          } : undefined)}
         />
       </div>
+
+      {/* Confirmed Offers Section */}
+      {confirmedOffers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Offerte Confermate</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Offerte pronte per essere trasformate in ordini
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {confirmedOffers.map((offer) => (
+                <Card key={offer.id} className="border-2 border-success/50">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-base">{offer.title}</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {offer.number}
+                        </p>
+                      </div>
+                      <Badge className="bg-success/10 text-success border-success/20">
+                        Confermata
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Cliente:</span>
+                        <span className="font-medium">{offer.customer_name}</span>
+                      </div>
+                      {offer.leads && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Lead:</span>
+                          <Link 
+                            to={`/crm/opportunities?lead=${offer.lead_id}`}
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            {offer.leads.company_name}
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Importo:</span>
+                        <span className="font-bold text-lg">€{offer.amount.toLocaleString()}</span>
+                      </div>
+                      {offer.description && (
+                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                          {offer.description}
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => handleCreateOrderFromOffer(offer)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Crea Ordine
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
