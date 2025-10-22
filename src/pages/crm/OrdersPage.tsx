@@ -34,6 +34,7 @@ interface Order {
   notes?: string;
   order_type?: string;
   lead_id?: string;
+  offer_id?: string;
   created_at: string;
   customers?: {
     name: string;
@@ -42,6 +43,11 @@ interface Order {
   leads?: {
     id: string;
     company_name: string;
+  };
+  offers?: {
+    id: string;
+    number: string;
+    title: string;
   };
   work_orders?: Array<{
     id: string;
@@ -1304,31 +1310,26 @@ export default function OrdersPage() {
                                           snapshot.isDragging ? 'shadow-lg opacity-90' : ''
                                         }`}
                                       >
-                                       <div className="space-y-3">
-                                         <div className="flex items-start justify-between gap-2">
-                                           <div className="flex-1 min-w-0">
-                                             <div className="font-semibold text-base">{order.number}</div>
-                                             <div className="text-sm text-muted-foreground truncate">
-                                               {order.customers?.name}
-                                             </div>
-                                             {order.order_date && (
-                                               <div className="text-xs text-muted-foreground mt-1">
-                                                 {new Date(order.order_date).toLocaleDateString('it-IT')}
-                                               </div>
-                                             )}
-                                           </div>
-                                           <div className="flex items-center gap-2 shrink-0">
-                                             {order.order_type && (
-                                               <Badge className={getOrderTypeColor(order.order_type)} variant="outline">
-                                                 {getOrderTypeLabel(order.order_type)?.split(" ")[0]}
-                                               </Badge>
-                                             )}
-                                             <DropdownMenu>
-                                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                 <Button variant="ghost" size="sm">
-                                                   <MoreHorizontal className="h-4 w-4" />
-                                                 </Button>
-                                               </DropdownMenuTrigger>
+                                        <div className="space-y-3">
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-semibold text-base">{order.number}</div>
+                                              <div className="text-sm text-muted-foreground truncate">
+                                                {order.customers?.name}
+                                              </div>
+                                              {order.order_date && (
+                                                <div className="text-xs text-muted-foreground mt-1">
+                                                  {new Date(order.order_date).toLocaleDateString('it-IT')}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <DropdownMenu>
+                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                  <Button variant="ghost" size="sm">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                  </Button>
+                                                </DropdownMenuTrigger>
                                                <DropdownMenuContent align="end">
                                                  <DropdownMenuItem onClick={(e) => {
                                                    e.stopPropagation();
@@ -1372,9 +1373,25 @@ export default function OrdersPage() {
                                                </DropdownMenuContent>
                                              </DropdownMenu>
                                            </div>
-                                         </div>
-                                         
-                                         {/* Riferimenti ordini collegati */}
+                                          </div>
+                                          
+                                          {/* Lead collegato */}
+                                          {order.leads && (
+                                            <div className="space-y-1.5">
+                                              <div className="flex items-center gap-2 text-xs">
+                                                <span className="text-muted-foreground">Lead:</span>
+                                                <Link 
+                                                  to={`/crm/opportunities?lead=${order.lead_id}`}
+                                                  className="text-primary hover:underline font-medium"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {order.leads.company_name}
+                                                </Link>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Riferimenti ordini collegati */}
                                          {getSubOrdersStatus(order).length > 0 && (
                                            <div className="pt-2 border-t space-y-2">
                                              <div className="text-xs font-medium text-muted-foreground">
