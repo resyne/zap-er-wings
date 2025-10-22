@@ -6,9 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus } from "lucide-react";
+import { Plus, Check } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 
 interface CreateOrderDialogProps {
@@ -48,6 +49,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
+  const [isLeadPopoverOpen, setIsLeadPopoverOpen] = useState(false);
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
@@ -496,43 +499,61 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             
             <div>
               <Label>Cliente *</Label>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Cerca cliente..."
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      className="mb-2"
-                    />
-                    <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({ ...newOrder, customer_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.code} - {customer.company_name || customer.name}
-                          </SelectItem>
-                        ))}
-                        {filteredCustomers.length === 0 && (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                            Nessun cliente trovato
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsCreateCustomerDialogOpen(true)}
-                    title="Aggiungi nuovo cliente"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+              <div className="flex gap-2">
+                <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Cerca e seleziona cliente..."
+                        value={customerSearch}
+                        onChange={(e) => {
+                          setCustomerSearch(e.target.value);
+                          setIsCustomerPopoverOpen(true);
+                        }}
+                        onFocus={() => setIsCustomerPopoverOpen(true)}
+                      />
+                      {newOrder.customer_id && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Selezionato: {customers.find(c => c.id === newOrder.customer_id)?.code} - {customers.find(c => c.id === newOrder.customer_id)?.company_name || customers.find(c => c.id === newOrder.customer_id)?.name}
+                        </div>
+                      )}
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {filteredCustomers.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                          onClick={() => {
+                            setNewOrder({ ...newOrder, customer_id: customer.id });
+                            setIsCustomerPopoverOpen(false);
+                          }}
+                        >
+                          <span>{customer.code} - {customer.company_name || customer.name}</span>
+                          {newOrder.customer_id === customer.id && (
+                            <Check className="w-4 h-4 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                      {filteredCustomers.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          Nessun cliente trovato
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCreateCustomerDialogOpen(true)}
+                  title="Aggiungi nuovo cliente"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           </div>
@@ -1000,33 +1021,56 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Lead di Riferimento</Label>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Cerca lead..."
-                  value={leadSearch}
-                  onChange={(e) => setLeadSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <Select value={newOrder.lead_id} onValueChange={(value) => setNewOrder({ ...newOrder, lead_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona lead (opzionale)" />
-                  </SelectTrigger>
-                  <SelectContent>
+              <Popover open={isLeadPopoverOpen} onOpenChange={setIsLeadPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <div className="w-full">
+                    <Input
+                      placeholder="Cerca e seleziona lead..."
+                      value={leadSearch}
+                      onChange={(e) => {
+                        setLeadSearch(e.target.value);
+                        setIsLeadPopoverOpen(true);
+                      }}
+                      onFocus={() => setIsLeadPopoverOpen(true)}
+                    />
+                    {newOrder.lead_id && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Selezionato: {leads.find(l => l.id === newOrder.lead_id)?.company_name}
+                        {leads.find(l => l.id === newOrder.lead_id)?.contact_name && ` - ${leads.find(l => l.id === newOrder.lead_id)?.contact_name}`}
+                      </div>
+                    )}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <div className="max-h-[300px] overflow-y-auto">
                     {filteredLeads.map((lead) => (
-                      <SelectItem key={lead.id} value={lead.id}>
-                        {lead.company_name}
-                        {lead.contact_name && ` - ${lead.contact_name}`}
-                        {lead.pipeline && ` [${lead.pipeline}]`}
-                      </SelectItem>
+                      <button
+                        key={lead.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                        onClick={() => {
+                          setNewOrder({ ...newOrder, lead_id: lead.id });
+                          setIsLeadPopoverOpen(false);
+                        }}
+                      >
+                        <span>
+                          {lead.company_name}
+                          {lead.contact_name && ` - ${lead.contact_name}`}
+                          {lead.pipeline && ` [${lead.pipeline}]`}
+                        </span>
+                        {newOrder.lead_id === lead.id && (
+                          <Check className="w-4 h-4 text-primary" />
+                        )}
+                      </button>
                     ))}
                     {filteredLeads.length === 0 && (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
                         Nessun lead trovato
                       </div>
                     )}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
