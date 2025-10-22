@@ -2942,6 +2942,53 @@ export type Database = {
         }
         Relationships: []
       }
+      offer_items: {
+        Row: {
+          created_at: string
+          description: string
+          discount_percent: number | null
+          id: string
+          notes: string | null
+          offer_id: string
+          quantity: number
+          total_price: number | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          discount_percent?: number | null
+          id?: string
+          notes?: string | null
+          offer_id: string
+          quantity?: number
+          total_price?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          discount_percent?: number | null
+          id?: string
+          notes?: string | null
+          offer_id?: string
+          quantity?: number
+          total_price?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_items_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           amount: number
