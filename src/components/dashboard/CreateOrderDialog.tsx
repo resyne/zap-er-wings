@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Plus } from "lucide-react";
+import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 
 interface CreateOrderDialogProps {
   open: boolean;
@@ -35,12 +37,15 @@ const orderSources = [
 export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefilledData }: CreateOrderDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
@@ -97,6 +102,23 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   }, [open, prefilledData]);
 
+  useEffect(() => {
+    // Filter customers based on search
+    if (customerSearch.trim() === "") {
+      setFilteredCustomers(customers);
+    } else {
+      const search = customerSearch.toLowerCase();
+      setFilteredCustomers(
+        customers.filter(
+          (customer) =>
+            customer.name?.toLowerCase().includes(search) ||
+            customer.code?.toLowerCase().includes(search) ||
+            customer.company_name?.toLowerCase().includes(search)
+        )
+      );
+    }
+  }, [customerSearch, customers]);
+
   const loadData = async () => {
     const [customersData, bomsData, accessoriData, contactsData, techniciansData, usersData] = await Promise.all([
       supabase.from("customers").select("id, code, name, company_name").eq("active", true).order("name"),
@@ -108,11 +130,17 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     ]);
     
     setCustomers(customersData.data || []);
+    setFilteredCustomers(customersData.data || []);
     setBoms(bomsData.data || []);
     setAccessori(accessoriData.data || []);
     setContacts(contactsData.data || []);
     setTechnicians(techniciansData.data || []);
     setUsers(usersData.data || []);
+  };
+
+  const handleCustomerCreated = async () => {
+    await loadData();
+    setIsCreateCustomerDialogOpen(false);
   };
 
   const createProductionWorkOrder = async (orderId: string, orderData: any) => {
@@ -448,18 +476,44 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             
             <div>
               <Label>Cliente *</Label>
-              <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({ ...newOrder, customer_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.code} - {customer.company_name || customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Cerca cliente..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      className="mb-2"
+                    />
+                    <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({ ...newOrder, customer_id: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredCustomers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.code} - {customer.company_name || customer.name}
+                          </SelectItem>
+                        ))}
+                        {filteredCustomers.length === 0 && (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            Nessun cliente trovato
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCreateCustomerDialogOpen(true)}
+                    title="Aggiungi nuovo cliente"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1027,6 +1081,12 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           </Button>
         </div>
       </DialogContent>
+      
+      <CreateCustomerDialog
+        open={isCreateCustomerDialogOpen}
+        onOpenChange={setIsCreateCustomerDialogOpen}
+        onCustomerCreated={handleCustomerCreated}
+      />
     </Dialog>
   );
 }
