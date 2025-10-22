@@ -24,7 +24,7 @@ interface Offer {
   title: string;
   description?: string;
   amount: number;
-  status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione';
+  status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'confermata' | 'rifiutata';
   created_at: string;
   valid_until?: string;
   attachments?: string[];
@@ -61,6 +61,7 @@ export default function OffersPage() {
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -335,11 +336,13 @@ export default function OffersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'richiesta_offerta': return 'default';
-      case 'offerta_pronta': return 'secondary';
-      case 'offerta_inviata': return 'outline';
-      case 'negoziazione': return 'destructive';
-      default: return 'default';
+      case 'richiesta_offerta': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100';
+      case 'offerta_pronta': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
+      case 'offerta_inviata': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
+      case 'negoziazione': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100';
+      case 'confermata': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+      case 'rifiutata': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
     }
   };
 
@@ -349,8 +352,24 @@ export default function OffersPage() {
       case 'offerta_pronta': return 'Offerta Pronta';
       case 'offerta_inviata': return 'Offerta Inviata';
       case 'negoziazione': return 'Negoziazione';
+      case 'confermata': return 'Confermata';
+      case 'rifiutata': return 'Rifiutata';
       default: return status;
     }
+  };
+
+  const filteredOffers = statusFilter === 'all' 
+    ? offers 
+    : offers.filter(offer => offer.status === statusFilter);
+
+  const statusCounts = {
+    all: offers.length,
+    richiesta_offerta: offers.filter(o => o.status === 'richiesta_offerta').length,
+    offerta_pronta: offers.filter(o => o.status === 'offerta_pronta').length,
+    offerta_inviata: offers.filter(o => o.status === 'offerta_inviata').length,
+    negoziazione: offers.filter(o => o.status === 'negoziazione').length,
+    confermata: offers.filter(o => o.status === 'confermata').length,
+    rifiutata: offers.filter(o => o.status === 'rifiutata').length,
   };
 
   const handleChangeStatus = async (offerId: string, newStatus: Offer['status']) => {
@@ -575,74 +594,175 @@ export default function OffersPage() {
         onCustomerCreated={handleCustomerCreated}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista Offerte</CardTitle>
-          <CardDescription>
-            Tutte le offerte commerciali create
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Lead</TableHead>
-                <TableHead>Titolo</TableHead>
-                <TableHead>Importo</TableHead>
-                <TableHead>Stato</TableHead>
-                <TableHead>Data Creazione</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {offers.map((offer) => {
-                const relatedLead = leads.find(l => l.id === offer.lead_id);
-                
-                return (
-                  <TableRow 
-                    key={offer.id}
-                    className="cursor-pointer hover:bg-muted/50"
+      {/* Filtri per stato */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        <Button
+          variant={statusFilter === 'all' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('all')}
+          size="sm"
+        >
+          Tutte ({statusCounts.all})
+        </Button>
+        <Button
+          variant={statusFilter === 'richiesta_offerta' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('richiesta_offerta')}
+          size="sm"
+        >
+          Richieste ({statusCounts.richiesta_offerta})
+        </Button>
+        <Button
+          variant={statusFilter === 'offerta_pronta' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('offerta_pronta')}
+          size="sm"
+        >
+          Pronte ({statusCounts.offerta_pronta})
+        </Button>
+        <Button
+          variant={statusFilter === 'offerta_inviata' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('offerta_inviata')}
+          size="sm"
+        >
+          Inviate ({statusCounts.offerta_inviata})
+        </Button>
+        <Button
+          variant={statusFilter === 'negoziazione' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('negoziazione')}
+          size="sm"
+        >
+          In Negoziazione ({statusCounts.negoziazione})
+        </Button>
+        <Button
+          variant={statusFilter === 'confermata' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('confermata')}
+          size="sm"
+        >
+          Confermate ({statusCounts.confermata})
+        </Button>
+        <Button
+          variant={statusFilter === 'rifiutata' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('rifiutata')}
+          size="sm"
+        >
+          Rifiutate ({statusCounts.rifiutata})
+        </Button>
+      </div>
+
+      {/* Grid di Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredOffers.map((offer) => {
+          const relatedLead = leads.find(l => l.id === offer.lead_id);
+          
+          return (
+            <Card key={offer.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg">{offer.number}</CardTitle>
+                    <CardDescription className="text-xs">{offer.customer_name}</CardDescription>
+                  </div>
+                  <Badge className={getStatusColor(offer.status)}>
+                    {getStatusText(offer.status)}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-sm mb-1">{offer.title}</h4>
+                  {offer.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {offer.description}
+                    </p>
+                  )}
+                </div>
+
+                {relatedLead && (
+                  <div className="text-xs bg-muted p-2 rounded">
+                    <div className="font-medium">{relatedLead.company_name}</div>
+                    <div className="text-muted-foreground">{relatedLead.contact_name}</div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-lg font-bold text-primary">
+                    € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(offer.created_at).toLocaleDateString('it-IT')}
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
                     onClick={() => openDetails(offer)}
                   >
-                    <TableCell className="font-medium">{offer.number}</TableCell>
-                    <TableCell>{offer.customer_name}</TableCell>
-                    <TableCell>
-                      {relatedLead ? (
-                        <div className="text-sm">
-                          <div className="font-medium">{relatedLead.company_name}</div>
-                          <div className="text-muted-foreground text-xs">{relatedLead.contact_name}</div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{offer.title}</TableCell>
-                    <TableCell>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={offer.status} 
-                        onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}
+                    <Eye className="w-3 h-3 mr-1" />
+                    Dettagli
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDownloadPDF(offer)}
+                  >
+                    <Download className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSendEmail(offer)}
+                  >
+                    <Mail className="w-3 h-3" />
+                  </Button>
+                </div>
+
+                {/* Azioni rapide cambio stato */}
+                <div className="grid grid-cols-2 gap-2">
+                  {offer.status !== 'confermata' && offer.status !== 'rifiutata' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleChangeStatus(offer.id, 'confermata')}
                       >
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="richiesta_offerta">Richiesta di Offerta</SelectItem>
-                          <SelectItem value="offerta_pronta">Offerta Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Offerta Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>{new Date(offer.created_at).toLocaleDateString('it-IT')}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        ✓ Conferma
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
+                      >
+                        ✗ Rifiuta
+                      </Button>
+                    </>
+                  )}
+                  {offer.status === 'richiesta_offerta' && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="col-span-2"
+                      onClick={() => handleChangeStatus(offer.id, 'offerta_pronta')}
+                    >
+                      Segna come Pronta
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {filteredOffers.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <FileText className="w-12 h-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Nessuna offerta {statusFilter !== 'all' ? 'con questo stato' : 'trovata'}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dialog Dettagli Offerta */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
@@ -672,11 +792,8 @@ export default function OffersPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Stato</label>
-                  <Badge variant="outline" className="ml-2">
-                    {selectedOffer.status === 'richiesta_offerta' ? 'Richiesta di Offerta' :
-                     selectedOffer.status === 'offerta_pronta' ? 'Offerta Pronta' :
-                     selectedOffer.status === 'offerta_inviata' ? 'Offerta Inviata' :
-                     'Negoziazione'}
+                  <Badge className={`ml-2 ${getStatusColor(selectedOffer.status)}`}>
+                    {getStatusText(selectedOffer.status)}
                   </Badge>
                 </div>
               </div>
