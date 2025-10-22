@@ -540,6 +540,61 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         </DialogHeader>
 
         <div className="space-y-4">
+          <div>
+            <Label>Offerta di Riferimento</Label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative" ref={offerInputRef}>
+                <Input
+                  placeholder="Cerca e seleziona offerta..."
+                  value={offerSearch}
+                  onChange={(e) => {
+                    setOfferSearch(e.target.value);
+                    setShowOfferDropdown(true);
+                  }}
+                  onFocus={() => setShowOfferDropdown(true)}
+                />
+                {newOrder.offer_id && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Selezionato: {offers.find(o => o.id === newOrder.offer_id)?.number} - {offers.find(o => o.id === newOrder.offer_id)?.title}
+                  </div>
+                )}
+                {showOfferDropdown && filteredOffers.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                    {filteredOffers.map((offer) => (
+                      <button
+                        key={offer.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                        onClick={() => {
+                          setNewOrder({ ...newOrder, offer_id: offer.id });
+                          setOfferSearch("");
+                          setShowOfferDropdown(false);
+                        }}
+                      >
+                        <span className="text-sm">
+                          {offer.number} - {offer.title}
+                          {offer.customer && ` [${offer.customer.company_name || offer.customer.name}]`}
+                        </span>
+                        {newOrder.offer_id === offer.id && (
+                          <Check className="w-4 h-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setIsCreateOfferDialogOpen(true)}
+                title="Crea nuova offerta"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Numero Ordine</Label>
@@ -1110,61 +1165,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div>
-              <Label>Offerta di Riferimento</Label>
-              <div className="flex gap-2">
-                <div className="flex-1 relative" ref={offerInputRef}>
-                  <Input
-                    placeholder="Cerca e seleziona offerta..."
-                    value={offerSearch}
-                    onChange={(e) => {
-                      setOfferSearch(e.target.value);
-                      setShowOfferDropdown(true);
-                    }}
-                    onFocus={() => setShowOfferDropdown(true)}
-                  />
-                  {newOrder.offer_id && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Selezionato: {offers.find(o => o.id === newOrder.offer_id)?.number} - {offers.find(o => o.id === newOrder.offer_id)?.title}
-                    </div>
-                  )}
-                  {showOfferDropdown && filteredOffers.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                      {filteredOffers.map((offer) => (
-                        <button
-                          key={offer.id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                          onClick={() => {
-                            setNewOrder({ ...newOrder, offer_id: offer.id });
-                            setOfferSearch("");
-                            setShowOfferDropdown(false);
-                          }}
-                        >
-                          <span className="text-sm">
-                            {offer.number} - {offer.title}
-                            {offer.customer && ` [${offer.customer.company_name || offer.customer.name}]`}
-                          </span>
-                          {newOrder.offer_id === offer.id && (
-                            <Check className="w-4 h-4 text-primary" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsCreateOfferDialogOpen(true)}
-                  title="Crea nuova offerta"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
               </div>
             </div>
           </div>
