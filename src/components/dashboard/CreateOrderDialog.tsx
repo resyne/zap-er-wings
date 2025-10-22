@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Check } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
+import { CreateOfferDialog } from "./CreateOfferDialog";
 
 interface CreateOrderDialogProps {
   open: boolean;
@@ -42,20 +43,27 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [leads, setLeads] = useState<any[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<any[]>([]);
   const [leadSearch, setLeadSearch] = useState("");
+  const [offers, setOffers] = useState<any[]>([]);
+  const [filteredOffers, setFilteredOffers] = useState<any[]>([]);
+  const [offerSearch, setOfferSearch] = useState("");
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
+  const [isCreateOfferDialogOpen, setIsCreateOfferDialogOpen] = useState(false);
   const [showLeadDropdown, setShowLeadDropdown] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showOfferDropdown, setShowOfferDropdown] = useState(false);
   const leadInputRef = useRef<HTMLDivElement>(null);
   const customerInputRef = useRef<HTMLDivElement>(null);
+  const offerInputRef = useRef<HTMLDivElement>(null);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
     lead_id: "",
+    offer_id: "",
     article: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
@@ -117,6 +125,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (customerInputRef.current && !customerInputRef.current.contains(event.target as Node)) {
         setShowCustomerDropdown(false);
       }
+      if (offerInputRef.current && !offerInputRef.current.contains(event.target as Node)) {
+        setShowOfferDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -157,12 +168,30 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   }, [leadSearch, leads]);
 
+  useEffect(() => {
+    // Filter offers based on search
+    if (offerSearch.trim() === "") {
+      setFilteredOffers(offers);
+    } else {
+      const search = offerSearch.toLowerCase();
+      setFilteredOffers(
+        offers.filter(
+          (offer) =>
+            offer.number?.toLowerCase().includes(search) ||
+            offer.title?.toLowerCase().includes(search) ||
+            offer.customer?.company_name?.toLowerCase().includes(search)
+        )
+      );
+    }
+  }, [offerSearch, offers]);
+
   const loadData = async () => {
-    const [customersData, bomsData, accessoriData, leadsData, techniciansData, usersData] = await Promise.all([
+    const [customersData, bomsData, accessoriData, leadsData, offersData, techniciansData, usersData] = await Promise.all([
       supabase.from("customers").select("id, code, name, company_name").eq("active", true).order("name"),
       supabase.from("boms").select("id, name, description, level").in("level", [0, 1, 2]).order("name"),
       supabase.from("boms").select("id, name, description, level").eq("level", 3).order("name"),
       supabase.from("leads").select("id, company_name, contact_name, email, phone, status, pipeline").order("company_name"),
+      supabase.from("offers").select("id, number, title, customer:customers(company_name, name), status").order("created_at", { ascending: false }),
       supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true).order("first_name"),
       supabase.from("profiles").select("id, email, first_name, last_name").order("first_name")
     ]);
@@ -173,6 +202,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setAccessori(accessoriData.data || []);
     setLeads(leadsData.data || []);
     setFilteredLeads(leadsData.data || []);
+    setOffers(offersData.data || []);
+    setFilteredOffers(offersData.data || []);
     setTechnicians(techniciansData.data || []);
     setUsers(usersData.data || []);
   };
@@ -180,6 +211,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const handleCustomerCreated = async () => {
     await loadData();
     setIsCreateCustomerDialogOpen(false);
+  };
+
+  const handleOfferCreated = async () => {
+    await loadData();
+    setIsCreateOfferDialogOpen(false);
   };
 
   const createProductionWorkOrder = async (orderId: string, orderData: any) => {
@@ -455,6 +491,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setNewOrder({
       customer_id: "",
       lead_id: "",
+      offer_id: "",
       article: "",
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
@@ -1074,6 +1111,63 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
 
             <div>
+              <Label>Offerta di Riferimento</Label>
+              <div className="flex gap-2">
+                <div className="flex-1 relative" ref={offerInputRef}>
+                  <Input
+                    placeholder="Cerca e seleziona offerta..."
+                    value={offerSearch}
+                    onChange={(e) => {
+                      setOfferSearch(e.target.value);
+                      setShowOfferDropdown(true);
+                    }}
+                    onFocus={() => setShowOfferDropdown(true)}
+                  />
+                  {newOrder.offer_id && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Selezionato: {offers.find(o => o.id === newOrder.offer_id)?.number} - {offers.find(o => o.id === newOrder.offer_id)?.title}
+                    </div>
+                  )}
+                  {showOfferDropdown && filteredOffers.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                      {filteredOffers.map((offer) => (
+                        <button
+                          key={offer.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                          onClick={() => {
+                            setNewOrder({ ...newOrder, offer_id: offer.id });
+                            setOfferSearch("");
+                            setShowOfferDropdown(false);
+                          }}
+                        >
+                          <span className="text-sm">
+                            {offer.number} - {offer.title}
+                            {offer.customer && ` [${offer.customer.company_name || offer.customer.name}]`}
+                          </span>
+                          {newOrder.offer_id === offer.id && (
+                            <Check className="w-4 h-4 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCreateOfferDialogOpen(true)}
+                  title="Crea nuova offerta"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label>Priorità</Label>
               <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({ ...newOrder, priority: value })}>
                 <SelectTrigger>
@@ -1165,6 +1259,12 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         open={isCreateCustomerDialogOpen}
         onOpenChange={setIsCreateCustomerDialogOpen}
         onCustomerCreated={handleCustomerCreated}
+      />
+      
+      <CreateOfferDialog
+        open={isCreateOfferDialogOpen}
+        onOpenChange={setIsCreateOfferDialogOpen}
+        onSuccess={handleOfferCreated}
       />
     </Dialog>
   );
