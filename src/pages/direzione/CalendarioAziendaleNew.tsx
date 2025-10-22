@@ -120,9 +120,9 @@ export default function CalendarioAziendaleNew() {
 
   const filterOptions: { value: ItemTypeFilter; label: string; icon: any }[] = [
     { value: 'task', label: 'Task', icon: CalendarIcon },
-    { value: 'work_order', label: 'Ordini Produzione', icon: Package },
-    { value: 'service_order', label: 'Ordini Assistenza', icon: Wrench },
-    { value: 'shipping_order', label: 'Ordini Spedizione', icon: Truck },
+    { value: 'work_order', label: 'Commesse Produzione', icon: Package },
+    { value: 'service_order', label: 'Commesse Assistenza', icon: Wrench },
+    { value: 'shipping_order', label: 'Commesse Spedizione', icon: Truck },
     { value: 'event', label: 'Eventi', icon: CalendarDays },
     { value: 'lead_activity', label: 'Attività CRM', icon: Users },
   ];
