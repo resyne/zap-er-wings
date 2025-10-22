@@ -45,26 +45,39 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
     contact_id: "",
-    order_type: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
     expected_delivery_date: "",
     status: "commissionato",
     notes: "",
-    work_description: "",
-    bom_id: "",
-    accessori_ids: [] as string[],
-    assigned_technician: "",
-    back_office_manager: "",
     priority: "medium",
-    planned_start_date: "",
-    planned_end_date: "",
-    location: "",
-    equipment_needed: "",
-    shipping_address: "",
     payment_on_delivery: false,
-    payment_amount: ""
+    payment_amount: "",
+    commissions: {
+      production: {
+        enabled: false,
+        responsible: "",
+        bom_id: "",
+        accessori_ids: [] as string[],
+        planned_start_date: "",
+        planned_end_date: "",
+        includes_installation: false
+      },
+      service: {
+        enabled: false,
+        responsible: "",
+        work_description: "",
+        location: "",
+        equipment_needed: "",
+        scheduled_date: ""
+      },
+      shipping: {
+        enabled: false,
+        responsible: "",
+        shipping_address: ""
+      }
+    }
   });
 
   useEffect(() => {
@@ -99,21 +112,22 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   };
 
   const createProductionWorkOrder = async (orderId: string, orderData: any) => {
+    const commission = newOrder.commissions.production;
     const productionData = {
       number: '',
       title: `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.notes || '',
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
-      bom_id: newOrder.bom_id || null,
-      accessori_ids: newOrder.accessori_ids.length > 0 ? newOrder.accessori_ids : null,
-      assigned_to: newOrder.assigned_technician || null,
-      back_office_manager: newOrder.back_office_manager || null,
+      bom_id: commission.bom_id || null,
+      accessori_ids: commission.accessori_ids.length > 0 ? commission.accessori_ids : null,
+      assigned_to: commission.responsible || null,
+      back_office_manager: commission.responsible || null,
       priority: newOrder.priority,
-      planned_start_date: newOrder.planned_start_date || null,
-      planned_end_date: newOrder.planned_end_date || null,
+      planned_start_date: commission.planned_start_date || null,
+      planned_end_date: commission.planned_end_date || null,
       notes: newOrder.notes,
-      includes_installation: newOrder.order_type === 'odpel',
+      includes_installation: commission.includes_installation,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
@@ -130,19 +144,20 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   };
 
   const createServiceWorkOrder = async (orderId: string, orderData: any, productionWOId?: string) => {
+    const commission = newOrder.commissions.service;
     const serviceData = {
       number: '',
-      title: `Installazione per ordine ${orderData.customers?.name || 'Cliente'}`,
-      description: newOrder.work_description || newOrder.notes,
+      title: `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
+      description: commission.work_description || newOrder.notes,
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
       contact_id: newOrder.contact_id || null,
-      assigned_to: newOrder.assigned_technician || null,
-      back_office_manager: newOrder.back_office_manager || null,
+      assigned_to: commission.responsible || null,
+      back_office_manager: commission.responsible || null,
       priority: newOrder.priority,
-      scheduled_date: newOrder.planned_start_date ? new Date(newOrder.planned_start_date).toISOString() : null,
-      location: newOrder.location || null,
-      equipment_needed: newOrder.equipment_needed || null,
+      scheduled_date: commission.scheduled_date ? new Date(commission.scheduled_date).toISOString() : null,
+      location: commission.location || null,
+      equipment_needed: commission.equipment_needed || null,
       notes: newOrder.notes,
       production_work_order_id: productionWOId || null,
       sales_order_id: orderId
@@ -159,15 +174,16 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   };
 
   const createShippingOrder = async (orderId: string, orderData: any) => {
+    const commission = newOrder.commissions.shipping;
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id || null,
       contact_id: newOrder.contact_id || null,
-      back_office_manager: newOrder.back_office_manager || null,
+      back_office_manager: commission.responsible || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
-      shipping_address: newOrder.shipping_address || null,
+      shipping_address: commission.shipping_address || null,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
@@ -240,28 +256,40 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   };
 
   const handleCreateOrder = async () => {
-    if (!newOrder.customer_id || !newOrder.order_type) {
+    const { production, service, shipping } = newOrder.commissions;
+    const hasAtLeastOneCommission = production.enabled || service.enabled || shipping.enabled;
+
+    if (!newOrder.customer_id) {
       toast({
         title: "Errore",
-        description: "Cliente e tipo ordine sono obbligatori",
+        description: "Cliente obbligatorio",
         variant: "destructive",
       });
       return;
     }
 
-    if ((newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && !newOrder.bom_id) {
+    if (!hasAtLeastOneCommission) {
       toast({
         title: "Errore",
-        description: "Per ordini di produzione è necessario selezionare una BOM",
+        description: "Seleziona almeno una commessa da creare",
         variant: "destructive",
       });
       return;
     }
 
-    if (newOrder.order_type === 'odl' && !newOrder.work_description) {
+    if (production.enabled && !production.bom_id) {
       toast({
         title: "Errore",
-        description: "Per ordini di lavoro è necessario descrivere il lavoro da fare",
+        description: "Per la commessa di produzione è necessario selezionare una BOM",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (service.enabled && !service.work_description) {
+      toast({
+        title: "Errore",
+        description: "Per la commessa di lavoro è necessario descrivere il lavoro da fare",
         variant: "destructive",
       });
       return;
@@ -269,6 +297,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
     setLoading(true);
     try {
+      // Determina il tipo di ordine in base alle commesse selezionate
+      let orderType = "";
+      if (production.enabled && service.enabled) {
+        orderType = "odpel"; // Produzione e Lavoro
+      } else if (production.enabled) {
+        orderType = "odp"; // Solo Produzione
+      } else if (service.enabled) {
+        orderType = "odl"; // Solo Lavoro
+      } else if (shipping.enabled) {
+        orderType = "ods"; // Solo Spedizione
+      }
+
       const orderData = {
         number: "",
         customer_id: newOrder.customer_id,
@@ -276,7 +316,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         delivery_date: newOrder.delivery_date || null,
         status: newOrder.status,
         notes: newOrder.notes || null,
-        order_type: newOrder.order_type,
+        order_type: orderType,
         order_source: newOrder.order_source,
         lead_id: leadId || null
       };
@@ -298,36 +338,28 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       let serviceWO = null;
       let shippingOrder = null;
 
-      switch (newOrder.order_type) {
-        case 'odp':
-          productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
-          break;
-        case 'odl':
-          serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder);
-          break;
-        case 'odpel':
-          productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
-          serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO.id);
-          break;
-        case 'ods':
-          shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
-          break;
+      // Crea le commesse selezionate
+      if (production.enabled) {
+        productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
       }
 
-      let successMessage = "Ordine creato con successo";
-      if (productionWO && serviceWO) {
-        successMessage += ` - Ordine di Produzione: ${productionWO.number}, Ordine di Lavoro: ${serviceWO.number}`;
-      } else if (productionWO) {
-        successMessage += ` - Ordine di Produzione: ${productionWO.number}`;
-      } else if (serviceWO) {
-        successMessage += ` - Ordine di Lavoro: ${serviceWO.number}`;
-      } else if (shippingOrder) {
-        successMessage += ` - Ordine di Spedizione: ${shippingOrder.number}`;
+      if (service.enabled) {
+        serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO?.id);
       }
+
+      if (shipping.enabled) {
+        shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
+      }
+
+      // Costruisci messaggio di successo
+      const commissionMessages: string[] = [];
+      if (productionWO) commissionMessages.push(`Commessa di Produzione: ${productionWO.number}`);
+      if (serviceWO) commissionMessages.push(`Commessa di Lavoro: ${serviceWO.number}`);
+      if (shippingOrder) commissionMessages.push(`Commessa di Spedizione: ${shippingOrder.number}`);
 
       toast({
         title: "Successo",
-        description: successMessage,
+        description: `Ordine creato con successo${commissionMessages.length > 0 ? ' - ' + commissionMessages.join(', ') : ''}`,
       });
 
       onOpenChange(false);
@@ -348,26 +380,39 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setNewOrder({
       customer_id: "",
       contact_id: "",
-      order_type: "",
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
       delivery_date: "",
       expected_delivery_date: "",
       status: "commissionato",
       notes: "",
-      work_description: "",
-      bom_id: "",
-      accessori_ids: [],
-      assigned_technician: "",
-      back_office_manager: "",
       priority: "medium",
-      planned_start_date: "",
-      planned_end_date: "",
-      location: "",
-      equipment_needed: "",
-      shipping_address: "",
       payment_on_delivery: false,
-      payment_amount: ""
+      payment_amount: "",
+      commissions: {
+        production: {
+          enabled: false,
+          responsible: "",
+          bom_id: "",
+          accessori_ids: [],
+          planned_start_date: "",
+          planned_end_date: "",
+          includes_installation: false
+        },
+        service: {
+          enabled: false,
+          responsible: "",
+          work_description: "",
+          location: "",
+          equipment_needed: "",
+          scheduled_date: ""
+        },
+        shipping: {
+          enabled: false,
+          responsible: "",
+          shipping_address: ""
+        }
+      }
     });
   };
 
@@ -395,87 +440,378 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </Select>
           </div>
 
-          <div>
-            <Label>Tipo Ordine *</Label>
-            <Select value={newOrder.order_type} onValueChange={(value) => setNewOrder({ ...newOrder, order_type: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {orderTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4 border-t pt-4">
+            <Label className="text-base font-semibold">Commesse da Creare</Label>
+            
+            {/* Commessa di Produzione */}
+            <div className="space-y-3 border rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="commission_production"
+                  checked={newOrder.commissions.production.enabled}
+                  onCheckedChange={(checked) => 
+                    setNewOrder({ 
+                      ...newOrder, 
+                      commissions: { 
+                        ...newOrder.commissions, 
+                        production: { ...newOrder.commissions.production, enabled: checked === true } 
+                      } 
+                    })
+                  }
+                />
+                <Label 
+                  htmlFor="commission_production"
+                  className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Commessa di Produzione
+                </Label>
+              </div>
+
+              {newOrder.commissions.production.enabled && (
+                <div className="space-y-3 pl-6">
+                  <div>
+                    <Label>Responsabile *</Label>
+                    <Select 
+                      value={newOrder.commissions.production.responsible} 
+                      onValueChange={(value) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            production: { ...newOrder.commissions.production, responsible: value } 
+                          } 
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona responsabile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>BOM (Distinta Base) *</Label>
+                    <Select 
+                      value={newOrder.commissions.production.bom_id} 
+                      onValueChange={(value) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            production: { ...newOrder.commissions.production, bom_id: value } 
+                          } 
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona BOM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {boms.map((bom) => (
+                          <SelectItem key={bom.id} value={bom.id}>
+                            {bom.name} {bom.description && `- ${bom.description}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {accessori.length > 0 && (
+                    <div>
+                      <Label>Accessori</Label>
+                      <Select 
+                        value={newOrder.commissions.production.accessori_ids.join(',')} 
+                        onValueChange={(value) => {
+                          const ids = value ? value.split(',').filter(Boolean) : [];
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, accessori_ids: ids } 
+                            } 
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona accessori (opzionale)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accessori.map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                              {acc.name} {acc.description && `- ${acc.description}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Data Inizio Pianificata</Label>
+                      <Input
+                        type="date"
+                        value={newOrder.commissions.production.planned_start_date}
+                        onChange={(e) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, planned_start_date: e.target.value } 
+                            } 
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label>Data Fine Pianificata</Label>
+                      <Input
+                        type="date"
+                        value={newOrder.commissions.production.planned_end_date}
+                        onChange={(e) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, planned_end_date: e.target.value } 
+                            } 
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includes_installation"
+                      checked={newOrder.commissions.production.includes_installation}
+                      onCheckedChange={(checked) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            production: { ...newOrder.commissions.production, includes_installation: checked === true } 
+                          } 
+                        })
+                      }
+                    />
+                    <Label 
+                      htmlFor="includes_installation"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Include Installazione
+                    </Label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Commessa di Lavoro */}
+            <div className="space-y-3 border rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="commission_service"
+                  checked={newOrder.commissions.service.enabled}
+                  onCheckedChange={(checked) => 
+                    setNewOrder({ 
+                      ...newOrder, 
+                      commissions: { 
+                        ...newOrder.commissions, 
+                        service: { ...newOrder.commissions.service, enabled: checked === true } 
+                      } 
+                    })
+                  }
+                />
+                <Label 
+                  htmlFor="commission_service"
+                  className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Commessa di Lavoro
+                </Label>
+              </div>
+
+              {newOrder.commissions.service.enabled && (
+                <div className="space-y-3 pl-6">
+                  <div>
+                    <Label>Responsabile *</Label>
+                    <Select 
+                      value={newOrder.commissions.service.responsible} 
+                      onValueChange={(value) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            service: { ...newOrder.commissions.service, responsible: value } 
+                          } 
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona responsabile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {technicians.map((tech) => (
+                          <SelectItem key={tech.id} value={tech.id}>
+                            {tech.first_name} {tech.last_name} ({tech.employee_code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Descrizione Lavoro *</Label>
+                    <Textarea
+                      value={newOrder.commissions.service.work_description}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            service: { ...newOrder.commissions.service, work_description: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Descrivi il lavoro da svolgere..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Luogo Intervento</Label>
+                    <Input
+                      value={newOrder.commissions.service.location}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            service: { ...newOrder.commissions.service, location: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Indirizzo dell'intervento..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Attrezzatura Necessaria</Label>
+                    <Input
+                      value={newOrder.commissions.service.equipment_needed}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            service: { ...newOrder.commissions.service, equipment_needed: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Attrezzatura necessaria..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Data Pianificata</Label>
+                    <Input
+                      type="date"
+                      value={newOrder.commissions.service.scheduled_date}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            service: { ...newOrder.commissions.service, scheduled_date: e.target.value } 
+                          } 
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Commessa di Spedizione */}
+            <div className="space-y-3 border rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="commission_shipping"
+                  checked={newOrder.commissions.shipping.enabled}
+                  onCheckedChange={(checked) => 
+                    setNewOrder({ 
+                      ...newOrder, 
+                      commissions: { 
+                        ...newOrder.commissions, 
+                        shipping: { ...newOrder.commissions.shipping, enabled: checked === true } 
+                      } 
+                    })
+                  }
+                />
+                <Label 
+                  htmlFor="commission_shipping"
+                  className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Commessa di Spedizione
+                </Label>
+              </div>
+
+              {newOrder.commissions.shipping.enabled && (
+                <div className="space-y-3 pl-6">
+                  <div>
+                    <Label>Responsabile *</Label>
+                    <Select 
+                      value={newOrder.commissions.shipping.responsible} 
+                      onValueChange={(value) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            shipping: { ...newOrder.commissions.shipping, responsible: value } 
+                          } 
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona responsabile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Indirizzo di Spedizione</Label>
+                    <Textarea
+                      value={newOrder.commissions.shipping.shipping_address}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            shipping: { ...newOrder.commissions.shipping, shipping_address: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Indirizzo completo di spedizione..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-
-          {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
-            <div>
-              <Label>BOM (Distinta Base) *</Label>
-              <Select value={newOrder.bom_id} onValueChange={(value) => setNewOrder({ ...newOrder, bom_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona BOM" />
-                </SelectTrigger>
-                <SelectContent>
-                  {boms.map((bom) => (
-                    <SelectItem key={bom.id} value={bom.id}>
-                      {bom.name} {bom.description && `- ${bom.description}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {newOrder.order_type === 'odl' && (
-            <div>
-              <Label>Descrizione Lavoro *</Label>
-              <Textarea
-                value={newOrder.work_description}
-                onChange={(e) => setNewOrder({ ...newOrder, work_description: e.target.value })}
-                placeholder="Descrivi il lavoro da svolgere..."
-                rows={3}
-              />
-            </div>
-          )}
-
-          {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && accessori.length > 0 && (
-            <div>
-              <Label>Accessori</Label>
-              <Select 
-                value={newOrder.accessori_ids.join(',')} 
-                onValueChange={(value) => {
-                  const ids = value ? value.split(',').filter(Boolean) : [];
-                  setNewOrder({ ...newOrder, accessori_ids: ids });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona accessori (opzionale)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accessori.map((acc) => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      {acc.name} {acc.description && `- ${acc.description}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {newOrder.order_type === 'ods' && (
-            <div>
-              <Label>Indirizzo di Spedizione</Label>
-              <Textarea
-                value={newOrder.shipping_address}
-                onChange={(e) => setNewOrder({ ...newOrder, shipping_address: e.target.value })}
-                placeholder="Indirizzo completo di spedizione..."
-                rows={2}
-              />
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -510,72 +846,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           </div>
 
-          {(newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Tecnico Assegnato</Label>
-                <Select value={newOrder.assigned_technician} onValueChange={(value) => setNewOrder({ ...newOrder, assigned_technician: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tecnico" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {technicians.map((tech) => (
-                      <SelectItem key={tech.id} value={tech.id}>
-                        {tech.first_name} {tech.last_name} ({tech.employee_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Back Office Manager</Label>
-                <Select value={newOrder.back_office_manager} onValueChange={(value) => setNewOrder({ ...newOrder, back_office_manager: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {(newOrder.order_type === 'odl' || newOrder.order_type === 'odpel') && (
-            <div>
-              <Label>Luogo Intervento</Label>
-              <Input
-                value={newOrder.location}
-                onChange={(e) => setNewOrder({ ...newOrder, location: e.target.value })}
-                placeholder="Indirizzo dell'intervento..."
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Data Inizio Pianificata</Label>
-              <Input
-                type="date"
-                value={newOrder.planned_start_date}
-                onChange={(e) => setNewOrder({ ...newOrder, planned_start_date: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Data Fine Pianificata</Label>
-              <Input
-                type="date"
-                value={newOrder.planned_end_date}
-                onChange={(e) => setNewOrder({ ...newOrder, planned_end_date: e.target.value })}
-              />
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Data Ordine</Label>
@@ -605,39 +875,37 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             />
           </div>
 
-          {(newOrder.order_type === 'ods' || newOrder.order_type === 'odp' || newOrder.order_type === 'odpel') && (
-            <div className="space-y-4 border-t pt-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="payment_on_delivery"
-                  checked={newOrder.payment_on_delivery}
-                  onCheckedChange={(checked) => 
-                    setNewOrder({ ...newOrder, payment_on_delivery: checked === true })
-                  }
-                />
-                <Label 
-                  htmlFor="payment_on_delivery"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Pagamento alla Consegna
-                </Label>
-              </div>
-
-              {newOrder.payment_on_delivery && (
-                <div>
-                  <Label>Importo Pagamento (€)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={newOrder.payment_amount}
-                    onChange={(e) => setNewOrder({ ...newOrder, payment_amount: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </div>
-              )}
+          <div className="space-y-4 border-t pt-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="payment_on_delivery"
+                checked={newOrder.payment_on_delivery}
+                onCheckedChange={(checked) => 
+                  setNewOrder({ ...newOrder, payment_on_delivery: checked === true })
+                }
+              />
+              <Label 
+                htmlFor="payment_on_delivery"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Pagamento alla Consegna
+              </Label>
             </div>
-          )}
+
+            {newOrder.payment_on_delivery && (
+              <div>
+                <Label>Importo Pagamento (€)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newOrder.payment_amount}
+                  onChange={(e) => setNewOrder({ ...newOrder, payment_amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
