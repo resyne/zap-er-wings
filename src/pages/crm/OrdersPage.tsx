@@ -26,6 +26,7 @@ interface Order {
   id: string;
   number: string;
   customer_id?: string;
+  article?: string;
   order_date?: string;
   delivery_date?: string;
   status?: string;
@@ -1407,13 +1408,13 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Numero</TableHead>
+                <TableHead>Articolo</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Lead</TableHead>
-                <TableHead>Tipo</TableHead>
+                <TableHead>Commesse</TableHead>
                 <TableHead>Data Ordine</TableHead>
                 <TableHead>Consegna</TableHead>
                 <TableHead>Stato</TableHead>
-                <TableHead>Sotto-Ordini</TableHead>
                 <TableHead>Note</TableHead>
                 <TableHead className="w-[50px]">Azioni</TableHead>
               </TableRow>
@@ -1426,6 +1427,9 @@ export default function OrdersPage() {
                       <Package className="w-4 h-4 mr-2 text-muted-foreground" />
                       <span className="font-medium">{order.number}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium">{order.article || "—"}</span>
                   </TableCell>
                   <TableCell>
                     {order.customers && (
@@ -1450,10 +1454,16 @@ export default function OrdersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {order.order_type && (
-                      <Badge className={getOrderTypeColor(order.order_type)}>
-                        {getOrderTypeLabel(order.order_type)}
-                      </Badge>
+                    {getSubOrdersStatus(order).length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {getSubOrdersStatus(order).map((subStatus, idx) => (
+                          <Badge key={idx} className={subStatus.color} variant="outline">
+                            {subStatus.type}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Nessuna commessa</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -1474,27 +1484,6 @@ export default function OrdersPage() {
                     <Badge variant={getStatusColor(normalizeOrderStatus(order.status))}>
                       {normalizeOrderStatus(order.status).toUpperCase()}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {getSubOrdersStatus(order).length > 0 ? (
-                      <div className="space-y-1">
-                        {getSubOrdersStatus(order).map((subStatus, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <Badge className={subStatus.color} variant="outline">
-                              {subStatus.type}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {subStatus.number}
-                            </span>
-                            <span className="text-xs font-medium">
-                              {getSubOrderStatusLabel(subStatus.status)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Nessun sotto-ordine</span>
-                    )}
                   </TableCell>
                   <TableCell>
                     <span className="text-sm text-muted-foreground">
@@ -1555,7 +1544,7 @@ export default function OrdersPage() {
               ))}
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? "Nessun ordine trovato" : "Nessun ordine presente"}
                     </div>

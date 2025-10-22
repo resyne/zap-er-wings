@@ -45,6 +45,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
     contact_id: "",
+    article: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
@@ -58,6 +59,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       production: {
         enabled: false,
         responsible: "",
+        back_office_responsible: "",
         bom_id: "",
         accessori_ids: [] as string[],
         planned_start_date: "",
@@ -67,6 +69,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       service: {
         enabled: false,
         responsible: "",
+        back_office_responsible: "",
         work_description: "",
         location: "",
         equipment_needed: "",
@@ -75,6 +78,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       shipping: {
         enabled: false,
         responsible: "",
+        back_office_responsible: "",
         shipping_address: ""
       }
     }
@@ -122,7 +126,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       bom_id: commission.bom_id || null,
       accessori_ids: commission.accessori_ids.length > 0 ? commission.accessori_ids : null,
       assigned_to: commission.responsible || null,
-      back_office_manager: commission.responsible || null,
+      production_responsible_id: commission.responsible || null,
+      back_office_manager: commission.back_office_responsible || null,
       priority: newOrder.priority,
       planned_start_date: commission.planned_start_date || null,
       planned_end_date: commission.planned_end_date || null,
@@ -153,7 +158,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       customer_id: newOrder.customer_id,
       contact_id: newOrder.contact_id || null,
       assigned_to: commission.responsible || null,
-      back_office_manager: commission.responsible || null,
+      service_responsible_id: commission.responsible || null,
+      back_office_manager: commission.back_office_responsible || null,
       priority: newOrder.priority,
       scheduled_date: commission.scheduled_date ? new Date(commission.scheduled_date).toISOString() : null,
       location: commission.location || null,
@@ -179,7 +185,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       number: '',
       customer_id: newOrder.customer_id || null,
       contact_id: newOrder.contact_id || null,
-      back_office_manager: commission.responsible || null,
+      shipping_responsible_id: commission.responsible || null,
+      back_office_responsible_id: commission.back_office_responsible || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
@@ -312,6 +319,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       const orderData = {
         number: "",
         customer_id: newOrder.customer_id,
+        article: newOrder.article || null,
         order_date: newOrder.order_date || null,
         delivery_date: newOrder.delivery_date || null,
         status: newOrder.status,
@@ -380,6 +388,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setNewOrder({
       customer_id: "",
       contact_id: "",
+      article: "",
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
       delivery_date: "",
@@ -393,6 +402,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         production: {
           enabled: false,
           responsible: "",
+          back_office_responsible: "",
           bom_id: "",
           accessori_ids: [],
           planned_start_date: "",
@@ -402,6 +412,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         service: {
           enabled: false,
           responsible: "",
+          back_office_responsible: "",
           work_description: "",
           location: "",
           equipment_needed: "",
@@ -410,6 +421,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         shipping: {
           enabled: false,
           responsible: "",
+          back_office_responsible: "",
           shipping_address: ""
         }
       }
@@ -424,20 +436,31 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         </DialogHeader>
 
         <div className="space-y-4">
-          <div>
-            <Label>Cliente *</Label>
-            <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({ ...newOrder, customer_id: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.code} - {customer.company_name || customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Articolo *</Label>
+              <Input
+                value={newOrder.article}
+                onChange={(e) => setNewOrder({ ...newOrder, article: e.target.value })}
+                placeholder="Inserisci l'articolo dell'ordine"
+              />
+            </div>
+            
+            <div>
+              <Label>Cliente *</Label>
+              <Select value={newOrder.customer_id} onValueChange={(value) => setNewOrder({ ...newOrder, customer_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.code} - {customer.company_name || customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-4 border-t pt-4">
@@ -469,31 +492,60 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
               {newOrder.commissions.production.enabled && (
                 <div className="space-y-3 pl-6">
-                  <div>
-                    <Label>Responsabile *</Label>
-                    <Select 
-                      value={newOrder.commissions.production.responsible} 
-                      onValueChange={(value) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            production: { ...newOrder.commissions.production, responsible: value } 
-                          } 
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona responsabile" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.first_name} {user.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Responsabile Tecnico *</Label>
+                      <Select 
+                        value={newOrder.commissions.production.responsible} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, responsible: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona responsabile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Responsabile Back Office</Label>
+                      <Select 
+                        value={newOrder.commissions.production.back_office_responsible} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, back_office_responsible: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona responsabile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div>
@@ -639,31 +691,60 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
               {newOrder.commissions.service.enabled && (
                 <div className="space-y-3 pl-6">
-                  <div>
-                    <Label>Responsabile *</Label>
-                    <Select 
-                      value={newOrder.commissions.service.responsible} 
-                      onValueChange={(value) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, responsible: value } 
-                          } 
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona responsabile" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {technicians.map((tech) => (
-                          <SelectItem key={tech.id} value={tech.id}>
-                            {tech.first_name} {tech.last_name} ({tech.employee_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Responsabile Tecnico *</Label>
+                      <Select 
+                        value={newOrder.commissions.service.responsible} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              service: { ...newOrder.commissions.service, responsible: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona responsabile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Responsabile Back Office</Label>
+                      <Select 
+                        value={newOrder.commissions.service.back_office_responsible} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              service: { ...newOrder.commissions.service, back_office_responsible: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona responsabile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div>
@@ -764,31 +845,60 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
               {newOrder.commissions.shipping.enabled && (
                 <div className="space-y-3 pl-6">
-                  <div>
-                    <Label>Responsabile *</Label>
-                    <Select 
-                      value={newOrder.commissions.shipping.responsible} 
-                      onValueChange={(value) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            shipping: { ...newOrder.commissions.shipping, responsible: value } 
-                          } 
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona responsabile" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.first_name} {user.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Responsabile Tecnico *</Label>
+                      <Select 
+                        value={newOrder.commissions.shipping.responsible} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              shipping: { ...newOrder.commissions.shipping, responsible: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona responsabile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Responsabile Back Office</Label>
+                      <Select 
+                        value={newOrder.commissions.shipping.back_office_responsible} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              shipping: { ...newOrder.commissions.shipping, back_office_responsible: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona responsabile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div>

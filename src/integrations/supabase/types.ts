@@ -4138,6 +4138,7 @@ export type Database = {
       sales_orders: {
         Row: {
           archived: boolean | null
+          article: string | null
           created_at: string | null
           created_by: string | null
           customer_id: string | null
@@ -4159,6 +4160,7 @@ export type Database = {
         }
         Insert: {
           archived?: boolean | null
+          article?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
@@ -4180,6 +4182,7 @@ export type Database = {
         }
         Update: {
           archived?: boolean | null
+          article?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
@@ -4479,6 +4482,7 @@ export type Database = {
           production_work_order_id: string | null
           sales_order_id: string | null
           scheduled_date: string | null
+          service_responsible_id: string | null
           status: string
           title: string
           updated_at: string
@@ -4506,6 +4510,7 @@ export type Database = {
           production_work_order_id?: string | null
           sales_order_id?: string | null
           scheduled_date?: string | null
+          service_responsible_id?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -4533,6 +4538,7 @@ export type Database = {
           production_work_order_id?: string | null
           sales_order_id?: string | null
           scheduled_date?: string | null
+          service_responsible_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -4630,6 +4636,7 @@ export type Database = {
         Row: {
           archived: boolean | null
           back_office_manager: string | null
+          back_office_responsible_id: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -4645,6 +4652,7 @@ export type Database = {
           sales_order_id: string | null
           shipped_date: string | null
           shipping_address: string | null
+          shipping_responsible_id: string | null
           status: string
           updated_at: string
           work_order_id: string | null
@@ -4652,6 +4660,7 @@ export type Database = {
         Insert: {
           archived?: boolean | null
           back_office_manager?: string | null
+          back_office_responsible_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -4667,6 +4676,7 @@ export type Database = {
           sales_order_id?: string | null
           shipped_date?: string | null
           shipping_address?: string | null
+          shipping_responsible_id?: string | null
           status?: string
           updated_at?: string
           work_order_id?: string | null
@@ -4674,6 +4684,7 @@ export type Database = {
         Update: {
           archived?: boolean | null
           back_office_manager?: string | null
+          back_office_responsible_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -4689,6 +4700,7 @@ export type Database = {
           sales_order_id?: string | null
           shipped_date?: string | null
           shipping_address?: string | null
+          shipping_responsible_id?: string | null
           status?: string
           updated_at?: string
           work_order_id?: string | null
@@ -5547,6 +5559,7 @@ export type Database = {
           planned_end_date: string | null
           planned_start_date: string | null
           priority: string | null
+          production_responsible_id: string | null
           sales_order_id: string | null
           scheduled_date: string | null
           status: Database["public"]["Enums"]["wo_status"]
@@ -5577,6 +5590,7 @@ export type Database = {
           planned_end_date?: string | null
           planned_start_date?: string | null
           priority?: string | null
+          production_responsible_id?: string | null
           sales_order_id?: string | null
           scheduled_date?: string | null
           status?: Database["public"]["Enums"]["wo_status"]
@@ -5607,6 +5621,7 @@ export type Database = {
           planned_end_date?: string | null
           planned_start_date?: string | null
           priority?: string | null
+          production_responsible_id?: string | null
           sales_order_id?: string | null
           scheduled_date?: string | null
           status?: Database["public"]["Enums"]["wo_status"]
@@ -5675,54 +5690,27 @@ export type Database = {
         }
         Returns: string
       }
-      generate_cost_draft_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_customer_code: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_material_code: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_cost_draft_number: { Args: never; Returns: string }
+      generate_customer_code: { Args: never; Returns: string }
+      generate_material_code: { Args: never; Returns: string }
       generate_production_installation_work_order_number: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: string
       }
-      generate_production_work_order_number: {
-        Args: Record<PropertyKey, never> | { sales_order_number?: string }
-        Returns: string
-      }
-      generate_purchase_order_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_quote_code: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_recurring_tasks: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_sales_order_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_service_work_order_number: {
-        Args: Record<PropertyKey, never> | { sales_order_number?: string }
-        Returns: string
-      }
-      generate_shipping_order_number: {
-        Args: Record<PropertyKey, never> | { sales_order_number?: string }
-        Returns: string
-      }
-      generate_ticket_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_production_work_order_number:
+        | { Args: never; Returns: string }
+        | { Args: { sales_order_number?: string }; Returns: string }
+      generate_purchase_order_number: { Args: never; Returns: string }
+      generate_quote_code: { Args: never; Returns: string }
+      generate_recurring_tasks: { Args: never; Returns: undefined }
+      generate_sales_order_number: { Args: never; Returns: string }
+      generate_service_work_order_number:
+        | { Args: never; Returns: string }
+        | { Args: { sales_order_number?: string }; Returns: string }
+      generate_shipping_order_number:
+        | { Args: never; Returns: string }
+        | { Args: { sales_order_number?: string }; Returns: string }
+      generate_ticket_number: { Args: never; Returns: string }
       get_quote_by_code: {
         Args: { input_code: string }
         Returns: {
@@ -5732,14 +5720,8 @@ export type Database = {
           quote_id: string
         }[]
       }
-      get_user_role_simple: {
-        Args: { user_uuid?: string }
-        Returns: string
-      }
-      get_user_site_origin: {
-        Args: { user_uuid: string }
-        Returns: string
-      }
+      get_user_role_simple: { Args: { user_uuid?: string }; Returns: string }
+      get_user_site_origin: { Args: { user_uuid: string }; Returns: string }
       has_minimum_role: {
         Args: {
           _min_role: Database["public"]["Enums"]["app_role"]
@@ -5754,30 +5736,12 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_same_site_user: {
-        Args: { target_user_id: string }
-        Returns: boolean
-      }
-      is_user_admin: {
-        Args: { user_uuid?: string }
-        Returns: boolean
-      }
-      should_hide_amounts: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      user_created_quote: {
-        Args: { quote_id: string }
-        Returns: boolean
-      }
-      validate_quote_code: {
-        Args: { input_code: string }
-        Returns: boolean
-      }
+      is_admin_user: { Args: never; Returns: boolean }
+      is_same_site_user: { Args: { target_user_id: string }; Returns: boolean }
+      is_user_admin: { Args: { user_uuid?: string }; Returns: boolean }
+      should_hide_amounts: { Args: never; Returns: boolean }
+      user_created_quote: { Args: { quote_id: string }; Returns: boolean }
+      validate_quote_code: { Args: { input_code: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
