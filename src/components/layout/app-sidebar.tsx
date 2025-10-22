@@ -97,10 +97,18 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Commesse",
+    items: [
+      { title: "Commesse di Produzione", url: "/mfg/work-orders", icon: Wrench },
+      { title: "Commesse di Lavoro", url: "/support/work-orders", icon: Wrench },
+      { title: "Commesse di Spedizione", url: "/warehouse/shipping-orders", icon: Truck },
+      { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
+    ]
+  },
+  {
     title: "Produzione",
     items: [
       { title: "Distinte Base", url: "/mfg/bom", icon: Database },
-      { title: "Commesse di Produzione", url: "/mfg/work-orders", icon: Wrench },
       { title: "Esecuzioni", url: "/mfg/executions", icon: Clock },
     ]
   },
@@ -108,8 +116,6 @@ const navigationGroups: NavGroup[] = [
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support", icon: LayoutDashboard },
-      { title: "Commesse di Lavoro", url: "/support/work-orders", icon: Wrench },
-      { title: "Rapporti di Intervento", url: "/support/service-reports", icon: FileText },
       { title: "Ticket", url: "/support/tickets", icon: Ticket },
     ]
   },
@@ -117,7 +123,6 @@ const navigationGroups: NavGroup[] = [
     title: "Magazzino",
     items: [
       { title: "Anagrafica Materiali", url: "/warehouse/materials", icon: Package2 },
-      { title: "Commesse di Spedizione", url: "/warehouse/shipping-orders", icon: Truck },
       { title: "Scorte", url: "/wms/stock", icon: Boxes },
       { title: "Movimenti", url: "/wms/movements", icon: Truck },
       
