@@ -1128,7 +1128,6 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Numero</TableHead>
-                <TableHead>Articolo</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Lead</TableHead>
                 <TableHead>Commesse</TableHead>
@@ -1147,9 +1146,6 @@ export default function OrdersPage() {
                       <Package className="w-4 h-4 mr-2 text-muted-foreground" />
                       <span className="font-medium">{order.number}</span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{order.article || "—"}</span>
                   </TableCell>
                   <TableCell>
                     {order.customers && (

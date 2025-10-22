@@ -542,12 +542,15 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Articolo *</Label>
+              <Label>Numero Ordine</Label>
               <Input
-                value={newOrder.article}
-                onChange={(e) => setNewOrder({ ...newOrder, article: e.target.value })}
-                placeholder="Inserisci l'articolo dell'ordine"
+                value="Auto-generato"
+                disabled
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Il numero verrà assegnato automaticamente alla creazione
+              </p>
             </div>
             
             <div>
