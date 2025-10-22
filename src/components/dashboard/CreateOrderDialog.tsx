@@ -39,9 +39,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [customers, setCustomers] = useState<any[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [leads, setLeads] = useState<any[]>([]);
+  const [filteredLeads, setFilteredLeads] = useState<any[]>([]);
+  const [leadSearch, setLeadSearch] = useState("");
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +51,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
-    contact_id: "",
+    lead_id: "",
     article: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
@@ -119,12 +121,29 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   }, [customerSearch, customers]);
 
+  useEffect(() => {
+    // Filter leads based on search
+    if (leadSearch.trim() === "") {
+      setFilteredLeads(leads);
+    } else {
+      const search = leadSearch.toLowerCase();
+      setFilteredLeads(
+        leads.filter(
+          (lead) =>
+            lead.company_name?.toLowerCase().includes(search) ||
+            lead.contact_name?.toLowerCase().includes(search) ||
+            lead.email?.toLowerCase().includes(search)
+        )
+      );
+    }
+  }, [leadSearch, leads]);
+
   const loadData = async () => {
-    const [customersData, bomsData, accessoriData, contactsData, techniciansData, usersData] = await Promise.all([
+    const [customersData, bomsData, accessoriData, leadsData, techniciansData, usersData] = await Promise.all([
       supabase.from("customers").select("id, code, name, company_name").eq("active", true).order("name"),
       supabase.from("boms").select("id, name, description, level").in("level", [0, 1, 2]).order("name"),
       supabase.from("boms").select("id, name, description, level").eq("level", 3).order("name"),
-      supabase.from("crm_contacts").select("id, first_name, last_name, company_name, email").order("first_name"),
+      supabase.from("leads").select("id, company_name, contact_name, email, phone, status, pipeline").order("company_name"),
       supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true).order("first_name"),
       supabase.from("profiles").select("id, email, first_name, last_name").order("first_name")
     ]);
@@ -133,7 +152,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setFilteredCustomers(customersData.data || []);
     setBoms(bomsData.data || []);
     setAccessori(accessoriData.data || []);
-    setContacts(contactsData.data || []);
+    setLeads(leadsData.data || []);
+    setFilteredLeads(leadsData.data || []);
     setTechnicians(techniciansData.data || []);
     setUsers(usersData.data || []);
   };
@@ -184,7 +204,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       description: commission.work_description || newOrder.notes,
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
-      contact_id: newOrder.contact_id || null,
+      lead_id: newOrder.lead_id || null,
       assigned_to: commission.responsible || null,
       service_responsible_id: commission.responsible || null,
       back_office_manager: commission.back_office_responsible || null,
@@ -212,7 +232,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id || null,
-      contact_id: newOrder.contact_id || null,
+      lead_id: newOrder.lead_id || null,
       shipping_responsible_id: commission.responsible || null,
       back_office_responsible_id: commission.back_office_responsible || null,
       status: 'da_preparare' as const,
@@ -415,7 +435,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const resetForm = () => {
     setNewOrder({
       customer_id: "",
-      contact_id: "",
+      lead_id: "",
       article: "",
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
@@ -979,19 +999,34 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Contatto</Label>
-              <Select value={newOrder.contact_id} onValueChange={(value) => setNewOrder({ ...newOrder, contact_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona contatto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map((contact) => (
-                    <SelectItem key={contact.id} value={contact.id}>
-                      {contact.first_name} {contact.last_name} {contact.company_name && `(${contact.company_name})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Lead di Riferimento</Label>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Cerca lead..."
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  className="mb-2"
+                />
+                <Select value={newOrder.lead_id} onValueChange={(value) => setNewOrder({ ...newOrder, lead_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona lead (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredLeads.map((lead) => (
+                      <SelectItem key={lead.id} value={lead.id}>
+                        {lead.company_name}
+                        {lead.contact_name && ` - ${lead.contact_name}`}
+                        {lead.pipeline && ` [${lead.pipeline}]`}
+                      </SelectItem>
+                    ))}
+                    {filteredLeads.length === 0 && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        Nessun lead trovato
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div>
