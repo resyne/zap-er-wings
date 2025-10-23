@@ -50,15 +50,20 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [accessori, setAccessori] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [isCreateOfferDialogOpen, setIsCreateOfferDialogOpen] = useState(false);
   const [showLeadDropdown, setShowLeadDropdown] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [showOfferDropdown, setShowOfferDropdown] = useState(false);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   const leadInputRef = useRef<HTMLDivElement>(null);
   const customerInputRef = useRef<HTMLDivElement>(null);
   const offerInputRef = useRef<HTMLDivElement>(null);
+  const productInputRef = useRef<HTMLDivElement>(null);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
@@ -117,6 +122,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (offerInputRef.current && !offerInputRef.current.contains(event.target as Node)) {
         setShowOfferDropdown(false);
       }
+      if (productInputRef.current && !productInputRef.current.contains(event.target as Node)) {
+        setShowProductDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -174,15 +182,33 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   }, [offerSearch, offers]);
 
+  useEffect(() => {
+    // Filter products based on search
+    if (productSearch.trim() === "") {
+      setFilteredProducts(products);
+    } else {
+      const search = productSearch.toLowerCase();
+      setFilteredProducts(
+        products.filter(
+          (product) =>
+            product.name?.toLowerCase().includes(search) ||
+            product.code?.toLowerCase().includes(search) ||
+            product.description?.toLowerCase().includes(search)
+        )
+      );
+    }
+  }, [productSearch, products]);
+
   const loadData = async () => {
-    const [customersData, bomsData, accessoriData, leadsData, offersData, techniciansData, usersData] = await Promise.all([
+    const [customersData, bomsData, accessoriData, leadsData, offersData, techniciansData, usersData, productsData] = await Promise.all([
       supabase.from("customers").select("id, code, name, company_name").eq("active", true).order("name"),
       supabase.from("boms").select("id, name, description, level").in("level", [0, 1, 2]).order("name"),
       supabase.from("boms").select("id, name, description, level").eq("level", 3).order("name"),
       supabase.from("leads").select("id, company_name, contact_name, email, phone, status, pipeline").order("company_name"),
       supabase.from("offers").select("id, number, title, customer:customers(company_name, name), status").order("created_at", { ascending: false }),
       supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true).order("first_name"),
-      supabase.from("profiles").select("id, email, first_name, last_name").order("first_name")
+      supabase.from("profiles").select("id, email, first_name, last_name").order("first_name"),
+      supabase.from("products").select("id, code, name, description, product_type").eq("is_active", true).order("name")
     ]);
     
     setCustomers(customersData.data || []);
@@ -195,6 +221,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setFilteredOffers(offersData.data || []);
     setTechnicians(techniciansData.data || []);
     setUsers(usersData.data || []);
+    setProducts(productsData.data || []);
+    setFilteredProducts(productsData.data || []);
   };
 
   const handleCustomerCreated = async (customerId?: string) => {
@@ -702,10 +730,45 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           </div>
 
           {/* Articolo */}
-          <div>
+          <div className="space-y-2">
             <Label>Articolo / Prodotto *</Label>
+            <div className="relative" ref={productInputRef}>
+              <Input
+                placeholder="Cerca prodotto o scrivi manualmente..."
+                value={productSearch}
+                onChange={(e) => {
+                  setProductSearch(e.target.value);
+                  setShowProductDropdown(true);
+                }}
+                onFocus={() => setShowProductDropdown(true)}
+              />
+              {showProductDropdown && filteredProducts.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                  {filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => {
+                        const productText = `${product.code} - ${product.name}${product.description ? ` (${product.description})` : ''}`;
+                        setNewOrder({ ...newOrder, article: productText });
+                        setProductSearch("");
+                        setShowProductDropdown(false);
+                      }}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{product.code} - {product.name}</span>
+                        {product.description && (
+                          <span className="text-xs text-muted-foreground">{product.description}</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Textarea
-              placeholder="Es. Forno ABC123, Abbattitore XYZ, ecc..."
+              placeholder="Es. Forno ABC123, Abbattitore XYZ, ecc... (puoi anche selezionare dall'anagrafica sopra)"
               value={newOrder.article}
               onChange={(e) => setNewOrder({ ...newOrder, article: e.target.value })}
               rows={2}
