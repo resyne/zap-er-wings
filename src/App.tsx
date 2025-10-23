@@ -119,7 +119,7 @@ const App = () => (
                 <Route path="marketing/email-marketing" element={<EmailMarketingPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
                 <Route path="crm/offers" element={<OffersPage />} />
-                <Route path="crm/products" element={<ProductCatalogPage />} />
+                <Route path="mfg/products" element={<ProductCatalogPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
                 <Route path="warehouse/shipping-orders" element={<ShippingCommissionsPage />} />
                 <Route path="wms/stock" element={<StockPage />} />

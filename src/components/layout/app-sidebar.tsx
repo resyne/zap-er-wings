@@ -92,7 +92,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Lead", url: "/crm/leads", icon: Users },
       { title: "Lead KPI", url: "/crm/leads/kpi", icon: TrendingUp },
       { title: "Clienti", url: "/crm/customers", icon: Building2 },
-      { title: "Anagrafica Prodotti", url: "/crm/products", icon: Package },
       { title: "Offerte", url: "/crm/offers", icon: FileText },
     ]
   },
@@ -109,6 +108,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Produzione",
     items: [
+      { title: "Anagrafica Prodotti", url: "/mfg/products", icon: Package },
       { title: "Distinte Base", url: "/mfg/bom", icon: Database },
       { title: "Esecuzioni", url: "/mfg/executions", icon: Clock },
     ]
