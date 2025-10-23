@@ -185,16 +185,15 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="material_id">Materiale Collegato</Label>
+              <Label htmlFor="material_id">Materiale Collegato (opzionale)</Label>
               <Select
-                value={formData.material_id}
+                value={formData.material_id || undefined}
                 onValueChange={(value) => setFormData({ ...formData, material_id: value })}
               >
                 <SelectTrigger id="material_id">
-                  <SelectValue placeholder="Seleziona materiale..." />
+                  <SelectValue placeholder="Nessuno selezionato" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
                   {materials?.map((material) => (
                     <SelectItem key={material.id} value={material.id}>
                       {material.code} - {material.name}
@@ -205,16 +204,15 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bom_id">BOM Livello 0</Label>
+              <Label htmlFor="bom_id">BOM Livello 0 (opzionale)</Label>
               <Select
-                value={formData.bom_id}
+                value={formData.bom_id || undefined}
                 onValueChange={(value) => setFormData({ ...formData, bom_id: value })}
               >
                 <SelectTrigger id="bom_id">
-                  <SelectValue placeholder="Seleziona BOM..." />
+                  <SelectValue placeholder="Nessuno selezionato" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
                   {boms?.map((bom) => (
                     <SelectItem key={bom.id} value={bom.id}>
                       {bom.name}
