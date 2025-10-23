@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, X } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOfferDialog } from "./CreateOfferDialog";
 
@@ -74,6 +74,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     priority: "medium",
     payment_on_delivery: false,
     payment_amount: "",
+    items: [] as Array<{ name: string; price: string }>,
     commissions: {
       production: {
         enabled: false,
@@ -487,6 +488,29 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   };
 
+  const addItem = () => {
+    setNewOrder({
+      ...newOrder,
+      items: [...newOrder.items, { name: "", price: "" }]
+    });
+  };
+
+  const removeItem = (index: number) => {
+    setNewOrder({
+      ...newOrder,
+      items: newOrder.items.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateItem = (index: number, field: "name" | "price", value: string) => {
+    const updatedItems = [...newOrder.items];
+    updatedItems[index][field] = value;
+    setNewOrder({
+      ...newOrder,
+      items: updatedItems
+    });
+  };
+
   const resetForm = () => {
     setNewOrder({
       customer_id: "",
@@ -502,6 +526,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       priority: "medium",
       payment_on_delivery: false,
       payment_amount: "",
+      items: [],
       commissions: {
         production: {
           enabled: false,
@@ -594,6 +619,68 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               </Button>
             </div>
           </div>
+
+          {/* Articoli Section */}
+          {!newOrder.offer_id && (
+            <div className="space-y-3 border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Articoli</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addItem}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Aggiungi Articolo
+                </Button>
+              </div>
+              
+              {newOrder.items.length > 0 ? (
+                <div className="space-y-2">
+                  {newOrder.items.map((item, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Nome articolo"
+                          value={item.name}
+                          onChange={(e) => updateItem(index, "name", e.target.value)}
+                        />
+                      </div>
+                      <div className="w-32">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Prezzo €"
+                          value={item.price}
+                          onChange={(e) => updateItem(index, "price", e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeItem(index)}
+                        className="text-destructive"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="pt-2 border-t">
+                    <div className="text-sm font-semibold text-right">
+                      Totale: €{newOrder.items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nessun articolo aggiunto. Clicca "Aggiungi Articolo" per iniziare.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
