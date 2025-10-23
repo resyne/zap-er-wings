@@ -1060,6 +1060,7 @@ export type Database = {
           credit_limit: number | null
           email: string | null
           id: string
+          incomplete_registry: boolean | null
           name: string
           payment_terms: number | null
           phone: string | null
@@ -1078,6 +1079,7 @@ export type Database = {
           credit_limit?: number | null
           email?: string | null
           id?: string
+          incomplete_registry?: boolean | null
           name: string
           payment_terms?: number | null
           phone?: string | null
@@ -1096,6 +1098,7 @@ export type Database = {
           credit_limit?: number | null
           email?: string | null
           id?: string
+          incomplete_registry?: boolean | null
           name?: string
           payment_terms?: number | null
           phone?: string | null
@@ -5917,6 +5920,7 @@ export type Database = {
       generate_cost_draft_number: { Args: never; Returns: string }
       generate_customer_code: { Args: never; Returns: string }
       generate_material_code: { Args: never; Returns: string }
+      generate_product_code: { Args: never; Returns: string }
       generate_production_installation_work_order_number: {
         Args: never
         Returns: string
