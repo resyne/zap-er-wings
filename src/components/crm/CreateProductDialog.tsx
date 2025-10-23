@@ -18,7 +18,6 @@ interface CreateProductDialogProps {
 export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreateProductDialogProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    code: "",
     name: "",
     description: "",
     product_type: "component",
@@ -60,7 +59,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     try {
       const { error } = await supabase.from("products").insert([
         {
-          code: formData.code,
+          code: "",
           name: formData.name,
           description: formData.description || null,
           product_type: formData.product_type,
@@ -78,7 +77,6 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
       onSuccess?.();
       
       setFormData({
-        code: "",
         name: "",
         description: "",
         product_type: "component",
@@ -106,18 +104,12 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Codice *</Label>
-              <Input
-                id="code"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="es. PROD-001"
-                required
-              />
-            </div>
+          <div className="space-y-2 p-3 bg-muted/50 rounded-lg border">
+            <Label className="text-sm text-muted-foreground">Codice Prodotto</Label>
+            <p className="text-sm">Verrà generato automaticamente (es. 33-0001)</p>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="product_type">Tipo *</Label>
               <Select
