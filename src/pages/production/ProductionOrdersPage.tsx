@@ -21,6 +21,7 @@ import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog"
 import { OrderComments } from "@/components/orders/OrderComments";
 import { BomComposition } from "@/components/production/BomComposition";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
+import { OrderFileManager } from "@/components/orders/OrderFileManager";
 
 interface WorkOrder {
   id: string;
@@ -84,6 +85,7 @@ export default function WorkOrdersPage() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showFiltersDialog, setShowFiltersDialog] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [parentOrderFiles, setParentOrderFiles] = useState<any[]>([]);
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
 
@@ -371,9 +373,28 @@ export default function WorkOrdersPage() {
     setIsDialogOpen(true);
   };
 
-  const handleViewDetails = (wo: WorkOrder) => {
+  const handleViewDetails = async (wo: WorkOrder) => {
     setSelectedWO(wo);
     setShowDetailsDialog(true);
+    
+    // Load parent order files if exists
+    if (wo.sales_order_id) {
+      try {
+        const { data, error } = await supabase
+          .from('sales_orders')
+          .select('attachments')
+          .eq('id', wo.sales_order_id)
+          .single();
+        
+        if (error) throw error;
+        setParentOrderFiles(Array.isArray(data?.attachments) ? data.attachments : []);
+      } catch (error) {
+        console.error('Error loading parent order files:', error);
+        setParentOrderFiles([]);
+      }
+    } else {
+      setParentOrderFiles([]);
+    }
   };
 
   const handleExport = () => {
@@ -1072,6 +1093,19 @@ export default function WorkOrdersPage() {
               {selectedWO.bom_id && (
                 <div className="border-t pt-4">
                   <BomComposition bomId={selectedWO.bom_id} />
+                </div>
+              )}
+              
+              {/* Parent Order Files */}
+              {selectedWO.sales_order_id && parentOrderFiles.length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">File dall'Ordine Principale</h4>
+                  <OrderFileManager
+                    orderId={selectedWO.sales_order_id}
+                    attachments={parentOrderFiles}
+                    readOnly={true}
+                    label="File Informativi (Ordine Principale)"
+                  />
                 </div>
               )}
 

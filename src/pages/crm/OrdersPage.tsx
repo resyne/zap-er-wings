@@ -22,6 +22,7 @@ import { OrderFinancialInfo } from "@/components/orders/OrderFinancialInfo";
 import { OrderActivityLog } from "@/components/orders/OrderActivityLog";
 import { OrderComments } from "@/components/orders/OrderComments";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
+import { OrderFileManager } from "@/components/orders/OrderFileManager";
 
 interface Order {
   id: string;
@@ -36,6 +37,12 @@ interface Order {
   lead_id?: string;
   offer_id?: string;
   created_at: string;
+  attachments?: Array<{
+    path: string;
+    name: string;
+    size: number;
+    type: string;
+  }>;
   customers?: {
     name: string;
     code: string;
@@ -189,7 +196,14 @@ export default function OrdersPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setOrders(data || []);
+      
+      // Parse attachments from JSON
+      const ordersWithAttachments = (data || []).map(order => ({
+        ...order,
+        attachments: Array.isArray(order.attachments) ? order.attachments : []
+      }));
+      
+      setOrders(ordersWithAttachments as unknown as Order[]);
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -1801,6 +1815,20 @@ export default function OrdersPage() {
 
               {/* Comments */}
               <OrderComments orderId={selectedOrder.id} />
+              
+              {/* Files */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">File e Allegati</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <OrderFileManager
+                    orderId={selectedOrder.id}
+                    attachments={selectedOrder.attachments || []}
+                    onUpdate={loadOrders}
+                  />
+                </CardContent>
+              </Card>
             </div>
           )}
         </DialogContent>

@@ -4366,6 +4366,7 @@ export type Database = {
         Row: {
           archived: boolean | null
           article: string | null
+          attachments: Json | null
           created_at: string | null
           created_by: string | null
           customer_id: string | null
@@ -4388,6 +4389,7 @@ export type Database = {
         Insert: {
           archived?: boolean | null
           article?: string | null
+          attachments?: Json | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
@@ -4410,6 +4412,7 @@ export type Database = {
         Update: {
           archived?: boolean | null
           article?: string | null
+          attachments?: Json | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
