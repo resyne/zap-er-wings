@@ -71,7 +71,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
     expected_delivery_date: "",
-    status: "bozza",
+    status: "draft",
     notes: "",
     priority: "medium",
     payment_on_delivery: false,
