@@ -27,6 +27,7 @@ import EmailMarketingPage from "./pages/marketing/EmailMarketingPage";
 import OrdersPage from "./pages/crm/OrdersPage";
 import CustomersPage from "./pages/crm/CustomersPage";
 import OffersPage from "./pages/crm/OffersPage";
+import ProductCatalogPage from "./pages/crm/ProductCatalogPage";
 import StockPage from "./pages/warehouse/StockPage";
 import MovementsPage from "./pages/warehouse/MovementsPage";
 
@@ -118,6 +119,7 @@ const App = () => (
                 <Route path="marketing/email-marketing" element={<EmailMarketingPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
                 <Route path="crm/offers" element={<OffersPage />} />
+                <Route path="crm/products" element={<ProductCatalogPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
                 <Route path="warehouse/shipping-orders" element={<ShippingCommissionsPage />} />
                 <Route path="wms/stock" element={<StockPage />} />

@@ -3411,6 +3411,174 @@ export type Database = {
         }
         Relationships: []
       }
+      price_list_items: {
+        Row: {
+          created_at: string
+          discount_percentage: number | null
+          id: string
+          minimum_quantity: number | null
+          notes: string | null
+          price: number
+          price_list_id: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percentage?: number | null
+          id?: string
+          minimum_quantity?: number | null
+          notes?: string | null
+          price: number
+          price_list_id: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discount_percentage?: number | null
+          id?: string
+          minimum_quantity?: number | null
+          notes?: string | null
+          price?: number
+          price_list_id?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_items_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_lists: {
+        Row: {
+          code: string
+          country: string | null
+          created_at: string
+          customer_category: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          list_type: string
+          name: string
+          priority: number | null
+          region: string | null
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          code: string
+          country?: string | null
+          created_at?: string
+          customer_category?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          list_type: string
+          name: string
+          priority?: number | null
+          region?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          code?: string
+          country?: string | null
+          created_at?: string
+          customer_category?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          list_type?: string
+          name?: string
+          priority?: number | null
+          region?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          base_price: number | null
+          bom_id: string | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          material_id: string | null
+          name: string
+          product_type: string
+          technical_specs: Json | null
+          unit_of_measure: string | null
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number | null
+          bom_id?: string | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          material_id?: string | null
+          name: string
+          product_type: string
+          technical_specs?: Json | null
+          unit_of_measure?: string | null
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number | null
+          bom_id?: string | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          material_id?: string | null
+          name?: string
+          product_type?: string
+          technical_specs?: Json | null
+          unit_of_measure?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
