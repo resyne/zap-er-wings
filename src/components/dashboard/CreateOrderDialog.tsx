@@ -302,7 +302,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id || null,
-      lead_id: newOrder.lead_id || null,
       shipping_responsible_id: commission.responsible || null,
       back_office_responsible_id: commission.back_office_responsible || null,
       status: 'da_preparare' as const,
