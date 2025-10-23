@@ -64,12 +64,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     customer_id: "",
     lead_id: "",
     offer_id: "",
+    title: "",
+    description: "",
     article: "",
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
     expected_delivery_date: "",
-    status: "commissionato",
+    status: "bozza",
     notes: "",
     priority: "medium",
     payment_on_delivery: false,
@@ -84,7 +86,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         accessori_ids: [] as string[],
         planned_start_date: "",
         planned_end_date: "",
-        includes_installation: false
+        includes_installation: false,
+        activity_description: "",
+        notes: ""
       },
       service: {
         enabled: false,
@@ -93,13 +97,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         work_description: "",
         location: "",
         equipment_needed: "",
-        scheduled_date: ""
+        scheduled_date: "",
+        notes: ""
       },
       shipping: {
         enabled: false,
         responsible: "",
         back_office_responsible: "",
-        shipping_address: ""
+        shipping_address: "",
+        activity_description: "",
+        planned_start_date: "",
+        planned_end_date: "",
+        notes: ""
       }
     }
   });
@@ -516,12 +525,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       customer_id: "",
       lead_id: "",
       offer_id: "",
+      title: "",
+      description: "",
       article: "",
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
       delivery_date: "",
       expected_delivery_date: "",
-      status: "commissionato",
+      status: "bozza",
       notes: "",
       priority: "medium",
       payment_on_delivery: false,
@@ -536,7 +547,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           accessori_ids: [],
           planned_start_date: "",
           planned_end_date: "",
-          includes_installation: false
+          includes_installation: false,
+          activity_description: "",
+          notes: ""
         },
         service: {
           enabled: false,
@@ -545,13 +558,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           work_description: "",
           location: "",
           equipment_needed: "",
-          scheduled_date: ""
+          scheduled_date: "",
+          notes: ""
         },
         shipping: {
           enabled: false,
           responsible: "",
           back_office_responsible: "",
-          shipping_address: ""
+          shipping_address: "",
+          activity_description: "",
+          planned_start_date: "",
+          planned_end_date: "",
+          notes: ""
         }
       }
     });
@@ -617,6 +635,26 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               >
                 <Plus className="w-4 h-4" />
               </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label>Oggetto / Titolo Ordine *</Label>
+              <Input
+                placeholder="Inserisci il titolo dell'ordine"
+                value={newOrder.title}
+                onChange={(e) => setNewOrder({ ...newOrder, title: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Descrizione Dettagliata</Label>
+              <Textarea
+                placeholder="Descrizione dettagliata dell'ordine"
+                value={newOrder.description}
+                onChange={(e) => setNewOrder({ ...newOrder, description: e.target.value })}
+                rows={4}
+              />
             </div>
           </div>
 
@@ -946,6 +984,42 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       Include Installazione
                     </Label>
                   </div>
+
+                  <div>
+                    <Label>Descrizione Attività</Label>
+                    <Textarea
+                      value={newOrder.commissions.production.activity_description}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            production: { ...newOrder.commissions.production, activity_description: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Cosa deve fare il reparto produzione..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Note / Istruzioni</Label>
+                    <Textarea
+                      value={newOrder.commissions.production.notes}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            production: { ...newOrder.commissions.production, notes: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Note aggiuntive, allegati necessari..."
+                      rows={2}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -1100,6 +1174,24 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       }
                     />
                   </div>
+
+                  <div>
+                    <Label>Note / Istruzioni</Label>
+                    <Textarea
+                      value={newOrder.commissions.service.notes}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            service: { ...newOrder.commissions.service, notes: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Note aggiuntive, allegati necessari..."
+                      rows={2}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -1200,6 +1292,77 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         })
                       }
                       placeholder="Indirizzo completo di spedizione..."
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Descrizione Attività</Label>
+                    <Textarea
+                      value={newOrder.commissions.shipping.activity_description}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            shipping: { ...newOrder.commissions.shipping, activity_description: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Cosa deve fare il reparto spedizioni..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Data Inizio Pianificata</Label>
+                      <Input
+                        type="date"
+                        value={newOrder.commissions.shipping.planned_start_date}
+                        onChange={(e) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              shipping: { ...newOrder.commissions.shipping, planned_start_date: e.target.value } 
+                            } 
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label>Data Fine Pianificata</Label>
+                      <Input
+                        type="date"
+                        value={newOrder.commissions.shipping.planned_end_date}
+                        onChange={(e) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              shipping: { ...newOrder.commissions.shipping, planned_end_date: e.target.value } 
+                            } 
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Note / Istruzioni</Label>
+                    <Textarea
+                      value={newOrder.commissions.shipping.notes}
+                      onChange={(e) => 
+                        setNewOrder({ 
+                          ...newOrder, 
+                          commissions: { 
+                            ...newOrder.commissions, 
+                            shipping: { ...newOrder.commissions.shipping, notes: e.target.value } 
+                          } 
+                        })
+                      }
+                      placeholder="Note aggiuntive, allegati necessari..."
                       rows={2}
                     />
                   </div>
