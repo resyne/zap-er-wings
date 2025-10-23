@@ -76,39 +76,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     priority: "medium",
     payment_on_delivery: false,
     payment_amount: "",
-    items: [] as Array<{ name: string; price: string }>,
     commissions: {
       production: {
         enabled: false,
-        responsible: "",
-        back_office_responsible: "",
-        bom_id: "",
-        accessori_ids: [] as string[],
-        planned_start_date: "",
-        planned_end_date: "",
-        includes_installation: false,
-        activity_description: "",
-        notes: ""
+        responsible: ""
       },
       service: {
         enabled: false,
-        responsible: "",
-        back_office_responsible: "",
-        work_description: "",
-        location: "",
-        equipment_needed: "",
-        scheduled_date: "",
-        notes: ""
+        responsible: ""
       },
       shipping: {
         enabled: false,
-        responsible: "",
-        back_office_responsible: "",
-        shipping_address: "",
-        activity_description: "",
-        planned_start_date: "",
-        planned_end_date: "",
-        notes: ""
+        responsible: ""
       }
     }
   });
@@ -237,20 +216,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const commission = newOrder.commissions.production;
     const productionData = {
       number: '',
-      title: `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
-      description: newOrder.notes || '',
+      title: newOrder.title || `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
+      description: newOrder.description || newOrder.notes || '',
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
-      bom_id: commission.bom_id || null,
-      accessori_ids: commission.accessori_ids.length > 0 ? commission.accessori_ids : null,
       assigned_to: commission.responsible || null,
       production_responsible_id: commission.responsible || null,
-      back_office_manager: commission.back_office_responsible || null,
       priority: newOrder.priority,
-      planned_start_date: commission.planned_start_date || null,
-      planned_end_date: commission.planned_end_date || null,
       notes: newOrder.notes,
-      includes_installation: commission.includes_installation,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
@@ -270,18 +243,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const commission = newOrder.commissions.service;
     const serviceData = {
       number: '',
-      title: `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
-      description: commission.work_description || newOrder.notes,
+      title: newOrder.title || `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
+      description: newOrder.description || newOrder.notes || '',
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
       lead_id: newOrder.lead_id || null,
       assigned_to: commission.responsible || null,
       service_responsible_id: commission.responsible || null,
-      back_office_manager: commission.back_office_responsible || null,
       priority: newOrder.priority,
-      scheduled_date: commission.scheduled_date ? new Date(commission.scheduled_date).toISOString() : null,
-      location: commission.location || null,
-      equipment_needed: commission.equipment_needed || null,
       notes: newOrder.notes,
       production_work_order_id: productionWOId || null,
       sales_order_id: orderId
@@ -303,11 +272,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       number: '',
       customer_id: newOrder.customer_id || null,
       shipping_responsible_id: commission.responsible || null,
-      back_office_responsible_id: commission.back_office_responsible || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
-      shipping_address: commission.shipping_address || null,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
@@ -410,24 +377,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       return;
     }
 
-    if (production.enabled && !production.bom_id) {
-      toast({
-        title: "Errore",
-        description: "Per la commessa di produzione è necessario selezionare una BOM",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (service.enabled && !service.work_description) {
-      toast({
-        title: "Errore",
-        description: "Per la commessa di lavoro è necessario descrivere il lavoro da fare",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     try {
       // Determina il tipo di ordine in base alle commesse selezionate
@@ -510,28 +459,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   };
 
-  const addItem = () => {
-    setNewOrder({
-      ...newOrder,
-      items: [...newOrder.items, { name: "", price: "" }]
-    });
-  };
-
-  const removeItem = (index: number) => {
-    setNewOrder({
-      ...newOrder,
-      items: newOrder.items.filter((_, i) => i !== index)
-    });
-  };
-
-  const updateItem = (index: number, field: "name" | "price", value: string) => {
-    const updatedItems = [...newOrder.items];
-    updatedItems[index][field] = value;
-    setNewOrder({
-      ...newOrder,
-      items: updatedItems
-    });
-  };
 
   const resetForm = () => {
     setNewOrder({
@@ -550,39 +477,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       priority: "medium",
       payment_on_delivery: false,
       payment_amount: "",
-      items: [],
       commissions: {
         production: {
           enabled: false,
-          responsible: "",
-          back_office_responsible: "",
-          bom_id: "",
-          accessori_ids: [],
-          planned_start_date: "",
-          planned_end_date: "",
-          includes_installation: false,
-          activity_description: "",
-          notes: ""
+          responsible: ""
         },
         service: {
           enabled: false,
-          responsible: "",
-          back_office_responsible: "",
-          work_description: "",
-          location: "",
-          equipment_needed: "",
-          scheduled_date: "",
-          notes: ""
+          responsible: ""
         },
         shipping: {
           enabled: false,
-          responsible: "",
-          back_office_responsible: "",
-          shipping_address: "",
-          activity_description: "",
-          planned_start_date: "",
-          planned_end_date: "",
-          notes: ""
+          responsible: ""
         }
       }
     });
@@ -798,74 +704,13 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           {/* Articolo */}
           <div>
             <Label>Articolo / Prodotto *</Label>
-            <Input
-              placeholder="Es. Forno ABC123, Abbattitore XYZ..."
+            <Textarea
+              placeholder="Es. Forno ABC123, Abbattitore XYZ, ecc..."
               value={newOrder.article}
               onChange={(e) => setNewOrder({ ...newOrder, article: e.target.value })}
+              rows={2}
             />
           </div>
-
-          {/* Articoli Section */}
-          {!newOrder.offer_id && (
-            <div className="space-y-3 border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Articoli</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addItem}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Aggiungi Articolo
-                </Button>
-              </div>
-              
-              {newOrder.items.length > 0 ? (
-                <div className="space-y-2">
-                  {newOrder.items.map((item, index) => (
-                    <div key={index} className="flex gap-2 items-start">
-                      <div className="flex-1">
-                        <Input
-                          placeholder="Nome articolo"
-                          value={item.name}
-                          onChange={(e) => updateItem(index, "name", e.target.value)}
-                        />
-                      </div>
-                      <div className="w-32">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Prezzo €"
-                          value={item.price}
-                          onChange={(e) => updateItem(index, "price", e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                        className="text-destructive"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <div className="pt-2 border-t">
-                    <div className="text-sm font-semibold text-right">
-                      Totale: €{newOrder.items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0).toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Nessun articolo aggiunto. Clicca "Aggiungi Articolo" per iniziare.
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Note */}
           <div>
@@ -907,210 +752,31 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
               {newOrder.commissions.production.enabled && (
                 <div className="space-y-3 pl-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Responsabile Tecnico *</Label>
-                      <Select 
-                        value={newOrder.commissions.production.responsible} 
-                        onValueChange={(value) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              production: { ...newOrder.commissions.production, responsible: value } 
-                            } 
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona responsabile" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label>Responsabile Back Office</Label>
-                      <Select 
-                        value={newOrder.commissions.production.back_office_responsible} 
-                        onValueChange={(value) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              production: { ...newOrder.commissions.production, back_office_responsible: value } 
-                            } 
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona responsabile" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div>
-                    <Label>BOM (Distinta Base) *</Label>
+                    <Label>Responsabile Commessa *</Label>
                     <Select 
-                      value={newOrder.commissions.production.bom_id} 
+                      value={newOrder.commissions.production.responsible} 
                       onValueChange={(value) => 
                         setNewOrder({ 
                           ...newOrder, 
                           commissions: { 
                             ...newOrder.commissions, 
-                            production: { ...newOrder.commissions.production, bom_id: value } 
+                            production: { ...newOrder.commissions.production, responsible: value } 
                           } 
                         })
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleziona BOM" />
+                        <SelectValue placeholder="Seleziona responsabile" />
                       </SelectTrigger>
                       <SelectContent>
-                        {boms.map((bom) => (
-                          <SelectItem key={bom.id} value={bom.id}>
-                            {bom.name} {bom.description && `- ${bom.description}`}
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  {accessori.length > 0 && (
-                    <div>
-                      <Label>Accessori</Label>
-                      <Select 
-                        value={newOrder.commissions.production.accessori_ids.join(',')} 
-                        onValueChange={(value) => {
-                          const ids = value ? value.split(',').filter(Boolean) : [];
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              production: { ...newOrder.commissions.production, accessori_ids: ids } 
-                            } 
-                          });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona accessori (opzionale)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {accessori.map((acc) => (
-                            <SelectItem key={acc.id} value={acc.id}>
-                              {acc.name} {acc.description && `- ${acc.description}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Data Inizio Pianificata</Label>
-                      <Input
-                        type="date"
-                        value={newOrder.commissions.production.planned_start_date}
-                        onChange={(e) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              production: { ...newOrder.commissions.production, planned_start_date: e.target.value } 
-                            } 
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>Data Fine Pianificata</Label>
-                      <Input
-                        type="date"
-                        value={newOrder.commissions.production.planned_end_date}
-                        onChange={(e) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              production: { ...newOrder.commissions.production, planned_end_date: e.target.value } 
-                            } 
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includes_installation"
-                      checked={newOrder.commissions.production.includes_installation}
-                      onCheckedChange={(checked) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            production: { ...newOrder.commissions.production, includes_installation: checked === true } 
-                          } 
-                        })
-                      }
-                    />
-                    <Label 
-                      htmlFor="includes_installation"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Include Installazione
-                    </Label>
-                  </div>
-
-                  <div>
-                    <Label>Descrizione Attività</Label>
-                    <Textarea
-                      value={newOrder.commissions.production.activity_description}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            production: { ...newOrder.commissions.production, activity_description: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Cosa deve fare il reparto produzione..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Note / Istruzioni</Label>
-                    <Textarea
-                      value={newOrder.commissions.production.notes}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            production: { ...newOrder.commissions.production, notes: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Note aggiuntive, allegati necessari..."
-                      rows={2}
-                    />
                   </div>
                 </div>
               )}
@@ -1142,147 +808,31 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
               {newOrder.commissions.service.enabled && (
                 <div className="space-y-3 pl-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Responsabile Tecnico *</Label>
-                      <Select 
-                        value={newOrder.commissions.service.responsible} 
-                        onValueChange={(value) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              service: { ...newOrder.commissions.service, responsible: value } 
-                            } 
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona responsabile" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label>Responsabile Back Office</Label>
-                      <Select 
-                        value={newOrder.commissions.service.back_office_responsible} 
-                        onValueChange={(value) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              service: { ...newOrder.commissions.service, back_office_responsible: value } 
-                            } 
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona responsabile" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div>
-                    <Label>Descrizione Lavoro *</Label>
-                    <Textarea
-                      value={newOrder.commissions.service.work_description}
-                      onChange={(e) => 
+                    <Label>Responsabile Commessa *</Label>
+                    <Select 
+                      value={newOrder.commissions.service.responsible} 
+                      onValueChange={(value) => 
                         setNewOrder({ 
                           ...newOrder, 
                           commissions: { 
                             ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, work_description: e.target.value } 
+                            service: { ...newOrder.commissions.service, responsible: value } 
                           } 
                         })
                       }
-                      placeholder="Descrivi il lavoro da svolgere..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Luogo Intervento</Label>
-                    <Input
-                      value={newOrder.commissions.service.location}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, location: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Indirizzo dell'intervento..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Attrezzatura Necessaria</Label>
-                    <Input
-                      value={newOrder.commissions.service.equipment_needed}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, equipment_needed: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Attrezzatura necessaria..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Data Pianificata</Label>
-                    <Input
-                      type="date"
-                      value={newOrder.commissions.service.scheduled_date}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, scheduled_date: e.target.value } 
-                          } 
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Note / Istruzioni</Label>
-                    <Textarea
-                      value={newOrder.commissions.service.notes}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, notes: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Note aggiuntive, allegati necessari..."
-                      rows={2}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona responsabile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -1314,181 +864,31 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
               {newOrder.commissions.shipping.enabled && (
                 <div className="space-y-3 pl-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Responsabile Tecnico *</Label>
-                      <Select 
-                        value={newOrder.commissions.shipping.responsible} 
-                        onValueChange={(value) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              shipping: { ...newOrder.commissions.shipping, responsible: value } 
-                            } 
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona responsabile" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label>Responsabile Back Office</Label>
-                      <Select 
-                        value={newOrder.commissions.shipping.back_office_responsible} 
-                        onValueChange={(value) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              shipping: { ...newOrder.commissions.shipping, back_office_responsible: value } 
-                            } 
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona responsabile" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div>
-                    <Label>Indirizzo di Spedizione</Label>
-                    <Textarea
-                      value={newOrder.commissions.shipping.shipping_address}
-                      onChange={(e) => 
+                    <Label>Responsabile Commessa *</Label>
+                    <Select 
+                      value={newOrder.commissions.shipping.responsible} 
+                      onValueChange={(value) => 
                         setNewOrder({ 
                           ...newOrder, 
                           commissions: { 
                             ...newOrder.commissions, 
-                            shipping: { ...newOrder.commissions.shipping, shipping_address: e.target.value } 
+                            shipping: { ...newOrder.commissions.shipping, responsible: value } 
                           } 
                         })
                       }
-                      placeholder="Indirizzo completo di spedizione..."
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Descrizione Attività</Label>
-                    <Textarea
-                      value={newOrder.commissions.shipping.activity_description}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            shipping: { ...newOrder.commissions.shipping, activity_description: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Cosa deve fare il reparto spedizioni..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Data Inizio Pianificata</Label>
-                      <Input
-                        type="date"
-                        value={newOrder.commissions.shipping.planned_start_date}
-                        onChange={(e) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              shipping: { ...newOrder.commissions.shipping, planned_start_date: e.target.value } 
-                            } 
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>Data Fine Pianificata</Label>
-                      <Input
-                        type="date"
-                        value={newOrder.commissions.shipping.planned_end_date}
-                        onChange={(e) => 
-                          setNewOrder({ 
-                            ...newOrder, 
-                            commissions: { 
-                              ...newOrder.commissions, 
-                              shipping: { ...newOrder.commissions.shipping, planned_end_date: e.target.value } 
-                            } 
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Note / Istruzioni</Label>
-                    <Textarea
-                      value={newOrder.commissions.shipping.notes}
-                      onChange={(e) => 
-                        setNewOrder({ 
-                          ...newOrder, 
-                          commissions: { 
-                            ...newOrder.commissions, 
-                            shipping: { ...newOrder.commissions.shipping, notes: e.target.value } 
-                          } 
-                        })
-                      }
-                      placeholder="Note aggiuntive, allegati necessari..."
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="space-y-3 border-t pt-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="payment_on_delivery"
-                        checked={newOrder.payment_on_delivery}
-                        onCheckedChange={(checked) => 
-                          setNewOrder({ ...newOrder, payment_on_delivery: checked === true })
-                        }
-                      />
-                      <Label 
-                        htmlFor="payment_on_delivery"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Pagamento alla Consegna
-                      </Label>
-                    </div>
-
-                    {newOrder.payment_on_delivery && (
-                      <div>
-                        <Label>Importo Pagamento (€)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={newOrder.payment_amount}
-                          onChange={(e) => setNewOrder({ ...newOrder, payment_amount: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    )}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona responsabile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.first_name} {user.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
