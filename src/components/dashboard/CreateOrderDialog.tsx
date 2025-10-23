@@ -392,6 +392,15 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       return;
     }
 
+    if (!newOrder.article) {
+      toast({
+        title: "Errore",
+        description: "Articolo obbligatorio",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!hasAtLeastOneCommission) {
       toast({
         title: "Errore",
@@ -536,7 +545,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       order_date: new Date().toISOString().split('T')[0],
       delivery_date: "",
       expected_delivery_date: "",
-      status: "bozza",
+      status: "draft",
       notes: "",
       priority: "medium",
       payment_on_delivery: false,
@@ -784,6 +793,16 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
+          </div>
+
+          {/* Articolo */}
+          <div>
+            <Label>Articolo / Prodotto *</Label>
+            <Input
+              placeholder="Es. Forno ABC123, Abbattitore XYZ..."
+              value={newOrder.article}
+              onChange={(e) => setNewOrder({ ...newOrder, article: e.target.value })}
+            />
           </div>
 
           {/* Articoli Section */}
