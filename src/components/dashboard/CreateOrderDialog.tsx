@@ -609,6 +609,22 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           </div>
 
+          {/* Priorità */}
+          <div>
+            <Label>Priorità</Label>
+            <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({ ...newOrder, priority: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Bassa</SelectItem>
+                <SelectItem value="medium">Media</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+                <SelectItem value="urgent">Urgente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Offerta di Riferimento */}
           <div>
             <Label>Offerta di Riferimento (Opzionale)</Label>
@@ -624,8 +640,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                   onFocus={() => setShowOfferDropdown(true)}
                 />
                 {newOrder.offer_id && (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Selezionato: {offers.find(o => o.id === newOrder.offer_id)?.number} - {offers.find(o => o.id === newOrder.offer_id)?.title}
+                  <div className="mt-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md">
+                    <p className="text-sm font-medium text-primary">
+                      ✓ Offerta selezionata: {offers.find(o => o.id === newOrder.offer_id)?.number} - {offers.find(o => o.id === newOrder.offer_id)?.title}
+                    </p>
                   </div>
                 )}
                 {showOfferDropdown && filteredOffers.length > 0 && (
@@ -659,6 +677,110 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                 size="icon"
                 onClick={() => setIsCreateOfferDialogOpen(true)}
                 title="Crea nuova offerta"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Lead di Riferimento */}
+          <div>
+            <Label>Lead di Riferimento (Opzionale)</Label>
+            <div className="relative" ref={leadInputRef}>
+              <Input
+                placeholder="Cerca e seleziona lead..."
+                value={leadSearch}
+                onChange={(e) => {
+                  setLeadSearch(e.target.value);
+                  setShowLeadDropdown(true);
+                }}
+                onFocus={() => setShowLeadDropdown(true)}
+              />
+              {newOrder.lead_id && (
+                <div className="mt-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md">
+                  <p className="text-sm font-medium text-primary">
+                    ✓ Lead selezionato: {leads.find(l => l.id === newOrder.lead_id)?.company_name}
+                    {leads.find(l => l.id === newOrder.lead_id)?.contact_name && ` - ${leads.find(l => l.id === newOrder.lead_id)?.contact_name}`}
+                  </p>
+                </div>
+              )}
+              {showLeadDropdown && filteredLeads.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                  {filteredLeads.map((lead) => (
+                    <button
+                      key={lead.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                      onClick={() => {
+                        setNewOrder({ ...newOrder, lead_id: lead.id });
+                        setLeadSearch("");
+                        setShowLeadDropdown(false);
+                      }}
+                    >
+                      <span className="text-sm">
+                        {lead.company_name}
+                        {lead.contact_name && ` - ${lead.contact_name}`}
+                        {lead.pipeline && ` [${lead.pipeline}]`}
+                      </span>
+                      {newOrder.lead_id === lead.id && (
+                        <Check className="w-4 h-4 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Cliente */}
+          <div>
+            <Label>Cliente *</Label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative" ref={customerInputRef}>
+                <Input
+                  placeholder="Cerca e seleziona cliente..."
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setShowCustomerDropdown(true);
+                  }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                />
+                {newOrder.customer_id && (
+                  <div className="mt-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md">
+                    <p className="text-sm font-medium text-primary">
+                      ✓ Cliente selezionato: {customers.find(c => c.id === newOrder.customer_id)?.code} - {customers.find(c => c.id === newOrder.customer_id)?.company_name || customers.find(c => c.id === newOrder.customer_id)?.name}
+                    </p>
+                  </div>
+                )}
+                {showCustomerDropdown && filteredCustomers.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                    {filteredCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                        onClick={() => {
+                          setNewOrder({ ...newOrder, customer_id: customer.id });
+                          setCustomerSearch("");
+                          setShowCustomerDropdown(false);
+                        }}
+                      >
+                        <span className="text-sm">{customer.code} - {customer.company_name || customer.name}</span>
+                        {newOrder.customer_id === customer.id && (
+                          <Check className="w-4 h-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setIsCreateCustomerDialogOpen(true)}
+                title="Aggiungi nuovo cliente"
               >
                 <Plus className="w-4 h-4" />
               </Button>
@@ -727,124 +849,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           )}
 
-          {/* Cliente */}
-          <div>
-            <Label>Cliente *</Label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative" ref={customerInputRef}>
-                <Input
-                  placeholder="Cerca e seleziona cliente..."
-                  value={customerSearch}
-                  onChange={(e) => {
-                    setCustomerSearch(e.target.value);
-                    setShowCustomerDropdown(true);
-                  }}
-                  onFocus={() => setShowCustomerDropdown(true)}
-                />
-                {newOrder.customer_id && (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Selezionato: {customers.find(c => c.id === newOrder.customer_id)?.code} - {customers.find(c => c.id === newOrder.customer_id)?.company_name || customers.find(c => c.id === newOrder.customer_id)?.name}
-                  </div>
-                )}
-                {showCustomerDropdown && filteredCustomers.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                    {filteredCustomers.map((customer) => (
-                      <button
-                        key={customer.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                        onClick={() => {
-                          setNewOrder({ ...newOrder, customer_id: customer.id });
-                          setCustomerSearch("");
-                          setShowCustomerDropdown(false);
-                        }}
-                      >
-                        <span className="text-sm">{customer.code} - {customer.company_name || customer.name}</span>
-                        {newOrder.customer_id === customer.id && (
-                          <Check className="w-4 h-4 text-primary" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setIsCreateCustomerDialogOpen(true)}
-                title="Aggiungi nuovo cliente"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Lead di Riferimento */}
-          <div>
-            <Label>Lead di Riferimento (Opzionale)</Label>
-            <div className="relative" ref={leadInputRef}>
-              <Input
-                placeholder="Cerca e seleziona lead..."
-                value={leadSearch}
-                onChange={(e) => {
-                  setLeadSearch(e.target.value);
-                  setShowLeadDropdown(true);
-                }}
-                onFocus={() => setShowLeadDropdown(true)}
-              />
-              {newOrder.lead_id && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Selezionato: {leads.find(l => l.id === newOrder.lead_id)?.company_name}
-                  {leads.find(l => l.id === newOrder.lead_id)?.contact_name && ` - ${leads.find(l => l.id === newOrder.lead_id)?.contact_name}`}
-                </div>
-              )}
-              {showLeadDropdown && filteredLeads.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                  {filteredLeads.map((lead) => (
-                    <button
-                      key={lead.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                      onClick={() => {
-                        setNewOrder({ ...newOrder, lead_id: lead.id });
-                        setLeadSearch("");
-                        setShowLeadDropdown(false);
-                      }}
-                    >
-                      <span className="text-sm">
-                        {lead.company_name}
-                        {lead.contact_name && ` - ${lead.contact_name}`}
-                        {lead.pipeline && ` [${lead.pipeline}]`}
-                      </span>
-                      {newOrder.lead_id === lead.id && (
-                        <Check className="w-4 h-4 text-primary" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Priorità e Note */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Priorità</Label>
-              <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({ ...newOrder, priority: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Bassa</SelectItem>
-                  <SelectItem value="medium">Media</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="urgent">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
+          {/* Note */}
           <div>
             <Label>Note</Label>
             <Textarea
