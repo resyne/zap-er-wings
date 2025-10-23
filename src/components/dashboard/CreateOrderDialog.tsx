@@ -583,8 +583,30 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Titolo e Descrizione */}
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label>Oggetto / Titolo Ordine *</Label>
+              <Input
+                placeholder="Inserisci il titolo dell'ordine"
+                value={newOrder.title}
+                onChange={(e) => setNewOrder({ ...newOrder, title: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Descrizione Dettagliata</Label>
+              <Textarea
+                placeholder="Descrizione dettagliata dell'ordine"
+                value={newOrder.description}
+                onChange={(e) => setNewOrder({ ...newOrder, description: e.target.value })}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          {/* Offerta di Riferimento */}
           <div>
-            <Label>Offerta di Riferimento</Label>
+            <Label>Offerta di Riferimento (Opzionale)</Label>
             <div className="flex gap-2">
               <div className="flex-1 relative" ref={offerInputRef}>
                 <Input
@@ -635,26 +657,6 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               >
                 <Plus className="w-4 h-4" />
               </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label>Oggetto / Titolo Ordine *</Label>
-              <Input
-                placeholder="Inserisci il titolo dell'ordine"
-                value={newOrder.title}
-                onChange={(e) => setNewOrder({ ...newOrder, title: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Descrizione Dettagliata</Label>
-              <Textarea
-                placeholder="Descrizione dettagliata dell'ordine"
-                value={newOrder.description}
-                onChange={(e) => setNewOrder({ ...newOrder, description: e.target.value })}
-                rows={4}
-              />
             </div>
           </div>
 
@@ -720,70 +722,132 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           )}
 
+          {/* Cliente */}
+          <div>
+            <Label>Cliente *</Label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative" ref={customerInputRef}>
+                <Input
+                  placeholder="Cerca e seleziona cliente..."
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setShowCustomerDropdown(true);
+                  }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                />
+                {newOrder.customer_id && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Selezionato: {customers.find(c => c.id === newOrder.customer_id)?.code} - {customers.find(c => c.id === newOrder.customer_id)?.company_name || customers.find(c => c.id === newOrder.customer_id)?.name}
+                  </div>
+                )}
+                {showCustomerDropdown && filteredCustomers.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                    {filteredCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                        onClick={() => {
+                          setNewOrder({ ...newOrder, customer_id: customer.id });
+                          setCustomerSearch("");
+                          setShowCustomerDropdown(false);
+                        }}
+                      >
+                        <span className="text-sm">{customer.code} - {customer.company_name || customer.name}</span>
+                        {newOrder.customer_id === customer.id && (
+                          <Check className="w-4 h-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setIsCreateCustomerDialogOpen(true)}
+                title="Aggiungi nuovo cliente"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Lead di Riferimento */}
+          <div>
+            <Label>Lead di Riferimento (Opzionale)</Label>
+            <div className="relative" ref={leadInputRef}>
+              <Input
+                placeholder="Cerca e seleziona lead..."
+                value={leadSearch}
+                onChange={(e) => {
+                  setLeadSearch(e.target.value);
+                  setShowLeadDropdown(true);
+                }}
+                onFocus={() => setShowLeadDropdown(true)}
+              />
+              {newOrder.lead_id && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Selezionato: {leads.find(l => l.id === newOrder.lead_id)?.company_name}
+                  {leads.find(l => l.id === newOrder.lead_id)?.contact_name && ` - ${leads.find(l => l.id === newOrder.lead_id)?.contact_name}`}
+                </div>
+              )}
+              {showLeadDropdown && filteredLeads.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                  {filteredLeads.map((lead) => (
+                    <button
+                      key={lead.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                      onClick={() => {
+                        setNewOrder({ ...newOrder, lead_id: lead.id });
+                        setLeadSearch("");
+                        setShowLeadDropdown(false);
+                      }}
+                    >
+                      <span className="text-sm">
+                        {lead.company_name}
+                        {lead.contact_name && ` - ${lead.contact_name}`}
+                        {lead.pipeline && ` [${lead.pipeline}]`}
+                      </span>
+                      {newOrder.lead_id === lead.id && (
+                        <Check className="w-4 h-4 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Priorità e Note */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Numero Ordine</Label>
-              <Input
-                value="Auto-generato"
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Il numero verrà assegnato automaticamente alla creazione
-              </p>
+              <Label>Priorità</Label>
+              <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({ ...newOrder, priority: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Bassa</SelectItem>
+                  <SelectItem value="medium">Media</SelectItem>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="urgent">Urgente</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            
-            <div>
-              <Label>Cliente *</Label>
-              <div className="flex gap-2">
-                <div className="flex-1 relative" ref={customerInputRef}>
-                  <Input
-                    placeholder="Cerca e seleziona cliente..."
-                    value={customerSearch}
-                    onChange={(e) => {
-                      setCustomerSearch(e.target.value);
-                      setShowCustomerDropdown(true);
-                    }}
-                    onFocus={() => setShowCustomerDropdown(true)}
-                  />
-                  {newOrder.customer_id && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Selezionato: {customers.find(c => c.id === newOrder.customer_id)?.code} - {customers.find(c => c.id === newOrder.customer_id)?.company_name || customers.find(c => c.id === newOrder.customer_id)?.name}
-                    </div>
-                  )}
-                  {showCustomerDropdown && filteredCustomers.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                      {filteredCustomers.map((customer) => (
-                        <button
-                          key={customer.id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                          onClick={() => {
-                            setNewOrder({ ...newOrder, customer_id: customer.id });
-                            setCustomerSearch("");
-                            setShowCustomerDropdown(false);
-                          }}
-                        >
-                          <span className="text-sm">{customer.code} - {customer.company_name || customer.name}</span>
-                          {newOrder.customer_id === customer.id && (
-                            <Check className="w-4 h-4 text-primary" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsCreateCustomerDialogOpen(true)}
-                  title="Aggiungi nuovo cliente"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+          </div>
+
+          <div>
+            <Label>Note</Label>
+            <Textarea
+              value={newOrder.notes}
+              onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })}
+              placeholder="Note aggiuntive..."
+              rows={2}
+            />
           </div>
 
           <div className="space-y-4 border-t pt-4">
@@ -1366,135 +1430,41 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       rows={2}
                     />
                   </div>
+
+                  <div className="space-y-3 border-t pt-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="payment_on_delivery"
+                        checked={newOrder.payment_on_delivery}
+                        onCheckedChange={(checked) => 
+                          setNewOrder({ ...newOrder, payment_on_delivery: checked === true })
+                        }
+                      />
+                      <Label 
+                        htmlFor="payment_on_delivery"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Pagamento alla Consegna
+                      </Label>
+                    </div>
+
+                    {newOrder.payment_on_delivery && (
+                      <div>
+                        <Label>Importo Pagamento (€)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={newOrder.payment_amount}
+                          onChange={(e) => setNewOrder({ ...newOrder, payment_amount: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Lead di Riferimento</Label>
-              <div className="relative" ref={leadInputRef}>
-                <Input
-                  placeholder="Cerca e seleziona lead..."
-                  value={leadSearch}
-                  onChange={(e) => {
-                    setLeadSearch(e.target.value);
-                    setShowLeadDropdown(true);
-                  }}
-                  onFocus={() => setShowLeadDropdown(true)}
-                />
-                {newOrder.lead_id && (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Selezionato: {leads.find(l => l.id === newOrder.lead_id)?.company_name}
-                    {leads.find(l => l.id === newOrder.lead_id)?.contact_name && ` - ${leads.find(l => l.id === newOrder.lead_id)?.contact_name}`}
-                  </div>
-                )}
-                {showLeadDropdown && filteredLeads.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                    {filteredLeads.map((lead) => (
-                      <button
-                        key={lead.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
-                        onClick={() => {
-                          setNewOrder({ ...newOrder, lead_id: lead.id });
-                          setLeadSearch("");
-                          setShowLeadDropdown(false);
-                        }}
-                      >
-                        <span className="text-sm">
-                          {lead.company_name}
-                          {lead.contact_name && ` - ${lead.contact_name}`}
-                          {lead.pipeline && ` [${lead.pipeline}]`}
-                        </span>
-                        {newOrder.lead_id === lead.id && (
-                          <Check className="w-4 h-4 text-primary" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Priorità</Label>
-              <Select value={newOrder.priority} onValueChange={(value) => setNewOrder({ ...newOrder, priority: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Bassa</SelectItem>
-                  <SelectItem value="medium">Media</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="urgent">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Data Ordine</Label>
-              <Input
-                type="date"
-                value={newOrder.order_date}
-                onChange={(e) => setNewOrder({ ...newOrder, order_date: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Data Consegna</Label>
-              <Input
-                type="date"
-                value={newOrder.delivery_date}
-                onChange={(e) => setNewOrder({ ...newOrder, delivery_date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Note</Label>
-            <Textarea
-              value={newOrder.notes}
-              onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })}
-              placeholder="Note aggiuntive..."
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-4 border-t pt-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="payment_on_delivery"
-                checked={newOrder.payment_on_delivery}
-                onCheckedChange={(checked) => 
-                  setNewOrder({ ...newOrder, payment_on_delivery: checked === true })
-                }
-              />
-              <Label 
-                htmlFor="payment_on_delivery"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Pagamento alla Consegna
-              </Label>
-            </div>
-
-            {newOrder.payment_on_delivery && (
-              <div>
-                <Label>Importo Pagamento (€)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newOrder.payment_amount}
-                  onChange={(e) => setNewOrder({ ...newOrder, payment_amount: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-            )}
           </div>
         </div>
 

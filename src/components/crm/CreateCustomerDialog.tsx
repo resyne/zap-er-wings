@@ -28,7 +28,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
     city: "",
     country: "",
     tax_id: "",
-    active: true
+    active: true,
+    incomplete_registry: false
   });
   const { toast } = useToast();
 
@@ -63,7 +64,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           city: formData.city || null,
           country: formData.country || null,
           tax_id: formData.tax_id || null,
-          active: formData.active
+          active: formData.active,
+          incomplete_registry: formData.incomplete_registry
         });
 
       if (error) throw error;
@@ -80,7 +82,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
         city: "",
         country: "",
         tax_id: "",
-        active: true
+        active: true,
+        incomplete_registry: false
       });
       onOpenChange(false);
     } catch (error: any) {
@@ -206,23 +209,32 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="tax_id">Partita IVA</Label>
-              <Input
-                id="tax_id"
-                value={formData.tax_id}
-                onChange={(e) => handleInputChange('tax_id', e.target.value)}
-                placeholder="IT12345678901"
-              />
-            </div>
-            <div className="flex items-center space-x-2 pt-6">
+          <div className="space-y-2">
+            <Label htmlFor="tax_id">Partita IVA</Label>
+            <Input
+              id="tax_id"
+              value={formData.tax_id}
+              onChange={(e) => handleInputChange('tax_id', e.target.value)}
+              placeholder="IT12345678901"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="flex items-center space-x-2">
               <Switch
                 id="active"
                 checked={formData.active}
                 onCheckedChange={(checked) => handleInputChange('active', checked)}
               />
               <Label htmlFor="active">Cliente attivo</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="incomplete_registry"
+                checked={formData.incomplete_registry}
+                onCheckedChange={(checked) => handleInputChange('incomplete_registry', checked as boolean)}
+              />
+              <Label htmlFor="incomplete_registry">Anagrafica da completare</Label>
             </div>
           </div>
 
