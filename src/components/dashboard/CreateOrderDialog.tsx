@@ -71,7 +71,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     offer_id: "",
     title: "",
     description: "",
-    article: "",
+    articles: [] as string[],
     order_source: "sale",
     order_date: new Date().toISOString().split('T')[0],
     delivery_date: "",
@@ -387,10 +387,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       return;
     }
 
-    if (!newOrder.article) {
+    if (!newOrder.articles || newOrder.articles.length === 0) {
       toast({
         title: "Errore",
-        description: "Articolo obbligatorio",
+        description: "Aggiungi almeno un articolo",
         variant: "destructive",
       });
       return;
@@ -422,7 +422,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       const orderData = {
         number: "",
         customer_id: newOrder.customer_id,
-        article: newOrder.article || null,
+        article: newOrder.articles.join('\n') || null,
         order_date: newOrder.order_date || null,
         delivery_date: newOrder.delivery_date || null,
         status: newOrder.status,
@@ -495,7 +495,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       offer_id: "",
       title: "",
       description: "",
-      article: "",
+      articles: [],
       order_source: "sale",
       order_date: new Date().toISOString().split('T')[0],
       delivery_date: "",
@@ -520,6 +520,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         }
       }
     });
+    setProductSearch("");
   };
 
   return (
@@ -729,50 +730,100 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           </div>
 
-          {/* Articolo */}
-          <div className="space-y-2">
-            <Label>Articolo / Prodotto *</Label>
-            <div className="relative" ref={productInputRef}>
-              <Input
-                placeholder="Cerca prodotto o scrivi manualmente..."
-                value={productSearch}
-                onChange={(e) => {
-                  setProductSearch(e.target.value);
-                  setShowProductDropdown(true);
+          {/* Articoli */}
+          <div className="space-y-3">
+            <Label>Articoli / Prodotti *</Label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative" ref={productInputRef}>
+                <Input
+                  placeholder="Cerca prodotto dall'anagrafica o scrivi manualmente..."
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    setShowProductDropdown(true);
+                  }}
+                  onFocus={() => setShowProductDropdown(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && productSearch.trim()) {
+                      e.preventDefault();
+                      setNewOrder({ 
+                        ...newOrder, 
+                        articles: [...newOrder.articles, productSearch.trim()] 
+                      });
+                      setProductSearch("");
+                      setShowProductDropdown(false);
+                    }
+                  }}
+                />
+                {showProductDropdown && filteredProducts.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                    {filteredProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => {
+                          const productText = `${product.code} - ${product.name}${product.description ? ` (${product.description})` : ''}`;
+                          setNewOrder({ 
+                            ...newOrder, 
+                            articles: [...newOrder.articles, productText] 
+                          });
+                          setProductSearch("");
+                          setShowProductDropdown(false);
+                        }}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{product.code} - {product.name}</span>
+                          {product.description && (
+                            <span className="text-xs text-muted-foreground">{product.description}</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (productSearch.trim()) {
+                    setNewOrder({ 
+                      ...newOrder, 
+                      articles: [...newOrder.articles, productSearch.trim()] 
+                    });
+                    setProductSearch("");
+                    setShowProductDropdown(false);
+                  }
                 }}
-                onFocus={() => setShowProductDropdown(true)}
-              />
-              {showProductDropdown && filteredProducts.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                  {filteredProducts.map((product) => (
-                    <button
-                      key={product.id}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            {/* Lista articoli aggiunti */}
+            {newOrder.articles.length > 0 && (
+              <div className="space-y-2 border rounded-lg p-3 bg-muted/50">
+                {newOrder.articles.map((article, index) => (
+                  <div key={index} className="flex items-center justify-between gap-2 bg-background p-2 rounded border">
+                    <span className="text-sm flex-1">{article}</span>
+                    <Button
                       type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
-                        const productText = `${product.code} - ${product.name}${product.description ? ` (${product.description})` : ''}`;
-                        setNewOrder({ ...newOrder, article: productText });
-                        setProductSearch("");
-                        setShowProductDropdown(false);
+                        setNewOrder({
+                          ...newOrder,
+                          articles: newOrder.articles.filter((_, i) => i !== index)
+                        });
                       }}
                     >
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">{product.code} - {product.name}</span>
-                        {product.description && (
-                          <span className="text-xs text-muted-foreground">{product.description}</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Textarea
-              placeholder="Es. Forno ABC123, Abbattitore XYZ, ecc... (puoi anche selezionare dall'anagrafica sopra)"
-              value={newOrder.article}
-              onChange={(e) => setNewOrder({ ...newOrder, article: e.target.value })}
-              rows={2}
-            />
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Note */}
