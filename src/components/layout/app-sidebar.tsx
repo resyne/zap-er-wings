@@ -77,7 +77,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Calendario Aziendale", url: "/direzione/calendario", icon: Calendar },
       { title: "Task Management", url: "/tasks", icon: CheckSquare },
       { title: "Task KPI", url: "/direzione/task-kpi", icon: TrendingUp },
-      { title: "Ordini", url: "/direzione/orders", icon: ShoppingCart },
     ]
   },
   {
@@ -99,6 +98,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Commesse",
     items: [
+      { title: "Ordini", url: "/direzione/orders", icon: ShoppingCart },
       { title: "Commesse di Produzione", url: "/mfg/work-orders", icon: Wrench },
       { title: "Commesse di Lavoro", url: "/support/work-orders", icon: Wrench },
       { title: "Commesse di Spedizione", url: "/warehouse/shipping-orders", icon: Truck },
