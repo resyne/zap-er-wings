@@ -459,6 +459,11 @@ export default function LeadsPage() {
     });
   };
 
+  const handleOpenCreateDialog = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
@@ -728,13 +733,11 @@ export default function LeadsPage() {
             <ExternalLink className="w-4 h-4 mr-2" />
             Apri Bigin CRM
           </Button>
+          <Button onClick={handleOpenCreateDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuovo Lead
+          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Nuovo Lead
-              </Button>
-            </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crea Nuovo Lead</DialogTitle>
