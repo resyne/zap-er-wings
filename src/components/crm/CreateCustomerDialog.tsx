@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CreateCustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCustomerCreated: () => void;
+  onCustomerCreated: (customerId?: string) => void;
 }
 
 export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: CreateCustomerDialogProps) {
@@ -51,7 +51,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('customers')
         .insert({
           name: formData.name,
@@ -66,11 +66,18 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           tax_id: formData.tax_id || null,
           active: formData.active,
           incomplete_registry: formData.incomplete_registry
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      onCustomerCreated();
+      toast({
+        title: "Successo",
+        description: "Cliente creato con successo",
+      });
+
+      onCustomerCreated(data?.id);
       setSameBillingAddress(true);
       setFormData({
         name: "",

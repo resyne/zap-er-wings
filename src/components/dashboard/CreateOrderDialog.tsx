@@ -218,9 +218,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     setUsers(usersData.data || []);
   };
 
-  const handleCustomerCreated = async () => {
+  const handleCustomerCreated = async (customerId?: string) => {
     await loadData();
     setIsCreateCustomerDialogOpen(false);
+    
+    // Seleziona automaticamente il cliente appena creato
+    if (customerId) {
+      setNewOrder({ ...newOrder, customer_id: customerId });
+    }
   };
 
   const handleOfferCreated = async () => {
