@@ -56,7 +56,7 @@ const navigationGroups: NavGroup[] = [
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support" },
-      { title: "Commesse di Lavoro (OdL)", url: "/support/work-orders" },
+      { title: "Commesse di Lavoro (CdL)", url: "/support/work-orders" },
       { title: "Rapporti di Intervento", url: "/support/service-reports" },
       { title: "Ticket", url: "/support/tickets" },
     ]

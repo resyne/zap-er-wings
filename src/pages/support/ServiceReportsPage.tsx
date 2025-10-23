@@ -740,7 +740,7 @@ export default function ServiceReportsPage() {
                 <SelectContent>
                   {workOrders.map((workOrder) => (
                     <SelectItem key={workOrder.id} value={workOrder.id}>
-                      {workOrder.number} - {workOrder.title} ({workOrder.type === 'service' ? 'OdL' : 'OdP'})
+                      {workOrder.number} - {workOrder.title} ({workOrder.type === 'service' ? 'CdL' : 'CdP'})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -750,7 +750,7 @@ export default function ServiceReportsPage() {
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Ordine selezionato:</h4>
                   <p><strong>{selectedWorkOrder.number}</strong> - {selectedWorkOrder.title}</p>
-                  <p>Tipo: {selectedWorkOrder.type === 'service' ? 'Commessa di Lavoro (OdL)' : 'Commessa di Produzione (OdP)'}</p>
+                  <p>Tipo: {selectedWorkOrder.type === 'service' ? 'Commessa di Lavoro (CdL)' : 'Commessa di Produzione (CdP)'}</p>
                   {selectedWorkOrder.description && <p>Descrizione: {selectedWorkOrder.description}</p>}
                   {selectedWorkOrder.location && <p>Località: {selectedWorkOrder.location}</p>}
                 </div>

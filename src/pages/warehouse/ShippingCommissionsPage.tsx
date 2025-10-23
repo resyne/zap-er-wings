@@ -783,10 +783,10 @@ export default function ShippingOrdersPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="work_order_id">Commessa di Produzione (OdP)</Label>
+                  <Label htmlFor="work_order_id">Commessa di Produzione (CdP)</Label>
                   <Select name="work_order_id" defaultValue={selectedOrder.work_order_id || ""}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Collega OdP (opzionale)" />
+                      <SelectValue placeholder="Collega CdP (opzionale)" />
                     </SelectTrigger>
                     <SelectContent>
                       {workOrders?.map((wo) => (
@@ -833,7 +833,7 @@ export default function ShippingOrdersPage() {
                   <h4 className="font-semibold mb-2">Ordini Collegati</h4>
                   {selectedOrder.work_orders && (
                     <p className="text-sm">
-                      <strong>OdP:</strong> {selectedOrder.work_orders.number} - {selectedOrder.work_orders.title}
+                      <strong>CdP:</strong> {selectedOrder.work_orders.number} - {selectedOrder.work_orders.title}
                     </p>
                   )}
                   {selectedOrder.sales_orders && (

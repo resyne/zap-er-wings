@@ -135,7 +135,7 @@ export function ShippingOrderDetailsDialog({
               <div className="space-y-1">
                 {order.work_orders && (
                   <p className="text-sm">
-                    <strong>OdP:</strong> {order.work_orders.number} - {order.work_orders.title}
+                    <strong>CdP:</strong> {order.work_orders.number} - {order.work_orders.title}
                   </p>
                 )}
                 {order.sales_orders && (

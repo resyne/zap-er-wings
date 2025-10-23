@@ -551,7 +551,7 @@ export default function WorkOrdersServicePage() {
                            <div className="flex items-center gap-1">
                              <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700">
                                <Factory className="w-3 h-3 mr-1" />
-                               Da OdP
+                               Da CdP
                              </Badge>
                            </div>
                          )}

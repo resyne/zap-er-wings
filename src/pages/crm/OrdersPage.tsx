@@ -69,10 +69,10 @@ interface Order {
 
 const orderStatuses = ["commissionato", "in_lavorazione", "completato"];
 const orderTypes = [
-  { value: "odl", label: "Commessa di Lavoro (OdL)" },
-  { value: "odp", label: "Commessa di Produzione (OdP)" },
-  { value: "odpel", label: "Commessa Produzione e Installazione (OdPeL)" },
-  { value: "ods", label: "Commessa di Spedizione (OdS)" }
+  { value: "odl", label: "Commessa di Lavoro (CdL)" },
+  { value: "odp", label: "Commessa di Produzione (CdP)" },
+  { value: "odpel", label: "Commessa Produzione e Installazione (CdP+L)" },
+  { value: "ods", label: "Commessa di Spedizione (CdS)" }
 ];
 const orderSources = [
   { value: "sale", label: "Vendita" },
@@ -644,15 +644,15 @@ export default function OrdersPage() {
   const getOrderTypeColor = (orderType?: string) => {
     switch (orderType) {
       case "odl":
-        return "bg-blue-100 text-blue-800";
+        return "Lavoro (CdL)";
       case "odp":
-        return "bg-green-100 text-green-800";
+        return "Produzione (CdP)";
       case "odpel":
-        return "bg-purple-100 text-purple-800";
+        return "Produzione + Installazione (CdP+L)";
       case "ods":
-        return "bg-orange-100 text-orange-800";
+        return "Spedizione (CdS)";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "Sconosciuto";
     }
   };
 
@@ -735,7 +735,7 @@ export default function OrdersPage() {
     if (order.work_orders && order.work_orders.length > 0) {
       order.work_orders.forEach(wo => {
         statuses.push({
-          type: wo.includes_installation ? 'OdP+Inst' : 'OdP',
+          type: wo.includes_installation ? 'CdP+L' : 'CdP',
           number: wo.number,
           status: wo.status,
           color: wo.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -749,7 +749,7 @@ export default function OrdersPage() {
     if (order.service_work_orders && order.service_work_orders.length > 0) {
       order.service_work_orders.forEach(swo => {
         statuses.push({
-          type: 'OdL',
+          type: 'CdL',
           number: swo.number,
           status: swo.status,
           color: swo.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -763,7 +763,7 @@ export default function OrdersPage() {
     if (order.shipping_orders && order.shipping_orders.length > 0) {
       order.shipping_orders.forEach(so => {
         statuses.push({
-          type: 'OdS',
+          type: 'CdS',
           number: so.number,
           status: so.status,
           color: so.status === 'spedito' ? 'bg-green-100 text-green-800' :
@@ -884,7 +884,7 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Ordini</h1>
-          <p className="text-muted-foreground">Gestisci gli ordini e la creazione automatica di OdL/OdP/OdS</p>
+          <p className="text-muted-foreground">Gestisci gli ordini e la creazione automatica di CdL/CdP/CdS</p>
         </div>
         <Button onClick={() => {
           setSelectedOfferForOrder(null);
@@ -1000,7 +1000,7 @@ export default function OrdersPage() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">OdL</CardTitle>
+            <CardTitle className="text-sm font-medium">CdL</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1011,7 +1011,7 @@ export default function OrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">OdP</CardTitle>
+            <CardTitle className="text-sm font-medium">CdP</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1022,7 +1022,7 @@ export default function OrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">OdS</CardTitle>
+            <CardTitle className="text-sm font-medium">CdS</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1242,7 +1242,7 @@ export default function OrdersPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Questa azione eliminerà permanentemente l'ordine {order.number} e tutti i sotto-ordini associati (OdP, OdL, OdS). Questa azione non può essere annullata.
+                                Questa azione eliminerà permanentemente l'ordine {order.number} e tutti i sotto-ordini associati (CdP, CdL, CdS). Questa azione non può essere annullata.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -1355,7 +1355,7 @@ export default function OrdersPage() {
                                                      <AlertDialogHeader>
                                                        <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                                                        <AlertDialogDescription>
-                                                         Questa azione eliminerà permanentemente l'ordine e tutti i sotto-ordini associati (OdP, OdL, OdS). Questa azione non può essere annullata.
+                                                         Questa azione eliminerà permanentemente l'ordine e tutti i sotto-ordini associati (CdP, CdL, CdS). Questa azione non può essere annullata.
                                                        </AlertDialogDescription>
                                                      </AlertDialogHeader>
                                                      <AlertDialogFooter>
@@ -1582,7 +1582,7 @@ export default function OrdersPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Questa azione eliminerà permanentemente l'ordine {selectedOrder?.number} e tutti i sotto-ordini associati (OdP, OdL, OdS). Questa azione non può essere annullata.
+                        Questa azione eliminerà permanentemente l'ordine {selectedOrder?.number} e tutti i sotto-ordini associati (CdP, CdL, CdS). Questa azione non può essere annullata.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1819,7 +1819,7 @@ export default function OrdersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Conferma cambio stato</AlertDialogTitle>
             <AlertDialogDescription>
-              Sei sicuro di voler cambiare lo stato di questo ordine? Questa azione modificherà anche lo stato di tutti i sotto-ordini associati (OdP, OdL, OdS).
+              Sei sicuro di voler cambiare lo stato di questo ordine? Questa azione modificherà anche lo stato di tutti i sotto-ordini associati (CdP, CdL, CdS).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
