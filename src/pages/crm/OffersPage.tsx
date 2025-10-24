@@ -92,6 +92,7 @@ export default function OffersPage() {
     amount: number;
     valid_until: string;
     status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
+    template: 'zapper' | 'vesuviano' | 'zapperpro';
   }>({
     id: undefined,
     customer_id: '',
@@ -99,7 +100,8 @@ export default function OffersPage() {
     description: '',
     amount: 0,
     valid_until: '',
-    status: 'richiesta_offerta'
+    status: 'richiesta_offerta',
+    template: 'zapper'
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -215,8 +217,22 @@ export default function OffersPage() {
         .eq('id', offer.customer_id)
         .maybeSingle();
 
+      // Determine template based on offer.template field or default to zapper
+      const templateName = (offer as any).template || 'zapper';
+      const templateMap = {
+        zapper: '/templates/offer-template.html',
+        vesuviano: '/templates/offer-template-vesuviano.html',
+        zapperpro: '/templates/offer-template-zapperpro.html'
+      };
+      
+      const templateBrandMap = {
+        zapper: 'ZAPPER S.r.l.',
+        vesuviano: 'VESUVIANO S.r.l.',
+        zapperpro: 'ZAPPER PRO S.r.l.'
+      };
+
       // Fetch template
-      const templateResponse = await fetch('/templates/offer-template.html');
+      const templateResponse = await fetch(templateMap[templateName as keyof typeof templateMap] || templateMap.zapper);
       let templateHtml = await templateResponse.text();
 
       // Calculate totals
@@ -266,7 +282,7 @@ export default function OffersPage() {
         .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
         .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/{{tempi_consegna}}/g, 'Da concordare')
-        .replace(/{{firma_commerciale}}/g, 'ZAPPER S.r.l.');
+        .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
 
       // Create temporary container
       const tempDiv = document.createElement('div');
@@ -425,7 +441,8 @@ export default function OffersPage() {
             description: newOffer.description,
             amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
             valid_until: newOffer.valid_until || null,
-            status: 'offerta_pronta'
+            status: 'offerta_pronta',
+            template: newOffer.template
           })
           .eq('id', newOffer.id)
           .select()
@@ -471,7 +488,8 @@ export default function OffersPage() {
             description: newOffer.description,
             amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
             valid_until: newOffer.valid_until || null,
-            status: newOffer.status
+            status: newOffer.status,
+            template: newOffer.template
           }])
           .select()
           .single();
@@ -507,7 +525,8 @@ export default function OffersPage() {
         description: '',
         amount: 0,
         valid_until: '',
-        status: 'richiesta_offerta'
+        status: 'richiesta_offerta',
+        template: 'zapper'
       });
       setSelectedProducts([]);
       setIsCreateDialogOpen(false);
@@ -949,6 +968,25 @@ export default function OffersPage() {
                 />
               </div>
               
+              <div>
+                <label className="text-sm font-medium">Template Offerta</label>
+                <Select 
+                  value={newOffer.template} 
+                  onValueChange={(value: 'zapper' | 'vesuviano' | 'zapperpro') => 
+                    setNewOffer(prev => ({ ...prev, template: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="zapper">ZAPPER - Renewed Air</SelectItem>
+                    <SelectItem value="vesuviano">Vesuviano - Tradizione e Qualità</SelectItem>
+                    <SelectItem value="zapperpro">ZAPPER PRO - Professional Solutions</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
               {/* Sezione Prodotti */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1256,7 +1294,8 @@ export default function OffersPage() {
                                 description: offer.description || `Richiesta:\n${offer.title}\n\nDettagli:\n- Cliente: ${offer.customer_name}\n- Importo stimato: € ${offer.amount.toFixed(2)}`,
                                 amount: offer.amount,
                                 valid_until: '',
-                                status: 'offerta_pronta'
+                                status: 'offerta_pronta',
+                                template: 'zapper'
                               });
                               setSelectedProducts([]);
                               setIsCreateDialogOpen(true);
