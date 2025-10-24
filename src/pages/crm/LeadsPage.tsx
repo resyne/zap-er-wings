@@ -685,6 +685,54 @@ export default function LeadsPage() {
     }
   };
 
+  const handleUpdateOfferStatus = async (offerId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("offers")
+        .update({ status: newStatus })
+        .eq("id", offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stato Aggiornato",
+        description: "Lo stato dell'offerta è stato aggiornato",
+      });
+
+      await loadOffers();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getOfferStatusColor = (status: string) => {
+    switch (status) {
+      case 'richiesta_offerta': return 'bg-slate-100 text-slate-800';
+      case 'offerta_pronta': return 'bg-blue-100 text-blue-800';
+      case 'offerta_inviata': return 'bg-purple-100 text-purple-800';
+      case 'negoziazione': return 'bg-orange-100 text-orange-800';
+      case 'confermata': return 'bg-green-100 text-green-800';
+      case 'rifiutata': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getOfferStatusText = (status: string) => {
+    switch (status) {
+      case 'richiesta_offerta': return 'Richiesta';
+      case 'offerta_pronta': return 'Pronta';
+      case 'offerta_inviata': return 'Inviata';
+      case 'negoziazione': return 'Negoziazione';
+      case 'confermata': return 'Confermata';
+      case 'rifiutata': return 'Rifiutata';
+      default: return status;
+    }
+  };
+
   const handleWebhookReceived = useCallback(() => {
     loadLeads();
     toast({
@@ -1348,22 +1396,23 @@ export default function LeadsPage() {
 
                                   {/* Offerta collegata o pulsante per collegarla */}
                                   <div className="border-t pt-2">
-                                    {offers.find(o => o.lead_id === lead.id) ? (
+                                    {offers.filter(o => o.lead_id === lead.id).length > 0 ? (
                                       <>
                                         <div className="flex items-center gap-2 mb-1">
                                           <FileText className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                          <span className="text-xs font-medium text-purple-600">Offerta Collegata</span>
+                                          <span className="text-xs font-medium text-purple-600">
+                                            Offerte Collegate ({offers.filter(o => o.lead_id === lead.id).length})
+                                          </span>
                                         </div>
-                                        {(() => {
-                                          const linkedOffer = offers.find(o => o.lead_id === lead.id);
-                                          return linkedOffer && (
-                                            <div className="ml-5 space-y-1">
+                                        <div className="ml-5 space-y-2">
+                                          {offers.filter(o => o.lead_id === lead.id).map(linkedOffer => (
+                                            <div key={linkedOffer.id} className="space-y-1 pb-2 border-b last:border-b-0">
                                               <div className="text-xs">
                                                 <span className="font-medium">{linkedOffer.number}</span>
                                                 {" - "}
                                                 <span className="text-muted-foreground">{linkedOffer.title}</span>
                                               </div>
-                                              <div className="flex items-center justify-between">
+                                              <div className="flex items-center gap-2">
                                                 <span className="text-xs text-green-600 font-medium">
                                                   €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                                                 </span>
@@ -1380,8 +1429,8 @@ export default function LeadsPage() {
                                                  </Button>
                                               </div>
                                             </div>
-                                          );
-                                        })()}
+                                          ))}
+                                        </div>
                                       </>
                                     ) : (
                                       <div className="space-y-2">
@@ -1703,38 +1752,61 @@ export default function LeadsPage() {
                 </div>
               )}
 
-              {/* Linked Offer */}
-              {offers.find(o => o.lead_id === selectedLead.id) && (
+              {/* Linked Offers */}
+              {offers.filter(o => o.lead_id === selectedLead.id).length > 0 && (
                 <div className="border-t pt-4">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <FileText className="h-4 w-4 text-purple-600" />
-                    <label className="text-sm font-medium text-purple-600">Offerta Collegata</label>
+                    <label className="text-sm font-medium text-purple-600">
+                      Offerte Collegate ({offers.filter(o => o.lead_id === selectedLead.id).length})
+                    </label>
                   </div>
-                  {(() => {
-                    const linkedOffer = offers.find(o => o.lead_id === selectedLead.id);
-                    return linkedOffer && (
-                      <div className="ml-6 space-y-2">
-                        <div>
-                          <span className="text-sm font-medium">{linkedOffer.number}</span>
-                          <span className="text-sm text-muted-foreground"> - {linkedOffer.title}</span>
+                  <div className="space-y-4">
+                    {offers.filter(o => o.lead_id === selectedLead.id).map(linkedOffer => (
+                      <div key={linkedOffer.id} className="ml-6 p-3 bg-muted/50 rounded-lg space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1 flex-1">
+                            <div>
+                              <span className="text-sm font-medium">{linkedOffer.number}</span>
+                              <span className="text-sm text-muted-foreground"> - {linkedOffer.title}</span>
+                            </div>
+                            <div className="text-sm text-green-600 font-medium">
+                              €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setIsDetailsDialogOpen(false);
+                              navigate('/crm/offers');
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div className="text-sm text-green-600 font-medium">
-                          €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Stato Offerta</Label>
+                          <Select
+                            value={linkedOffer.status}
+                            onValueChange={(value) => handleUpdateOfferStatus(linkedOffer.id, value)}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="richiesta_offerta">Richiesta</SelectItem>
+                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                              <SelectItem value="confermata">Confermata</SelectItem>
+                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setIsDetailsDialogOpen(false);
-                            navigate('/crm/offers');
-                          }}
-                        >
-                          Vai all'offerta
-                          <ExternalLink className="h-3 w-3 ml-2" />
-                        </Button>
                       </div>
-                    );
-                  })()}
+                    ))}
+                  </div>
                 </div>
               )}
 
