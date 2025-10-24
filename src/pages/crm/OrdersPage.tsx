@@ -36,6 +36,7 @@ interface Order {
   order_type?: string;
   lead_id?: string;
   offer_id?: string;
+  archived?: boolean;
   created_at: string;
   attachments?: Array<{
     path: string;
@@ -858,6 +859,10 @@ export default function OrdersPage() {
   }, [showArchivedOrders]);
 
   const filteredOrders = orders.filter(order => {
+    // Filtro archiviati
+    if (!showArchivedOrders && order.archived) return false;
+    if (showArchivedOrders && !order.archived) return false;
+    
     const matchesSearch = `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());

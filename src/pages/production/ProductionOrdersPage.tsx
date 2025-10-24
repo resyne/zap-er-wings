@@ -87,6 +87,7 @@ export default function WorkOrdersPage() {
   const [showFiltersDialog, setShowFiltersDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [parentOrderFiles, setParentOrderFiles] = useState<any[]>([]);
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
 
@@ -112,7 +113,7 @@ export default function WorkOrdersPage() {
     fetchCustomers();
     fetchUsers();
     fetchTechnicians();
-  }, []);
+  }, [showArchivedOrders]);
 
   const fetchWorkOrders = async () => {
     try {
