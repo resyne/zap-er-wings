@@ -594,23 +594,48 @@ export default function OrdersPage() {
 
   const handleArchiveOrder = async (orderId: string) => {
     try {
-      const { error } = await supabase
+      // Archivia l'ordine principale
+      const { error: orderError } = await supabase
         .from("sales_orders")
         .update({ archived: true })
         .eq("id", orderId);
 
-      if (error) throw error;
+      if (orderError) throw orderError;
+
+      // Archivia le commesse di produzione collegate
+      const { error: workOrdersError } = await supabase
+        .from("work_orders")
+        .update({ archived: true })
+        .eq("sales_order_id", orderId);
+
+      if (workOrdersError) throw workOrdersError;
+
+      // Archivia le commesse di lavoro collegate
+      const { error: serviceOrdersError } = await supabase
+        .from("service_work_orders")
+        .update({ archived: true })
+        .eq("sales_order_id", orderId);
+
+      if (serviceOrdersError) throw serviceOrdersError;
+
+      // Archivia le commesse di spedizione collegate
+      const { error: shippingOrdersError } = await supabase
+        .from("shipping_orders")
+        .update({ archived: true })
+        .eq("sales_order_id", orderId);
+
+      if (shippingOrdersError) throw shippingOrdersError;
 
       toast({
         title: "Ordine archiviato",
-        description: "L'ordine è stato archiviato con successo",
+        description: "L'ordine e tutte le commesse collegate sono stati archiviati con successo",
       });
 
       loadOrders();
     } catch (error: any) {
       toast({
         title: "Errore",
-        description: "Impossibile archiviare l'ordine",
+        description: "Impossibile archiviare l'ordine: " + error.message,
         variant: "destructive",
       });
     }
