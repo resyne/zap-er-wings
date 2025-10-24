@@ -5778,6 +5778,7 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           description: string | null
+          diameter: string | null
           id: string
           includes_installation: boolean | null
           lead_id: string | null
@@ -5792,6 +5793,7 @@ export type Database = {
           production_responsible_id: string | null
           sales_order_id: string | null
           scheduled_date: string | null
+          smoke_inlet: string | null
           status: Database["public"]["Enums"]["wo_status"]
           title: string
           updated_at: string | null
@@ -5809,6 +5811,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
+          diameter?: string | null
           id?: string
           includes_installation?: boolean | null
           lead_id?: string | null
@@ -5823,6 +5826,7 @@ export type Database = {
           production_responsible_id?: string | null
           sales_order_id?: string | null
           scheduled_date?: string | null
+          smoke_inlet?: string | null
           status?: Database["public"]["Enums"]["wo_status"]
           title: string
           updated_at?: string | null
@@ -5840,6 +5844,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
+          diameter?: string | null
           id?: string
           includes_installation?: boolean | null
           lead_id?: string | null
@@ -5854,6 +5859,7 @@ export type Database = {
           production_responsible_id?: string | null
           sales_order_id?: string | null
           scheduled_date?: string | null
+          smoke_inlet?: string | null
           status?: Database["public"]["Enums"]["wo_status"]
           title?: string
           updated_at?: string | null
