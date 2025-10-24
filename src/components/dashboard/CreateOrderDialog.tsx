@@ -84,7 +84,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     commissions: {
       production: {
         enabled: false,
-        responsible: ""
+        responsible: "",
+        diameter: "",
+        smoke_inlet: ""
       },
       service: {
         enabled: false,
@@ -253,7 +255,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       notes: newOrder.notes,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
-      sales_order_id: orderId
+      sales_order_id: orderId,
+      diameter: commission.diameter || null,
+      smoke_inlet: commission.smoke_inlet || null
     };
 
     const { data: productionWO, error } = await supabase
@@ -506,7 +510,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       commissions: {
         production: {
           enabled: false,
-          responsible: ""
+          responsible: "",
+          diameter: "",
+          smoke_inlet: ""
         },
         service: {
           enabled: false,
@@ -889,6 +895,49 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Diametro</Label>
+                      <Input
+                        placeholder="Es. 800mm"
+                        value={newOrder.commissions.production.diameter}
+                        onChange={(e) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, diameter: e.target.value } 
+                            } 
+                          })
+                        }
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Ingresso Fumi</Label>
+                      <Select 
+                        value={newOrder.commissions.production.smoke_inlet} 
+                        onValueChange={(value) => 
+                          setNewOrder({ 
+                            ...newOrder, 
+                            commissions: { 
+                              ...newOrder.commissions, 
+                              production: { ...newOrder.commissions.production, smoke_inlet: value } 
+                            } 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="dx">Destra</SelectItem>
+                          <SelectItem value="sx">Sinistra</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               )}
