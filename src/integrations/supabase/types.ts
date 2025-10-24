@@ -3021,6 +3021,7 @@ export type Database = {
           payment_terms: string | null
           priority: string | null
           status: string
+          template: string | null
           timeline_collaudo: string | null
           timeline_consegna: string | null
           timeline_installazione: string | null
@@ -3047,6 +3048,7 @@ export type Database = {
           payment_terms?: string | null
           priority?: string | null
           status?: string
+          template?: string | null
           timeline_collaudo?: string | null
           timeline_consegna?: string | null
           timeline_installazione?: string | null
@@ -3073,6 +3075,7 @@ export type Database = {
           payment_terms?: string | null
           priority?: string | null
           status?: string
+          template?: string | null
           timeline_collaudo?: string | null
           timeline_consegna?: string | null
           timeline_installazione?: string | null
