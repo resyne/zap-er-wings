@@ -3016,6 +3016,8 @@ export type Database = {
           lead_id: string | null
           metodi_pagamento: string | null
           number: string
+          payment_agreement: string | null
+          payment_method: string | null
           payment_terms: string | null
           priority: string | null
           status: string
@@ -3040,6 +3042,8 @@ export type Database = {
           lead_id?: string | null
           metodi_pagamento?: string | null
           number: string
+          payment_agreement?: string | null
+          payment_method?: string | null
           payment_terms?: string | null
           priority?: string | null
           status?: string
@@ -3064,6 +3068,8 @@ export type Database = {
           lead_id?: string | null
           metodi_pagamento?: string | null
           number?: string
+          payment_agreement?: string | null
+          payment_method?: string | null
           payment_terms?: string | null
           priority?: string | null
           status?: string

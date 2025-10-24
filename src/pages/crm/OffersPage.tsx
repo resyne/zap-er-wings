@@ -43,6 +43,8 @@ interface Offer {
   timeline_collaudo?: string;
   incluso_fornitura?: string;
   metodi_pagamento?: string;
+  payment_method?: string;
+  payment_agreement?: string;
 }
 
 interface Lead {
@@ -107,6 +109,8 @@ export default function OffersPage() {
     timeline_installazione?: string;
     incluso_fornitura?: string;
     metodi_pagamento?: string;
+    payment_method?: string;
+    payment_agreement?: string;
   }>({
     id: undefined,
     customer_id: '',
@@ -119,8 +123,10 @@ export default function OffersPage() {
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
-    incluso_fornitura: '',
-    metodi_pagamento: '30% acconto - 70% alla consegna'
+    incluso_fornitura: '✓ Certificazione di conformità\n✓ 1 anno di garanzia',
+    metodi_pagamento: '30% acconto - 70% alla consegna',
+    payment_method: 'bonifico',
+    payment_agreement: '50% acconto - 50% a consegna'
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -301,10 +307,20 @@ export default function OffersPage() {
         .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
         .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/{{tempi_consegna}}/g, 'Da concordare')
-        .replace(/{{metodi_pagamento}}/g, offer.metodi_pagamento || '30% acconto - 70% alla consegna')
         .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
         .replace(/{{logo}}/g, '/images/logo-zapper.png')
         .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
+        
+      // Gestisci payment_method e payment_agreement
+      const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
+      const paymentAgreementText = offer.payment_agreement === 'altro' 
+        ? (offer.metodi_pagamento || '30% acconto - 70% alla consegna')
+        : offer.payment_agreement || '50% acconto - 50% a consegna';
+      
+      templateHtml = templateHtml
+        .replace(/{{payment_method}}/g, paymentMethodText)
+        .replace(/{{payment_agreement}}/g, paymentAgreementText)
+        .replace(/{{metodi_pagamento}}/g, paymentAgreementText);
         
       // Gestisci incluso_fornitura
       const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
@@ -513,7 +529,14 @@ export default function OffersPage() {
             amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
             valid_until: newOffer.valid_until || null,
             status: 'offerta_pronta',
-            template: newOffer.template
+            template: newOffer.template,
+            timeline_produzione: newOffer.timeline_produzione || null,
+            timeline_consegna: newOffer.timeline_consegna || null,
+            timeline_installazione: newOffer.timeline_installazione || null,
+            incluso_fornitura: newOffer.incluso_fornitura || null,
+            metodi_pagamento: newOffer.metodi_pagamento || null,
+            payment_method: newOffer.payment_method || null,
+            payment_agreement: newOffer.payment_agreement || null
           })
           .eq('id', newOffer.id)
           .select()
@@ -560,7 +583,14 @@ export default function OffersPage() {
             amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
             valid_until: newOffer.valid_until || null,
             status: newOffer.status,
-            template: newOffer.template
+            template: newOffer.template,
+            timeline_produzione: newOffer.timeline_produzione || null,
+            timeline_consegna: newOffer.timeline_consegna || null,
+            timeline_installazione: newOffer.timeline_installazione || null,
+            incluso_fornitura: newOffer.incluso_fornitura || null,
+            metodi_pagamento: newOffer.metodi_pagamento || null,
+            payment_method: newOffer.payment_method || null,
+            payment_agreement: newOffer.payment_agreement || null
           }])
           .select()
           .single();
@@ -598,11 +628,13 @@ export default function OffersPage() {
             valid_until: '',
             status: 'richiesta_offerta',
             template: 'zapper',
-      timeline_produzione: '',
-      timeline_consegna: '',
-      timeline_installazione: '',
-            incluso_fornitura: '',
-            metodi_pagamento: '30% acconto - 70% alla consegna'
+            timeline_produzione: '',
+            timeline_consegna: '',
+            timeline_installazione: '',
+            incluso_fornitura: '✓ Certificazione di conformità\n✓ 1 anno di garanzia',
+            metodi_pagamento: '30% acconto - 70% alla consegna',
+            payment_method: 'bonifico',
+            payment_agreement: '50% acconto - 50% a consegna'
           });
       setSelectedProducts([]);
       setIsCreateDialogOpen(false);
@@ -1096,27 +1128,85 @@ export default function OffersPage() {
                 <Textarea
                   value={newOffer.incluso_fornitura}
                   onChange={(e) => setNewOffer(prev => ({ ...prev, incluso_fornitura: e.target.value }))}
-                  placeholder="Inserisci una voce per riga, es:&#10;Fornitura e installazione completa&#10;Formazione del personale&#10;Assistenza tecnica 12 mesi"
+                  placeholder="Inserisci una voce per riga, es:&#10;✓ Fornitura e installazione completa&#10;✓ Formazione del personale"
                   rows={4}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Una voce per riga</p>
+                <p className="text-xs text-muted-foreground mt-1">Una voce per riga (usa ✓ per le spunte)</p>
               </div>
               
-              <div>
-                <label className="text-sm font-medium">Metodi di Pagamento</label>
-                <Textarea
-                  value={newOffer.metodi_pagamento}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, metodi_pagamento: e.target.value }))}
-                  placeholder="Es: 30% acconto - 70% alla consegna"
-                  rows={2}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Metodo di Pagamento</label>
+                  <Select 
+                    value={newOffer.payment_method} 
+                    onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_method: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona metodo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bonifico">Bonifico bancario</SelectItem>
+                      <SelectItem value="contrassegno">Contrassegno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Accordi di Pagamento</label>
+                  <Select 
+                    value={newOffer.payment_agreement} 
+                    onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_agreement: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona accordo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
+                      <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
+                      <SelectItem value="altro">Altro (personalizzato)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              
+              {newOffer.payment_agreement === 'altro' && (
+                <div>
+                  <label className="text-sm font-medium">Accordo Personalizzato</label>
+                  <Textarea
+                    value={newOffer.metodi_pagamento}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, metodi_pagamento: e.target.value }))}
+                    placeholder="Descrivi l'accordo di pagamento personalizzato..."
+                    rows={2}
+                  />
+                </div>
+              )}
               
               {/* Sezione Prodotti */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Articoli dall'Anagrafica Prodotti</label>
+                  <label className="text-sm font-medium">Prodotti e Servizi</label>
                   <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedProducts([...selectedProducts, {
+                          product_id: `manual-${Date.now()}`,
+                          product_name: '',
+                          description: '',
+                          quantity: 1,
+                          unit_price: 0,
+                          discount_percent: 0,
+                          vat_rate: 22,
+                          reverse_charge: globalReverseCharge,
+                          notes: ''
+                        }]);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Aggiungi Voce Manuale
+                    </Button>
                     <Checkbox
                       id="reverse-charge"
                       checked={globalReverseCharge}
@@ -1175,8 +1265,21 @@ export default function OffersPage() {
                     {selectedProducts.map((item, index) => (
                       <div key={index} className="border rounded p-4 space-y-3 bg-muted/50">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm mb-1">{item.product_name}</div>
+                          <div className="flex-1 space-y-2">
+                            {item.product_id.startsWith('manual-') ? (
+                              <Input
+                                value={item.product_name}
+                                onChange={(e) => {
+                                  const updated = [...selectedProducts];
+                                  updated[index].product_name = e.target.value;
+                                  setSelectedProducts(updated);
+                                }}
+                                placeholder="Nome prodotto/servizio"
+                                className="font-medium text-sm"
+                              />
+                            ) : (
+                              <div className="font-medium text-sm mb-1">{item.product_name}</div>
+                            )}
                             <Textarea
                               value={item.description}
                               onChange={(e) => {
