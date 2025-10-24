@@ -105,7 +105,6 @@ export default function OffersPage() {
     timeline_produzione?: string;
     timeline_consegna?: string;
     timeline_installazione?: string;
-    timeline_collaudo?: string;
     incluso_fornitura?: string;
     metodi_pagamento?: string;
   }>({
@@ -117,10 +116,9 @@ export default function OffersPage() {
     valid_until: '',
     status: 'richiesta_offerta',
     template: 'zapper',
-    timeline_produzione: '2-3 settimane',
-    timeline_consegna: '3-5 giorni',
-    timeline_installazione: '1 giorno',
-    timeline_collaudo: '1 giorno',
+    timeline_produzione: '',
+    timeline_consegna: '',
+    timeline_installazione: '',
     incluso_fornitura: '',
     metodi_pagamento: '30% acconto - 70% alla consegna'
   });
@@ -303,10 +301,6 @@ export default function OffersPage() {
         .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
         .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/{{tempi_consegna}}/g, 'Da concordare')
-        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || '2-3 settimane')
-        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || '3-5 giorni')
-        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || '1 giorno')
-        .replace(/{{timeline_collaudo}}/g, offer.timeline_collaudo || '1 giorno')
         .replace(/{{metodi_pagamento}}/g, offer.metodi_pagamento || '30% acconto - 70% alla consegna')
         .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
         .replace(/{{logo}}/g, '/images/logo-zapper.png')
@@ -318,6 +312,48 @@ export default function OffersPage() {
         ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
         : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
       templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
+
+      // Gestisci timeline_section - mostra solo se ci sono tempi compilati
+      const timelineSteps = [];
+      if (offer.timeline_produzione) {
+        timelineSteps.push(`
+          <div class="timeline-step">
+            <div class="timeline-icon">🏭</div>
+            <div class="timeline-label">Produzione</div>
+            <div class="timeline-duration">${offer.timeline_produzione}</div>
+          </div>
+        `);
+      }
+      if (offer.timeline_consegna) {
+        timelineSteps.push(`
+          <div class="timeline-step">
+            <div class="timeline-icon">🚚</div>
+            <div class="timeline-label">Consegna</div>
+            <div class="timeline-duration">${offer.timeline_consegna}</div>
+          </div>
+        `);
+      }
+      if (offer.timeline_installazione) {
+        timelineSteps.push(`
+          <div class="timeline-step">
+            <div class="timeline-icon">🔧</div>
+            <div class="timeline-label">Installazione</div>
+            <div class="timeline-duration">${offer.timeline_installazione}</div>
+          </div>
+        `);
+      }
+      
+      const timelineSectionHtml = timelineSteps.length > 0 
+        ? `
+          <div class="timeline-box">
+            <div class="timeline-title">⏱️ Tempi Operativi</div>
+            <div class="timeline-steps" style="grid-template-columns: repeat(${timelineSteps.length}, 1fr);">
+              ${timelineSteps.join('')}
+            </div>
+          </div>
+        `
+        : '';
+      templateHtml = templateHtml.replace(/{{timeline_section}}/g, timelineSectionHtml);
 
       // Create temporary container
       const tempDiv = document.createElement('div');
@@ -562,10 +598,9 @@ export default function OffersPage() {
             valid_until: '',
             status: 'richiesta_offerta',
             template: 'zapper',
-            timeline_produzione: '2-3 settimane',
-            timeline_consegna: '3-5 giorni',
-            timeline_installazione: '1 giorno',
-            timeline_collaudo: '1 giorno',
+      timeline_produzione: '',
+      timeline_consegna: '',
+      timeline_installazione: '',
             incluso_fornitura: '',
             metodi_pagamento: '30% acconto - 70% alla consegna'
           });
@@ -1029,37 +1064,29 @@ export default function OffersPage() {
               </div>
               
               {/* Timeline Operativa */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium">Timeline Produzione</label>
+                  <label className="text-sm font-medium">Tempi di Produzione</label>
                   <Input
                     value={newOffer.timeline_produzione}
                     onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_produzione: e.target.value }))}
-                    placeholder="Es: 2-3 settimane"
+                    placeholder="Es: 2-3 settimane (lascia vuoto per non includere)"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Timeline Consegna</label>
+                  <label className="text-sm font-medium">Tempi di Consegna</label>
                   <Input
                     value={newOffer.timeline_consegna}
                     onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_consegna: e.target.value }))}
-                    placeholder="Es: 3-5 giorni"
+                    placeholder="Es: 3-5 giorni (lascia vuoto per non includere)"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Timeline Installazione</label>
+                  <label className="text-sm font-medium">Tempi di Installazione</label>
                   <Input
                     value={newOffer.timeline_installazione}
                     onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_installazione: e.target.value }))}
-                    placeholder="Es: 1 giorno"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Timeline Collaudo</label>
-                  <Input
-                    value={newOffer.timeline_collaudo}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_collaudo: e.target.value }))}
-                    placeholder="Es: 1 giorno"
+                    placeholder="Es: 1 giorno (lascia vuoto per non includere)"
                   />
                 </div>
               </div>
