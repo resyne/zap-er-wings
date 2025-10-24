@@ -1034,7 +1034,7 @@ export default function OffersPage() {
                 Nuova Offerta
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Crea Nuova Offerta</DialogTitle>
               <DialogDescription>
@@ -1042,6 +1042,7 @@ export default function OffersPage() {
               </DialogDescription>
             </DialogHeader>
             
+            <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Cliente</label>
@@ -1475,7 +1476,7 @@ export default function OffersPage() {
                 </div>
               </div>
               
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" onClick={() => {
                   setIsCreateDialogOpen(false);
                 }}>
@@ -1486,6 +1487,7 @@ export default function OffersPage() {
                 </Button>
               </div>
             </div>
+            </ScrollArea>
           </DialogContent>
         </Dialog>
         </div>
