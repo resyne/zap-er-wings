@@ -399,8 +399,11 @@ export default function OffersPage() {
     }
   };
 
-  const handleCustomerCreated = () => {
-    loadData(); // Reload customers list after creation
+  const handleCustomerCreated = async (customerId?: string) => {
+    await loadData(); // Reload customers list after creation
+    if (customerId) {
+      setNewOffer(prev => ({ ...prev, customer_id: customerId }));
+    }
   };
 
   const getStatusColor = (status: string) => {
