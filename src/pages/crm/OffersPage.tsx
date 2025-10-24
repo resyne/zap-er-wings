@@ -7,15 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Offer {
   id: string;
@@ -67,7 +67,6 @@ export default function OffersPage() {
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
     product_name: string;
@@ -450,9 +449,7 @@ export default function OffersPage() {
     }
   };
 
-  const filteredOffers = statusFilter === 'all'
-    ? offers 
-    : offers.filter(offer => offer.status === statusFilter);
+  const filteredOffers = offers;
 
   const statusCounts = {
     all: offers.length,
@@ -589,21 +586,21 @@ export default function OffersPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Offerte Commerciali</h1>
-          <p className="text-muted-foreground">Gestisci le offerte e invia preventivi ai clienti</p>
+          <p className="text-muted-foreground">Segui il processo dalle richieste all'accettazione</p>
         </div>
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              Nuova Richiesta di Offerta
+              Nuova Offerta
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Crea Nuova Richiesta di Offerta</DialogTitle>
+              <DialogTitle>Crea Nuova Offerta</DialogTitle>
               <DialogDescription>
-                Compila i dettagli della richiesta di offerta
+                Inserisci i dettagli dell'offerta commerciale
               </DialogDescription>
             </DialogHeader>
             
@@ -887,7 +884,7 @@ export default function OffersPage() {
                   Annulla
                 </Button>
                 <Button onClick={handleCreateOffer}>
-                  Crea Richiesta di Offerta
+                  Crea Offerta
                 </Button>
               </div>
             </div>
@@ -901,188 +898,254 @@ export default function OffersPage() {
         onCustomerCreated={handleCustomerCreated}
       />
 
-      {/* Filtri per stato */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        <Button
-          variant={statusFilter === 'all' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('all')}
-          size="sm"
-        >
-          Tutte ({statusCounts.all})
-        </Button>
-        <Button
-          variant={statusFilter === 'richiesta_offerta' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('richiesta_offerta')}
-          size="sm"
-        >
-          Richieste ({statusCounts.richiesta_offerta})
-        </Button>
-        <Button
-          variant={statusFilter === 'offerta_pronta' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('offerta_pronta')}
-          size="sm"
-        >
-          Pronte ({statusCounts.offerta_pronta})
-        </Button>
-        <Button
-          variant={statusFilter === 'offerta_inviata' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('offerta_inviata')}
-          size="sm"
-        >
-          Inviate ({statusCounts.offerta_inviata})
-        </Button>
-        <Button
-          variant={statusFilter === 'negoziazione' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('negoziazione')}
-          size="sm"
-        >
-          In Negoziazione ({statusCounts.negoziazione})
-        </Button>
-        <Button
-          variant={statusFilter === 'accettata' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('accettata')}
-          size="sm"
-        >
-          Accettate ({statusCounts.accettata})
-        </Button>
-        <Button
-          variant={statusFilter === 'rifiutata' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('rifiutata')}
-          size="sm"
-        >
-          Rifiutate ({statusCounts.rifiutata})
-        </Button>
-      </div>
-
-      {/* Grid di Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredOffers.map((offer) => {
-          const relatedLead = leads.find(l => l.id === offer.lead_id);
-          
-          return (
-            <Card key={offer.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1 flex-1">
-                    <CardTitle className="text-lg">{offer.number}</CardTitle>
-                    <CardDescription className="text-xs">{offer.customer_name}</CardDescription>
-                  </div>
-                  <div className="flex flex-col gap-1 items-end">
-                    <Badge className={getStatusColor(offer.status)}>
-                      {getStatusText(offer.status)}
-                    </Badge>
-                    {offer.priority && (
-                      <Badge variant="outline" className={getPriorityColor(offer.priority)}>
-                        {getPriorityText(offer.priority)}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-sm mb-1">{offer.title}</h4>
-                  {offer.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {offer.description}
-                    </p>
-                  )}
-                </div>
-
-                {relatedLead && (
-                  <div className="text-xs bg-muted p-2 rounded">
-                    <div className="font-medium">{relatedLead.company_name}</div>
-                    <div className="text-muted-foreground">{relatedLead.contact_name}</div>
-                  </div>
-                )}
-
-                {offer.payment_terms && (
-                  <div className="text-xs bg-blue-50 p-2 rounded border border-blue-200">
-                    <span className="font-medium">Pagamento:</span> {offer.payment_terms}
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-2 border-t">
-                  <span className="text-lg font-bold text-primary">
-                    € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(offer.created_at).toLocaleDateString('it-IT')}
-                  </span>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => openDetails(offer)}
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    Dettagli
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownloadPDF(offer)}
-                  >
-                    <Download className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleSendEmail(offer)}
-                  >
-                    <Mail className="w-3 h-3" />
-                  </Button>
-                </div>
-
-                {/* Azioni rapide cambio stato */}
-                <div className="grid grid-cols-2 gap-2">
-                  {offer.status !== 'accettata' && offer.status !== 'rifiutata' && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => handleChangeStatus(offer.id, 'accettata')}
-                      >
-                        ✓ Accetta
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
-                      >
-                        ✗ Rifiuta
-                      </Button>
-                    </>
-                  )}
-                  {offer.status === 'richiesta_offerta' && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="col-span-2"
-                      onClick={() => handleChangeStatus(offer.id, 'offerta_pronta')}
-                    >
-                      Segna come Pronta
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {filteredOffers.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nessuna offerta {statusFilter !== 'all' ? 'con questo stato' : 'trovata'}</p>
+      {/* Vista Kanban con Fasi */}
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+        {/* Colonna: Richieste */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-slate-600" />
+              <CardTitle className="text-sm">Richieste</CardTitle>
+            </div>
+            <Badge variant="secondary" className="w-fit">{statusCounts.richiesta_offerta}</Badge>
+          </CardHeader>
+          <CardContent className="p-2">
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-2 pr-2">
+                {offers.filter(o => o.status === 'richiesta_offerta').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">{offer.number}</div>
+                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className="flex gap-1 pt-2">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => openDetails(offer)}>
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="flex-1" 
+                          onClick={() => handleChangeStatus(offer.id, 'offerta_pronta')}
+                        >
+                          <FileCheck className="w-3 h-3 mr-1" />
+                          Prepara
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
-      )}
+
+        {/* Colonna: Pronte */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <FileCheck className="w-4 h-4 text-blue-600" />
+              <CardTitle className="text-sm">Pronte</CardTitle>
+            </div>
+            <Badge variant="secondary" className="w-fit">{statusCounts.offerta_pronta}</Badge>
+          </CardHeader>
+          <CardContent className="p-2">
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-2 pr-2">
+                {offers.filter(o => o.status === 'offerta_pronta').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-blue-200">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">{offer.number}</div>
+                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className="flex gap-1 pt-2">
+                        <Button size="sm" variant="outline" onClick={() => openDetails(offer)}>
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(offer)}>
+                          <Download className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="w-full bg-blue-600 hover:bg-blue-700" 
+                        onClick={() => {
+                          handleSendEmail(offer);
+                        }}
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        Invia
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Colonna: Inviate */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Send className="w-4 h-4 text-purple-600" />
+              <CardTitle className="text-sm">Inviate</CardTitle>
+            </div>
+            <Badge variant="secondary" className="w-fit">{statusCounts.offerta_inviata}</Badge>
+          </CardHeader>
+          <CardContent className="p-2">
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-2 pr-2">
+                {offers.filter(o => o.status === 'offerta_inviata').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-purple-200">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">{offer.number}</div>
+                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(offer.created_at).toLocaleDateString('it-IT')}
+                      </div>
+                      <div className="flex gap-1 pt-2">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => openDetails(offer)}>
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="flex-1" 
+                          onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
+                        >
+                          <MessageSquare className="w-3 h-3 mr-1" />
+                          Negozia
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Colonna: In Negoziazione */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-orange-600" />
+              <CardTitle className="text-sm">Negoziazione</CardTitle>
+            </div>
+            <Badge variant="secondary" className="w-fit">{statusCounts.negoziazione}</Badge>
+          </CardHeader>
+          <CardContent className="p-2">
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-2 pr-2">
+                {offers.filter(o => o.status === 'negoziazione').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-orange-200">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">{offer.number}</div>
+                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className="flex gap-1 pt-2">
+                        <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                          <Eye className="w-3 h-3 mr-1" />
+                          Dettagli
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <Button 
+                          size="sm" 
+                          className="bg-green-600 hover:bg-green-700" 
+                          onClick={() => handleChangeStatus(offer.id, 'accettata')}
+                        >
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Accettata
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
+                        >
+                          <XCircle className="w-3 h-3 mr-1" />
+                          Rifiutata
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Colonna: Accettate */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <CardTitle className="text-sm">Accettate</CardTitle>
+            </div>
+            <Badge variant="secondary" className="w-fit">{statusCounts.accettata}</Badge>
+          </CardHeader>
+          <CardContent className="p-2">
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-2 pr-2">
+                {offers.filter(o => o.status === 'accettata').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-green-200 bg-green-50/50">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">{offer.number}</div>
+                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="text-sm font-semibold text-green-700">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className="flex gap-1 pt-2">
+                        <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                          <Eye className="w-3 h-3 mr-1" />
+                          Dettagli
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Colonna: Rifiutate */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-red-600" />
+              <CardTitle className="text-sm">Rifiutate</CardTitle>
+            </div>
+            <Badge variant="secondary" className="w-fit">{statusCounts.rifiutata}</Badge>
+          </CardHeader>
+          <CardContent className="p-2">
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-2 pr-2">
+                {offers.filter(o => o.status === 'rifiutata').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-red-200 bg-red-50/50">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">{offer.number}</div>
+                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="text-sm font-semibold text-red-700">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className="flex gap-1 pt-2">
+                        <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                          <Eye className="w-3 h-3 mr-1" />
+                          Dettagli
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Dialog Dettagli Offerta */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
