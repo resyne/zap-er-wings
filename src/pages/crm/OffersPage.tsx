@@ -13,6 +13,7 @@ import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, Fil
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -200,53 +201,114 @@ export default function OffersPage() {
   };
 
   const generateOfferPDF = async (offer: Offer) => {
-    const customer = customers.find(c => c.id === offer.customer_id);
-    
-    const pdf = new jsPDF();
-    
-    // Header azienda
-    pdf.setFontSize(20);
-    pdf.text('ZAPPER S.R.L.', 20, 30);
-    pdf.setFontSize(12);
-    pdf.text('Via Esempio 123, 12345 Città', 20, 40);
-    pdf.text('P.IVA: 12345678901', 20, 50);
-    pdf.text('Tel: +39 123 456 789', 20, 60);
-    
-    // Intestazione cliente
-    pdf.setFontSize(14);
-    pdf.text('OFFERTA COMMERCIALE', 20, 80);
-    
-    pdf.setFontSize(12);
-    pdf.text(`Numero Offerta: ${offer.number}`, 20, 100);
-    pdf.text(`Data: ${new Date(offer.created_at).toLocaleDateString('it-IT')}`, 20, 110);
-    
-    if (customer) {
-      pdf.text('Cliente:', 20, 130);
-      pdf.text(customer.name, 20, 140);
-      if (customer.address) pdf.text(customer.address, 20, 150);
-      if (customer.tax_id) pdf.text(`P.IVA: ${customer.tax_id}`, 20, 160);
+    try {
+      // Fetch offer items
+      const { data: offerItems } = await supabase
+        .from('offer_items')
+        .select('*')
+        .eq('offer_id', offer.id);
+
+      // Fetch customer details
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', offer.customer_id)
+        .maybeSingle();
+
+      // Fetch template
+      const templateResponse = await fetch('/templates/offer-template.html');
+      let templateHtml = await templateResponse.text();
+
+      // Calculate totals
+      const totaleImponibile = offerItems?.reduce((sum, item) => {
+        const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+        return sum + itemTotal;
+      }, 0) || offer.amount;
+
+      const totaleIva = totaleImponibile * 0.22;
+      const totaleLordo = totaleImponibile + totaleIva;
+
+      // Generate products table
+      let tabellaHtml = '<table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Prezzo Unit.</th><th>Sconto</th><th>Totale</th></tr></thead><tbody>';
+      
+      if (offerItems && offerItems.length > 0) {
+        offerItems.forEach(item => {
+          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+          tabellaHtml += `
+            <tr>
+              <td>${item.description || 'N/A'}</td>
+              <td>${item.quantity}</td>
+              <td>€ ${item.unit_price.toFixed(2)}</td>
+              <td>${item.discount_percent || 0}%</td>
+              <td>€ ${itemTotal.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+      } else {
+        tabellaHtml += `
+          <tr>
+            <td colspan="5">${offer.description || offer.title}</td>
+          </tr>
+        `;
+      }
+      tabellaHtml += '</tbody></table>';
+
+      // Replace placeholders
+      templateHtml = templateHtml
+        .replace(/{{numero_offerta}}/g, offer.number)
+        .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
+        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
+        .replace(/{{cliente_indirizzo}}/g, customer?.address || 'N/A')
+        .replace(/{{oggetto_offerta}}/g, offer.title)
+        .replace(/{{tabella_prodotti}}/g, tabellaHtml)
+        .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
+        .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
+        .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
+        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
+        .replace(/{{tempi_consegna}}/g, 'Da concordare')
+        .replace(/{{firma_commerciale}}/g, 'ZAPPER S.r.l.');
+
+      // Create temporary container
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = templateHtml;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      document.body.appendChild(tempDiv);
+
+      // Generate PDF from HTML
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight();
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+
+      return pdf;
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      throw error;
     }
-    
-    // Contenuto offerta
-    pdf.text('Oggetto:', 20, 180);
-    pdf.text(offer.title, 20, 190);
-    
-    if (offer.description) {
-      pdf.text('Descrizione:', 20, 210);
-      const lines = pdf.splitTextToSize(offer.description, 170);
-      pdf.text(lines, 20, 220);
-    }
-    
-    // Importo
-    pdf.setFontSize(14);
-    pdf.text(`Importo: € ${offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`, 20, 250);
-    
-    if (offer.valid_until) {
-      pdf.setFontSize(12);
-      pdf.text(`Valida fino al: ${new Date(offer.valid_until).toLocaleDateString('it-IT')}`, 20, 270);
-    }
-    
-    return pdf;
   };
 
   const handleDownloadPDF = async (offer: Offer) => {
