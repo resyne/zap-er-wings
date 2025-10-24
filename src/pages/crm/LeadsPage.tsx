@@ -1422,7 +1422,7 @@ export default function LeadsPage() {
                                                    className="h-6 px-2"
                                                    onClick={(e) => {
                                                      e.stopPropagation();
-                                                     navigate('/crm/offers');
+                                                     navigate(`/crm/offers?offer=${linkedOffer.id}`);
                                                    }}
                                                  >
                                                    <ExternalLink className="h-3 w-3" />
@@ -1779,7 +1779,7 @@ export default function LeadsPage() {
                             variant="ghost"
                             onClick={() => {
                               setIsDetailsDialogOpen(false);
-                              navigate('/crm/offers');
+                              navigate(`/crm/offers?offer=${linkedOffer.id}`);
                             }}
                           >
                             <ExternalLink className="h-4 w-4" />

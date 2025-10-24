@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface Offer {
   id: string;
@@ -54,6 +54,7 @@ interface Customer {
 
 export default function OffersPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -78,6 +79,21 @@ export default function OffersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!loading && offers.length > 0) {
+      const offerId = searchParams.get('offer');
+      if (offerId) {
+        const offer = offers.find(o => o.id === offerId);
+        if (offer) {
+          setSelectedOffer(offer);
+          setIsDetailsDialogOpen(true);
+          // Remove the parameter to prevent reopening on refresh
+          setSearchParams({});
+        }
+      }
+    }
+  }, [loading, offers, searchParams]);
 
   const loadData = async () => {
     setLoading(true);
