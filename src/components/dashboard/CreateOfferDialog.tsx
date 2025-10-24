@@ -110,10 +110,9 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
 
       toast({
         title: "Offerta Creata",
-        description: "L'offerta e il lead collegato sono stati creati con successo",
+        description: "L'offerta è stata creata. Puoi aggiungerne un'altra per lo stesso cliente.",
       });
 
-      onOpenChange(false);
       resetForm();
       onSuccess?.();
     } catch (error) {
@@ -129,8 +128,10 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
   };
 
   const resetForm = () => {
+    // Mantiene il cliente selezionato per permettere di aggiungere più offerte consecutive
+    const currentCustomerId = newOffer.customer_id;
     setNewOffer({
-      customer_id: '',
+      customer_id: currentCustomerId,
       title: '',
       description: '',
       amount: 0,
