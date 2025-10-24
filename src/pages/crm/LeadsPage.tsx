@@ -15,7 +15,7 @@ import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
 
@@ -80,6 +80,7 @@ const allStatuses = kanbanStatuses;
 
 export default function LeadsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { hideAmounts } = useHideAmounts();
   const [users, setUsers] = useState<Array<{id: string, first_name: string, last_name: string, email: string}>>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -133,6 +134,23 @@ export default function LeadsPage() {
     loadUsers();
     loadOffers();
   }, []);
+
+  // Gestione parametro URL per aprire un lead specifico
+  useEffect(() => {
+    const leadId = searchParams.get('lead');
+    if (leadId && leads.length > 0) {
+      const lead = leads.find(l => l.id === leadId);
+      if (lead) {
+        // Imposta la pipeline corretta
+        setSelectedPipeline(lead.pipeline || "ZAPPER");
+        // Apri il dialog del lead
+        setSelectedLead(lead);
+        setIsDetailsDialogOpen(true);
+        // Rimuovi il parametro dall'URL
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, leads]);
 
   const loadLeads = async () => {
     try {
