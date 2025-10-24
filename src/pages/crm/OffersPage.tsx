@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
@@ -702,7 +703,15 @@ export default function OffersPage() {
                     <Input
                       type="number"
                       value={offerRequest.net_amount}
-                      onChange={(e) => setOfferRequest(prev => ({ ...prev, net_amount: parseFloat(e.target.value) || 0 }))}
+                      onChange={(e) => {
+                        const netAmount = parseFloat(e.target.value) || 0;
+                        const vatAmount = offerRequest.reverse_charge ? 0 : netAmount * 0.22;
+                        setOfferRequest(prev => ({ 
+                          ...prev, 
+                          net_amount: netAmount,
+                          vat_amount: vatAmount
+                        }));
+                      }}
                       placeholder="0.00"
                       step="0.01"
                     />
@@ -713,10 +722,12 @@ export default function OffersPage() {
                       id="request-reverse-charge"
                       checked={offerRequest.reverse_charge}
                       onCheckedChange={(checked) => {
+                        const isReverseCharge = checked === true;
+                        const vatAmount = isReverseCharge ? 0 : offerRequest.net_amount * 0.22;
                         setOfferRequest(prev => ({ 
                           ...prev, 
-                          reverse_charge: checked === true,
-                          vat_amount: checked ? 0 : prev.vat_amount
+                          reverse_charge: isReverseCharge,
+                          vat_amount: vatAmount
                         }));
                       }}
                     />
@@ -725,26 +736,21 @@ export default function OffersPage() {
                     </label>
                   </div>
                   
-                  {!offerRequest.reverse_charge && (
-                    <div>
-                      <label className="text-sm font-medium">Importo IVA (€)</label>
-                      <Input
-                        type="number"
-                        value={offerRequest.vat_amount}
-                        onChange={(e) => setOfferRequest(prev => ({ ...prev, vat_amount: parseFloat(e.target.value) || 0 }))}
-                        placeholder="0.00"
-                        step="0.01"
-                      />
+                  <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Importo Netto:</span>
+                      <span className="font-medium">€ {offerRequest.net_amount.toFixed(2)}</span>
                     </div>
-                  )}
-                  
-                  <div className="bg-muted p-3 rounded-lg">
-                    <div className="text-sm font-medium">Totale</div>
-                    <div className="text-2xl font-bold">
-                      € {(offerRequest.reverse_charge 
-                        ? offerRequest.net_amount 
-                        : offerRequest.net_amount + offerRequest.vat_amount
-                      ).toFixed(2)}
+                    <div className="flex justify-between text-sm">
+                      <span>IVA (22%):</span>
+                      <span className="font-medium">€ {offerRequest.vat_amount.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between">
+                      <span className="font-medium">Totale:</span>
+                      <span className="text-xl font-bold">
+                        € {(offerRequest.net_amount + offerRequest.vat_amount).toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
