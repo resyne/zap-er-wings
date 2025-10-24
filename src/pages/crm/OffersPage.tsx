@@ -147,7 +147,7 @@ export default function OffersPage() {
       // Load products
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('id, name, code, price, description')
+        .select('id, name, code, base_price, description')
         .order('name');
 
       if (productsError) throw productsError;
@@ -651,7 +651,7 @@ export default function OffersPage() {
                         product_id: product.id,
                         description: product.name,
                         quantity: 1,
-                        unit_price: product.price || 0,
+                        unit_price: product.base_price || 0,
                         discount_percent: 0,
                         notes: product.description
                       }]);
@@ -664,7 +664,7 @@ export default function OffersPage() {
                   <SelectContent>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.code} - {product.name} - €{product.price?.toFixed(2) || '0.00'}
+                        {product.code} - {product.name} - €{product.base_price?.toFixed(2) || '0.00'}
                       </SelectItem>
                     ))}
                   </SelectContent>
