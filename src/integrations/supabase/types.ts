@@ -4688,12 +4688,51 @@ export type Database = {
           },
         ]
       }
+      service_work_order_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          service_work_order_id: string
+          tagged_users: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          service_work_order_id: string
+          tagged_users?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          service_work_order_id?: string
+          tagged_users?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_work_order_comments_service_work_order_id_fkey"
+            columns: ["service_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_work_orders: {
         Row: {
           actual_end_date: string | null
           actual_hours: number | null
           actual_start_date: string | null
           archived: boolean | null
+          article: string | null
           assigned_to: string | null
           back_office_manager: string | null
           contact_id: string | null
@@ -4722,6 +4761,7 @@ export type Database = {
           actual_hours?: number | null
           actual_start_date?: string | null
           archived?: boolean | null
+          article?: string | null
           assigned_to?: string | null
           back_office_manager?: string | null
           contact_id?: string | null
@@ -4750,6 +4790,7 @@ export type Database = {
           actual_hours?: number | null
           actual_start_date?: string | null
           archived?: boolean | null
+          article?: string | null
           assigned_to?: string | null
           back_office_manager?: string | null
           contact_id?: string | null
@@ -4811,6 +4852,44 @@ export type Database = {
           },
         ]
       }
+      shipping_order_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          shipping_order_id: string
+          tagged_users: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          shipping_order_id: string
+          tagged_users?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          shipping_order_id?: string
+          tagged_users?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_order_comments_shipping_order_id_fkey"
+            columns: ["shipping_order_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipping_order_items: {
         Row: {
           created_at: string
@@ -4865,6 +4944,7 @@ export type Database = {
       shipping_orders: {
         Row: {
           archived: boolean | null
+          article: string | null
           back_office_manager: string | null
           back_office_responsible_id: string | null
           created_at: string
@@ -4889,6 +4969,7 @@ export type Database = {
         }
         Insert: {
           archived?: boolean | null
+          article?: string | null
           back_office_manager?: string | null
           back_office_responsible_id?: string | null
           created_at?: string
@@ -4913,6 +4994,7 @@ export type Database = {
         }
         Update: {
           archived?: boolean | null
+          article?: string | null
           back_office_manager?: string | null
           back_office_responsible_id?: string | null
           created_at?: string
@@ -5764,12 +5846,51 @@ export type Database = {
           },
         ]
       }
+      work_order_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          tagged_users: string[] | null
+          updated_at: string
+          user_id: string
+          work_order_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          tagged_users?: string[] | null
+          updated_at?: string
+          user_id: string
+          work_order_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          tagged_users?: string[] | null
+          updated_at?: string
+          user_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_comments_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_orders: {
         Row: {
           accessori_ids: string[] | null
           actual_end_date: string | null
           actual_start_date: string | null
           archived: boolean | null
+          article: string | null
           assigned_to: string | null
           back_office_manager: string | null
           bom_id: string | null
@@ -5803,6 +5924,7 @@ export type Database = {
           actual_end_date?: string | null
           actual_start_date?: string | null
           archived?: boolean | null
+          article?: string | null
           assigned_to?: string | null
           back_office_manager?: string | null
           bom_id?: string | null
@@ -5836,6 +5958,7 @@ export type Database = {
           actual_end_date?: string | null
           actual_start_date?: string | null
           archived?: boolean | null
+          article?: string | null
           assigned_to?: string | null
           back_office_manager?: string | null
           bom_id?: string | null

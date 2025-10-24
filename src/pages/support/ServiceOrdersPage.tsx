@@ -32,6 +32,7 @@ interface ServiceWorkOrder {
   created_at: string;
   updated_at: string;
   notes?: string;
+  article?: string;
   production_work_order_id?: string;
   sales_order_id?: string;
   lead_id?: string;
@@ -771,6 +772,17 @@ export default function WorkOrdersServicePage() {
                   </Badge>
                 </div>
               </div>
+              
+              {/* Articles */}
+              {selectedWorkOrder.article && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Articoli</Label>
+                  <div className="bg-muted/50 p-3 rounded-lg mt-1">
+                    <p className="text-sm whitespace-pre-wrap">{selectedWorkOrder.article}</p>
+                  </div>
+                </div>
+              )}
+              
               {selectedWorkOrder.notes && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Note</Label>

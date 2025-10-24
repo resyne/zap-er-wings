@@ -13,6 +13,7 @@ interface ShippingOrder {
   payment_on_delivery: boolean;
   payment_amount?: number;
   notes?: string;
+  article?: string;
   companies?: { name: string; address?: string };
   work_orders?: { number: string; title: string };
   sales_orders?: { number: string };
@@ -202,6 +203,16 @@ export function ShippingOrderDetailsDialog({
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground">Note</h4>
               <p className="whitespace-pre-wrap">{order.notes}</p>
+            </div>
+          )}
+          
+          {/* Articles */}
+          {order.article && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli</h4>
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="text-sm whitespace-pre-wrap">{order.article}</p>
+              </div>
             </div>
           )}
         </div>

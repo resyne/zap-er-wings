@@ -36,6 +36,7 @@ interface WorkOrder {
   contact_id?: string;
   priority?: string;
   notes?: string;
+  article?: string;
   bom_id?: string;
   accessori_ids?: string[];
   sales_order_id?: string;
@@ -1111,6 +1112,16 @@ export default function WorkOrdersPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Articles */}
+              {selectedWO.article && (
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium text-muted-foreground mb-2 block">Articoli</Label>
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <p className="text-sm whitespace-pre-wrap">{selectedWO.article}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Composizione BOM */}
               {selectedWO.bom_id && (
