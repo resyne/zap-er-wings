@@ -640,15 +640,14 @@ export default function LeadsPage() {
 
       toast({
         title: "Offerta creata",
-        description: "L'offerta è stata creata con successo e collegata al lead",
+        description: "L'offerta è stata creata. Puoi aggiungerne un'altra per lo stesso lead.",
       });
 
-      setIsOfferDialogOpen(false);
-      setCurrentLeadForOffer(null);
+      // Mantiene il dialog aperto e il lead selezionato per permettere di creare più offerte
       setNewOffer({
-        title: "",
-        customer_name: "",
-        amount: "",
+        title: `Offerta per ${currentLeadForOffer.company_name}`,
+        customer_name: currentLeadForOffer.company_name,
+        amount: currentLeadForOffer.value?.toString() || "",
         status: "richiesta_offerta",
         description: "",
       });
@@ -1759,19 +1758,17 @@ export default function LeadsPage() {
                   <Edit className="h-4 w-4 mr-2" />
                   Modifica
                 </Button>
-                {!offers.find(o => o.lead_id === selectedLead.id) && (
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      setIsDetailsDialogOpen(false);
-                      handleCreateOfferForLead(selectedLead);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Crea Offerta
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setIsDetailsDialogOpen(false);
+                    handleCreateOfferForLead(selectedLead);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crea Offerta
+                </Button>
                 {selectedLead.status === "negotiation" && (
                   <>
                     <Button
