@@ -64,6 +64,7 @@ export default function OffersPage() {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
+  const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
@@ -88,6 +89,14 @@ export default function OffersPage() {
     amount: 0,
     valid_until: '',
     status: 'richiesta_offerta' as const
+  });
+
+  const [offerRequest, setOfferRequest] = useState({
+    customer_name: '',
+    subject: '',
+    net_amount: 0,
+    vat_amount: 0,
+    reverse_charge: false
   });
 
   useEffect(() => {
@@ -405,6 +414,68 @@ export default function OffersPage() {
     }
   };
 
+  const handleCreateOfferRequest = async () => {
+    try {
+      if (!offerRequest.customer_name.trim()) {
+        toast({
+          title: "Errore",
+          description: "Inserisci il nome del cliente",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!offerRequest.subject.trim()) {
+        toast({
+          title: "Errore",
+          description: "Inserisci l'oggetto della richiesta",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const offerNumber = `RIC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      
+      const totalAmount = offerRequest.reverse_charge 
+        ? offerRequest.net_amount 
+        : offerRequest.net_amount + offerRequest.vat_amount;
+
+      const { error } = await supabase
+        .from('offers')
+        .insert([{
+          number: offerNumber,
+          customer_name: offerRequest.customer_name,
+          title: offerRequest.subject,
+          amount: totalAmount,
+          status: 'richiesta_offerta'
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Richiesta Creata",
+        description: "La richiesta di offerta è stata creata con successo",
+      });
+
+      setIsRequestDialogOpen(false);
+      setOfferRequest({
+        customer_name: '',
+        subject: '',
+        net_amount: 0,
+        vat_amount: 0,
+        reverse_charge: false
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error creating offer request:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione della richiesta",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'richiesta_offerta': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100';
@@ -589,14 +660,115 @@ export default function OffersPage() {
           <p className="text-muted-foreground">Segui il processo dalle richieste all'accettazione</p>
         </div>
         
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nuova Offerta
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+        <div className="flex gap-2">
+          <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Richiesta di Offerta
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Richiesta di Offerta</DialogTitle>
+                <DialogDescription>
+                  Crea una richiesta veloce di offerta
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Cliente</label>
+                  <Input
+                    value={offerRequest.customer_name}
+                    onChange={(e) => setOfferRequest(prev => ({ ...prev, customer_name: e.target.value }))}
+                    placeholder="Nome del cliente"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Oggetto della Richiesta</label>
+                  <Textarea
+                    value={offerRequest.subject}
+                    onChange={(e) => setOfferRequest(prev => ({ ...prev, subject: e.target.value }))}
+                    placeholder="Descrizione breve della richiesta"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Importo Netto (€)</label>
+                    <Input
+                      type="number"
+                      value={offerRequest.net_amount}
+                      onChange={(e) => setOfferRequest(prev => ({ ...prev, net_amount: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.00"
+                      step="0.01"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="request-reverse-charge"
+                      checked={offerRequest.reverse_charge}
+                      onCheckedChange={(checked) => {
+                        setOfferRequest(prev => ({ 
+                          ...prev, 
+                          reverse_charge: checked === true,
+                          vat_amount: checked ? 0 : prev.vat_amount
+                        }));
+                      }}
+                    />
+                    <label htmlFor="request-reverse-charge" className="text-sm cursor-pointer">
+                      Reverse Charge (IVA a 0)
+                    </label>
+                  </div>
+                  
+                  {!offerRequest.reverse_charge && (
+                    <div>
+                      <label className="text-sm font-medium">Importo IVA (€)</label>
+                      <Input
+                        type="number"
+                        value={offerRequest.vat_amount}
+                        onChange={(e) => setOfferRequest(prev => ({ ...prev, vat_amount: parseFloat(e.target.value) || 0 }))}
+                        placeholder="0.00"
+                        step="0.01"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="bg-muted p-3 rounded-lg">
+                    <div className="text-sm font-medium">Totale</div>
+                    <div className="text-2xl font-bold">
+                      € {(offerRequest.reverse_charge 
+                        ? offerRequest.net_amount 
+                        : offerRequest.net_amount + offerRequest.vat_amount
+                      ).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsRequestDialogOpen(false)}>
+                    Annulla
+                  </Button>
+                  <Button onClick={handleCreateOfferRequest}>
+                    Crea Richiesta
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nuova Offerta
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Crea Nuova Offerta</DialogTitle>
               <DialogDescription>
@@ -890,6 +1062,7 @@ export default function OffersPage() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <CreateCustomerDialog
