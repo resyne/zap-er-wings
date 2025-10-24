@@ -265,7 +265,7 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={`space-y-3 min-h-[300px] rounded-lg p-2 transition-colors ${
-                          snapshot.isDraggingOver ? config.color : ''
+                          snapshot.isDraggingOver ? config.color : `${config.color} opacity-30`
                         }`}
                       >
                         {statusTasks.map((task, index) => (
