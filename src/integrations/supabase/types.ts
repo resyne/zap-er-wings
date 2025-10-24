@@ -2953,6 +2953,7 @@ export type Database = {
           id: string
           notes: string | null
           offer_id: string
+          product_id: string | null
           quantity: number
           total_price: number | null
           unit_price: number
@@ -2965,6 +2966,7 @@ export type Database = {
           id?: string
           notes?: string | null
           offer_id: string
+          product_id?: string | null
           quantity?: number
           total_price?: number | null
           unit_price?: number
@@ -2977,6 +2979,7 @@ export type Database = {
           id?: string
           notes?: string | null
           offer_id?: string
+          product_id?: string | null
           quantity?: number
           total_price?: number | null
           unit_price?: number
@@ -2988,6 +2991,13 @@ export type Database = {
             columns: ["offer_id"]
             isOneToOne: false
             referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]

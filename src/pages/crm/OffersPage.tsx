@@ -59,6 +59,7 @@ export default function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
@@ -66,6 +67,7 @@ export default function OffersPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -142,10 +144,18 @@ export default function OffersPage() {
 
       if (leadsError) throw leadsError;
 
+      // Load products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, code, price, description')
+        .order('name');
+
+      if (productsError) throw productsError;
 
       setOffers(transformedOffers);
       setCustomers(customersData || []);
       setLeads(leadsData || []);
+      setProducts(productsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -308,8 +318,13 @@ export default function OffersPage() {
 
       const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
+      // Calculate total from selected products
+      const calculatedTotal = selectedProducts.reduce((sum, item) => {
+        return sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100));
+      }, 0);
+
       // Crea l'offerta - il trigger creerà automaticamente il lead
-      const { error } = await supabase
+      const { data: offerData, error } = await supabase
         .from('offers')
         .insert([{
           number: offerNumber,
@@ -317,12 +332,33 @@ export default function OffersPage() {
           customer_name: customer.name,
           title: newOffer.title,
           description: newOffer.description,
-          amount: newOffer.amount,
+          amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
           valid_until: newOffer.valid_until || null,
           status: newOffer.status
-        }]);
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Insert offer items if any products were selected
+      if (selectedProducts.length > 0 && offerData) {
+        const offerItems = selectedProducts.map(item => ({
+          offer_id: offerData.id,
+          product_id: item.product_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent || 0,
+          notes: item.notes
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('offer_items')
+          .insert(offerItems);
+
+        if (itemsError) throw itemsError;
+      }
 
       toast({
         title: "Offerta Creata",
@@ -338,6 +374,7 @@ export default function OffersPage() {
         valid_until: '',
         status: 'richiesta_offerta'
       });
+      setSelectedProducts([]);
       loadData();
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -603,15 +640,108 @@ export default function OffersPage() {
                 />
               </div>
               
+              {/* Sezione Prodotti */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Articoli dall'Anagrafica Prodotti</label>
+                <Select
+                  onValueChange={(productId) => {
+                    const product = products.find(p => p.id === productId);
+                    if (product) {
+                      setSelectedProducts([...selectedProducts, {
+                        product_id: product.id,
+                        description: product.name,
+                        quantity: 1,
+                        unit_price: product.price || 0,
+                        discount_percent: 0,
+                        notes: product.description
+                      }]);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona prodotto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.code} - {product.name} - €{product.price?.toFixed(2) || '0.00'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Lista articoli selezionati */}
+                {selectedProducts.length > 0 && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    {selectedProducts.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
+                        <div className="flex-1 grid grid-cols-4 gap-2 items-center">
+                          <Input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => {
+                              const updated = [...selectedProducts];
+                              updated[index].description = e.target.value;
+                              setSelectedProducts(updated);
+                            }}
+                            placeholder="Descrizione"
+                            className="col-span-2"
+                          />
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const updated = [...selectedProducts];
+                              updated[index].quantity = parseFloat(e.target.value) || 1;
+                              setSelectedProducts(updated);
+                            }}
+                            placeholder="Qtà"
+                            min="1"
+                          />
+                          <Input
+                            type="number"
+                            value={item.unit_price}
+                            onChange={(e) => {
+                              const updated = [...selectedProducts];
+                              updated[index].unit_price = parseFloat(e.target.value) || 0;
+                              setSelectedProducts(updated);
+                            }}
+                            placeholder="Prezzo"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedProducts(selectedProducts.filter((_, i) => i !== index))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="text-right font-bold pt-2 border-t">
+                      Totale: €{selectedProducts.reduce((sum, item) => 
+                        sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0
+                      ).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium">Importo (€)</label>
+                  <label className="text-sm font-medium">Importo Manuale (€)</label>
                   <Input
                     type="number"
                     value={newOffer.amount}
                     onChange={(e) => setNewOffer(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                     placeholder="0.00"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Usa questo se non selezioni prodotti
+                  </p>
                 </div>
                 
                 <div>
