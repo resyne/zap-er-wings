@@ -1188,33 +1188,28 @@ export default function WorkOrdersPage() {
                   <Edit className="h-4 w-4 mr-2" />
                   Modifica
                 </Button>
-                <Link to={`/mfg/executions?wo=${selectedWO.id}`} className="flex-1">
-                  <Button variant="outline" className="w-full">
-                    <Wrench className="h-4 w-4 mr-2" />
-                    Esecuzioni
-                  </Button>
-                </Link>
-                {selectedWO.status !== 'completato' && (
-                  <Button
-                    variant="default"
-                    className="flex-1"
-                    onClick={async () => {
-                      const nextStatus = 
-                        selectedWO.status === 'da_fare' ? 'in_lavorazione' :
-                        selectedWO.status === 'in_lavorazione' ? 'in_test' :
-                        selectedWO.status === 'in_test' ? 'pronto' :
-                        selectedWO.status === 'pronto' ? 'completato' : 'completato';
-                      
-                      await handleStatusChange(selectedWO.id, nextStatus as any);
-                      setSelectedWO({ ...selectedWO, status: nextStatus as any });
-                    }}
-                  >
-                    {selectedWO.status === 'da_fare' ? 'Inizia Lavorazione' :
-                     selectedWO.status === 'in_lavorazione' ? 'Passa a Test' :
-                     selectedWO.status === 'in_test' ? 'Segna come Pronto' :
-                     selectedWO.status === 'pronto' ? 'Completa' : 'Completa'}
-                  </Button>
-                )}
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDetailsDialog(false);
+                    handleDelete(selectedWO.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Elimina
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    handleArchive(selectedWO.id, selectedWO.archived || false);
+                    setShowDetailsDialog(false);
+                  }}
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  {selectedWO.archived ? 'Ripristina' : 'Archivia'}
+                </Button>
               </div>
             </div>
           )}
