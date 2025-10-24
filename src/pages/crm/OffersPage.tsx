@@ -83,13 +83,22 @@ export default function OffersPage() {
   const [currentProductId, setCurrentProductId] = useState<string>('');
   const [globalReverseCharge, setGlobalReverseCharge] = useState(false);
   
-  const [newOffer, setNewOffer] = useState({
+  const [newOffer, setNewOffer] = useState<{
+    id?: string;
+    customer_id: string;
+    title: string;
+    description: string;
+    amount: number;
+    valid_until: string;
+    status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
+  }>({
+    id: undefined,
     customer_id: '',
     title: '',
     description: '',
     amount: 0,
     valid_until: '',
-    status: 'richiesta_offerta' as const
+    status: 'richiesta_offerta'
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -338,57 +347,99 @@ export default function OffersPage() {
         return;
       }
 
-      const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-
       // Calculate total from selected products
       const calculatedTotal = selectedProducts.reduce((sum, item) => {
         return sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100));
       }, 0);
 
-      // Crea l'offerta - il trigger creerà automaticamente il lead
-      const { data: offerData, error } = await supabase
-        .from('offers')
-        .insert([{
-          number: offerNumber,
-          customer_id: newOffer.customer_id,
-          customer_name: customer.name,
-          title: newOffer.title,
-          description: newOffer.description,
-          amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
-          valid_until: newOffer.valid_until || null,
-          status: newOffer.status
-        }])
-        .select()
-        .single();
+      // Se stiamo modificando una richiesta esistente
+      if (newOffer.id) {
+        const { data: offerData, error } = await supabase
+          .from('offers')
+          .update({
+            customer_id: newOffer.customer_id,
+            customer_name: customer.name,
+            title: newOffer.title,
+            description: newOffer.description,
+            amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
+            valid_until: newOffer.valid_until || null,
+            status: 'offerta_pronta'
+          })
+          .eq('id', newOffer.id)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Insert offer items if any products were selected
-      if (selectedProducts.length > 0 && offerData) {
-        const offerItems = selectedProducts.map(item => ({
-          offer_id: offerData.id,
-          product_id: item.product_id,
-          description: `${item.product_name}\n${item.description}`,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          discount_percent: item.discount_percent || 0,
-          notes: item.notes
-        }));
+        // Insert offer items if any products were selected
+        if (selectedProducts.length > 0 && offerData) {
+          // Delete existing items
+          await supabase
+            .from('offer_items')
+            .delete()
+            .eq('offer_id', offerData.id);
 
-        const { error: itemsError } = await supabase
-          .from('offer_items')
-          .insert(offerItems);
+          const offerItems = selectedProducts.map(item => ({
+            offer_id: offerData.id,
+            product_id: item.product_id,
+            description: `${item.product_name}\n${item.description}`,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent || 0,
+            notes: item.notes
+          }));
 
-        if (itemsError) throw itemsError;
+          const { error: itemsError } = await supabase
+            .from('offer_items')
+            .insert(offerItems);
+
+          if (itemsError) throw itemsError;
+        }
+      } else {
+        // Crea nuova offerta
+        const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+        const { data: offerData, error } = await supabase
+          .from('offers')
+          .insert([{
+            number: offerNumber,
+            customer_id: newOffer.customer_id,
+            customer_name: customer.name,
+            title: newOffer.title,
+            description: newOffer.description,
+            amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
+            valid_until: newOffer.valid_until || null,
+            status: newOffer.status
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Insert offer items if any products were selected
+        if (selectedProducts.length > 0 && offerData) {
+          const offerItems = selectedProducts.map(item => ({
+            offer_id: offerData.id,
+            product_id: item.product_id,
+            description: `${item.product_name}\n${item.description}`,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent || 0,
+            notes: item.notes
+          }));
+
+          const { error: itemsError } = await supabase
+            .from('offer_items')
+            .insert(offerItems);
+
+          if (itemsError) throw itemsError;
+        }
       }
 
-      toast({
-        title: "Offerta Creata",
-        description: "L'offerta e il lead collegato sono stati creati con successo",
-      });
-
-      setIsCreateDialogOpen(false);
+      await loadData();
+      
       setNewOffer({
+        id: undefined,
         customer_id: '',
         title: '',
         description: '',
@@ -397,7 +448,12 @@ export default function OffersPage() {
         status: 'richiesta_offerta'
       });
       setSelectedProducts([]);
-      loadData();
+      setIsCreateDialogOpen(false);
+      
+      toast({
+        title: "Successo",
+        description: newOffer.id ? "Offerta preparata con successo" : "Offerta creata con successo",
+      });
     } catch (error) {
       console.error('Error creating offer:', error);
       toast({
@@ -1105,7 +1161,19 @@ export default function OffersPage() {
                         <Button 
                           size="sm" 
                           className="flex-1" 
-                          onClick={() => handleChangeStatus(offer.id, 'offerta_pronta')}
+                          onClick={() => {
+                            setNewOffer({
+                              id: offer.id,
+                              customer_id: offer.customer_id,
+                              title: offer.title,
+                              description: offer.description || `Richiesta:\n${offer.title}\n\nDettagli:\n- Cliente: ${offer.customer_name}\n- Importo stimato: € ${offer.amount.toFixed(2)}`,
+                              amount: offer.amount,
+                              valid_until: '',
+                              status: 'offerta_pronta'
+                            });
+                            setSelectedProducts([]);
+                            setIsCreateDialogOpen(true);
+                          }}
                         >
                           <FileCheck className="w-3 h-3 mr-1" />
                           Prepara
