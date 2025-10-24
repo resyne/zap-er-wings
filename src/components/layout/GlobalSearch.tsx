@@ -67,14 +67,21 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       const searchTerm = `%${query}%`;
       const allResults: SearchResult[] = [];
 
+      console.log('Starting search for:', query);
+
       // Search Customers
-      const { data: customers } = await supabase
+      const { data: customers, error: customersError } = await supabase
         .from('customers')
         .select('id, name, email, code')
         .or(`name.ilike.${searchTerm},email.ilike.${searchTerm},code.ilike.${searchTerm}`)
         .limit(5);
 
+      if (customersError) {
+        console.error('Customers search error:', customersError);
+      }
+
       if (customers) {
+        console.log('Found customers:', customers.length);
         allResults.push(...customers.map(c => ({
           id: c.id,
           type: 'customer',
@@ -85,13 +92,18 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       }
 
       // Search Leads
-      const { data: leads } = await supabase
+      const { data: leads, error: leadsError } = await supabase
         .from('leads')
         .select('id, company_name, contact_name, email, pipeline')
         .or(`company_name.ilike.${searchTerm},contact_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
         .limit(5);
 
+      if (leadsError) {
+        console.error('Leads search error:', leadsError);
+      }
+
       if (leads) {
+        console.log('Found leads:', leads.length);
         allResults.push(...leads.map(l => ({
           id: l.id,
           type: 'lead',
@@ -186,6 +198,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         })));
       }
 
+      console.log('Total results found:', allResults.length);
       setResults(allResults);
     } catch (error) {
       console.error('Search error:', error);
