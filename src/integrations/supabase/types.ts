@@ -6022,6 +6022,11 @@ export type Database = {
         | "pronti"
         | "spediti_consegnati"
         | "test"
+        | "da_fare"
+        | "in_test"
+        | "pronto"
+        | "standby"
+        | "bloccato"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -6193,6 +6198,11 @@ export const Constants = {
         "pronti",
         "spediti_consegnati",
         "test",
+        "da_fare",
+        "in_test",
+        "pronto",
+        "standby",
+        "bloccato",
       ],
     },
   },

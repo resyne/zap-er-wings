@@ -276,7 +276,7 @@ export default function WorkOrdersPage() {
             planned_start_date: formData.planned_start_date || null,
             planned_end_date: formData.planned_end_date || null,
             notes: formData.notes,
-            status: 'to_do'
+            status: 'da_fare'
           }])
           .select()
           .single();
@@ -413,7 +413,7 @@ export default function WorkOrdersPage() {
     document.body.removeChild(link);
   };
 
-  const handleStatusChange = async (woId: string, newStatus: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati') => {
+  const handleStatusChange = async (woId: string, newStatus: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => {
     // Trova l'ordine corrente per salvare lo stato precedente
     const currentWO = workOrders.find(wo => wo.id === woId);
     if (!currentWO) return;
@@ -451,11 +451,13 @@ export default function WorkOrdersPage() {
         undoStatusChange,
         {
           successMessage: `Stato aggiornato a: ${
-            newStatus === 'to_do' ? 'Da Fare' :
+            newStatus === 'da_fare' ? 'Da Fare' :
             newStatus === 'in_lavorazione' ? 'In Lavorazione' :
-            newStatus === 'test' ? 'Test' :
-            newStatus === 'pronti' ? 'Pronti' :
-            'Spediti/Consegnati'
+            newStatus === 'in_test' ? 'In Test' :
+            newStatus === 'pronto' ? 'Pronto' :
+            newStatus === 'completato' ? 'Completato' :
+            newStatus === 'standby' ? 'Standby' :
+            'Bloccato'
           }`,
           errorMessage: 'Impossibile aggiornare lo stato',
           duration: 10000 // 10 secondi
@@ -552,10 +554,17 @@ export default function WorkOrdersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'to_do': return 'bg-info';
-      case 'in_lavorazione': return 'bg-primary';
-      case 'test': return 'bg-info';
-      case 'pronti': return 'bg-success';
+      case 'da_fare': return 'bg-muted';
+      case 'in_lavorazione': return 'bg-amber-500';
+      case 'in_test': return 'bg-orange-500';
+      case 'pronto': return 'bg-blue-500';
+      case 'completato': return 'bg-success';
+      case 'standby': return 'bg-purple-500';
+      case 'bloccato': return 'bg-destructive';
+      // Legacy support
+      case 'to_do': return 'bg-muted';
+      case 'test': return 'bg-orange-500';
+      case 'pronti': return 'bg-blue-500';
       case 'spediti_consegnati': return 'bg-success';
       case 'completed':
       case 'closed': return 'bg-success';
@@ -620,14 +629,17 @@ export default function WorkOrdersPage() {
   const statusCounts = {
     all: workOrders.filter(wo => !wo.archived).length,
     active: workOrders.filter(wo => !wo.archived).length,
-    to_do: workOrders.filter(wo => wo.status === 'to_do' && !wo.archived).length,
+    da_fare: workOrders.filter(wo => wo.status === 'da_fare' && !wo.archived).length,
     in_lavorazione: workOrders.filter(wo => wo.status === 'in_lavorazione' && !wo.archived).length,
-    test: workOrders.filter(wo => wo.status === 'test' && !wo.archived).length,
-    pronti: workOrders.filter(wo => wo.status === 'pronti' && !wo.archived).length,
+    in_test: workOrders.filter(wo => wo.status === 'in_test' && !wo.archived).length,
+    pronto: workOrders.filter(wo => wo.status === 'pronto' && !wo.archived).length,
+    completato: workOrders.filter(wo => wo.status === 'completato' && !wo.archived).length,
+    standby: workOrders.filter(wo => wo.status === 'standby' && !wo.archived).length,
+    bloccato: workOrders.filter(wo => wo.status === 'bloccato' && !wo.archived).length,
     archive: workOrders.filter(wo => wo.archived === true).length,
   };
 
-  const workOrderStatuses = ['to_do', 'in_lavorazione', 'test', 'pronti', 'spediti_consegnati'];
+  const workOrderStatuses = ['da_fare', 'in_lavorazione', 'in_test', 'pronto', 'completato', 'standby', 'bloccato'];
 
   return (
     <div className="space-y-6">
@@ -657,7 +669,7 @@ export default function WorkOrdersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
         {Object.entries(statusCounts).map(([status, count]) => (
           <Card 
             key={status} 
@@ -670,10 +682,13 @@ export default function WorkOrdersPage() {
                 <div className="text-sm text-muted-foreground capitalize">
                   {status === 'all' ? 'Tutti' : 
                    status === 'active' ? 'Attivi' :
-                   status === 'to_do' ? 'Da Fare' :
+                   status === 'da_fare' ? 'Da Fare' :
                    status === 'in_lavorazione' ? 'In Lavorazione' :
-                   status === 'test' ? 'Test' :
-                   status === 'pronti' ? 'Pronti' :
+                   status === 'in_test' ? 'In Test' :
+                   status === 'pronto' ? 'Pronto' :
+                   status === 'completato' ? 'Completato' :
+                   status === 'standby' ? 'Standby' :
+                   status === 'bloccato' ? 'Bloccato' :
                    status === 'archive' ? 'Archivio' : status.replace('_', ' ')}
                 </div>
               </div>
@@ -795,7 +810,7 @@ export default function WorkOrdersPage() {
                        <TableCell>
                           <Select 
                             value={wo.status} 
-                            onValueChange={(value: 'to_do' | 'in_lavorazione' | 'test' | 'pronti' | 'spediti_consegnati') => 
+                            onValueChange={(value: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => 
                               handleStatusChange(wo.id, value)
                             }
                           >
@@ -805,20 +820,26 @@ export default function WorkOrdersPage() {
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="to_do">
+                              <SelectItem value="da_fare">
                                 <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
                               </SelectItem>
                               <SelectItem value="in_lavorazione">
-                                <Badge className="bg-primary text-primary-foreground">In Lavorazione</Badge>
+                                <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
                               </SelectItem>
-                              <SelectItem value="test">
-                                <Badge className="bg-info text-info-foreground">Test</Badge>
+                              <SelectItem value="in_test">
+                                <Badge className="bg-orange-500 text-white">In Test</Badge>
                               </SelectItem>
-                              <SelectItem value="pronti">
-                                <Badge className="bg-success text-success-foreground">Pronti</Badge>
+                              <SelectItem value="pronto">
+                                <Badge className="bg-blue-500 text-white">Pronto</Badge>
                               </SelectItem>
-                              <SelectItem value="spediti_consegnati">
-                                <Badge className="bg-success text-success-foreground">Spediti</Badge>
+                              <SelectItem value="completato">
+                                <Badge className="bg-success text-success-foreground">Completato</Badge>
+                              </SelectItem>
+                              <SelectItem value="standby">
+                                <Badge className="bg-purple-500 text-white">Standby</Badge>
+                              </SelectItem>
+                              <SelectItem value="bloccato">
+                                <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
                               </SelectItem>
                             </SelectContent>
                            </Select>
@@ -852,15 +873,17 @@ export default function WorkOrdersPage() {
           </div>
           ) : viewMode === "kanban" ? (
             <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-7 gap-4">
                 {workOrderStatuses.map((status) => (
                   <div key={status} className="space-y-3">
                     <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                      {status === "to_do" && "Da Fare"}
+                      {status === "da_fare" && "Da Fare"}
                       {status === "in_lavorazione" && "In Lavorazione"}
-                      {status === "test" && "Test"}
-                      {status === "pronti" && "Pronti"}
-                      {status === "spediti_consegnati" && "Spediti"}
+                      {status === "in_test" && "In Test"}
+                      {status === "pronto" && "Pronto"}
+                      {status === "completato" && "Completato"}
+                      {status === "standby" && "Standby"}
+                      {status === "bloccato" && "Bloccato"}
                       <span className="ml-2 text-xs">
                         ({filteredWorkOrders.filter(wo => wo.status === status).length})
                       </span>

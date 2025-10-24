@@ -21,11 +21,19 @@ const statusColors = {
   shipped: "bg-success text-success-foreground", 
   delivered: "bg-success text-success-foreground",
   
-  // Work Order statuses - Italian states
+  // Work Order statuses - New Italian states
+  da_fare: "bg-muted text-muted-foreground", // Grigio
+  in_lavorazione: "bg-amber-500 text-white", // Giallo
+  in_test: "bg-orange-500 text-white", // Arancione
+  pronto: "bg-blue-500 text-white", // Blu
+  completato: "bg-success text-success-foreground", // Verde
+  standby: "bg-purple-500 text-white", // Viola
+  bloccato: "bg-destructive text-destructive-foreground", // Rosso
+  
+  // Legacy statuses (keep for backwards compatibility)
   to_do: "bg-muted text-muted-foreground",
-  in_lavorazione: "bg-primary text-primary-foreground",
-  test: "bg-info text-info-foreground",
-  pronti: "bg-success text-success-foreground",
+  test: "bg-orange-500 text-white",
+  pronti: "bg-blue-500 text-white",
   spediti_consegnati: "bg-success text-success-foreground",
   
   // Work Order statuses - English  
@@ -64,11 +72,18 @@ export function StatusBadge({ status, variant, className }: StatusBadgeProps) {
   
   // Mappa stati italiani a etichette leggibili
   const statusLabels: Record<string, string> = {
-    to_do: "Da Fare",
+    da_fare: "Da Fare",
     in_lavorazione: "In Lavorazione",
-    test: "Testing",
-    pronti: "Pronti",
-    spediti_consegnati: "Spediti/Consegnati",
+    in_test: "In Test",
+    pronto: "Pronto",
+    completato: "Completato",
+    standby: "Standby",
+    bloccato: "Bloccato",
+    // Legacy labels
+    to_do: "Da Fare",
+    test: "In Test",
+    pronti: "Pronto",
+    spediti_consegnati: "Completato",
     planned: "Pianificato",
     in_progress: "In Corso",
     testing: "Testing",
