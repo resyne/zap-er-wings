@@ -420,23 +420,22 @@ export default function OffersPage() {
 
       if (error) throw error;
 
-      toast({
-        title: "Stato Aggiornato",
-        description: "Lo stato dell'offerta è stato aggiornato",
-      });
-
-      // Se l'offerta viene accettata, naviga alla pagina ordini per creare un ordine
+      // Se l'offerta viene accettata, naviga immediatamente alla pagina ordini
       if (newStatus === 'accettata') {
-        const offer = offers.find(o => o.id === offerId);
-        if (offer) {
-          toast({
-            title: "Offerta Accettata",
-            description: "Ora puoi creare un ordine da questa offerta nella sezione Ordini",
-          });
-          // Naviga alla pagina ordini con l'offerta preselezionata
-          navigate(`/crm/orders?offer=${offerId}`);
-        }
+        toast({
+          title: "Offerta Accettata",
+          description: "Vai alla sezione Ordini per creare l'ordine",
+        });
+        
+        // Naviga immediatamente alla pagina ordini
+        setTimeout(() => {
+          navigate('/crm/orders');
+        }, 500);
       } else {
+        toast({
+          title: "Stato Aggiornato",
+          description: "Lo stato dell'offerta è stato aggiornato",
+        });
         loadData();
       }
     } catch (error) {

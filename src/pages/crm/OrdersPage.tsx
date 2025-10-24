@@ -157,22 +157,6 @@ export default function OrdersPage() {
     }
   }, [location.state]);
 
-  // Gestisci l'apertura automatica per offerte accettate
-  useEffect(() => {
-    const offerId = searchParams.get('offer');
-    if (offerId && !loading && confirmedOffers.length > 0) {
-      const offer = confirmedOffers.find(o => o.id === offerId);
-      if (offer) {
-        setIsDialogOpen(true);
-        // Rimuovi il parametro dall'URL
-        setSearchParams({});
-        toast({
-          title: "Offerta Accettata",
-          description: `Crea un ordine per l'offerta: ${offer.title}`,
-        });
-      }
-    }
-  }, [searchParams, loading, confirmedOffers]);
 
   useEffect(() => {
     loadOrders();
