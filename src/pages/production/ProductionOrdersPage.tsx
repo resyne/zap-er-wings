@@ -1178,23 +1178,25 @@ export default function WorkOrdersPage() {
                     Esecuzioni
                   </Button>
                 </Link>
-                {selectedWO.status !== 'closed' && (
+                {selectedWO.status !== 'completato' && (
                   <Button
                     variant="default"
                     className="flex-1"
                     onClick={async () => {
                       const nextStatus = 
-                        selectedWO.status === 'planned' ? 'in_progress' :
-                        selectedWO.status === 'in_progress' ? 'testing' :
-                        selectedWO.status === 'testing' ? 'closed' : 'closed';
+                        selectedWO.status === 'da_fare' ? 'in_lavorazione' :
+                        selectedWO.status === 'in_lavorazione' ? 'in_test' :
+                        selectedWO.status === 'in_test' ? 'pronto' :
+                        selectedWO.status === 'pronto' ? 'completato' : 'completato';
                       
                       await handleStatusChange(selectedWO.id, nextStatus as any);
                       setSelectedWO({ ...selectedWO, status: nextStatus as any });
                     }}
                   >
-                    {selectedWO.status === 'planned' ? 'Inizia' :
-                     selectedWO.status === 'in_progress' ? 'In Test' :
-                     selectedWO.status === 'testing' ? 'Completa' : 'Completa'}
+                    {selectedWO.status === 'da_fare' ? 'Inizia Lavorazione' :
+                     selectedWO.status === 'in_lavorazione' ? 'Passa a Test' :
+                     selectedWO.status === 'in_test' ? 'Segna come Pronto' :
+                     selectedWO.status === 'pronto' ? 'Completa' : 'Completa'}
                   </Button>
                 )}
               </div>
@@ -1221,10 +1223,14 @@ export default function WorkOrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutti gli stati</SelectItem>
-                  <SelectItem value="planned">Pianificato</SelectItem>
-                  <SelectItem value="in_progress">In Corso</SelectItem>
-                  <SelectItem value="testing">Test</SelectItem>
-                  <SelectItem value="closed">Chiuso</SelectItem>
+                  <SelectItem value="da_fare">Da Fare</SelectItem>
+                  <SelectItem value="in_lavorazione">In Lavorazione</SelectItem>
+                  <SelectItem value="in_test">In Test</SelectItem>
+                  <SelectItem value="pronto">Pronto</SelectItem>
+                  <SelectItem value="completato">Completato</SelectItem>
+                  <SelectItem value="standby">Standby</SelectItem>
+                  <SelectItem value="bloccato">Bloccato</SelectItem>
+                  <SelectItem value="archive">Archivio</SelectItem>
                 </SelectContent>
               </Select>
             </div>
