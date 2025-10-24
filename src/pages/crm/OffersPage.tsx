@@ -70,6 +70,7 @@ export default function OffersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
+    product_name: string;
     description: string;
     quantity: number;
     unit_price: number;
@@ -78,6 +79,7 @@ export default function OffersPage() {
     reverse_charge: boolean;
     notes?: string;
   }>>([]);
+  const [currentProductId, setCurrentProductId] = useState<string>('');
   const [globalReverseCharge, setGlobalReverseCharge] = useState(false);
   
   const [newOffer, setNewOffer] = useState({
@@ -357,7 +359,7 @@ export default function OffersPage() {
         const offerItems = selectedProducts.map(item => ({
           offer_id: offerData.id,
           product_id: item.product_id,
-          description: item.description,
+          description: `${item.product_name}\n${item.description}`,
           quantity: item.quantity,
           unit_price: item.unit_price,
           discount_percent: item.discount_percent || 0,
@@ -666,88 +668,66 @@ export default function OffersPage() {
                     </label>
                   </div>
                 </div>
-                <Select
-                  onValueChange={(productId) => {
-                    const product = products.find(p => p.id === productId);
-                    if (product) {
-                      setSelectedProducts([...selectedProducts, {
-                        product_id: product.id,
-                        description: product.name,
-                        quantity: 1,
-                        unit_price: product.base_price || 0,
-                        discount_percent: 0,
-                        vat_rate: 22,
-                        reverse_charge: globalReverseCharge,
-                        notes: product.description
-                      }]);
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona prodotto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.code} - {product.name} - €{product.base_price?.toFixed(2) || '0.00'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select
+                    value={currentProductId}
+                    onValueChange={setCurrentProductId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona prodotto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.code} - {product.name} - €{product.base_price?.toFixed(2) || '0.00'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const product = products.find(p => p.id === currentProductId);
+                      if (product) {
+                        setSelectedProducts([...selectedProducts, {
+                          product_id: product.id,
+                          product_name: product.name,
+                          description: product.description || '',
+                          quantity: 1,
+                          unit_price: product.base_price || 0,
+                          discount_percent: 0,
+                          vat_rate: 22,
+                          reverse_charge: globalReverseCharge,
+                          notes: ''
+                        }]);
+                        setCurrentProductId('');
+                      }
+                    }}
+                    disabled={!currentProductId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi
+                  </Button>
+                </div>
 
                 {/* Lista articoli selezionati */}
                 {selectedProducts.length > 0 && (
                   <div className="border rounded-lg p-3 space-y-2">
                     {selectedProducts.map((item, index) => (
-                      <div key={index} className="border rounded p-3 space-y-2 bg-muted/50">
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1 grid grid-cols-6 gap-2">
-                            <Input
-                              type="text"
+                      <div key={index} className="border rounded p-4 space-y-3 bg-muted/50">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm mb-1">{item.product_name}</div>
+                            <Textarea
                               value={item.description}
                               onChange={(e) => {
                                 const updated = [...selectedProducts];
                                 updated[index].description = e.target.value;
                                 setSelectedProducts(updated);
                               }}
-                              placeholder="Descrizione"
-                              className="col-span-3"
-                            />
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].quantity = parseFloat(e.target.value) || 1;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="Qtà"
-                              min="1"
-                            />
-                            <Input
-                              type="number"
-                              value={item.unit_price}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].unit_price = parseFloat(e.target.value) || 0;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="Prezzo Netto"
-                              min="0"
-                              step="0.01"
-                            />
-                            <Input
-                              type="number"
-                              value={item.vat_rate}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].vat_rate = parseFloat(e.target.value) || 0;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="IVA %"
-                              min="0"
-                              max="100"
-                              disabled={item.reverse_charge}
+                              placeholder="Descrizione articolo"
+                              className="text-sm min-h-[60px]"
+                              rows={2}
                             />
                           </div>
                           <Button
@@ -759,30 +739,91 @@ export default function OffersPage() {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`reverse-charge-${index}`}
-                              checked={item.reverse_charge}
-                              onCheckedChange={(checked) => {
+                        
+                        <div className="grid grid-cols-4 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Quantità</label>
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
                                 const updated = [...selectedProducts];
-                                updated[index].reverse_charge = checked === true;
+                                updated[index].quantity = parseFloat(e.target.value) || 1;
                                 setSelectedProducts(updated);
                               }}
+                              placeholder="Qtà"
+                              min="1"
+                              className="text-sm"
                             />
-                            <label htmlFor={`reverse-charge-${index}`} className="text-xs cursor-pointer">
-                              Reverse Charge
-                            </label>
                           </div>
-                          <div className="text-right space-y-1">
-                            <div className="text-xs text-muted-foreground">
-                              Netto: €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                          <div>
+                            <label className="text-xs text-muted-foreground">Prezzo Unitario</label>
+                            <Input
+                              type="number"
+                              value={item.unit_price}
+                              onChange={(e) => {
+                                const updated = [...selectedProducts];
+                                updated[index].unit_price = parseFloat(e.target.value) || 0;
+                                setSelectedProducts(updated);
+                              }}
+                              placeholder="Prezzo"
+                              min="0"
+                              step="0.01"
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">IVA %</label>
+                            <Input
+                              type="number"
+                              value={item.vat_rate}
+                              onChange={(e) => {
+                                const updated = [...selectedProducts];
+                                updated[index].vat_rate = parseFloat(e.target.value) || 0;
+                                setSelectedProducts(updated);
+                              }}
+                              placeholder="IVA"
+                              min="0"
+                              max="100"
+                              disabled={item.reverse_charge}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <div className="flex items-center gap-2 h-10">
+                              <Checkbox
+                                id={`reverse-charge-${index}`}
+                                checked={item.reverse_charge}
+                                onCheckedChange={(checked) => {
+                                  const updated = [...selectedProducts];
+                                  updated[index].reverse_charge = checked === true;
+                                  setSelectedProducts(updated);
+                                }}
+                              />
+                              <label htmlFor={`reverse-charge-${index}`} className="text-xs cursor-pointer whitespace-nowrap">
+                                Reverse Charge
+                              </label>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              IVA: €{(item.reverse_charge ? 0 : (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100))).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-4 text-sm pt-2 border-t">
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Netto</div>
+                            <div className="font-medium">
+                              €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
                             </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">IVA</div>
+                            <div className="font-medium">
+                              €{(item.reverse_charge ? 0 : (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100))).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Totale</div>
                             <div className="font-semibold">
-                              Totale: €{(
+                              €{(
                                 item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * 
                                 (1 + (item.reverse_charge ? 0 : item.vat_rate / 100))
                               ).toFixed(2)}
