@@ -556,7 +556,10 @@ export function DashboardPage() {
                       <div 
                         key={`lead-${activity.id}`} 
                         className={`p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
-                        onClick={() => navigate(`/crm/leads?lead=${activity.lead_id}`)}
+                        onClick={() => {
+                          setPreviewItem({ type: 'lead', data: activity });
+                          setIsPreviewOpen(true);
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
@@ -614,7 +617,14 @@ export function DashboardPage() {
 
                   {/* Opportunity Activities */}
                   {activities.map((activity) => (
-                    <div key={`crm-${activity.id}`} className="p-3 border rounded-lg">
+                    <div 
+                      key={`crm-${activity.id}`} 
+                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        setPreviewItem({ type: 'opportunity', data: activity });
+                        setIsPreviewOpen(true);
+                      }}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -638,13 +648,31 @@ export function DashboardPage() {
                             </div>
                           )}
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markActivityCompleted(activity.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewItem({ type: 'opportunity', data: activity });
+                              setIsPreviewOpen(true);
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markActivityCompleted(activity.id);
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1212,6 +1240,41 @@ export function DashboardPage() {
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Vai alla Richiesta
+                  </Button>
+                </>
+              )}
+              {previewItem.type === 'opportunity' && (
+                <>
+                  <div>
+                    <h3 className="font-semibold mb-2">Attività Opportunità</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Opportunità</Badge>
+                        <h4 className="font-medium">{previewItem.data.title}</h4>
+                      </div>
+                      {previewItem.data.description && (
+                        <div>
+                          <p className="text-sm font-semibold mb-1">Descrizione:</p>
+                          <p className="text-sm text-muted-foreground">{previewItem.data.description}</p>
+                        </div>
+                      )}
+                      {previewItem.data.opportunity?.name && (
+                        <p className="text-sm"><strong>Opportunità:</strong> {previewItem.data.opportunity.name}</p>
+                      )}
+                      {previewItem.data.scheduled_date && (
+                        <p className="text-sm"><strong>Data pianificata:</strong> {format(new Date(previewItem.data.scheduled_date), "PPP 'alle' HH:mm", { locale: it })}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => {
+                      setIsPreviewOpen(false);
+                      navigate(`/crm/opportunities?opportunity=${previewItem.data.opportunity_id}`);
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Vai all'Opportunità
                   </Button>
                 </>
               )}
