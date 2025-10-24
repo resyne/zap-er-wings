@@ -94,6 +94,9 @@ export default function OffersPage() {
   }>>([]);
   const [currentProductId, setCurrentProductId] = useState<string>('');
   const [globalReverseCharge, setGlobalReverseCharge] = useState(false);
+  const [includeCertificazione, setIncludeCertificazione] = useState(true);
+  const [includeGaranzia, setIncludeGaranzia] = useState(true);
+  const [inclusoCustom, setInclusoCustom] = useState('');
   
   const [newOffer, setNewOffer] = useState<{
     id?: string;
@@ -123,7 +126,7 @@ export default function OffersPage() {
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
-    incluso_fornitura: '✓ Certificazione di conformità\n✓ 1 anno di garanzia',
+    incluso_fornitura: '',
     metodi_pagamento: '30% acconto - 70% alla consegna',
     payment_method: 'bonifico',
     payment_agreement: '50% acconto - 50% a consegna'
@@ -512,6 +515,15 @@ export default function OffersPage() {
         return;
       }
 
+      // Build incluso_fornitura from checkboxes and custom text
+      const inclusoItems = [];
+      if (includeCertificazione) inclusoItems.push('✓ Certificazione di conformità');
+      if (includeGaranzia) inclusoItems.push('✓ 1 anno di garanzia');
+      if (inclusoCustom.trim()) {
+        inclusoItems.push(...inclusoCustom.split('\n').filter(line => line.trim()));
+      }
+      const inclusoFornituraText = inclusoItems.join('\n');
+
       // Calculate total from selected products
       const calculatedTotal = selectedProducts.reduce((sum, item) => {
         return sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100));
@@ -533,7 +545,7 @@ export default function OffersPage() {
             timeline_produzione: newOffer.timeline_produzione || null,
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
-            incluso_fornitura: newOffer.incluso_fornitura || null,
+            incluso_fornitura: inclusoFornituraText || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null
@@ -587,7 +599,7 @@ export default function OffersPage() {
             timeline_produzione: newOffer.timeline_produzione || null,
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
-            incluso_fornitura: newOffer.incluso_fornitura || null,
+            incluso_fornitura: inclusoFornituraText || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null
@@ -631,12 +643,15 @@ export default function OffersPage() {
             timeline_produzione: '',
             timeline_consegna: '',
             timeline_installazione: '',
-            incluso_fornitura: '✓ Certificazione di conformità\n✓ 1 anno di garanzia',
+            incluso_fornitura: '',
             metodi_pagamento: '30% acconto - 70% alla consegna',
             payment_method: 'bonifico',
             payment_agreement: '50% acconto - 50% a consegna'
           });
       setSelectedProducts([]);
+      setIncludeCertificazione(true);
+      setIncludeGaranzia(true);
+      setInclusoCustom('');
       setIsCreateDialogOpen(false);
       
       toast({
@@ -1123,15 +1138,36 @@ export default function OffersPage() {
                 </div>
               </div>
               
-              <div>
+              <div className="space-y-3">
                 <label className="text-sm font-medium">Cosa Include la Fornitura</label>
+                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="certificazione"
+                      checked={includeCertificazione}
+                      onCheckedChange={(checked) => setIncludeCertificazione(checked === true)}
+                    />
+                    <label htmlFor="certificazione" className="text-sm cursor-pointer">
+                      ✓ Certificazione di conformità
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="garanzia"
+                      checked={includeGaranzia}
+                      onCheckedChange={(checked) => setIncludeGaranzia(checked === true)}
+                    />
+                    <label htmlFor="garanzia" className="text-sm cursor-pointer">
+                      ✓ 1 anno di garanzia
+                    </label>
+                  </div>
+                </div>
                 <Textarea
-                  value={newOffer.incluso_fornitura}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, incluso_fornitura: e.target.value }))}
-                  placeholder="Inserisci una voce per riga, es:&#10;✓ Fornitura e installazione completa&#10;✓ Formazione del personale"
-                  rows={4}
+                  value={inclusoCustom}
+                  onChange={(e) => setInclusoCustom(e.target.value)}
+                  placeholder="Una voce per riga (usa ✓ per le spunte)"
+                  rows={3}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Una voce per riga (usa ✓ per le spunte)</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
