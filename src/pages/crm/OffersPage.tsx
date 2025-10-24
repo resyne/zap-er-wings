@@ -24,7 +24,7 @@ interface Offer {
   title: string;
   description?: string;
   amount: number;
-  status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'confermata' | 'rifiutata';
+  status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'accettata' | 'rifiutata';
   created_at: string;
   valid_until?: string;
   attachments?: string[];
@@ -359,7 +359,7 @@ export default function OffersPage() {
       case 'offerta_pronta': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
       case 'offerta_inviata': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
       case 'negoziazione': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100';
-      case 'confermata': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+      case 'accettata': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
       case 'rifiutata': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
     }
@@ -371,7 +371,7 @@ export default function OffersPage() {
       case 'offerta_pronta': return 'Pronta';
       case 'offerta_inviata': return 'Inviata';
       case 'negoziazione': return 'Negoziazione';
-      case 'confermata': return 'Confermata';
+      case 'accettata': return 'Accettata';
       case 'rifiutata': return 'Rifiutata';
       default: return status;
     }
@@ -407,7 +407,7 @@ export default function OffersPage() {
     offerta_pronta: offers.filter(o => o.status === 'offerta_pronta').length,
     offerta_inviata: offers.filter(o => o.status === 'offerta_inviata').length,
     negoziazione: offers.filter(o => o.status === 'negoziazione').length,
-    confermata: offers.filter(o => o.status === 'confermata').length,
+    accettata: offers.filter(o => o.status === 'accettata').length,
     rifiutata: offers.filter(o => o.status === 'rifiutata').length,
   };
 
@@ -425,7 +425,20 @@ export default function OffersPage() {
         description: "Lo stato dell'offerta è stato aggiornato",
       });
 
-      loadData();
+      // Se l'offerta viene accettata, naviga alla pagina ordini per creare un ordine
+      if (newStatus === 'accettata') {
+        const offer = offers.find(o => o.id === offerId);
+        if (offer) {
+          toast({
+            title: "Offerta Accettata",
+            description: "Ora puoi creare un ordine da questa offerta nella sezione Ordini",
+          });
+          // Naviga alla pagina ordini con l'offerta preselezionata
+          navigate(`/crm/orders?offer=${offerId}`);
+        }
+      } else {
+        loadData();
+      }
     } catch (error) {
       console.error('Error updating status:', error);
       toast({
@@ -671,11 +684,11 @@ export default function OffersPage() {
           In Negoziazione ({statusCounts.negoziazione})
         </Button>
         <Button
-          variant={statusFilter === 'confermata' ? 'default' : 'outline'}
-          onClick={() => setStatusFilter('confermata')}
+          variant={statusFilter === 'accettata' ? 'default' : 'outline'}
+          onClick={() => setStatusFilter('accettata')}
           size="sm"
         >
-          Confermate ({statusCounts.confermata})
+          Accettate ({statusCounts.accettata})
         </Button>
         <Button
           variant={statusFilter === 'rifiutata' ? 'default' : 'outline'}
@@ -771,15 +784,15 @@ export default function OffersPage() {
 
                 {/* Azioni rapide cambio stato */}
                 <div className="grid grid-cols-2 gap-2">
-                  {offer.status !== 'confermata' && offer.status !== 'rifiutata' && (
+                  {offer.status !== 'accettata' && offer.status !== 'rifiutata' && (
                     <>
                       <Button
                         size="sm"
                         variant="default"
                         className="bg-green-600 hover:bg-green-700"
-                        onClick={() => handleChangeStatus(offer.id, 'confermata')}
+                        onClick={() => handleChangeStatus(offer.id, 'accettata')}
                       >
-                        ✓ Conferma
+                        ✓ Accetta
                       </Button>
                       <Button
                         size="sm"

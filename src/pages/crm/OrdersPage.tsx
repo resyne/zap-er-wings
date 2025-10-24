@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,7 @@ const orderSources = [
 
 export default function OrdersPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [confirmedOffers, setConfirmedOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,6 +157,23 @@ export default function OrdersPage() {
     }
   }, [location.state]);
 
+  // Gestisci l'apertura automatica per offerte accettate
+  useEffect(() => {
+    const offerId = searchParams.get('offer');
+    if (offerId && !loading && confirmedOffers.length > 0) {
+      const offer = confirmedOffers.find(o => o.id === offerId);
+      if (offer) {
+        setIsDialogOpen(true);
+        // Rimuovi il parametro dall'URL
+        setSearchParams({});
+        toast({
+          title: "Offerta Accettata",
+          description: `Crea un ordine per l'offerta: ${offer.title}`,
+        });
+      }
+    }
+  }, [searchParams, loading, confirmedOffers]);
+
   useEffect(() => {
     loadOrders();
     loadRelatedData();
@@ -171,7 +189,7 @@ export default function OrdersPage() {
           customers(name, code),
           leads(id, company_name)
         `)
-        .eq("status", "confermata")
+        .eq("status", "accettata")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -934,7 +952,7 @@ export default function OrdersPage() {
       {confirmedOffers.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Offerte Confermate</CardTitle>
+            <CardTitle>Offerte Accettate</CardTitle>
             <p className="text-sm text-muted-foreground">
               Offerte pronte per essere trasformate in ordini
             </p>
@@ -952,7 +970,7 @@ export default function OrdersPage() {
                         </p>
                       </div>
                       <Badge className="bg-success/10 text-success border-success/20">
-                        Confermata
+                        Accettata
                       </Badge>
                     </div>
                   </CardHeader>

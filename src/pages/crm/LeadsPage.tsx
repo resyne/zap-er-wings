@@ -715,7 +715,7 @@ export default function LeadsPage() {
       case 'offerta_pronta': return 'bg-blue-100 text-blue-800';
       case 'offerta_inviata': return 'bg-purple-100 text-purple-800';
       case 'negoziazione': return 'bg-orange-100 text-orange-800';
-      case 'confermata': return 'bg-green-100 text-green-800';
+      case 'accettata': return 'bg-green-100 text-green-800';
       case 'rifiutata': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -727,7 +727,7 @@ export default function LeadsPage() {
       case 'offerta_pronta': return 'Pronta';
       case 'offerta_inviata': return 'Inviata';
       case 'negoziazione': return 'Negoziazione';
-      case 'confermata': return 'Confermata';
+      case 'accettata': return 'Accettata';
       case 'rifiutata': return 'Rifiutata';
       default: return status;
     }
@@ -1799,7 +1799,7 @@ export default function LeadsPage() {
                               <SelectItem value="offerta_pronta">Pronta</SelectItem>
                               <SelectItem value="offerta_inviata">Inviata</SelectItem>
                               <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                              <SelectItem value="confermata">Confermata</SelectItem>
+                              <SelectItem value="accettata">Accettata</SelectItem>
                               <SelectItem value="rifiutata">Rifiutata</SelectItem>
                             </SelectContent>
                           </Select>
