@@ -19,6 +19,11 @@ interface CreateOrderDialogProps {
   leadId?: string;
   prefilledData?: {
     customer_id?: string;
+    lead_id?: string;
+    offer_id?: string;
+    title?: string;
+    description?: string;
+    payment_amount?: string;
     notes?: string;
   };
 }

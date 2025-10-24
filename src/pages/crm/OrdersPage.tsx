@@ -954,7 +954,12 @@ export default function OrdersPage() {
           leadId={selectedOfferForOrder?.lead_id || location.state?.leadId}
           prefilledData={selectedOfferForOrder ? {
             customer_id: selectedOfferForOrder.customer_id,
-            notes: `Ordine da offerta ${selectedOfferForOrder.number}\n\nTitolo: ${selectedOfferForOrder.title}\nDescrizione: ${selectedOfferForOrder.description || 'N/A'}\nImporto: €${selectedOfferForOrder.amount}\n\n${selectedOfferForOrder.notes || ''}`
+            lead_id: selectedOfferForOrder.lead_id,
+            offer_id: selectedOfferForOrder.id,
+            title: selectedOfferForOrder.title,
+            description: `${selectedOfferForOrder.title}\n\n${selectedOfferForOrder.description || ''}`,
+            payment_amount: selectedOfferForOrder.amount ? String(selectedOfferForOrder.amount) : undefined,
+            notes: selectedOfferForOrder.notes || ''
           } : (location.state?.leadData ? {
             customer_id: location.state.leadData.customer_id,
             notes: `Ordine da lead vinto: ${location.state.leadData.company_name}${location.state.leadData.contact_name ? ' - ' + location.state.leadData.contact_name : ''}\n\nContatto: ${location.state.leadData.contact_name || 'N/A'}\nEmail: ${location.state.leadData.email || 'N/A'}\nTelefono: ${location.state.leadData.phone || 'N/A'}\n\n${location.state.leadData.notes || ''}`
