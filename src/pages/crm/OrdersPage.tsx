@@ -957,7 +957,7 @@ export default function OrdersPage() {
             lead_id: selectedOfferForOrder.lead_id,
             offer_id: selectedOfferForOrder.id,
             title: selectedOfferForOrder.title,
-            description: `${selectedOfferForOrder.title}\n\n${selectedOfferForOrder.description || ''}`,
+            description: `${selectedOfferForOrder.title}\n\n${selectedOfferForOrder.description || ''}\n\nValore ordine: €${selectedOfferForOrder.amount ? selectedOfferForOrder.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 }) : '0,00'}`,
             payment_amount: selectedOfferForOrder.amount ? String(selectedOfferForOrder.amount) : undefined,
             notes: selectedOfferForOrder.notes || ''
           } : (location.state?.leadData ? {
