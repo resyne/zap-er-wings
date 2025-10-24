@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarDays, Clock, User, Tag, FileText, Edit } from "lucide-react";
+import { CalendarDays, Clock, User, Tag, FileText, Edit, Download, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { EditTaskDialog } from "./EditTaskDialog";
 import { TaskComments } from "./TaskComments";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Task {
   id: string;
@@ -63,6 +65,57 @@ const categoryConfig: Record<string, { title: string; color: string }> = {
 
 export function TaskDetailsDialog({ task, open, onOpenChange, onTaskUpdated }: TaskDetailsDialogProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [taskFiles, setTaskFiles] = useState<any[]>([]);
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    if (open && task?.id) {
+      fetchTaskFiles();
+    }
+  }, [open, task?.id]);
+
+  const fetchTaskFiles = async () => {
+    if (!task?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('task_files')
+        .select('*')
+        .eq('task_id', task.id)
+        .order('created_at');
+
+      if (error) throw error;
+      setTaskFiles(data || []);
+    } catch (error) {
+      console.error('Error fetching task files:', error);
+    }
+  };
+
+  const downloadFile = async (file: any) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('task-files')
+        .download(file.file_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile scaricare il file",
+        variant: "destructive",
+      });
+    }
+  };
   
   if (!task) return null;
 
@@ -201,6 +254,42 @@ export function TaskDetailsDialog({ task, open, onOpenChange, onTaskUpdated }: T
                     <Badge key={index} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* File Allegati */}
+            {taskFiles.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Paperclip className="h-4 w-4" />
+                  File Allegati ({taskFiles.length})
+                </div>
+                <div className="space-y-2">
+                  {taskFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                        <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {file.file_size ? Math.round(file.file_size / 1024) + ' KB' : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => downloadFile(file)}
+                        className="flex-shrink-0"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </div>
