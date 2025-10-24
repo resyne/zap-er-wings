@@ -660,26 +660,6 @@ export default function ShippingOrdersPage() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2">
-                        {order.status === "pronto" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleGenerateDDT(order)}
-                            disabled={generateDDTMutation.isPending}
-                          >
-                            <FileText className="w-4 h-4 mr-1" />
-                            DDT
-                          </Button>
-                        )}
-                        {order.status === "spedito" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => window.open('http://dg.netup.eu:3683/esLogin.aspx', '_blank', 'noopener,noreferrer')}
-                          >
-                            <MapPin className="w-4 h-4 mr-1" />
-                            Track
-                          </Button>
-                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -758,7 +738,7 @@ export default function ShippingOrdersPage() {
           setIsEditDialogOpen(true);
         }}
         onDelete={deleteOrderMutation.mutate}
-        onGenerateDDT={handleGenerateDDT}
+        onArchive={handleArchive}
       />
 
       {/* Edit Dialog */}

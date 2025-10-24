@@ -690,17 +690,6 @@ export default function WorkOrdersServicePage() {
                            size="sm"
                            onClick={() => {
                              setSelectedWorkOrder(workOrder);
-                             setShowDetailsDialog(true);
-                           }}
-                           title="Visualizza dettagli"
-                         >
-                           <Eye className="w-4 h-4" />
-                         </Button>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => {
-                             setSelectedWorkOrder(workOrder);
                              setFormData({
                                title: workOrder.title,
                                description: workOrder.description || "",

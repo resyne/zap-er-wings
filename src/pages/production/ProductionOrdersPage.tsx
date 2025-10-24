@@ -855,9 +855,6 @@ export default function WorkOrdersPage() {
                        </TableCell>
                        <TableCell className="text-right">
                          <div className="flex items-center justify-end space-x-2">
-                           <Button variant="ghost" size="sm" onClick={() => handleViewDetails(wo)}>
-                             <Eye className="h-4 w-4" />
-                           </Button>
                            <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
                              <Edit className="h-4 w-4" />
                            </Button>

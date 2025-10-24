@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Trash2, FileText, MapPin } from "lucide-react";
+import { Pencil, Trash2, Archive } from "lucide-react";
 
 interface ShippingOrder {
   id: string;
@@ -26,7 +26,7 @@ interface ShippingOrderDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onEdit: (order: ShippingOrder) => void;
   onDelete: (id: string) => void;
-  onGenerateDDT: (order: ShippingOrder) => void;
+  onArchive: (id: string) => void;
 }
 
 const statusOptions = [
@@ -43,7 +43,7 @@ export function ShippingOrderDetailsDialog({
   onOpenChange,
   onEdit,
   onDelete,
-  onGenerateDDT,
+  onArchive,
 }: ShippingOrderDetailsDialogProps) {
   if (!order) return null;
 
@@ -74,22 +74,10 @@ export function ShippingOrderDetailsDialog({
               <Trash2 className="w-4 h-4 mr-2" />
               Elimina
             </Button>
-            {order.status === "pronto" && (
-              <Button size="sm" variant="outline" onClick={() => onGenerateDDT(order)}>
-                <FileText className="w-4 h-4 mr-2" />
-                Genera DDT
-              </Button>
-            )}
-            {order.status === "spedito" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => window.open('http://dg.netup.eu:3683/esLogin.aspx', '_blank', 'noopener,noreferrer')}
-              >
-                <MapPin className="w-4 h-4 mr-2" />
-                Tracking
-              </Button>
-            )}
+            <Button size="sm" variant="outline" onClick={() => onArchive(order.id)}>
+              <Archive className="w-4 h-4 mr-2" />
+              Archivia
+            </Button>
           </div>
 
           <Separator />
