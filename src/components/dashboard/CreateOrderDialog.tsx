@@ -244,6 +244,16 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
   const createProductionWorkOrder = async (orderId: string, orderData: any) => {
     const commission = newOrder.commissions.production;
+    
+    // Prepare offer reference
+    let offerReference = '';
+    if (newOrder.offer_id) {
+      const selectedOffer = offers.find(o => o.id === newOrder.offer_id);
+      if (selectedOffer) {
+        offerReference = `Rif. Offerta: ${selectedOffer.number}`;
+      }
+    }
+    
     const productionData = {
       number: '',
       title: newOrder.title || `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
@@ -252,7 +262,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       customer_id: newOrder.customer_id,
       production_responsible_id: commission.responsible || null,
       priority: newOrder.priority,
-      notes: newOrder.notes,
+      notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
+      article: newOrder.articles.join('\n') || null,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId,
@@ -272,6 +283,16 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
   const createServiceWorkOrder = async (orderId: string, orderData: any, productionWOId?: string) => {
     const commission = newOrder.commissions.service;
+    
+    // Prepare offer reference
+    let offerReference = '';
+    if (newOrder.offer_id) {
+      const selectedOffer = offers.find(o => o.id === newOrder.offer_id);
+      if (selectedOffer) {
+        offerReference = `Rif. Offerta: ${selectedOffer.number}`;
+      }
+    }
+    
     const serviceData = {
       number: '',
       title: newOrder.title || `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
@@ -281,7 +302,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       lead_id: newOrder.lead_id || null,
       service_responsible_id: commission.responsible || null,
       priority: newOrder.priority,
-      notes: newOrder.notes,
+      notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
+      article: newOrder.articles.join('\n') || null,
       production_work_order_id: productionWOId || null,
       sales_order_id: orderId
     };
@@ -298,13 +320,24 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
   const createShippingOrder = async (orderId: string, orderData: any) => {
     const commission = newOrder.commissions.shipping;
+    
+    // Prepare offer reference
+    let offerReference = '';
+    if (newOrder.offer_id) {
+      const selectedOffer = offers.find(o => o.id === newOrder.offer_id);
+      if (selectedOffer) {
+        offerReference = `Rif. Offerta: ${selectedOffer.number}`;
+      }
+    }
+    
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id || null,
       shipping_responsible_id: commission.responsible || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
-      notes: newOrder.notes,
+      notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
+      article: newOrder.articles.join('\n') || null,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId
