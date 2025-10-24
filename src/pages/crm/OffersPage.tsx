@@ -16,6 +16,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -35,6 +36,13 @@ interface Offer {
   assigned_to?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   payment_terms?: string;
+  template?: 'zapper' | 'vesuviano' | 'zapperpro';
+  timeline_produzione?: string;
+  timeline_consegna?: string;
+  timeline_installazione?: string;
+  timeline_collaudo?: string;
+  incluso_fornitura?: string;
+  metodi_pagamento?: string;
 }
 
 interface Lead {
@@ -59,6 +67,7 @@ export default function OffersPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);

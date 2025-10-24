@@ -3012,11 +3012,17 @@ export type Database = {
           customer_name: string
           description: string | null
           id: string
+          incluso_fornitura: string | null
           lead_id: string | null
+          metodi_pagamento: string | null
           number: string
           payment_terms: string | null
           priority: string | null
           status: string
+          timeline_collaudo: string | null
+          timeline_consegna: string | null
+          timeline_installazione: string | null
+          timeline_produzione: string | null
           title: string
           updated_at: string
           valid_until: string | null
@@ -3030,11 +3036,17 @@ export type Database = {
           customer_name: string
           description?: string | null
           id?: string
+          incluso_fornitura?: string | null
           lead_id?: string | null
+          metodi_pagamento?: string | null
           number: string
           payment_terms?: string | null
           priority?: string | null
           status?: string
+          timeline_collaudo?: string | null
+          timeline_consegna?: string | null
+          timeline_installazione?: string | null
+          timeline_produzione?: string | null
           title: string
           updated_at?: string
           valid_until?: string | null
@@ -3048,11 +3060,17 @@ export type Database = {
           customer_name?: string
           description?: string | null
           id?: string
+          incluso_fornitura?: string | null
           lead_id?: string | null
+          metodi_pagamento?: string | null
           number?: string
           payment_terms?: string | null
           priority?: string | null
           status?: string
+          timeline_collaudo?: string | null
+          timeline_consegna?: string | null
+          timeline_installazione?: string | null
+          timeline_produzione?: string | null
           title?: string
           updated_at?: string
           valid_until?: string | null
