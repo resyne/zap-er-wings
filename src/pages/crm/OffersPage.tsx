@@ -93,6 +93,12 @@ export default function OffersPage() {
     valid_until: string;
     status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
     template: 'zapper' | 'vesuviano' | 'zapperpro';
+    timeline_produzione?: string;
+    timeline_consegna?: string;
+    timeline_installazione?: string;
+    timeline_collaudo?: string;
+    incluso_fornitura?: string;
+    metodi_pagamento?: string;
   }>({
     id: undefined,
     customer_id: '',
@@ -101,7 +107,13 @@ export default function OffersPage() {
     amount: 0,
     valid_until: '',
     status: 'richiesta_offerta',
-    template: 'zapper'
+    template: 'zapper',
+    timeline_produzione: '2-3 settimane',
+    timeline_consegna: '3-5 giorni',
+    timeline_installazione: '1 giorno',
+    timeline_collaudo: '1 giorno',
+    incluso_fornitura: '',
+    metodi_pagamento: '30% acconto - 70% alla consegna'
   });
 
   const [offerRequest, setOfferRequest] = useState({
