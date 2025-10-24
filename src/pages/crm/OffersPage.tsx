@@ -294,7 +294,21 @@ export default function OffersPage() {
         .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
         .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/{{tempi_consegna}}/g, 'Da concordare')
+        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || '2-3 settimane')
+        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || '3-5 giorni')
+        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || '1 giorno')
+        .replace(/{{timeline_collaudo}}/g, offer.timeline_collaudo || '1 giorno')
+        .replace(/{{metodi_pagamento}}/g, offer.metodi_pagamento || '30% acconto - 70% alla consegna')
+        .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
+        .replace(/{{logo}}/g, '/images/logo-zapper.png')
         .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
+        
+      // Gestisci incluso_fornitura
+      const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
+      const inclusoHtml = inclusoItems.length > 0 
+        ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
+        : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
+      templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
 
       // Create temporary container
       const tempDiv = document.createElement('div');
@@ -530,16 +544,22 @@ export default function OffersPage() {
 
       await loadData();
       
-      setNewOffer({
-        id: undefined,
-        customer_id: '',
-        title: '',
-        description: '',
-        amount: 0,
-        valid_until: '',
-        status: 'richiesta_offerta',
-        template: 'zapper'
-      });
+          setNewOffer({
+            id: undefined,
+            customer_id: '',
+            title: '',
+            description: '',
+            amount: 0,
+            valid_until: '',
+            status: 'richiesta_offerta',
+            template: 'zapper',
+            timeline_produzione: '2-3 settimane',
+            timeline_consegna: '3-5 giorni',
+            timeline_installazione: '1 giorno',
+            timeline_collaudo: '1 giorno',
+            incluso_fornitura: '',
+            metodi_pagamento: '30% acconto - 70% alla consegna'
+          });
       setSelectedProducts([]);
       setIsCreateDialogOpen(false);
       
@@ -997,6 +1017,63 @@ export default function OffersPage() {
                     <SelectItem value="zapperpro">ZAPPER PRO - Professional Solutions</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              {/* Timeline Operativa */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Timeline Produzione</label>
+                  <Input
+                    value={newOffer.timeline_produzione}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_produzione: e.target.value }))}
+                    placeholder="Es: 2-3 settimane"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Timeline Consegna</label>
+                  <Input
+                    value={newOffer.timeline_consegna}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_consegna: e.target.value }))}
+                    placeholder="Es: 3-5 giorni"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Timeline Installazione</label>
+                  <Input
+                    value={newOffer.timeline_installazione}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_installazione: e.target.value }))}
+                    placeholder="Es: 1 giorno"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Timeline Collaudo</label>
+                  <Input
+                    value={newOffer.timeline_collaudo}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_collaudo: e.target.value }))}
+                    placeholder="Es: 1 giorno"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Cosa Include la Fornitura</label>
+                <Textarea
+                  value={newOffer.incluso_fornitura}
+                  onChange={(e) => setNewOffer(prev => ({ ...prev, incluso_fornitura: e.target.value }))}
+                  placeholder="Inserisci una voce per riga, es:&#10;Fornitura e installazione completa&#10;Formazione del personale&#10;Assistenza tecnica 12 mesi"
+                  rows={4}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Una voce per riga</p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Metodi di Pagamento</label>
+                <Textarea
+                  value={newOffer.metodi_pagamento}
+                  onChange={(e) => setNewOffer(prev => ({ ...prev, metodi_pagamento: e.target.value }))}
+                  placeholder="Es: 30% acconto - 70% alla consegna"
+                  rows={2}
+                />
               </div>
               
               {/* Sezione Prodotti */}
