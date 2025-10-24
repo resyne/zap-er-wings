@@ -731,6 +731,13 @@ export default function WorkOrdersPage() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+            <Button 
+              variant={showArchivedOrders ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setShowArchivedOrders(!showArchivedOrders)}
+            >
+              {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowFiltersDialog(true)}>
               <Filter className="mr-2 h-4 w-4" />
               Filtri

@@ -100,14 +100,15 @@ export default function ShippingOrdersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [orderItems, setOrderItems] = useState<ShippingOrderItem[]>([]);
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { executeWithUndo } = useUndoableAction();
 
   const { data: shippingOrders, isLoading } = useQuery({
-    queryKey: ["shipping-orders"],
+    queryKey: ["shipping-orders", showArchivedOrders],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from("shipping_orders")
         .select(`
           *,
@@ -119,8 +120,16 @@ export default function ShippingOrdersPage() {
             materials(name, code)
           )
         `)
-        .eq('archived', false)
         .order("created_at", { ascending: false });
+      
+      // Applica il filtro archiviati
+      if (showArchivedOrders) {
+        query.eq('archived', true);
+      } else {
+        query.eq('archived', false);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data;
@@ -578,6 +587,13 @@ export default function ShippingOrdersPage() {
               Kanban
             </Button>
           </div>
+          <Button 
+            variant={showArchivedOrders ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setShowArchivedOrders(!showArchivedOrders)}
+          >
+            {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
+          </Button>
         </div>
       </div>
 

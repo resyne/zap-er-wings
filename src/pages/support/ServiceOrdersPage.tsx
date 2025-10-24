@@ -90,6 +90,7 @@ export default function WorkOrdersServicePage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<ServiceWorkOrder | null>(null);
@@ -115,11 +116,11 @@ export default function WorkOrdersServicePage() {
     loadCustomers();
     loadContacts();
     loadTechnicians();
-  }, []);
+  }, [showArchivedOrders]);
 
   const loadServiceWorkOrders = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('service_work_orders')
         .select(`
           *,
@@ -132,6 +133,11 @@ export default function WorkOrdersServicePage() {
             last_name,
             company_name
           ),
+          production_work_orders:production_work_order_id (
+            id,
+            number,
+            status
+          ),
           sales_orders (
             number
           ),
@@ -140,8 +146,16 @@ export default function WorkOrdersServicePage() {
             company_name
           )
         `)
-        .eq('archived', false)
         .order('created_at', { ascending: false });
+      
+      // Applica il filtro archiviati
+      if (showArchivedOrders) {
+        query = query.eq('archived', true);
+      } else {
+        query = query.eq('archived', false);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -507,6 +521,13 @@ export default function WorkOrdersServicePage() {
             <SelectItem value="spediti_consegnati">Spediti/Consegnati</SelectItem>
           </SelectContent>
         </Select>
+        <Button 
+          variant={showArchivedOrders ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => setShowArchivedOrders(!showArchivedOrders)}
+        >
+          {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
+        </Button>
       </div>
 
       {/* Tabella Commesse di Lavoro */}
