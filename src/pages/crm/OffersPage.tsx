@@ -1195,60 +1195,95 @@ export default function OffersPage() {
         onCustomerCreated={handleCustomerCreated}
       />
 
-      {/* Vista Kanban con Fasi */}
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
-        {/* Colonna: Richieste */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
+      {/* Sezione Richieste di Offerta - Vista Orizzontale */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-600" />
-              <CardTitle className="text-sm">Richieste</CardTitle>
+              <Clock className="w-5 h-5 text-slate-600" />
+              <CardTitle>Richieste di Offerta</CardTitle>
+              <Badge variant="secondary">{statusCounts.richiesta_offerta}</Badge>
             </div>
-            <Badge variant="secondary" className="w-fit">{statusCounts.richiesta_offerta}</Badge>
-          </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-2 pr-2">
-                {offers.filter(o => o.status === 'richiesta_offerta').map(offer => (
-                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">{offer.number}</div>
-                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
-                      <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className="flex gap-1 pt-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => openDetails(offer)}>
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          className="flex-1" 
-                          onClick={() => {
-                            setNewOffer({
-                              id: offer.id,
-                              customer_id: offer.customer_id,
-                              title: offer.title,
-                              description: offer.description || `Richiesta:\n${offer.title}\n\nDettagli:\n- Cliente: ${offer.customer_name}\n- Importo stimato: € ${offer.amount.toFixed(2)}`,
-                              amount: offer.amount,
-                              valid_until: '',
-                              status: 'offerta_pronta'
-                            });
-                            setSelectedProducts([]);
-                            setIsCreateDialogOpen(true);
-                          }}
-                        >
-                          <FileCheck className="w-3 h-3 mr-1" />
-                          Prepara
-                        </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="w-full">
+            <div className="flex gap-4 pb-4">
+              {offers.filter(o => o.status === 'richiesta_offerta').length === 0 ? (
+                <div className="text-muted-foreground text-sm w-full text-center py-8">
+                  Nessuna richiesta di offerta in sospeso
+                </div>
+              ) : (
+                offers.filter(o => o.status === 'richiesta_offerta').map(offer => (
+                  <Card key={offer.id} className="min-w-[300px] hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-medium">{offer.number}</div>
+                            <div className="text-sm text-muted-foreground">{offer.customer_name}</div>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Richiesta
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-sm line-clamp-2">{offer.title}</div>
+                        
+                        <div className="text-lg font-bold text-primary">
+                          € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1" 
+                            onClick={() => openDetails(offer)}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            Vedi
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="flex-1" 
+                            onClick={() => {
+                              setNewOffer({
+                                id: offer.id,
+                                customer_id: offer.customer_id,
+                                title: offer.title,
+                                description: offer.description || `Richiesta:\n${offer.title}\n\nDettagli:\n- Cliente: ${offer.customer_name}\n- Importo stimato: € ${offer.amount.toFixed(2)}`,
+                                amount: offer.amount,
+                                valid_until: '',
+                                status: 'offerta_pronta'
+                              });
+                              setSelectedProducts([]);
+                              setIsCreateDialogOpen(true);
+                            }}
+                          >
+                            <FileCheck className="w-3 h-3 mr-1" />
+                            Prepara
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    </CardContent>
                   </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
 
+      {/* Vista Kanban - Solo Offerte Generate */}
+      <div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold">Offerte Generate</h3>
+          <p className="text-sm text-muted-foreground">Gestisci le offerte in fase di elaborazione</p>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Colonna: Pronte */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-3">
@@ -1454,6 +1489,7 @@ export default function OffersPage() {
             </ScrollArea>
           </CardContent>
         </Card>
+      </div>
       </div>
 
       {/* Dialog Dettagli Offerta */}
