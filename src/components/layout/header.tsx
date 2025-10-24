@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,9 +17,9 @@ import {
   Settings,
   Search
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { GlobalSearch } from "./GlobalSearch";
 
 interface HeaderProps {
   user?: {
@@ -31,6 +32,7 @@ interface HeaderProps {
 
 export function Header({ user, onLogout }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -40,14 +42,18 @@ export function Header({ user, onLogout }: HeaderProps) {
 
         {/* Search - Hidden on mobile */}
         <div className="hidden md:flex flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search across ERP..."
-              className="pl-9 h-9 bg-muted/50 border-0 focus:bg-background"
-            />
+          <div 
+            className="relative w-full cursor-pointer"
+            onClick={() => setIsSearchOpen(true)}
+          >
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <div className="pl-9 h-9 bg-muted/50 border-0 rounded-md flex items-center text-sm text-muted-foreground hover:bg-muted/70 transition-colors">
+              Cerca in tutto l'ERP...
+            </div>
           </div>
         </div>
+        
+        <GlobalSearch open={isSearchOpen} onOpenChange={setIsSearchOpen} />
         
         {/* Mobile spacer */}
         <div className="flex-1 md:hidden" />
