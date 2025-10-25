@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,12 +21,14 @@ import {
   Settings,
   Eye,
   ExternalLink,
-  Check
+  Check,
+  X,
+  Plus
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, getDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserActivity {
@@ -118,6 +123,13 @@ interface AssignedOrder {
   created_at: string;
 }
 
+interface StickyNote {
+  id: string;
+  content: string;
+  color: string;
+  created_at: string;
+}
+
 // Component to display user role
 function RoleDisplay() {
   const { userRole } = useUserRole();
@@ -135,9 +147,12 @@ export function DashboardPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
   const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
+  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [showNewNoteDialog, setShowNewNoteDialog] = useState(false);
+  const [newNote, setNewNote] = useState({ content: "", color: "yellow" });
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
@@ -351,6 +366,16 @@ export function DashboardPage() {
       setTickets(ticketsData || []);
       setRecurringTasks(userRecurringTasks);
       setAssignedOrders(assignedOrdersList);
+
+      // Load sticky notes
+      const { data: notesData, error: notesError } = await supabase
+        .from('sticky_notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (notesError) console.error("Error loading sticky notes:", notesError);
+      setStickyNotes(notesData || []);
     } catch (error) {
       console.error("Error loading user tasks:", error);
     } finally {
@@ -431,6 +456,78 @@ export function DashboardPage() {
     }
   };
 
+  const handleCreateNote = async () => {
+    if (!newNote.content.trim()) {
+      toast({
+        title: "Errore",
+        description: "Inserisci un contenuto per il post-it",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('sticky_notes')
+        .insert({
+          user_id: user!.id,
+          content: newNote.content,
+          color: newNote.color
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Post-it creato con successo",
+      });
+
+      setShowNewNoteDialog(false);
+      setNewNote({ content: "", color: "yellow" });
+      loadUserTasks();
+    } catch (error) {
+      console.error('Error creating note:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione del post-it",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('sticky_notes')
+        .delete()
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Post-it eliminato con successo",
+      });
+
+      loadUserTasks();
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione del post-it",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const noteColorClasses = {
+    yellow: "bg-yellow-100 border-yellow-300",
+    blue: "bg-blue-100 border-blue-300",
+    green: "bg-green-100 border-green-300",
+    pink: "bg-pink-100 border-pink-300",
+    purple: "bg-purple-100 border-purple-300"
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -476,6 +573,48 @@ export function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* Post-it / Sticky Notes Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>I Miei Post-it</CardTitle>
+          <Button size="sm" onClick={() => setShowNewNoteDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuovo Post-it
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {stickyNotes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Nessun post-it. Clicca su "Nuovo Post-it" per aggiungerne uno.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {stickyNotes.map((note) => (
+                <Card 
+                  key={note.id} 
+                  className={`relative p-4 border-2 shadow-sm hover:shadow-md transition-shadow ${noteColorClasses[note.color as keyof typeof noteColorClasses] || noteColorClasses.yellow}`}
+                >
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2 right-2 h-6 w-6"
+                    onClick={() => handleDeleteNote(note.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <p className="text-sm whitespace-pre-wrap pr-8 min-h-[80px]">
+                    {note.content}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {format(new Date(note.created_at), "PPp", { locale: it })}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1280,6 +1419,59 @@ export function DashboardPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per creare nuovo post-it */}
+      <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuovo Post-it</DialogTitle>
+            <DialogDescription>
+              Crea un promemoria rapido per te stesso
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="note-content">Contenuto</Label>
+              <Textarea
+                id="note-content"
+                value={newNote.content}
+                onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+                placeholder="Scrivi qui il tuo promemoria..."
+                className="min-h-[120px]"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="note-color">Colore</Label>
+              <Select 
+                value={newNote.color} 
+                onValueChange={(value) => setNewNote({ ...newNote, color: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yellow">Giallo</SelectItem>
+                  <SelectItem value="blue">Blu</SelectItem>
+                  <SelectItem value="green">Verde</SelectItem>
+                  <SelectItem value="pink">Rosa</SelectItem>
+                  <SelectItem value="purple">Viola</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewNoteDialog(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleCreateNote}>
+              Crea Post-it
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
