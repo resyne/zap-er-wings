@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck } from "lucide-react";
+import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
@@ -567,6 +567,57 @@ export default function WorkOrdersServicePage() {
     }
   };
 
+  const handleTakeOwnership = async (workOrderId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Errore",
+          description: "Devi essere autenticato per assegnarti questa commessa",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Trova il tecnico tramite email dell'utente corrente
+      const { data: technicianData, error: techError } = await supabase
+        .from('technicians')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
+      if (techError || !technicianData) {
+        toast({
+          title: "Errore",
+          description: "Non sei registrato come tecnico nel sistema. Contatta l'amministratore.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('service_work_orders')
+        .update({ assigned_to: technicianData.id })
+        .eq('id', workOrderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ti sei assegnato questa commessa con successo",
+      });
+
+      loadServiceWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredWorkOrders = serviceWorkOrders.filter(wo => {
     const matchesSearch = wo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          wo.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -723,19 +774,27 @@ export default function WorkOrdersServicePage() {
                         )}
                       </TableCell>
                       <TableCell>
-                       {workOrder.technician ? (
-                         <div className="space-y-1">
-                           <div className="text-sm font-medium">
-                             {workOrder.technician.first_name} {workOrder.technician.last_name}
-                           </div>
-                           <div className="text-xs text-muted-foreground font-mono">
-                             {workOrder.technician.employee_code}
-                           </div>
-                         </div>
-                       ) : (
-                         <span className="text-muted-foreground text-sm">Non assegnato</span>
-                       )}
-                     </TableCell>
+                        {workOrder.technician ? (
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">
+                              {workOrder.technician.first_name} {workOrder.technician.last_name}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {workOrder.technician.employee_code}
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleTakeOwnership(workOrder.id)}
+                            className="gap-2"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            Prendi in carico
+                          </Button>
+                        )}
+                      </TableCell>
                     <TableCell>
                       <Badge variant={workOrder.priority === 'urgent' ? 'destructive' : 
                                    workOrder.priority === 'high' ? 'default' :
