@@ -140,13 +140,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
         if (error) throw error;
 
-        // Filter only image files
-        const imageFiles = (leadFiles || []).filter(file => 
+        // Filter image and video files
+        const mediaFiles = (leadFiles || []).filter(file => 
           file.file_type?.startsWith('image/') || 
-          /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.file_name)
+          file.file_type?.startsWith('video/') ||
+          /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
         );
 
-        const photos = imageFiles.map(file => ({
+        const photos = mediaFiles.map(file => ({
           url: supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl,
           name: file.file_name
         }));
@@ -346,7 +347,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       number: '',
       title: newOrder.title || `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.description || newOrder.notes || '',
-      status: 'to_do' as const,
+      status: 'planned' as const,
       customer_id: newOrder.customer_id,
       lead_id: newOrder.lead_id || null,
       service_responsible_id: commission.responsible || null,
@@ -413,16 +414,17 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (leadFilesError) throw leadFilesError;
       if (!leadFiles || leadFiles.length === 0) return;
 
-      // Filter only image files
-      const imageFiles = leadFiles.filter(file => 
+      // Filter image and video files
+      const mediaFiles = leadFiles.filter(file => 
         file.file_type?.startsWith('image/') || 
-        /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.file_name)
+        file.file_type?.startsWith('video/') ||
+        /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
       );
 
-      if (imageFiles.length === 0) return;
+      if (mediaFiles.length === 0) return;
 
-      // Copy each image file to opportunity-files bucket
-      for (const file of imageFiles) {
+      // Copy each media file to opportunity-files bucket
+      for (const file of mediaFiles) {
         // Download file from lead-files bucket
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('lead-files')
@@ -449,8 +451,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
 
       toast({
-        title: "Foto copiate",
-        description: `${imageFiles.length} foto copiate dal lead all'ordine`,
+        title: "Media copiati",
+        description: `${mediaFiles.length} foto/video copiati dal lead all'ordine`,
       });
     } catch (error) {
       console.error('Error copying lead photos:', error);
@@ -774,16 +776,16 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           </div>
 
-          {/* Lead Photos Preview */}
+          {/* Lead Photos/Videos Preview */}
           {leadPhotos.length > 0 && (
             <div className="border rounded-lg p-4 bg-muted/30">
               <div className="flex items-center gap-2 mb-3">
                 <ImageIcon className="h-4 w-4 text-primary" />
                 <Label className="text-sm font-medium">
-                  Foto dal Lead ({leadPhotos.length})
+                  Media dal Lead ({leadPhotos.length})
                 </Label>
                 <span className="text-xs text-muted-foreground">
-                  (saranno copiate nell'ordine)
+                  (saranno copiati nell'ordine)
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -806,7 +808,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               </div>
               {leadPhotos.length > 8 && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  +{leadPhotos.length - 8} altre foto
+                  +{leadPhotos.length - 8} altri media
                 </p>
               )}
             </div>
