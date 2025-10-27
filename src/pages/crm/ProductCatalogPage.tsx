@@ -6,16 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Package, ListChecks } from "lucide-react";
+import { Plus, Search, Package, ListChecks, Pencil, Trash2 } from "lucide-react";
 import { CreateProductDialog } from "@/components/crm/CreateProductDialog";
+import { EditProductDialog } from "@/components/crm/EditProductDialog";
 import { ProductPriceListDialog } from "@/components/crm/ProductPriceListDialog";
 import { PriceListManager } from "@/components/crm/PriceListManager";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 export default function ProductCatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [priceListDialogOpen, setPriceListDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   const { data: products, isLoading, refetch } = useQuery({
@@ -65,6 +70,27 @@ export default function ProductCatalogPage() {
     component: "Componente",
     spare_part: "Ricambio",
     service: "Servizio",
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_active: false })
+        .eq("id", selectedProduct.id);
+
+      if (error) throw error;
+
+      toast.success("Prodotto eliminato con successo");
+      setDeleteDialogOpen(false);
+      setSelectedProduct(null);
+      refetch();
+    } catch (error: any) {
+      console.error("Error deleting product:", error);
+      toast.error(error.message || "Errore nell'eliminazione del prodotto");
+    }
   };
 
   return (
@@ -181,6 +207,26 @@ export default function ProductCatalogPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="flex-1"
                         onClick={() => {
                           setSelectedProduct(product);
@@ -217,13 +263,40 @@ export default function ProductCatalogPage() {
       />
 
       {selectedProduct && (
-        <ProductPriceListDialog
-          open={priceListDialogOpen}
-          onOpenChange={setPriceListDialogOpen}
-          product={selectedProduct}
-          onSuccess={refetch}
-        />
+        <>
+          <EditProductDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            product={selectedProduct}
+            onSuccess={refetch}
+          />
+          
+          <ProductPriceListDialog
+            open={priceListDialogOpen}
+            onOpenChange={setPriceListDialogOpen}
+            product={selectedProduct}
+            onSuccess={refetch}
+          />
+        </>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare il prodotto "{selectedProduct?.name}"? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct}>
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
