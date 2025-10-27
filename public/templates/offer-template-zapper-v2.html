@@ -11,13 +11,12 @@
         /* PDF A4 Perfect Print Settings */
         @page {
             size: A4;
-            margin: 20mm;
+            margin: 15mm;
         }
         
         html, body {
             width: 210mm;
             height: auto;
-            min-height: 297mm;
             margin: 0 auto;
             padding: 0;
             background: white;
@@ -25,12 +24,13 @@
         
         body {
             font-family: 'Arial', 'Helvetica', sans-serif;
-            font-size: 12pt;
-            line-height: 1.4;
+            font-size: 11pt;
+            line-height: 1.3;
         }
         
         /* Evita che elementi vengano spezzati tra le pagine */
-        table, tr, td, th, div, p, .section, .info-box, .trustpilot-section {
+        table, tr, td, th, .section, .info-box, .trustpilot-section,
+        .includes-section, .nota-bene, .summary-box, .timeline-box {
             page-break-inside: avoid;
         }
         
@@ -39,18 +39,37 @@
             page-break-after: always;
         }
         
+        .page-break-before {
+            page-break-before: always;
+        }
+        
         /* Impedisce interruzioni indesiderate dopo i titoli */
         h1, h2, h3, h4, h5, h6, .section-title {
             page-break-after: avoid;
+            page-break-inside: avoid;
+        }
+        
+        /* Gestione header e footer per stampa */
+        .header {
+            page-break-after: avoid;
+        }
+        
+        .footer {
+            page-break-before: auto;
         }
         
         @media print {
             body {
                 background: white;
+                margin: 0;
+                padding: 0;
             }
             .container {
                 box-shadow: none;
                 margin: 0;
+                padding: 0;
+                width: 100%;
+                max-width: 100%;
             }
             .header {
                 position: relative;
@@ -89,7 +108,7 @@
         
         .header {
             background: #38AC4F;
-            padding: 30px;
+            padding: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -100,9 +119,9 @@
         }
         
         .logo-image {
-            max-height: 70px;
+            max-height: 50px;
             width: auto;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         
         .logo-text-area {
@@ -177,11 +196,11 @@
         }
         
         .content {
-            padding: 30px;
+            padding: 20px;
         }
         
         .section {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         .section-title {
@@ -268,8 +287,8 @@
         .info-box {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 20px 0;
+            gap: 15px;
+            margin: 15px 0;
         }
         
         .info-item {
@@ -302,8 +321,8 @@
             background: white;
             border: 1px solid #e5e5e5;
             border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
+            padding: 15px;
+            margin: 15px 0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         
@@ -429,8 +448,8 @@
             background: linear-gradient(135deg, #f8fff9 0%, #e8f9ed 100%);
             border: 2px solid #38AC4F;
             border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
+            padding: 15px;
+            margin: 15px 0;
             box-shadow: 0 4px 12px rgba(56, 172, 79, 0.15);
         }
         
@@ -481,8 +500,8 @@
         .timeline-box {
             background: #f9f9f9;
             border-radius: 12px;
-            padding: 18px;
-            margin: 20px 0;
+            padding: 15px;
+            margin: 15px 0;
             border-left: 4px solid #38AC4F;
         }
         
@@ -600,8 +619,8 @@
                 <div class="doc-cliente">
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
                         <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Spett.le Cliente:</div>
-                        <div style="font-size: 14px; font-weight: bold;">{{cliente_nome}}</div>
-                        <div style="font-size: 12px; opacity: 0.95;">{{cliente_indirizzo}}</div>
+                        <div style="font-size: 14px; font-weight: bold;">{{cliente.nome}}</div>
+                        <div style="font-size: 12px; opacity: 0.95;">{{cliente.indirizzo}}</div>
                     </div>
                 </div>
             </div>
@@ -656,7 +675,7 @@
             <div class="info-box">
                 <div class="info-item">
                     <div class="info-label">Validità Offerta</div>
-                    <div>{{validita_offerta}}</div>
+                    <div>{{validità_offerta}}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Tempi di Consegna</div>
@@ -665,7 +684,7 @@
             </div>
             
             <!-- 7. Metodi di Pagamento -->
-            <div class="section">
+            <div class="section page-break-before">
                 <div class="section-title">Metodi di Pagamento</div>
                 <div class="pagamenti-info">
                     <div>{{metodi_pagamento}}</div>
@@ -687,7 +706,7 @@
                 <div class="summary-content">
                     <div class="summary-details">
                         <div><strong>Offerta n.</strong> {{numero_offerta}}</div>
-                        <div><strong>Cliente:</strong> {{cliente_nome}}</div>
+                        <div><strong>Cliente:</strong> {{cliente.nome}}</div>
                         <div><strong>Oggetto:</strong> {{oggetto_offerta}}</div>
                     </div>
                     <div class="summary-total">
