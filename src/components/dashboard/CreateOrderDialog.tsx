@@ -357,7 +357,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId,
       diameter: commission.diameter || null,
-      smoke_inlet: commission.smoke_inlet || null
+      smoke_inlet: commission.smoke_inlet || null,
+      attachments: orderData.attachments || []
     };
 
     const { data: productionWO, error } = await supabase
@@ -394,7 +395,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
       article: newOrder.articles.join('\n') || null,
       production_work_order_id: productionWOId || null,
-      sales_order_id: orderId
+      sales_order_id: orderId,
+      attachments: orderData.attachments || []
     };
 
     const { data: serviceWO, error } = await supabase
@@ -429,7 +431,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       article: newOrder.articles.join('\n') || null,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
-      sales_order_id: orderId
+      sales_order_id: orderId,
+      attachments: orderData.attachments || []
     };
 
     const { data: shippingOrder, error } = await supabase

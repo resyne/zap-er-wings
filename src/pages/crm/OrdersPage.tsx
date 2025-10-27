@@ -295,7 +295,8 @@ export default function OrdersPage() {
       notes: newOrder.notes,
       article: orderData.article || null, // Copy articles from sales order
       includes_installation: newOrder.order_type === 'odpel',
-      sales_order_id: orderId
+      sales_order_id: orderId,
+      attachments: orderData.attachments || []
     };
 
     const { data: productionWO, error } = await supabase
@@ -323,7 +324,8 @@ export default function OrdersPage() {
       equipment_needed: newOrder.equipment_needed || null,
       notes: newOrder.notes,
       production_work_order_id: productionWOId || null,
-      sales_order_id: orderId
+      sales_order_id: orderId,
+      attachments: orderData.attachments || []
     };
 
     const { data: serviceWO, error } = await supabase

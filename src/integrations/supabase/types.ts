@@ -4774,6 +4774,7 @@ export type Database = {
           archived: boolean | null
           article: string | null
           assigned_to: string | null
+          attachments: Json | null
           back_office_manager: string | null
           contact_id: string | null
           created_at: string
@@ -4803,6 +4804,7 @@ export type Database = {
           archived?: boolean | null
           article?: string | null
           assigned_to?: string | null
+          attachments?: Json | null
           back_office_manager?: string | null
           contact_id?: string | null
           created_at?: string
@@ -4832,6 +4834,7 @@ export type Database = {
           archived?: boolean | null
           article?: string | null
           assigned_to?: string | null
+          attachments?: Json | null
           back_office_manager?: string | null
           contact_id?: string | null
           created_at?: string
@@ -4985,6 +4988,7 @@ export type Database = {
         Row: {
           archived: boolean | null
           article: string | null
+          attachments: Json | null
           back_office_manager: string | null
           back_office_responsible_id: string | null
           created_at: string
@@ -5010,6 +5014,7 @@ export type Database = {
         Insert: {
           archived?: boolean | null
           article?: string | null
+          attachments?: Json | null
           back_office_manager?: string | null
           back_office_responsible_id?: string | null
           created_at?: string
@@ -5035,6 +5040,7 @@ export type Database = {
         Update: {
           archived?: boolean | null
           article?: string | null
+          attachments?: Json | null
           back_office_manager?: string | null
           back_office_responsible_id?: string | null
           created_at?: string
@@ -6009,6 +6015,7 @@ export type Database = {
           archived: boolean | null
           article: string | null
           assigned_to: string | null
+          attachments: Json | null
           back_office_manager: string | null
           bom_id: string | null
           completed_date: string | null
@@ -6043,6 +6050,7 @@ export type Database = {
           archived?: boolean | null
           article?: string | null
           assigned_to?: string | null
+          attachments?: Json | null
           back_office_manager?: string | null
           bom_id?: string | null
           completed_date?: string | null
@@ -6077,6 +6085,7 @@ export type Database = {
           archived?: boolean | null
           article?: string | null
           assigned_to?: string | null
+          attachments?: Json | null
           back_office_manager?: string | null
           bom_id?: string | null
           completed_date?: string | null
