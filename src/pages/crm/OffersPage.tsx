@@ -100,7 +100,6 @@ export default function OffersPage() {
     notes?: string;
   }>>([]);
   const [currentProductId, setCurrentProductId] = useState<string>('');
-  const [globalReverseCharge, setGlobalReverseCharge] = useState(false);
   const [includeCertificazione, setIncludeCertificazione] = useState(true);
   const [includeGaranzia, setIncludeGaranzia] = useState(true);
   const [inclusoCustom, setInclusoCustom] = useState('');
@@ -1379,37 +1378,27 @@ export default function OffersPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Prodotti e Servizi</label>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedProducts([...selectedProducts, {
-                          product_id: `manual-${Date.now()}`,
-                          product_name: '',
-                          description: '',
-                          quantity: 1,
-                          unit_price: 0,
-                          discount_percent: 0,
-                          vat_rate: 22,
-                          reverse_charge: globalReverseCharge,
-                          notes: ''
-                        }]);
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Aggiungi Voce Manuale
-                    </Button>
-                    <Checkbox
-                      id="reverse-charge"
-                      checked={globalReverseCharge}
-                      onCheckedChange={(checked) => setGlobalReverseCharge(checked === true)}
-                    />
-                    <label htmlFor="reverse-charge" className="text-sm cursor-pointer">
-                      Reverse Charge
-                    </label>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProducts([...selectedProducts, {
+                        product_id: `manual-${Date.now()}`,
+                        product_name: '',
+                        description: '',
+                        quantity: 1,
+                        unit_price: 0,
+                        discount_percent: 0,
+                        vat_rate: 22,
+                        reverse_charge: false,
+                        notes: ''
+                      }]);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi Voce Manuale
+                  </Button>
                 </div>
                 <div className="flex gap-2">
                   <Select
@@ -1440,7 +1429,7 @@ export default function OffersPage() {
                           unit_price: product.base_price || 0,
                           discount_percent: 0,
                           vat_rate: 22,
-                          reverse_charge: globalReverseCharge,
+                          reverse_charge: false,
                           notes: ''
                         }]);
                         setCurrentProductId('');
@@ -1609,28 +1598,13 @@ export default function OffersPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Importo Manuale (€)</label>
-                  <Input
-                    type="number"
-                    value={newOffer.amount}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                    placeholder="0.00"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Usa questo se non selezioni prodotti
-                  </p>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Valida fino al</label>
-                  <Input
-                    type="date"
-                    value={newOffer.valid_until}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, valid_until: e.target.value }))}
-                  />
-                </div>
+              <div>
+                <label className="text-sm font-medium">Valida fino al</label>
+                <Input
+                  type="date"
+                  value={newOffer.valid_until}
+                  onChange={(e) => setNewOffer(prev => ({ ...prev, valid_until: e.target.value }))}
+                />
               </div>
               
               <div className="flex justify-end space-x-2 pt-4">
