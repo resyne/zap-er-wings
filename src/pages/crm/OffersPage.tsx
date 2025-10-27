@@ -354,6 +354,19 @@ export default function OffersPage() {
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
+      // PDF Generation Options
+      const pdfOptions = {
+        format: 'A4',
+        margin: {
+          top: 15,    // 15mm
+          right: 15,  // 15mm
+          bottom: 15, // 15mm
+          left: 15    // 15mm
+        },
+        printBackground: true,
+        preferCSSPageSize: true
+      };
+
       // Create temporary container
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHtml;
@@ -367,27 +380,39 @@ export default function OffersPage() {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: pdfOptions.printBackground ? '#ffffff' : null
       });
 
       document.body.removeChild(tempDiv);
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdf = new jsPDF('p', 'mm', pdfOptions.format.toLowerCase());
+      
+      // Apply margins
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const marginLeft = pdfOptions.margin.left;
+      const marginTop = pdfOptions.margin.top;
+      const marginRight = pdfOptions.margin.right;
+      const marginBottom = pdfOptions.margin.bottom;
+      
+      const contentWidth = pageWidth - marginLeft - marginRight;
+      const contentHeight = pageHeight - marginTop - marginBottom;
+      
+      const pdfWidth = contentWidth;
+      const pdfHeight = (canvas.height * contentWidth) / canvas.width;
       
       let heightLeft = pdfHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
+      heightLeft -= contentHeight;
 
       while (heightLeft > 0) {
         position = heightLeft - pdfHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
+        heightLeft -= contentHeight;
       }
 
       return pdf;
