@@ -502,6 +502,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
       }
 
+      // Archivia l'offerta se è stata utilizzata per creare l'ordine
+      if (newOrder.offer_id) {
+        await supabase
+          .from('offers')
+          .update({ status: 'ordine_creato' })
+          .eq('id', newOrder.offer_id);
+      }
+
       // Costruisci messaggio di successo
       const commissionMessages: string[] = [];
       if (productionWO) commissionMessages.push(`Commessa di Produzione: ${productionWO.number}`);

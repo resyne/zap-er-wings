@@ -170,6 +170,7 @@ export default function OffersPage() {
           customers (name, email, address, tax_id),
           leads (id, company_name, contact_name, status, value)
         `)
+        .neq('status', 'ordine_creato')
         .order('created_at', { ascending: false });
 
       if (offersError) throw offersError;
