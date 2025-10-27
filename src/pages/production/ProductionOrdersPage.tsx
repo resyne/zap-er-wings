@@ -44,6 +44,7 @@ interface WorkOrder {
   sales_order_id?: string;
   lead_id?: string;
   archived?: boolean;
+  attachments?: any[];
   boms?: {
     name: string;
     version: string;
@@ -149,7 +150,7 @@ export default function WorkOrdersPage() {
         })
       );
 
-      setWorkOrders(workOrdersWithTechnicians);
+      setWorkOrders(workOrdersWithTechnicians as any);
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -381,24 +382,8 @@ export default function WorkOrdersPage() {
     setSelectedWO(wo);
     setShowDetailsDialog(true);
     
-    // Load parent order files if exists
-    if (wo.sales_order_id) {
-      try {
-        const { data, error } = await supabase
-          .from('sales_orders')
-          .select('attachments')
-          .eq('id', wo.sales_order_id)
-          .single();
-        
-        if (error) throw error;
-        setParentOrderFiles(Array.isArray(data?.attachments) ? data.attachments : []);
-      } catch (error) {
-        console.error('Error loading parent order files:', error);
-        setParentOrderFiles([]);
-      }
-    } else {
-      setParentOrderFiles([]);
-    }
+    // No need to load files separately - they're already in wo.attachments
+    setParentOrderFiles(Array.isArray(wo.attachments) ? wo.attachments : []);
   };
 
   const handleExport = () => {
@@ -1222,15 +1207,15 @@ export default function WorkOrdersPage() {
                 </div>
               )}
               
-              {/* Parent Order Files */}
-              {selectedWO.sales_order_id && parentOrderFiles.length > 0 && (
+              {/* Work Order Files */}
+              {parentOrderFiles.length > 0 && (
                 <div className="border-t pt-4">
-                  <h4 className="font-semibold mb-3">File dall'Ordine Principale</h4>
+                  <h4 className="font-semibold mb-3">File della Commessa</h4>
                   <OrderFileManager
-                    orderId={selectedWO.sales_order_id}
+                    orderId={selectedWO.id}
                     attachments={parentOrderFiles}
                     readOnly={true}
-                    label="File Informativi (Ordine Principale)"
+                    label="File e Foto"
                   />
                 </div>
               )}
