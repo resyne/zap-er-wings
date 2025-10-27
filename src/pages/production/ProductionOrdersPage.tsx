@@ -23,6 +23,7 @@ import { BomComposition } from "@/components/production/BomComposition";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { OrderFileManager } from "@/components/orders/OrderFileManager";
 import { WorkOrderComments } from "@/components/production/WorkOrderComments";
+import { WorkOrderArticles } from "@/components/production/WorkOrderArticles";
 
 interface WorkOrder {
   id: string;
@@ -1156,9 +1157,10 @@ export default function WorkOrdersPage() {
               {selectedWO.article && (
                 <div className="border-t pt-4">
                   <Label className="text-sm font-medium text-muted-foreground mb-2 block">Articoli</Label>
-                  <div className="bg-muted/50 p-3 rounded-lg">
-                    <p className="text-sm whitespace-pre-wrap">{selectedWO.article}</p>
-                  </div>
+                  <WorkOrderArticles 
+                    workOrderId={selectedWO.id} 
+                    articleText={selectedWO.article} 
+                  />
                 </div>
               )}
 

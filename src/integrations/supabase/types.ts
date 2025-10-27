@@ -5919,6 +5919,50 @@ export type Database = {
           },
         ]
       }
+      work_order_article_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          description: string
+          id: string
+          is_completed: boolean
+          position: number
+          updated_at: string
+          work_order_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          is_completed?: boolean
+          position?: number
+          updated_at?: string
+          work_order_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_completed?: boolean
+          position?: number
+          updated_at?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_article_items_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_order_comments: {
         Row: {
           content: string
