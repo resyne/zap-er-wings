@@ -359,15 +359,10 @@ export default function OffersPage() {
       tempDiv.innerHTML = templateHtml;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      tempDiv.style.width = '794px'; // A4 width at 96dpi (210mm)
-      tempDiv.style.backgroundColor = '#ffffff';
+      tempDiv.style.width = '800px';
       document.body.appendChild(tempDiv);
 
-      // Wait for images to load
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Generate canvas from HTML
+      // Generate PDF from HTML
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
@@ -377,28 +372,23 @@ export default function OffersPage() {
 
       document.body.removeChild(tempDiv);
 
-      // PDF setup
-      const pdf = new jsPDF('p', 'mm', 'a4');
       const imgData = canvas.toDataURL('image/png');
-      
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      let heightLeft = imgHeight;
+      let heightLeft = pdfHeight;
       let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
 
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
 
-      // Add remaining pages
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
+        position = heightLeft - pdfHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
       }
 
       return pdf;
