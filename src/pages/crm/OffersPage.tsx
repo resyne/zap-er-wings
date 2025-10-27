@@ -241,163 +241,48 @@ export default function OffersPage() {
     }
   };
 
-  const generateOfferPDF = async (offer: Offer) => {
+  const generateOfferPDF = async (offer: Offer): Promise<Blob> => {
     try {
-      // Fetch offer items
-      const { data: offerItems } = await supabase
-        .from('offer_items')
-        .select('*')
-        .eq('offer_id', offer.id);
-
-      // Fetch customer details
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('id', offer.customer_id)
-        .maybeSingle();
-
-      // Use the new simplified template
-      const templateResponse = await fetch('/templates/offer-template-new.html');
-      let templateHtml = await templateResponse.text();
-
-      // Calculate totals
-      const totaleImponibile = offerItems?.reduce((sum, item) => {
-        const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-        return sum + itemTotal;
-      }, 0) || offer.amount;
-
-      const totaleIva = totaleImponibile * 0.22;
-      const totaleLordo = totaleImponibile + totaleIva;
-
-      // Generate products table
-      let tabellaHtml = '<table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Prezzo Unit.</th><th>Sconto</th><th>Totale</th></tr></thead><tbody>';
-      
-      if (offerItems && offerItems.length > 0) {
-        offerItems.forEach(item => {
-          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-          tabellaHtml += `
-            <tr>
-              <td>${item.description || 'N/A'}</td>
-              <td>${item.quantity}</td>
-              <td>€ ${item.unit_price.toFixed(2)}</td>
-              <td>${item.discount_percent || 0}%</td>
-              <td>€ ${itemTotal.toFixed(2)}</td>
-            </tr>
-          `;
-        });
-      } else {
-        tabellaHtml += `
-          <tr>
-            <td colspan="5">${offer.description || offer.title}</td>
-          </tr>
-        `;
-      }
-      tabellaHtml += '</tbody></table>';
-
-      // Replace all placeholders
-      templateHtml = templateHtml
-        .replace(/{{numero_offerta}}/g, offer.number)
-        .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
-        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
-        .replace(/{{oggetto_offerta}}/g, offer.title)
-        .replace(/{{tabella_prodotti}}/g, tabellaHtml)
-        .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
-        .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
-        .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
-        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/{{tempi_consegna}}/g, offer.timeline_consegna || 'Da concordare')
-        .replace(/{{logo}}/g, '/images/logo-zapper.png');
-        
-      // Gestisci payment_method e payment_agreement
-      const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
-      const paymentAgreementText = offer.payment_agreement === 'altro' 
-        ? (offer.metodi_pagamento || '30% acconto - 70% alla consegna')
-        : offer.payment_agreement || '50% acconto - 50% a consegna';
-      
-      templateHtml = templateHtml
-        .replace(/{{payment_method}}/g, paymentMethodText)
-        .replace(/{{payment_agreement}}/g, paymentAgreementText)
-        .replace(/{{metodi_pagamento}}/g, paymentAgreementText);
-        
-      // Gestisci incluso_fornitura
-      const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
-      const inclusoHtml = inclusoItems.length > 0 
-        ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
-        : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
-      templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
-      
-      // Gestisci escluso_fornitura - converte i newline in <br> per l'HTML
-      const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
-      const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
-      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
-
-      // Gestisci timeline fields
-      templateHtml = templateHtml
-        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || '7-10 giorni lavorativi')
-        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || '3-5 giorni lavorativi')
-        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || '1 giorno');
-
-      // Create temporary container
-      const content = document.createElement('div');
-      content.innerHTML = templateHtml;
-      content.style.position = 'fixed';
-      content.style.left = '-9999px';
-      content.style.top = '0';
-      content.style.width = '210mm';
-      content.style.backgroundColor = '#ffffff';
-      document.body.appendChild(content);
-
-      // Wait for images and rendering
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Generate canvas with html2canvas
-      const canvas = await html2canvas(content, {
-        scale: 2,
-        useCORS: true,
-        scrollY: 0,
-        windowWidth: content.scrollWidth
+      // Call the edge function to generate PDF with PDFBolt
+      const { data, error } = await supabase.functions.invoke('generate-offer-pdf', {
+        body: { offerId: offer.id }
       });
 
-      document.body.removeChild(content);
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
 
-      // Get image data
-      const imgData = canvas.toDataURL('image/png');
-
-      // Create PDF with jsPDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      
-      // Calculate image dimensions in mm
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      return pdf;
+      // Convert base64 to Blob
+      const pdfBlob = base64ToBlob(data.pdf, 'application/pdf');
+      return pdfBlob;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
     }
   };
 
+  // Helper to convert base64 to Blob
+  const base64ToBlob = (base64: string, type: string) => {
+    const binaryString = window.atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new Blob([bytes], { type });
+  };
+
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      const pdf = await generateOfferPDF(offer);
-      pdf.save(`Offerta_${offer.number}.pdf`);
+      const pdfBlob = await generateOfferPDF(offer);
+      
+      // Create download link
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Offerta_${offer.number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
       toast({
         title: "PDF Generato",
@@ -426,8 +311,7 @@ export default function OffersPage() {
       }
 
       // Generate PDF
-      const pdf = await generateOfferPDF(offer);
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob = await generateOfferPDF(offer);
       
       // Convert to base64
       const reader = new FileReader();
