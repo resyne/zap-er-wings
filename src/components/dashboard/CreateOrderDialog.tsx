@@ -123,6 +123,34 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   }, [open, prefilledData]);
 
+  // Load offer items when offer_id changes
+  useEffect(() => {
+    const loadOfferItems = async () => {
+      if (!newOrder.offer_id) return;
+
+      try {
+        const { data: offerItems, error } = await supabase
+          .from('offer_items')
+          .select('description, quantity')
+          .eq('offer_id', newOrder.offer_id);
+
+        if (error) throw error;
+
+        if (offerItems && offerItems.length > 0) {
+          const articles = offerItems.map(item => item.description);
+          setNewOrder(prev => ({
+            ...prev,
+            articles: articles
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading offer items:', error);
+      }
+    };
+
+    loadOfferItems();
+  }, [newOrder.offer_id]);
+
   // Load lead photos when lead_id changes
   useEffect(() => {
     const loadLeadPhotos = async () => {
@@ -257,7 +285,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       supabase.from("boms").select("id, name, description, level").in("level", [0, 1, 2]).order("name"),
       supabase.from("boms").select("id, name, description, level").eq("level", 3).order("name"),
       supabase.from("leads").select("id, company_name, contact_name, email, phone, status, pipeline").order("company_name"),
-      supabase.from("offers").select("id, number, title, lead_id, customer:customers(company_name, name), status").order("created_at", { ascending: false }),
+      supabase.from("offers").select(`
+        id, 
+        number, 
+        title, 
+        lead_id, 
+        customer:customers(company_name, name), 
+        status
+      `).order("created_at", { ascending: false }),
       supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true).order("first_name"),
       supabase.from("profiles").select("id, email, first_name, last_name").order("first_name"),
       supabase.from("products").select("id, code, name, description, product_type").eq("is_active", true).order("name")
