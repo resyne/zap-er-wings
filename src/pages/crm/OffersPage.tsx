@@ -10,12 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
+import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -84,6 +85,8 @@ export default function OffersPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
+  const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
     product_name: string;
@@ -992,6 +995,51 @@ export default function OffersPage() {
     setIsDetailsDialogOpen(true);
   };
 
+  const handleCreateOrderFromOffer = async (offer: Offer) => {
+    // Prepara i dati precompilati per il dialog di creazione ordine
+    setOrderPrefilledData({
+      customer_id: offer.customer_id,
+      offer_id: offer.id,
+      lead_id: offer.lead_id || undefined,
+      title: offer.title,
+      description: offer.description || '',
+      notes: `Ordine creato da offerta ${offer.number}`,
+    });
+    setIsCreateOrderDialogOpen(true);
+  };
+
+  const handleOrderCreated = async () => {
+    // Aggiorna lo stato dell'offerta a 'ordine_creato'
+    if (orderPrefilledData?.offer_id) {
+      try {
+        const { error } = await supabase
+          .from('offers')
+          .update({ status: 'ordine_creato' })
+          .eq('id', orderPrefilledData.offer_id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Ordine Creato",
+          description: "L'offerta è stata aggiornata e l'ordine è stato creato con successo",
+        });
+        
+        // Ricarica i dati
+        loadData();
+      } catch (error) {
+        console.error('Error updating offer status:', error);
+        toast({
+          title: "Attenzione",
+          description: "Ordine creato ma errore nell'aggiornamento dello stato dell'offerta",
+          variant: "destructive",
+        });
+      }
+    }
+    
+    setIsCreateOrderDialogOpen(false);
+    setOrderPrefilledData(null);
+  };
+
   if (loading) {
     return <div className="p-8">Caricamento...</div>;
   }
@@ -1838,7 +1886,11 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className="text-sm font-semibold text-green-700">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className="flex gap-1 pt-2">
+                      <div className="flex flex-col gap-1 pt-2">
+                        <Button size="sm" variant="default" className="w-full" onClick={() => handleCreateOrderFromOffer(offer)}>
+                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          Crea Ordine
+                        </Button>
                         <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
                           <Eye className="w-3 h-3 mr-1" />
                           Dettagli
@@ -1886,6 +1938,14 @@ export default function OffersPage() {
         </Card>
       </div>
       </div>
+
+      {/* Dialog Crea Ordine */}
+      <CreateOrderDialog
+        open={isCreateOrderDialogOpen}
+        onOpenChange={setIsCreateOrderDialogOpen}
+        onSuccess={handleOrderCreated}
+        prefilledData={orderPrefilledData}
+      />
 
       {/* Dialog Dettagli Offerta */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
@@ -2028,6 +2088,17 @@ export default function OffersPage() {
               {/* Actions */}
               <div className="border-t pt-4 flex justify-between items-center">
                 <div className="flex gap-2">
+                  {selectedOffer.status === 'accettata' && (
+                    <Button
+                      onClick={() => {
+                        handleCreateOrderFromOffer(selectedOffer);
+                        setIsDetailsDialogOpen(false);
+                      }}
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Crea Ordine
+                    </Button>
+                  )}
                   {selectedOffer.archived ? (
                     <Button
                       variant="outline"
