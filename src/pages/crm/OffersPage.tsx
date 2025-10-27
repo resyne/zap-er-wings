@@ -343,9 +343,10 @@ export default function OffersPage() {
         : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
       templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
       
-      // Gestisci escluso_fornitura
+      // Gestisci escluso_fornitura - converte i newline in <br> per l'HTML
       const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
-      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoText);
+      const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
+      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
 
       // Gestisci timeline_section - mostra solo se ci sono tempi compilati
       const timelineSteps = [];
