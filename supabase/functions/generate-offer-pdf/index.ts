@@ -138,6 +138,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Calling PDFBolt API...");
+    console.log("API Key present:", !!pdfBoltApiKey);
+    console.log("API Key length:", pdfBoltApiKey?.length);
     
     const pdfResponse = await fetch("https://api.pdfbolt.com/v1/direct", {
       method: "POST",
