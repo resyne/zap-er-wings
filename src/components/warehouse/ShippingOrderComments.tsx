@@ -18,7 +18,7 @@ import {
 
 interface Comment {
   id: string;
-  comment: string;
+  content: string;
   user_id: string;
   tagged_users: string[];
   created_at: string;
@@ -75,7 +75,7 @@ export function ShippingOrderComments({ shippingOrderId }: ShippingOrderComments
 
       const commentsWithProfiles = commentsData?.map((c: any) => ({
         id: c.id,
-        comment: c.comment,
+        content: c.content,
         user_id: c.user_id,
         tagged_users: c.tagged_users || [],
         created_at: c.created_at,
@@ -173,7 +173,7 @@ export function ShippingOrderComments({ shippingOrderId }: ShippingOrderComments
         .insert({
           shipping_order_id: shippingOrderId,
           user_id: user.id,
-          comment: newComment,
+          content: newComment,
           tagged_users: taggedUserIds,
         });
 
@@ -297,7 +297,7 @@ export function ShippingOrderComments({ shippingOrderId }: ShippingOrderComments
                     </DropdownMenu>
                   </div>
                   <p className="text-sm whitespace-pre-wrap break-words">
-                    {comment.comment}
+                    {comment.content}
                   </p>
                   {comment.tagged_users && comment.tagged_users.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
