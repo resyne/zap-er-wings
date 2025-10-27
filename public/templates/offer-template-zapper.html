@@ -600,8 +600,8 @@
                 <div class="doc-cliente">
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
                         <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Spett.le Cliente:</div>
-                        <div style="font-size: 14px; font-weight: bold;">{{cliente_nome}}</div>
-                        <div style="font-size: 12px; opacity: 0.95;">{{cliente_indirizzo}}</div>
+                        <div style="font-size: 14px; font-weight: bold;">{{cliente.nome}}</div>
+                        <div style="font-size: 12px; opacity: 0.95;">{{cliente.indirizzo}}</div>
                     </div>
                 </div>
             </div>
@@ -656,7 +656,7 @@
             <div class="info-box">
                 <div class="info-item">
                     <div class="info-label">Validità Offerta</div>
-                    <div>{{validita_offerta}}</div>
+                    <div>{{validità_offerta}}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Tempi di Consegna</div>
@@ -687,7 +687,7 @@
                 <div class="summary-content">
                     <div class="summary-details">
                         <div><strong>Offerta n.</strong> {{numero_offerta}}</div>
-                        <div><strong>Cliente:</strong> {{cliente_nome}}</div>
+                        <div><strong>Cliente:</strong> {{cliente.nome}}</div>
                         <div><strong>Oggetto:</strong> {{oggetto_offerta}}</div>
                     </div>
                     <div class="summary-total">
