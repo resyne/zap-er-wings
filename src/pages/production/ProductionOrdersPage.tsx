@@ -22,6 +22,7 @@ import { OrderComments } from "@/components/orders/OrderComments";
 import { BomComposition } from "@/components/production/BomComposition";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { OrderFileManager } from "@/components/orders/OrderFileManager";
+import { WorkOrderComments } from "@/components/production/WorkOrderComments";
 
 interface WorkOrder {
   id: string;
@@ -918,23 +919,56 @@ export default function WorkOrdersPage() {
                                         snapshot.isDragging ? 'shadow-lg opacity-90' : ''
                                       }`}
                                     >
-                                      <div className="space-y-2">
-                                        <div className="flex items-start justify-between">
-                                          <div>
-                                            <div className="font-semibold">{wo.number}</div>
-                                            <div className="text-sm text-muted-foreground line-clamp-2">
-                                              {wo.customers?.name || 'N/A'}
+                                     <div className="space-y-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-semibold text-sm">{wo.number}</div>
+                                            <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                              {wo.title}
                                             </div>
                                           </div>
                                           {wo.priority && (
-                                            <Badge variant={wo.priority === 'high' ? 'destructive' : 'secondary'}>
-                                              {wo.priority}
+                                            <Badge 
+                                              variant={
+                                                wo.priority === 'urgent' ? 'destructive' :
+                                                wo.priority === 'high' ? 'default' :
+                                                wo.priority === 'medium' ? 'secondary' : 'outline'
+                                              }
+                                              className="text-xs shrink-0"
+                                            >
+                                              {wo.priority === 'urgent' ? 'Urgente' :
+                                               wo.priority === 'high' ? 'Alta' :
+                                               wo.priority === 'medium' ? 'Media' : 'Bassa'}
                                             </Badge>
                                           )}
                                         </div>
+                                        
+                                        {wo.customers && (
+                                          <div className="text-xs text-muted-foreground">
+                                            <span className="font-medium">Cliente:</span> {wo.customers.name}
+                                          </div>
+                                        )}
+                                        
                                         {wo.boms && (
-                                          <div className="text-xs">
-                                            <Badge variant="outline">{wo.boms.name}</Badge>
+                                          <div className="flex items-center gap-1">
+                                            <Badge variant="outline" className="text-xs">
+                                              {wo.boms.name}
+                                            </Badge>
+                                          </div>
+                                        )}
+                                        
+                                        {(wo.technician || wo.planned_start_date) && (
+                                          <div className="pt-2 border-t space-y-1">
+                                            {wo.technician && (
+                                              <div className="text-xs text-muted-foreground">
+                                                <span className="font-medium">Tecnico:</span> {wo.technician.first_name} {wo.technician.last_name}
+                                              </div>
+                                            )}
+                                            {wo.planned_start_date && (
+                                              <div className="text-xs text-muted-foreground">
+                                                <span className="font-medium">Inizio:</span> {new Date(wo.planned_start_date).toLocaleDateString('it-IT')}
+                                              </div>
+                                            )}
                                           </div>
                                         )}
                                       </div>
@@ -1174,6 +1208,11 @@ export default function WorkOrdersPage() {
                   <p className="text-sm mt-1 whitespace-pre-wrap">{selectedWO.notes}</p>
                 </div>
               )}
+
+              {/* Comments Section */}
+              <div className="border-t pt-4">
+                <WorkOrderComments workOrderId={selectedWO.id} />
+              </div>
 
               {/* Actions */}
               <div className="border-t pt-4 flex gap-2">
