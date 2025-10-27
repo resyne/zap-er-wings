@@ -158,6 +158,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   useEffect(() => {
     const loadLeadPhotos = async () => {
       const effectiveLeadId = newOrder.lead_id || leadId;
+      console.log('Loading lead photos for lead_id:', effectiveLeadId);
+      
       if (!effectiveLeadId) {
         setLeadPhotos([]);
         return;
@@ -171,6 +173,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
         if (error) throw error;
 
+        console.log('Lead files found:', leadFiles);
+
         // Filter image and video files
         const mediaFiles = (leadFiles || []).filter(file => 
           file.file_type?.startsWith('image/') || 
@@ -178,11 +182,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
         );
 
-        const photos = mediaFiles.map(file => ({
-          url: supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl,
-          name: file.file_name
-        }));
+        console.log('Media files filtered:', mediaFiles);
 
+        const photos = mediaFiles.map(file => {
+          const url = supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl;
+          console.log('Photo URL generated:', url);
+          return {
+            url,
+            name: file.file_name
+          };
+        });
+
+        console.log('Lead photos loaded:', photos);
         setLeadPhotos(photos);
       } catch (error) {
         console.error('Error loading lead photos:', error);
