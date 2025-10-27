@@ -58,10 +58,9 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", offer.customer_id)
       .maybeSingle();
 
-    // Fetch template HTML
-    const templateResponse = await fetch(
-      `${supabaseUrl.replace('.supabase.co', '.lovableproject.com')}/templates/offer-template-new.html`
-    );
+    // Fetch template HTML from the correct domain
+    const templateUrl = "https://927bac44-432a-46fc-b33f-adc680e49394.lovableproject.com/templates/offer-template-new.html";
+    const templateResponse = await fetch(templateUrl);
     let templateHtml = await templateResponse.text();
 
     // Calculate totals
