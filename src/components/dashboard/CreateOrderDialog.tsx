@@ -212,7 +212,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       supabase.from("boms").select("id, name, description, level").in("level", [0, 1, 2]).order("name"),
       supabase.from("boms").select("id, name, description, level").eq("level", 3).order("name"),
       supabase.from("leads").select("id, company_name, contact_name, email, phone, status, pipeline").order("company_name"),
-      supabase.from("offers").select("id, number, title, customer:customers(company_name, name), status").order("created_at", { ascending: false }),
+      supabase.from("offers").select("id, number, title, lead_id, customer:customers(company_name, name), status").order("created_at", { ascending: false }),
       supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true).order("first_name"),
       supabase.from("profiles").select("id, email, first_name, last_name").order("first_name"),
       supabase.from("products").select("id, code, name, description, product_type").eq("is_active", true).order("name")
@@ -481,8 +481,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (salesError) throw salesError;
 
       // Copy photos from lead to order if lead is connected
-      if (leadId) {
-        await copyLeadPhotosToOrder(leadId, salesOrder.id);
+      const effectiveLeadId = leadId || newOrder.lead_id;
+      if (effectiveLeadId) {
+        await copyLeadPhotosToOrder(effectiveLeadId, salesOrder.id);
       }
 
       let productionWO = null;
@@ -647,7 +648,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         type="button"
                         className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
                         onClick={() => {
-                          setNewOrder({ ...newOrder, offer_id: offer.id });
+                          setNewOrder({ 
+                            ...newOrder, 
+                            offer_id: offer.id,
+                            lead_id: offer.lead_id || newOrder.lead_id
+                          });
                           setOfferSearch("");
                           setShowOfferDropdown(false);
                         }}
