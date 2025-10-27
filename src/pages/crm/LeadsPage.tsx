@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X } from "lucide-react";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
@@ -127,6 +127,8 @@ export default function LeadsPage() {
     alimentazione: "",
     pronta_consegna: false,
   });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -245,6 +247,36 @@ export default function LeadsPage() {
 
       if (error) throw error;
 
+      // Upload pending files if any
+      if (pendingFiles.length > 0) {
+        for (const file of pendingFiles) {
+          try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${newLeadData.id}/${Date.now()}_${file.name}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("lead-files")
+              .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            await supabase
+              .from("lead_files")
+              .insert([{
+                lead_id: newLeadData.id,
+                file_name: file.name,
+                file_path: filePath,
+                file_type: file.type,
+                file_size: file.size,
+                uploaded_by: user.id
+              }]);
+          } catch (fileError: any) {
+            console.error(`Error uploading file ${file.name}:`, fileError);
+          }
+        }
+      }
+
       // Se c'è una prossima attività, creala anche nella tabella lead_activities
       if (newLead.next_activity_type && newLead.next_activity_date && newLeadData) {
         await supabase.from("lead_activities").insert([{
@@ -272,7 +304,7 @@ export default function LeadsPage() {
 
       toast({
         title: "Lead creato",
-        description: "Il lead è stato creato con successo",
+        description: `Lead creato con successo${pendingFiles.length > 0 ? ` con ${pendingFiles.length} file` : ''}`,
       });
 
       setIsDialogOpen(false);
@@ -285,6 +317,60 @@ export default function LeadsPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const newFiles = Array.from(e.dataTransfer.files);
+      const validFiles = newFiles.filter(file => {
+        if (file.size > 20 * 1024 * 1024) {
+          toast({
+            title: "File troppo grande",
+            description: `${file.name} supera il limite di 20MB`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+      setPendingFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      const validFiles = newFiles.filter(file => {
+        if (file.size > 20 * 1024 * 1024) {
+          toast({
+            title: "File troppo grande",
+            description: `${file.name} supera il limite di 20MB`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+      setPendingFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleEditLead = (lead: Lead) => {
@@ -475,6 +561,7 @@ export default function LeadsPage() {
       alimentazione: "",
       pronta_consegna: false,
     });
+    setPendingFiles([]);
   };
 
   const handleOpenCreateDialog = () => {
@@ -1115,6 +1202,70 @@ export default function LeadsPage() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Drag & Drop Area for Files */}
+                <div className="col-span-2 border-t pt-4">
+                  <h4 className="font-medium mb-3">Foto e Documenti</h4>
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                      dragActive
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/25 hover:border-primary/50"
+                    }`}
+                  >
+                    <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Trascina le foto qui o clicca per selezionare
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Foto, documenti (max 20MB per file)
+                    </p>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileInput}
+                      className="hidden"
+                      id="lead-file-upload"
+                      accept="image/*,video/*,.pdf,.doc,.docx"
+                    />
+                    <label htmlFor="lead-file-upload">
+                      <Button variant="outline" size="sm" asChild type="button">
+                        <span>Seleziona File</span>
+                      </Button>
+                    </label>
+                  </div>
+
+                  {/* Pending Files List */}
+                  {pendingFiles.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm font-medium">File da caricare ({pendingFiles.length})</p>
+                      <div className="space-y-1">
+                        {pendingFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 border rounded-lg bg-muted/30">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => removePendingFile(index)}
+                              type="button"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
