@@ -2,7 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pencil, Trash2, Archive } from "lucide-react";
+import { ShippingOrderComments } from "./ShippingOrderComments";
 
 interface ShippingOrder {
   id: string;
@@ -59,28 +61,34 @@ export function ShippingOrderDetailsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => onEdit(order)}>
-              <Pencil className="w-4 h-4 mr-2" />
-              Modifica
-            </Button>
-            <Button size="sm" variant="destructive" onClick={() => {
-              if (confirm("Sei sicuro di voler eliminare questo ordine?")) {
-                onDelete(order.id);
-              }
-            }}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Elimina
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onArchive(order.id)}>
-              <Archive className="w-4 h-4 mr-2" />
-              Archivia
-            </Button>
-          </div>
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">Dettagli</TabsTrigger>
+            <TabsTrigger value="comments">Commenti</TabsTrigger>
+          </TabsList>
 
-          <Separator />
+          <TabsContent value="details" className="space-y-6">
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => onEdit(order)}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Modifica
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => {
+                if (confirm("Sei sicuro di voler eliminare questo ordine?")) {
+                  onDelete(order.id);
+                }
+              }}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Elimina
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => onArchive(order.id)}>
+                <Archive className="w-4 h-4 mr-2" />
+                Archivia
+              </Button>
+            </div>
+
+            <Separator />
 
           {/* Order Details */}
           <div className="grid grid-cols-2 gap-4">
@@ -203,7 +211,12 @@ export function ShippingOrderDetailsDialog({
               </div>
             </div>
           )}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="comments" className="mt-6">
+            <ShippingOrderComments shippingOrderId={order.id} />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
