@@ -287,17 +287,19 @@ export default function OrdersPage() {
       status: 'da_fare' as const,
       bom_id: newOrder.bom_id || null,
       customer_id: newOrder.customer_id,
-      assigned_to: newOrder.assigned_technician && newOrder.assigned_technician !== '' ? newOrder.assigned_technician : null,
-      back_office_manager: newOrder.back_office_manager && newOrder.back_office_manager !== '' ? newOrder.back_office_manager : null,
+      assigned_to: (newOrder.assigned_technician && newOrder.assigned_technician.trim() !== '') ? newOrder.assigned_technician : null,
+      back_office_manager: (newOrder.back_office_manager && newOrder.back_office_manager.trim() !== '') ? newOrder.back_office_manager : null,
       priority: newOrder.priority,
       planned_start_date: newOrder.planned_start_date || null,
       planned_end_date: newOrder.planned_end_date || null,
       notes: newOrder.notes,
-      article: orderData.article || null, // Copy articles from sales order
+      article: orderData.article || null,
       includes_installation: newOrder.order_type === 'odpel',
       sales_order_id: orderId,
       attachments: orderData.attachments || []
     };
+
+    console.log('Creating production WO with data:', productionData);
 
     const { data: productionWO, error } = await supabase
       .from('work_orders')
@@ -305,7 +307,12 @@ export default function OrdersPage() {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating production WO:', error);
+      throw error;
+    }
+    
+    console.log('Production WO created successfully:', productionWO);
     return productionWO;
   };
 
@@ -316,8 +323,8 @@ export default function OrdersPage() {
       description: newOrder.work_description || newOrder.notes,
       status: 'to_do' as const,
       customer_id: newOrder.customer_id,
-      assigned_to: null, // Set to null for now - requires auth.users ID
-      back_office_manager: newOrder.back_office_manager && newOrder.back_office_manager !== '' ? newOrder.back_office_manager : null,
+      assigned_to: null, // Sempre null per service work orders
+      back_office_manager: (newOrder.back_office_manager && newOrder.back_office_manager.trim() !== '') ? newOrder.back_office_manager : null,
       priority: newOrder.priority,
       scheduled_date: newOrder.planned_start_date ? new Date(newOrder.planned_start_date).toISOString() : null,
       location: newOrder.location || null,
@@ -328,13 +335,20 @@ export default function OrdersPage() {
       attachments: orderData.attachments || []
     };
 
+    console.log('Creating service WO with data:', serviceData);
+
     const { data: serviceWO, error } = await supabase
       .from('service_work_orders')
       .insert([serviceData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating service WO:', error);
+      throw error;
+    }
+    
+    console.log('Service WO created successfully:', serviceWO);
     return serviceWO;
   };
 
