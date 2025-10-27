@@ -699,20 +699,31 @@ export default function WorkOrdersServicePage() {
                        </Badge>
                      </TableCell>
                      <TableCell>
-                       <div className="text-sm">
+                       <div className="space-y-2">
                          {workOrder.scheduled_date ? (
-                           <div className="flex items-center gap-1 text-muted-foreground">
-                             <Calendar className="w-3 h-3" />
-                             <div>
-                               <div>{new Date(workOrder.scheduled_date).toLocaleDateString('it-IT')}</div>
-                               <div className="text-xs">
-                                 {new Date(workOrder.scheduled_date).toLocaleTimeString('it-IT', { 
-                                   hour: '2-digit', 
-                                   minute: '2-digit' 
-                                 })}
+                           <>
+                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                               <Calendar className="w-3 h-3" />
+                               <div>
+                                 <div>{new Date(workOrder.scheduled_date).toLocaleDateString('it-IT')}</div>
+                                 <div className="text-xs">
+                                   {new Date(workOrder.scheduled_date).toLocaleTimeString('it-IT', { 
+                                     hour: '2-digit', 
+                                     minute: '2-digit' 
+                                   })}
+                                 </div>
                                </div>
                              </div>
-                           </div>
+                             <Button
+                               size="sm"
+                               variant="default"
+                               onClick={() => handleGenerateReport(workOrder)}
+                               className="gap-2 w-full"
+                             >
+                               <FileText className="w-4 h-4" />
+                               Genera Rapporto
+                             </Button>
+                           </>
                          ) : (
                            <Button
                              size="sm"
@@ -721,7 +732,7 @@ export default function WorkOrdersServicePage() {
                                setWorkOrderToSchedule(workOrder);
                                setShowScheduleDialog(true);
                              }}
-                             className="gap-2"
+                             className="gap-2 w-full"
                            >
                              <CalendarCheck className="w-4 h-4" />
                              Programma Installazione
@@ -731,14 +742,6 @@ export default function WorkOrdersServicePage() {
                      </TableCell>
                      <TableCell>
                        <div className="flex justify-end gap-1">
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => handleGenerateReport(workOrder)}
-                           title="Genera rapporto di intervento"
-                         >
-                           <FileText className="w-4 h-4" />
-                         </Button>
                          <Button
                            variant="ghost"
                            size="sm"
