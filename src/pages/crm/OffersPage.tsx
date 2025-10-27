@@ -338,52 +338,50 @@ export default function OffersPage() {
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || '1 giorno');
 
       // Create temporary container
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = templateHtml;
-      tempDiv.style.position = 'fixed';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      tempDiv.style.width = '210mm';
-      tempDiv.style.backgroundColor = '#ffffff';
-      document.body.appendChild(tempDiv);
+      const content = document.createElement('div');
+      content.innerHTML = templateHtml;
+      content.style.position = 'fixed';
+      content.style.left = '-9999px';
+      content.style.top = '0';
+      content.style.width = '210mm';
+      content.style.backgroundColor = '#ffffff';
+      document.body.appendChild(content);
 
-      // Wait for rendering
+      // Wait for images and rendering
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Generate canvas
-      const canvas = await html2canvas(tempDiv, {
+      // Generate canvas with html2canvas
+      const canvas = await html2canvas(content, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff'
+        scrollY: 0,
+        windowWidth: content.scrollWidth
       });
 
-      document.body.removeChild(tempDiv);
+      document.body.removeChild(content);
 
-      // Create PDF
+      // Get image data
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
+
+      // Create PDF with jsPDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Calculate image dimensions in mm
       const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       let heightLeft = imgHeight;
       let position = 0;
 
-      // First page
+      // Add first page
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
-      // Additional pages
+      // Add additional pages if needed
       while (heightLeft > 0) {
-        position -= pageHeight;
+        position = heightLeft - imgHeight;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
