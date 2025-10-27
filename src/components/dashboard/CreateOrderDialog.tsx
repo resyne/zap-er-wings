@@ -1065,7 +1065,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                           ...newOrder, 
                           commissions: { 
                             ...newOrder.commissions, 
-                            production: { ...newOrder.commissions.production, responsible: value } 
+                            production: { ...newOrder.commissions.production, responsible: value === "unassigned" ? "" : value } 
                           } 
                         })
                       }
@@ -1074,7 +1074,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         <SelectValue placeholder="Non assegnata - verrà presa in carico" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Non assegnata</SelectItem>
+                        <SelectItem value="unassigned">Non assegnata</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.first_name} {user.last_name}
@@ -1165,7 +1165,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                           ...newOrder, 
                           commissions: { 
                             ...newOrder.commissions, 
-                            service: { ...newOrder.commissions.service, responsible: value } 
+                            service: { ...newOrder.commissions.service, responsible: value === "unassigned" ? "" : value } 
                           } 
                         })
                       }
@@ -1174,7 +1174,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         <SelectValue placeholder="Non assegnata - verrà presa in carico" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Non assegnata</SelectItem>
+                        <SelectItem value="unassigned">Non assegnata</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.first_name} {user.last_name}
@@ -1222,7 +1222,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                           ...newOrder, 
                           commissions: { 
                             ...newOrder.commissions, 
-                            shipping: { ...newOrder.commissions.shipping, responsible: value } 
+                            shipping: { ...newOrder.commissions.shipping, responsible: value === "unassigned" ? "" : value } 
                           } 
                         })
                       }
@@ -1231,7 +1231,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         <SelectValue placeholder="Non assegnata - verrà presa in carico" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Non assegnata</SelectItem>
+                        <SelectItem value="unassigned">Non assegnata</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.first_name} {user.last_name}
