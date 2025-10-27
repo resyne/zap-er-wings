@@ -5,6 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,6 +24,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [customPaymentTerms, setCustomPaymentTerms] = useState('');
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   
   const [newOffer, setNewOffer] = useState({
     customer_id: '',
@@ -154,18 +159,52 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
         <div className="space-y-4">
           <div>
             <Label htmlFor="customer">Cliente *</Label>
-            <Select value={newOffer.customer_id} onValueChange={(value) => setNewOffer({ ...newOffer, customer_id: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.code} - {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={customerSearchOpen}
+                  className="w-full justify-between"
+                >
+                  {newOffer.customer_id
+                    ? (() => {
+                        const customer = customers.find((c) => c.id === newOffer.customer_id);
+                        return customer ? `${customer.code} - ${customer.name}` : "Seleziona cliente";
+                      })()
+                    : "Seleziona cliente"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Cerca cliente..." />
+                  <CommandList>
+                    <CommandEmpty>Nessun cliente trovato.</CommandEmpty>
+                    <CommandGroup>
+                      {customers.map((customer) => (
+                        <CommandItem
+                          key={customer.id}
+                          value={`${customer.code} ${customer.name}`}
+                          onSelect={() => {
+                            setNewOffer({ ...newOffer, customer_id: customer.id });
+                            setCustomerSearchOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {customer.code} - {customer.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>
