@@ -256,22 +256,8 @@ export default function OffersPage() {
         .eq('id', offer.customer_id)
         .maybeSingle();
 
-      // Determine template based on offer.template field or default to zapper
-      const templateName = (offer as any).template || 'zapper';
-      const templateMap = {
-        zapper: '/templates/offer-template-zapper-v2.html',
-        vesuviano: '/templates/offer-template-vesuviano.html',
-        zapperpro: '/templates/offer-template-zapperpro.html'
-      };
-      
-      const templateBrandMap = {
-        zapper: 'ZAPPER S.r.l.',
-        vesuviano: 'VESUVIANO S.r.l.',
-        zapperpro: 'ZAPPER PRO S.r.l.'
-      };
-
-      // Fetch template
-      const templateResponse = await fetch(templateMap[templateName as keyof typeof templateMap] || templateMap.zapper);
+      // Use the new simplified template
+      const templateResponse = await fetch('/templates/offer-template-new.html');
       let templateHtml = await templateResponse.text();
 
       // Calculate totals
@@ -308,22 +294,19 @@ export default function OffersPage() {
       }
       tabellaHtml += '</tbody></table>';
 
-      // Replace placeholders
+      // Replace all placeholders
       templateHtml = templateHtml
         .replace(/{{numero_offerta}}/g, offer.number)
         .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
-        .replace(/{{cliente\.nome}}/g, customer?.name || offer.customer_name)
-        .replace(/{{cliente\.indirizzo}}/g, customer?.address || 'N/A')
+        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
         .replace(/{{oggetto_offerta}}/g, offer.title)
         .replace(/{{tabella_prodotti}}/g, tabellaHtml)
         .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
         .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
         .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
-        .replace(/{{validità_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/{{tempi_consegna}}/g, 'Da concordare')
-        .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
-        .replace(/{{logo}}/g, '/images/logo-zapper.png')
-        .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
+        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
+        .replace(/{{tempi_consegna}}/g, offer.timeline_consegna || 'Da concordare')
+        .replace(/{{logo}}/g, '/images/logo-zapper.png');
         
       // Gestisci payment_method e payment_agreement
       const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
@@ -348,71 +331,57 @@ export default function OffersPage() {
       const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
       templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
 
-      // Gestisci timeline fields - sostituisci i singoli placeholder
+      // Gestisci timeline fields
       templateHtml = templateHtml
-        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || 'Da definire')
-        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
-        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
+        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || '7-10 giorni lavorativi')
+        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || '3-5 giorni lavorativi')
+        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || '1 giorno');
 
-      // PDF Generation Options
-      const pdfOptions = {
-        format: 'A4',
-        margin: {
-          top: 15,    // 15mm
-          right: 15,  // 15mm
-          bottom: 15, // 15mm
-          left: 15    // 15mm
-        },
-        printBackground: true,
-        preferCSSPageSize: true
-      };
-
-      // Create temporary container with proper width for A4
+      // Create temporary container
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHtml;
-      tempDiv.style.position = 'absolute';
+      tempDiv.style.position = 'fixed';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '0';
-      // Width that matches A4 minus margins (210mm - 30mm = 180mm ≈ 680px at 96dpi)
       tempDiv.style.width = '210mm';
-      tempDiv.style.maxWidth = '210mm';
-      tempDiv.style.padding = '15mm';
-      tempDiv.style.boxSizing = 'border-box';
       tempDiv.style.backgroundColor = '#ffffff';
       document.body.appendChild(tempDiv);
 
-      // Wait for images to load
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Generate PDF from HTML
+      // Generate canvas
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: tempDiv.scrollWidth,
-        windowHeight: tempDiv.scrollHeight
+        backgroundColor: '#ffffff'
       });
 
       document.body.removeChild(tempDiv);
 
+      // Create PDF
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
       
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * pageWidth) / canvas.width;
       
       let heightLeft = imgHeight;
       let position = 0;
 
-      // Add first page
+      // First page
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
-      // Add subsequent pages if content exceeds one page
+      // Additional pages
       while (heightLeft > 0) {
         position -= pageHeight;
         pdf.addPage();

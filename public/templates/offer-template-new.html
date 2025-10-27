@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Offerta {{numero_offerta}}</title>
+  <style>
+    /* ==== IMPOSTAZIONE PDF A4 ==== */
+    @page {
+      size: A4;
+      margin: 18mm;
+    }
+
+    html, body {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 0;
+      background: white;
+      font-family: 'Arial', 'Helvetica', sans-serif;
+      font-size: 11pt;
+      line-height: 1.4;
+      color: #333;
+    }
+
+    * {
+      box-sizing: border-box;
+      max-width: 100%;
+      overflow-wrap: break-word;
+    }
+
+    /* ==== COLORI AZIENDALI ==== */
+    :root {
+      --green: #38AC4F;
+      --light-bg: #f9f9f9;
+    }
+
+    /* ==== CONTAINER ==== */
+    .container {
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      background: white;
+    }
+
+    /* ==== HEADER ==== */
+    .header {
+      background: var(--green);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      page-break-inside: avoid;
+    }
+
+    .logo-image {
+      max-height: 50px;
+      width: auto;
+    }
+
+    .doc-info {
+      text-align: right;
+      font-size: 13px;
+      color: white;
+    }
+
+    /* ==== CONTENUTO ==== */
+    .content {
+      padding: 20px;
+    }
+
+    .section, .info-box, .includes-section, .nota-bene, .timeline-box, 
+    .trustpilot-section, .summary-box, .totals {
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--green);
+      text-transform: uppercase;
+      border-bottom: 2px solid var(--green);
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    /* ==== OGGETTO ==== */
+    .oggetto {
+      background: var(--light-bg);
+      padding: 10px 15px;
+      border-left: 4px solid var(--green);
+    }
+
+    /* ==== TABELLE ==== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      table-layout: fixed;
+      page-break-inside: auto;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      word-wrap: break-word;
+    }
+
+    th {
+      background: var(--green);
+      color: white;
+      text-align: left;
+      font-weight: bold;
+    }
+
+    tr:hover {
+      background: #f9f9f9;
+    }
+
+    /* ==== TOTALI ==== */
+    .totals {
+      text-align: right;
+      margin-top: 20px;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: flex-end;
+      padding: 5px 0;
+    }
+
+    .total-label {
+      width: 200px;
+      font-weight: bold;
+    }
+
+    .total-value {
+      width: 120px;
+      text-align: right;
+    }
+
+    .total-finale {
+      border-top: 2px solid var(--green);
+      padding-top: 8px;
+      color: var(--green);
+      font-size: 18px;
+    }
+
+    /* ==== INFO BOX ==== */
+    .info-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .info-item {
+      background: var(--light-bg);
+      padding: 10px;
+      border-left: 3px solid var(--green);
+    }
+
+    /* ==== INCLUDES ==== */
+    .includes-section, .nota-bene {
+      background: var(--light-bg);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .includes-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--green);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .includes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .includes-item {
+      background: white;
+      border-radius: 6px;
+      padding: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      border: 1px solid #eee;
+    }
+
+    /* ==== SUMMARY ==== */
+    .summary-box {
+      background: #f3fff6;
+      border: 2px solid var(--green);
+      border-radius: 8px;
+      padding: 15px;
+    }
+
+    .summary-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .summary-total {
+      background: var(--green);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      min-width: 180px;
+    }
+
+    /* ==== TIMELINE ==== */
+    .timeline-box {
+      border-left: 4px solid var(--green);
+      padding: 15px;
+      background: var(--light-bg);
+      border-radius: 8px;
+    }
+
+    .timeline-steps {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .timeline-step {
+      text-align: center;
+      background: white;
+      border-radius: 6px;
+      padding: 10px;
+      width: 30%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      page-break-inside: avoid;
+    }
+
+    /* ==== TRUSTPILOT ==== */
+    .trustpilot-section {
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 12px;
+      background: white;
+    }
+
+    /* ==== FOOTER ==== */
+    .footer {
+      background: var(--green);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 11px;
+      page-break-inside: avoid;
+    }
+
+    /* ==== SALTI DI PAGINA ==== */
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <div>
+        <img src="{{logo}}" alt="Zapper Logo" class="logo-image">
+        <div style="font-size: 12px; margin-top: 5px;">WWW.ABBATTITORIZAPPER.IT</div>
+        <div style="font-size: 11px; margin-top: 8px;">
+          📧 info@abbattitorizapper.it | 📞 081 19968436
+        </div>
+      </div>
+      <div class="doc-info">
+        <div><strong>OFFERTA N.</strong> {{numero_offerta}}</div>
+        <div>Data: {{data_offerta}}</div>
+        <div>Cliente: {{cliente_nome}}</div>
+      </div>
+    </div>
+
+    <!-- CONTENUTO -->
+    <div class="content">
+
+      <!-- OGGETTO -->
+      <div class="section">
+        <div class="section-title">Oggetto</div>
+        <div class="oggetto">{{oggetto_offerta}}</div>
+      </div>
+
+      <!-- TABELLA PRODOTTI -->
+      <div class="section">
+        <div class="section-title">Dettaglio Prodotti/Servizi</div>
+        {{tabella_prodotti}}
+      </div>
+
+      <!-- INCLUDES -->
+      <div class="includes-section">
+        <div class="includes-title">Cosa Include la Fornitura</div>
+        <div class="includes-grid">{{incluso_fornitura}}</div>
+      </div>
+
+      <!-- ESCLUSIONI -->
+      <div class="nota-bene">
+        <div class="section-title" style="border: none;">Cosa Esclude la Fornitura</div>
+        {{escluso_fornitura}}
+      </div>
+
+      <!-- TOTALI -->
+      <div class="totals">
+        <div class="total-row"><div class="total-label">Totale Imponibile:</div><div class="total-value">€ {{totale_imponibile}}</div></div>
+        <div class="total-row"><div class="total-label">IVA:</div><div class="total-value">€ {{totale_iva}}</div></div>
+        <div class="total-row total-finale"><div class="total-label">Totale Offerta:</div><div class="total-value">€ {{totale_lordo}}</div></div>
+      </div>
+
+      <!-- INFO BOX -->
+      <div class="info-box">
+        <div class="info-item"><div class="info-label">Validità Offerta</div>{{validita_offerta}}</div>
+        <div class="info-item"><div class="info-label">Tempi di Consegna</div>{{tempi_consegna}}</div>
+      </div>
+
+      <div class="page-break"></div>
+
+      <!-- PAGAMENTI -->
+      <div class="section">
+        <div class="section-title">Metodi di Pagamento</div>
+        <div>{{metodi_pagamento}}</div>
+        <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 4px solid var(--green);">
+          <strong>Coordinate Bancarie:</strong><br>
+          <strong>CLIMATEL DI ELEFANTE PASQUALE</strong><br>
+          Banca: INTESA SANPAOLO<br>
+          IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
+        </div>
+      </div>
+
+      <!-- SUMMARY -->
+      <div class="summary-box">
+        <div class="summary-content">
+          <div>
+            <strong>Offerta n.</strong> {{numero_offerta}}<br>
+            <strong>Cliente:</strong> {{cliente_nome}}<br>
+            <strong>Oggetto:</strong> {{oggetto_offerta}}
+          </div>
+          <div class="summary-total">
+            <div>TOTALE OFFERTA</div>
+            <div style="font-size: 28px; font-weight: bold;">€ {{totale_lordo}}</div>
+            <div>IVA inclusa</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="timeline-box">
+        <div class="section-title" style="border: none;">⏱️ Timeline Operativa</div>
+        <div class="timeline-steps">
+          <div class="timeline-step"><div>🏭</div><div>Produzione</div><div>{{timeline_produzione}}</div></div>
+          <div class="timeline-step"><div>🚚</div><div>Consegna</div><div>{{timeline_consegna}}</div></div>
+          <div class="timeline-step"><div>🔧</div><div>Installazione</div><div>{{timeline_installazione}}</div></div>
+        </div>
+      </div>
+
+      <!-- TRUSTPILOT -->
+      <div class="trustpilot-section">
+        <div style="text-align:center; font-size:14px; font-weight:bold;">⭐ Valutazione Trustpilot: 4.8 / 5</div>
+        <div style="text-align:center; font-size:12px;">Basata su oltre 430 recensioni verificate</div>
+        <div style="text-align:center; margin-top:10px;">
+          <a href="https://it.trustpilot.com/review/abbattitorizapper.it" target="_blank" style="font-size:12px; color:#38AC4F;">Leggi le recensioni</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <strong>ZAPPER® - RENEWED AIR</strong><br>
+      WWW.ABBATTITORIZAPPER.IT<br>
+      📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189<br>
+      <div style="margin-top:8px; font-size:11px;">
+        CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris 24, 84018 SCAFATI (SA)<br>
+        C.F. LFNPQL67L02I483U | P.IVA 03895390650 | Reg. imprese 330786
+      </div>
+    </div>
+  </div>
+</body>
+</html>
