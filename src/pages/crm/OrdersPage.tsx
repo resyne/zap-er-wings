@@ -287,7 +287,7 @@ export default function OrdersPage() {
       status: 'da_fare' as const,
       bom_id: newOrder.bom_id || null,
       customer_id: newOrder.customer_id,
-      assigned_to: null, // Set to null for now - requires auth.users ID
+      assigned_to: newOrder.assigned_technician || null, // Tecnico assegnato
       back_office_manager: newOrder.back_office_manager || null,
       priority: newOrder.priority,
       planned_start_date: newOrder.planned_start_date || null,

@@ -348,6 +348,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       description: newOrder.description || newOrder.notes || '',
       status: 'da_fare' as const,
       customer_id: newOrder.customer_id,
+      assigned_to: commission.responsible || null, // Tecnico assegnato
       production_responsible_id: commission.responsible || null,
       priority: newOrder.priority,
       notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,

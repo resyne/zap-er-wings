@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -490,6 +490,44 @@ export default function WorkOrdersPage() {
       });
       
       fetchWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTakeOwnership = async (workOrderId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Errore",
+          description: "Devi essere autenticato per assegnarti questa commessa",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('work_orders')
+        .update({ assigned_to: user.id })
+        .eq('id', workOrderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ti sei assegnato questa commessa con successo",
+      });
+
+      fetchWorkOrders();
+      if (selectedWO?.id === workOrderId) {
+        setShowDetailsDialog(false);
+      }
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -1141,9 +1179,22 @@ export default function WorkOrdersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Tecnico</Label>
-                  <p className="text-sm">
-                    {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm">
+                      {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
+                    </p>
+                    {!selectedWO.assigned_to && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleTakeOwnership(selectedWO.id)}
+                        className="ml-2"
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Prendi in carico
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Distinta Base</Label>
