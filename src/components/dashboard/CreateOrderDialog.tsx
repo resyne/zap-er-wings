@@ -342,14 +342,17 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
     }
     
+    // Converti stringhe vuote in null per i campi foreign key
+    const assignedTo = commission.responsible?.trim() !== '' ? commission.responsible : null;
+    
     const productionData = {
       number: '',
       title: newOrder.title || `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.description || newOrder.notes || '',
       status: 'da_fare' as const,
       customer_id: newOrder.customer_id,
-      assigned_to: commission.responsible || null, // Tecnico assegnato
-      production_responsible_id: commission.responsible || null,
+      assigned_to: assignedTo,
+      production_responsible_id: assignedTo,
       priority: newOrder.priority,
       notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
       article: newOrder.articles.join('\n') || null,
@@ -383,6 +386,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
     }
     
+    // Converti stringhe vuote in null per i campi foreign key
+    const serviceResponsible = commission.responsible?.trim() !== '' ? commission.responsible : null;
+    
     const serviceData = {
       number: '',
       title: newOrder.title || `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
@@ -390,7 +396,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       status: 'planned' as const,
       customer_id: newOrder.customer_id,
       lead_id: newOrder.lead_id || null,
-      service_responsible_id: commission.responsible || null,
+      service_responsible_id: serviceResponsible,
       priority: newOrder.priority,
       notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
       article: newOrder.articles.join('\n') || null,
@@ -421,10 +427,13 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
     }
     
+    // Converti stringhe vuote in null per i campi foreign key
+    const shippingResponsible = commission.responsible?.trim() !== '' ? commission.responsible : null;
+    
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id || null,
-      shipping_responsible_id: commission.responsible || null,
+      shipping_responsible_id: shippingResponsible,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
@@ -557,7 +566,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         notes: newOrder.notes || null,
         order_type: orderType,
         order_source: newOrder.order_source,
-        lead_id: leadId || null
+        lead_id: newOrder.lead_id || leadId || null
       };
 
       const { data: salesOrder, error: salesError } = await supabase
@@ -569,7 +578,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (salesError) throw salesError;
 
       // Copy photos from lead to order if lead is connected
-      const effectiveLeadId = leadId || newOrder.lead_id;
+      const effectiveLeadId = newOrder.lead_id || leadId;
       if (effectiveLeadId) {
         await copyLeadPhotosToOrder(effectiveLeadId, salesOrder.id);
       }
