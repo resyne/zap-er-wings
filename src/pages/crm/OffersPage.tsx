@@ -381,6 +381,9 @@ export default function OffersPage() {
       tempDiv.style.backgroundColor = '#ffffff';
       document.body.appendChild(tempDiv);
 
+      // Wait for images to load
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Generate PDF from HTML
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
@@ -405,13 +408,13 @@ export default function OffersPage() {
       let heightLeft = imgHeight;
       let position = 0;
 
-      // First page
+      // Add first page
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
-      // Add subsequent pages
+      // Add subsequent pages if content exceeds one page
       while (heightLeft > 0) {
-        position = -pageHeight * Math.ceil((imgHeight - heightLeft) / pageHeight);
+        position -= pageHeight;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
