@@ -103,6 +103,7 @@ export default function OffersPage() {
   const [includeCertificazione, setIncludeCertificazione] = useState(true);
   const [includeGaranzia, setIncludeGaranzia] = useState(true);
   const [inclusoCustom, setInclusoCustom] = useState('');
+  const [esclusoCaricoPredisposizione, setEsclusoCaricoPredisposizione] = useState(false);
   
   const [newOffer, setNewOffer] = useState<{
     id?: string;
@@ -1319,6 +1320,32 @@ export default function OffersPage() {
               
               <div>
                 <label className="text-sm font-medium">Cosa Esclude la Fornitura</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <Checkbox
+                    id="escluso-carico"
+                    checked={esclusoCaricoPredisposizione}
+                    onCheckedChange={(checked) => {
+                      setEsclusoCaricoPredisposizione(checked === true);
+                      const testoEsclusione = "Si richiede al cliente di predisporre prima del ns. arrivo di punti di carico/scarico acqua e una presa elettrica. N.B. qualora in fase di installazione non vi è stata fatta predisposizione, l'allaccio elettrico ha un costo supplementare di 200,00 € e l'allaccio idrico ha un costo supplementare di 200,00 €.";
+                      if (checked) {
+                        setNewOffer(prev => ({ 
+                          ...prev, 
+                          escluso_fornitura: prev.escluso_fornitura 
+                            ? `${prev.escluso_fornitura}\n${testoEsclusione}`
+                            : testoEsclusione
+                        }));
+                      } else {
+                        setNewOffer(prev => ({ 
+                          ...prev, 
+                          escluso_fornitura: prev.escluso_fornitura?.replace(testoEsclusione, '').replace(/\n\n+/g, '\n').trim() || ''
+                        }));
+                      }
+                    }}
+                  />
+                  <label htmlFor="escluso-carico" className="text-sm cursor-pointer">
+                    Carico e scarico acqua / collegamento elettrico
+                  </label>
+                </div>
                 <Textarea
                   value={newOffer.escluso_fornitura}
                   onChange={(e) => setNewOffer(prev => ({ ...prev, escluso_fornitura: e.target.value }))}
