@@ -284,7 +284,7 @@ export default function OrdersPage() {
     const productionData = {
       number: '', // Auto-generated
       title: `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
-      status: 'planned' as const,
+      status: 'da_fare' as const,
       bom_id: newOrder.bom_id || null,
       customer_id: newOrder.customer_id,
       assigned_to: null, // Set to null for now - requires auth.users ID
@@ -312,7 +312,7 @@ export default function OrdersPage() {
       number: '', // Auto-generated
       title: `Installazione per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.work_description || newOrder.notes,
-      status: 'planned' as const,
+      status: 'to_do' as const,
       customer_id: newOrder.customer_id,
       assigned_to: null, // Set to null for now - requires auth.users ID
       back_office_manager: newOrder.back_office_manager || null,
