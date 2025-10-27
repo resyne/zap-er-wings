@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Check, X } from "lucide-react";
+import { Plus, Check, X, Image as ImageIcon } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOfferDialog } from "./CreateOfferDialog";
+import ImageSlideshow from "@/components/crm/ImageSlideshow";
 
 interface CreateOrderDialogProps {
   open: boolean;
@@ -70,6 +71,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const offerInputRef = useRef<HTMLDivElement>(null);
   const productInputRef = useRef<HTMLDivElement>(null);
   
+  // Lead photos state
+  const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string }>>([]);
+  const [slideshowOpen, setSlideshowOpen] = useState(false);
+  const [slideshowStartIndex, setSlideshowStartIndex] = useState(0);
+  
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
     lead_id: "",
@@ -116,6 +122,44 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
     }
   }, [open, prefilledData]);
+
+  // Load lead photos when lead_id changes
+  useEffect(() => {
+    const loadLeadPhotos = async () => {
+      const effectiveLeadId = newOrder.lead_id || leadId;
+      if (!effectiveLeadId) {
+        setLeadPhotos([]);
+        return;
+      }
+
+      try {
+        const { data: leadFiles, error } = await supabase
+          .from('lead_files')
+          .select('*')
+          .eq('lead_id', effectiveLeadId);
+
+        if (error) throw error;
+
+        // Filter only image files
+        const imageFiles = (leadFiles || []).filter(file => 
+          file.file_type?.startsWith('image/') || 
+          /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.file_name)
+        );
+
+        const photos = imageFiles.map(file => ({
+          url: supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl,
+          name: file.file_name
+        }));
+
+        setLeadPhotos(photos);
+      } catch (error) {
+        console.error('Error loading lead photos:', error);
+        setLeadPhotos([]);
+      }
+    };
+
+    loadLeadPhotos();
+  }, [newOrder.lead_id, leadId]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -730,6 +774,44 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           </div>
 
+          {/* Lead Photos Preview */}
+          {leadPhotos.length > 0 && (
+            <div className="border rounded-lg p-4 bg-muted/30">
+              <div className="flex items-center gap-2 mb-3">
+                <ImageIcon className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">
+                  Foto dal Lead ({leadPhotos.length})
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  (saranno copiate nell'ordine)
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {leadPhotos.slice(0, 8).map((photo, index) => (
+                  <div
+                    key={index}
+                    className="aspect-square rounded-lg overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                    onClick={() => {
+                      setSlideshowStartIndex(index);
+                      setSlideshowOpen(true);
+                    }}
+                  >
+                    <img
+                      src={photo.url}
+                      alt={photo.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+              {leadPhotos.length > 8 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  +{leadPhotos.length - 8} altre foto
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Cliente */}
           <div>
             <Label>Cliente *</Label>
@@ -1128,6 +1210,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         open={isCreateOfferDialogOpen}
         onOpenChange={setIsCreateOfferDialogOpen}
         onSuccess={handleOfferCreated}
+      />
+
+      {/* Image Slideshow for Lead Photos */}
+      <ImageSlideshow
+        images={leadPhotos}
+        initialIndex={slideshowStartIndex}
+        open={slideshowOpen}
+        onOpenChange={setSlideshowOpen}
       />
     </Dialog>
   );
