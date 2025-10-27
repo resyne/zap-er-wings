@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
@@ -45,6 +46,7 @@ interface Offer {
   metodi_pagamento?: string;
   payment_method?: string;
   payment_agreement?: string;
+  archived?: boolean;
 }
 
 interface Lead {
@@ -81,6 +83,7 @@ export default function OffersPage() {
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
     product_name: string;
@@ -142,7 +145,7 @@ export default function OffersPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [showArchived]);
 
   useEffect(() => {
     if (!loading && offers.length > 0) {
@@ -171,6 +174,7 @@ export default function OffersPage() {
           leads (id, company_name, contact_name, status, value)
         `)
         .neq('status', 'ordine_creato')
+        .eq('archived', showArchived)
         .order('created_at', { ascending: false });
 
       if (offersError) throw offersError;
@@ -905,6 +909,84 @@ export default function OffersPage() {
     }
   };
 
+  const handleArchiveOffer = async (offerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .update({ archived: true })
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta Archiviata",
+        description: "L'offerta è stata archiviata con successo",
+      });
+
+      setIsDetailsDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error('Error archiving offer:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'archiviazione dell'offerta",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUnarchiveOffer = async (offerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .update({ archived: false })
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta Ripristinata",
+        description: "L'offerta è stata ripristinata con successo",
+      });
+
+      setIsDetailsDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error('Error unarchiving offer:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel ripristino dell'offerta",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteOffer = async (offerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .delete()
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta Eliminata",
+        description: "L'offerta è stata eliminata definitivamente",
+      });
+
+      setIsDetailsDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione dell'offerta",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openDetails = (offer: Offer) => {
     setSelectedOffer(offer);
     setIsDetailsDialogOpen(true);
@@ -922,7 +1004,14 @@ export default function OffersPage() {
           <p className="text-muted-foreground">Segui il processo dalle richieste all'accettazione</p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            onClick={() => setShowArchived(!showArchived)}
+          >
+            {showArchived ? <ArchiveRestore className="w-4 h-4 mr-2" /> : <Archive className="w-4 h-4 mr-2" />}
+            {showArchived ? "Mostra Attive" : "Mostra Archiviate"}
+          </Button>
           <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -1934,6 +2023,51 @@ export default function OffersPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Actions */}
+              <div className="border-t pt-4 flex justify-between items-center">
+                <div className="flex gap-2">
+                  {selectedOffer.archived ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleUnarchiveOffer(selectedOffer.id)}
+                    >
+                      <ArchiveRestore className="w-4 h-4 mr-2" />
+                      Ripristina
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleArchiveOffer(selectedOffer.id)}
+                    >
+                      <Archive className="w-4 h-4 mr-2" />
+                      Archivia
+                    </Button>
+                  )}
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Elimina
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Questa azione eliminerà definitivamente l'offerta. Questa operazione non può essere annullata.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annulla</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteOffer(selectedOffer.id)}>
+                        Elimina
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}

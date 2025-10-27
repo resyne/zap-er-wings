@@ -3005,6 +3005,7 @@ export type Database = {
       offers: {
         Row: {
           amount: number
+          archived: boolean | null
           assigned_to: string | null
           attachments: string[] | null
           created_at: string
@@ -3032,6 +3033,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          archived?: boolean | null
           assigned_to?: string | null
           attachments?: string[] | null
           created_at?: string
@@ -3059,6 +3061,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          archived?: boolean | null
           assigned_to?: string | null
           attachments?: string[] | null
           created_at?: string
