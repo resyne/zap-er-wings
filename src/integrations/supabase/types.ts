@@ -3012,6 +3012,7 @@ export type Database = {
           customer_id: string | null
           customer_name: string
           description: string | null
+          escluso_fornitura: string | null
           id: string
           incluso_fornitura: string | null
           lead_id: string | null
@@ -3040,6 +3041,7 @@ export type Database = {
           customer_id?: string | null
           customer_name: string
           description?: string | null
+          escluso_fornitura?: string | null
           id?: string
           incluso_fornitura?: string | null
           lead_id?: string | null
@@ -3068,6 +3070,7 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string
           description?: string | null
+          escluso_fornitura?: string | null
           id?: string
           incluso_fornitura?: string | null
           lead_id?: string | null
