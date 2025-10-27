@@ -14,7 +14,7 @@ import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, Fil
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2pdf from 'html2pdf.js';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -354,70 +354,47 @@ export default function OffersPage() {
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
-      // PDF Generation Options
-      const pdfOptions = {
-        format: 'A4',
-        margin: {
-          top: 15,    // 15mm
-          right: 15,  // 15mm
-          bottom: 15, // 15mm
-          left: 15    // 15mm
-        },
-        printBackground: true,
-        preferCSSPageSize: true
-      };
-
       // Create temporary container with proper width for A4
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHtml;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '0';
-      // Width that matches A4 minus margins (210mm - 30mm = 180mm ≈ 680px at 96dpi)
       tempDiv.style.width = '210mm';
       tempDiv.style.maxWidth = '210mm';
-      tempDiv.style.padding = '15mm';
-      tempDiv.style.boxSizing = 'border-box';
       tempDiv.style.backgroundColor = '#ffffff';
       document.body.appendChild(tempDiv);
 
-      // Generate PDF from HTML
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: tempDiv.scrollWidth,
-        windowHeight: tempDiv.scrollHeight
-      });
+      // PDF generation options with html2pdf
+      const opt = {
+        margin: [15, 15, 15, 15] as [number, number, number, number], // top, right, bottom, left in mm
+        filename: `Offerta_${offer.number}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { 
+          unit: 'mm' as const, 
+          format: 'a4' as const, 
+          orientation: 'portrait' as const
+        },
+        pagebreak: { 
+          mode: ['avoid-all', 'css', 'legacy'] as ('avoid-all' | 'css' | 'legacy')[],
+          before: '.page-break-before',
+          after: '.page-break',
+          avoid: ['.section', '.info-box', '.trustpilot-section', '.includes-section', '.nota-bene', '.summary-box', '.timeline-box', 'table']
+        }
+      };
 
+      // Generate PDF
+      const pdfBlob = await html2pdf().set(opt).from(tempDiv).toPdf().get('pdf');
+      
       document.body.removeChild(tempDiv);
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * pageWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // First page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Add subsequent pages
-      while (heightLeft > 0) {
-        position = -pageHeight * Math.ceil((imgHeight - heightLeft) / pageHeight);
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      return pdf;
+      return pdfBlob;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
