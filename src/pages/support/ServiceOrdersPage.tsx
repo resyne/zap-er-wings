@@ -519,7 +519,7 @@ export default function WorkOrdersServicePage() {
         return;
       }
 
-      // Crea il rapporto di intervento
+      // Crea il rapporto di intervento in bozza
       const { data: report, error } = await supabase
         .from('service_reports')
         .insert({
@@ -532,9 +532,11 @@ export default function WorkOrdersServicePage() {
           notes: workOrder.notes || null,
           technician_name: workOrder.technician 
             ? `${workOrder.technician.first_name} ${workOrder.technician.last_name}` 
-            : '',
+            : null,
           intervention_date: new Date(workOrder.scheduled_date).toISOString().split('T')[0],
-          status: 'in_progress'
+          status: 'in_progress',
+          customer_signature: null,
+          technician_signature: null
         })
         .select()
         .single();

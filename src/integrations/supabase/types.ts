@@ -4629,7 +4629,7 @@ export type Database = {
           amount: number | null
           contact_id: string | null
           created_at: string
-          customer_signature: string
+          customer_signature: string | null
           description: string | null
           end_time: string | null
           id: string
@@ -4642,7 +4642,7 @@ export type Database = {
           status: string
           technician_id: string | null
           technician_name: string | null
-          technician_signature: string
+          technician_signature: string | null
           total_amount: number | null
           updated_at: string
           vat_rate: number | null
@@ -4653,7 +4653,7 @@ export type Database = {
           amount?: number | null
           contact_id?: string | null
           created_at?: string
-          customer_signature: string
+          customer_signature?: string | null
           description?: string | null
           end_time?: string | null
           id?: string
@@ -4666,7 +4666,7 @@ export type Database = {
           status?: string
           technician_id?: string | null
           technician_name?: string | null
-          technician_signature: string
+          technician_signature?: string | null
           total_amount?: number | null
           updated_at?: string
           vat_rate?: number | null
@@ -4677,7 +4677,7 @@ export type Database = {
           amount?: number | null
           contact_id?: string | null
           created_at?: string
-          customer_signature?: string
+          customer_signature?: string | null
           description?: string | null
           end_time?: string | null
           id?: string
@@ -4690,7 +4690,7 @@ export type Database = {
           status?: string
           technician_id?: string | null
           technician_name?: string | null
-          technician_signature?: string
+          technician_signature?: string | null
           total_amount?: number | null
           updated_at?: string
           vat_rate?: number | null
