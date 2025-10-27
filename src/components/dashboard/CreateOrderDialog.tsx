@@ -1057,7 +1057,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               {newOrder.commissions.production.enabled && (
                 <div className="space-y-3 pl-6">
                   <div>
-                    <Label>Responsabile Commessa *</Label>
+                    <Label>Responsabile Commessa (opzionale)</Label>
                     <Select 
                       value={newOrder.commissions.production.responsible} 
                       onValueChange={(value) => 
@@ -1071,9 +1071,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleziona responsabile" />
+                        <SelectValue placeholder="Non assegnata - verrà presa in carico" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="">Non assegnata</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.first_name} {user.last_name}
@@ -1156,7 +1157,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               {newOrder.commissions.service.enabled && (
                 <div className="space-y-3 pl-6">
                   <div>
-                    <Label>Responsabile Commessa *</Label>
+                    <Label>Responsabile Commessa (opzionale)</Label>
                     <Select 
                       value={newOrder.commissions.service.responsible} 
                       onValueChange={(value) => 
@@ -1170,9 +1171,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleziona responsabile" />
+                        <SelectValue placeholder="Non assegnata - verrà presa in carico" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="">Non assegnata</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.first_name} {user.last_name}
@@ -1212,7 +1214,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
               {newOrder.commissions.shipping.enabled && (
                 <div className="space-y-3 pl-6">
                   <div>
-                    <Label>Responsabile Commessa *</Label>
+                    <Label>Responsabile Commessa (opzionale)</Label>
                     <Select 
                       value={newOrder.commissions.shipping.responsible} 
                       onValueChange={(value) => 
@@ -1226,9 +1228,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleziona responsabile" />
+                        <SelectValue placeholder="Non assegnata - verrà presa in carico" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="">Non assegnata</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.first_name} {user.last_name}
