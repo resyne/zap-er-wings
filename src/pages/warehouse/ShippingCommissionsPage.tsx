@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, MapPin, Archive, Trash2 } from "lucide-react";
+import { Plus, FileText, MapPin, Archive, Trash2, UserPlus } from "lucide-react";
 import { ShippingOrderDetailsDialog } from "@/components/warehouse/ShippingOrderDetailsDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 
@@ -33,10 +33,15 @@ interface ShippingOrder {
   notes?: string;
   shipping_address?: string;
   archived?: boolean;
+  assigned_to?: string;
+  status_changed_by?: string;
+  status_changed_at?: string;
   companies?: { name: string; address?: string };
   work_orders?: { number: string; title: string };
   sales_orders?: { number: string };
   shipping_order_items?: ShippingOrderItem[];
+  assigned_user?: { first_name?: string; last_name?: string; email?: string };
+  status_changed_user?: { first_name?: string; last_name?: string; email?: string };
 }
 
 interface ShippingOrderItem {
@@ -118,7 +123,9 @@ export default function ShippingOrdersPage() {
           shipping_order_items(
             *,
             materials(name, code)
-          )
+          ),
+          assigned_user:profiles!assigned_to(first_name, last_name, email),
+          status_changed_user:profiles!status_changed_by(first_name, last_name, email)
         `)
         .order("created_at", { ascending: false });
       
@@ -381,8 +388,6 @@ export default function ShippingOrdersPage() {
       work_order_id: formData.get("work_order_id") || null,
       sales_order_id: formData.get("sales_order_id") || null,
       shipping_address: formData.get("shipping_address") || "",
-      payment_on_delivery: formData.get("payment_on_delivery") === "on",
-      payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
       notes: formData.get("notes") || "",
       items: orderItems,
     };
@@ -398,8 +403,6 @@ export default function ShippingOrdersPage() {
       work_order_id: formData.get("work_order_id") || null,
       sales_order_id: formData.get("sales_order_id") || null,
       shipping_address: formData.get("shipping_address") || "",
-      payment_on_delivery: formData.get("payment_on_delivery") === "on",
-      payment_amount: formData.get("payment_amount") ? Number(formData.get("payment_amount")) : null,
       notes: formData.get("notes") || "",
       items: orderItems,
     };
@@ -449,10 +452,17 @@ export default function ShippingOrdersPage() {
     if (!order) return;
 
     const previousStatus = order.status;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
     await executeWithUndo(
       async () => {
-        const updateData: any = { status: newStatus };
+        const updateData: any = { 
+          status: newStatus,
+          status_changed_by: user.id,
+          status_changed_at: new Date().toISOString()
+        };
         
         // Set timestamp based on status
         const now = new Date().toISOString();
@@ -494,6 +504,41 @@ export default function ShippingOrdersPage() {
         errorMessage: "Errore nell'aggiornamento dello stato"
       }
     );
+  };
+
+  const handleTakeOwnership = async (orderId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Errore",
+          description: "Devi essere autenticato per assegnarti questa commessa",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('shipping_orders')
+        .update({ assigned_to: user.id })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ti sei assegnato questa commessa con successo",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleArchive = async (orderId: string) => {
@@ -612,8 +657,8 @@ export default function ShippingOrdersPage() {
                   <TableHead>Numero</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Data Ordine</TableHead>
+                  <TableHead>Assegnato a</TableHead>
                   <TableHead>Stato</TableHead>
-                  <TableHead>Pagamento alla Consegna</TableHead>
                   <TableHead>Azioni</TableHead>
                 </TableRow>
               </TableHeader>
@@ -633,6 +678,28 @@ export default function ShippingOrdersPage() {
                     </TableCell>
                     <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
+                      {order.assigned_user ? (
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">
+                            {order.assigned_user.first_name} {order.assigned_user.last_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {order.assigned_user.email}
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleTakeOwnership(order.id)}
+                          className="gap-2"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Prendi in carico
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={order.status}
                         onValueChange={(value) => handleStatusChange(order.id, value)}
@@ -648,15 +715,6 @@ export default function ShippingOrdersPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell>
-                      {order.payment_on_delivery ? (
-                        <Badge variant="outline">
-                          Sì - €{order.payment_amount || 0}
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">No</Badge>
-                      )}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2">
@@ -706,9 +764,9 @@ export default function ShippingOrdersPage() {
                         <div className="text-xs text-muted-foreground">
                           {new Date(order.order_date).toLocaleDateString()}
                         </div>
-                        {order.payment_on_delivery && (
+                        {order.assigned_user && (
                           <Badge variant="outline" className="text-xs">
-                            €{order.payment_amount || 0}
+                            {order.assigned_user.first_name} {order.assigned_user.last_name}
                           </Badge>
                         )}
                       </div>
@@ -811,16 +869,6 @@ export default function ShippingOrdersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="payment_amount">Importo Pagamento alla Consegna</Label>
-                  <Input
-                    name="payment_amount"
-                    type="number"
-                    step="0.01"
-                    defaultValue={selectedOrder.payment_amount || ""}
-                    placeholder="0.00"
-                  />
-                </div>
               </div>
 
               {/* Show linked order details */}
@@ -861,13 +909,6 @@ export default function ShippingOrdersPage() {
                 </div>
               )}
 
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  name="payment_on_delivery" 
-                  defaultChecked={selectedOrder.payment_on_delivery}
-                />
-                <Label htmlFor="payment_on_delivery">Pagamento alla Consegna</Label>
-              </div>
 
               <div>
                 <Label htmlFor="notes">Note</Label>
