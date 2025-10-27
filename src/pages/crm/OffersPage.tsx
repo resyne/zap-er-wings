@@ -367,12 +367,18 @@ export default function OffersPage() {
         preferCSSPageSize: true
       };
 
-      // Create temporary container
+      // Create temporary container with proper width for A4
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHtml;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
+      tempDiv.style.top = '0';
+      // Width that matches A4 minus margins (210mm - 30mm = 180mm ≈ 680px at 96dpi)
+      tempDiv.style.width = '210mm';
+      tempDiv.style.maxWidth = '210mm';
+      tempDiv.style.padding = '15mm';
+      tempDiv.style.boxSizing = 'border-box';
+      tempDiv.style.backgroundColor = '#ffffff';
       document.body.appendChild(tempDiv);
 
       // Generate PDF from HTML
@@ -380,39 +386,35 @@ export default function OffersPage() {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: pdfOptions.printBackground ? '#ffffff' : null
+        backgroundColor: '#ffffff',
+        windowWidth: tempDiv.scrollWidth,
+        windowHeight: tempDiv.scrollHeight
       });
 
       document.body.removeChild(tempDiv);
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', pdfOptions.format.toLowerCase());
+      const pdf = new jsPDF('p', 'mm', 'a4');
       
-      // Apply margins
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const marginLeft = pdfOptions.margin.left;
-      const marginTop = pdfOptions.margin.top;
-      const marginRight = pdfOptions.margin.right;
-      const marginBottom = pdfOptions.margin.bottom;
       
-      const contentWidth = pageWidth - marginLeft - marginRight;
-      const contentHeight = pageHeight - marginTop - marginBottom;
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
       
-      const pdfWidth = contentWidth;
-      const pdfHeight = (canvas.height * contentWidth) / canvas.width;
-      
-      let heightLeft = pdfHeight;
+      let heightLeft = imgHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
-      heightLeft -= contentHeight;
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
 
+      // Add subsequent pages
       while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
+        position = -pageHeight * Math.ceil((imgHeight - heightLeft) / pageHeight);
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
-        heightLeft -= contentHeight;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
 
       return pdf;
