@@ -40,7 +40,7 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
       if (fetchError) throw fetchError;
 
       // Split article text into lines
-      const articleLines = articleText
+      const allLines = articleText
         .split("\n")
         .map(line => line.trim())
         .filter(line => line.length > 0);
@@ -48,11 +48,35 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
       // If we have existing articles in DB, use them
       if (existingArticles && existingArticles.length > 0) {
         setArticles(existingArticles);
-      } else if (articleLines.length > 0) {
-        // Create new articles from text
-        const newArticles = articleLines.map((line, index) => ({
+      } else if (allLines.length > 0) {
+        // Group lines intelligently: short lines (titles) with following longer lines (descriptions)
+        const groupedArticles: string[] = [];
+        let i = 0;
+        
+        while (i < allLines.length) {
+          const currentLine = allLines[i];
+          
+          // Check if this is a short line (likely a title) followed by a longer line (description)
+          if (i + 1 < allLines.length) {
+            const nextLine = allLines[i + 1];
+            
+            // If current line is short (<= 60 chars) and next line is longer, group them
+            if (currentLine.length <= 60 && nextLine.length > currentLine.length) {
+              groupedArticles.push(`${currentLine}\n${nextLine}`);
+              i += 2;
+              continue;
+            }
+          }
+          
+          // Otherwise, add the line as-is
+          groupedArticles.push(currentLine);
+          i++;
+        }
+
+        // Create new articles from grouped text
+        const newArticles = groupedArticles.map((description, index) => ({
           work_order_id: workOrderId,
-          description: line,
+          description: description,
           is_completed: false,
           position: index,
         }));
@@ -143,7 +167,7 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
           <div className="flex-1">
             <Label
               htmlFor={article.id}
-              className={`cursor-pointer text-sm ${
+              className={`cursor-pointer text-sm whitespace-pre-wrap ${
                 article.is_completed ? "line-through text-muted-foreground" : ""
               }`}
             >
