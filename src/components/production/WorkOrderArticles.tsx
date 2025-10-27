@@ -39,57 +39,64 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
 
       if (fetchError) throw fetchError;
 
+      // ALWAYS use existing articles if they exist - never recreate
+      if (existingArticles && existingArticles.length > 0) {
+        setArticles(existingArticles);
+        return; // Exit early to prevent any recreation
+      }
+
+      // Only create articles if NONE exist for this work order
       // Split article text into lines
       const allLines = articleText
         .split("\n")
         .map(line => line.trim())
         .filter(line => line.length > 0);
 
-      // If we have existing articles in DB, use them
-      if (existingArticles && existingArticles.length > 0) {
-        setArticles(existingArticles);
-      } else if (allLines.length > 0) {
-        // Group lines intelligently: short lines (titles) with following longer lines (descriptions)
-        const groupedArticles: string[] = [];
-        let i = 0;
-        
-        while (i < allLines.length) {
-          const currentLine = allLines[i];
-          
-          // Check if this is a short line (likely a title) followed by a longer line (description)
-          if (i + 1 < allLines.length) {
-            const nextLine = allLines[i + 1];
-            
-            // If current line is short (<= 60 chars) and next line is longer, group them
-            if (currentLine.length <= 60 && nextLine.length > currentLine.length) {
-              groupedArticles.push(`${currentLine}\n${nextLine}`);
-              i += 2;
-              continue;
-            }
-          }
-          
-          // Otherwise, add the line as-is
-          groupedArticles.push(currentLine);
-          i++;
-        }
-
-        // Create new articles from grouped text
-        const newArticles = groupedArticles.map((description, index) => ({
-          work_order_id: workOrderId,
-          description: description,
-          is_completed: false,
-          position: index,
-        }));
-
-        const { data: createdArticles, error: insertError } = await supabase
-          .from("work_order_article_items")
-          .insert(newArticles)
-          .select();
-
-        if (insertError) throw insertError;
-
-        setArticles(createdArticles || []);
+      if (allLines.length === 0) {
+        setArticles([]);
+        return;
       }
+
+      // Group lines intelligently: short lines (titles) with following longer lines (descriptions)
+      const groupedArticles: string[] = [];
+      let i = 0;
+      
+      while (i < allLines.length) {
+        const currentLine = allLines[i];
+        
+        // Check if this is a short line (likely a title) followed by a longer line (description)
+        if (i + 1 < allLines.length) {
+          const nextLine = allLines[i + 1];
+          
+          // If current line is short (<= 60 chars) and next line is longer, group them
+          if (currentLine.length <= 60 && nextLine.length > currentLine.length) {
+            groupedArticles.push(`${currentLine}\n${nextLine}`);
+            i += 2;
+            continue;
+          }
+        }
+        
+        // Otherwise, add the line as-is
+        groupedArticles.push(currentLine);
+        i++;
+      }
+
+      // Create new articles from grouped text - only if none exist
+      const newArticles = groupedArticles.map((description, index) => ({
+        work_order_id: workOrderId,
+        description: description,
+        is_completed: false,
+        position: index,
+      }));
+
+      const { data: createdArticles, error: insertError } = await supabase
+        .from("work_order_article_items")
+        .insert(newArticles)
+        .select();
+
+      if (insertError) throw insertError;
+
+      setArticles(createdArticles || []);
     } catch (error: any) {
       console.error("Error loading articles:", error);
       toast.error("Errore nel caricamento degli articoli");
