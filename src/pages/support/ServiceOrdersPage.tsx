@@ -508,11 +508,61 @@ export default function WorkOrdersServicePage() {
   };
 
   const handleGenerateReport = async (workOrder: ServiceWorkOrder) => {
-    // Implementazione futura per generare il rapporto di intervento
-    toast({
-      title: "In sviluppo",
-      description: "La funzionalità di generazione rapporto sarà disponibile a breve",
-    });
+    try {
+      // Verifica che la commessa abbia i dati necessari
+      if (!workOrder.scheduled_date || !workOrder.assigned_to) {
+        toast({
+          title: "Dati mancanti",
+          description: "La commessa deve avere una data programmata e un tecnico assegnato",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Crea il rapporto di intervento
+      const { data: report, error } = await supabase
+        .from('service_reports')
+        .insert({
+          contact_id: workOrder.contact_id,
+          technician_id: workOrder.assigned_to,
+          work_order_id: workOrder.id,
+          intervention_type: 'Installazione',
+          work_performed: workOrder.title,
+          description: workOrder.description || null,
+          notes: workOrder.notes || null,
+          technician_name: workOrder.technician 
+            ? `${workOrder.technician.first_name} ${workOrder.technician.last_name}` 
+            : '',
+          intervention_date: new Date(workOrder.scheduled_date).toISOString().split('T')[0],
+          status: 'in_progress'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Rapporto creato",
+        description: "Il rapporto di intervento è stato creato. Vai alla sezione Rapporti per completarlo.",
+      });
+
+      // Aggiorna lo stato della commessa a completata
+      const { error: updateError } = await supabase
+        .from('service_work_orders')
+        .update({ status: 'completata' })
+        .eq('id', workOrder.id);
+
+      if (updateError) throw updateError;
+
+      // Ricarica i dati
+      loadServiceWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il rapporto: " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredWorkOrders = serviceWorkOrders.filter(wo => {
