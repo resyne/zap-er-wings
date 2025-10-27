@@ -24,7 +24,6 @@ interface WorkOrderComment {
     first_name: string | null;
     last_name: string | null;
     email: string;
-    avatar_url?: string | null;
   };
 }
 
@@ -51,17 +50,31 @@ export function WorkOrderComments({ workOrderId }: WorkOrderCommentsProps) {
 
   const loadComments = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: commentsData, error } = await supabase
         .from("work_order_comments")
-        .select(`
-          *,
-          profiles(id, first_name, last_name, email, avatar_url)
-        `)
+        .select("*")
         .eq("work_order_id", workOrderId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setComments(data || []);
+
+      // Manually load profile data for each comment
+      const commentsWithProfiles = await Promise.all(
+        (commentsData || []).map(async (comment) => {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("id, first_name, last_name, email")
+            .eq("id", comment.user_id)
+            .single();
+
+          return {
+            ...comment,
+            profiles: profileData || undefined,
+          };
+        })
+      );
+
+      setComments(commentsWithProfiles);
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -249,7 +262,6 @@ export function WorkOrderComments({ workOrderId }: WorkOrderCommentsProps) {
             comments.map((comment) => (
               <div key={comment.id} className="flex gap-3 p-3 rounded-lg bg-muted/50">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={comment.profiles?.avatar_url || undefined} />
                   <AvatarFallback>{getInitials(comment.profiles)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 space-y-2">
