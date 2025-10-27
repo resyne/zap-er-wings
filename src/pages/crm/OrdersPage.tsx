@@ -175,6 +175,7 @@ export default function OrdersPage() {
           leads(id, company_name)
         `)
         .eq("status", "accettata")
+        .eq("archived", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

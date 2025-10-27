@@ -506,7 +506,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (newOrder.offer_id) {
         await supabase
           .from('offers')
-          .update({ status: 'ordine_creato' })
+          .update({ archived: true })
           .eq('id', newOrder.offer_id);
       }
 
