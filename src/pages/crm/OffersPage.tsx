@@ -44,6 +44,7 @@ interface Offer {
   timeline_installazione?: string;
   timeline_collaudo?: string;
   incluso_fornitura?: string;
+  escluso_fornitura?: string;
   metodi_pagamento?: string;
   payment_method?: string;
   payment_agreement?: string;
@@ -117,6 +118,7 @@ export default function OffersPage() {
     timeline_consegna?: string;
     timeline_installazione?: string;
     incluso_fornitura?: string;
+    escluso_fornitura?: string;
     metodi_pagamento?: string;
     payment_method?: string;
     payment_agreement?: string;
@@ -133,6 +135,7 @@ export default function OffersPage() {
     timeline_consegna: '',
     timeline_installazione: '',
     incluso_fornitura: '',
+    escluso_fornitura: '',
     metodi_pagamento: '30% acconto - 70% alla consegna',
     payment_method: 'bonifico',
     payment_agreement: '50% acconto - 50% a consegna'
@@ -339,6 +342,10 @@ export default function OffersPage() {
         ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
         : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
       templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
+      
+      // Gestisci escluso_fornitura
+      const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
+      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoText);
 
       // Gestisci timeline_section - mostra solo se ci sono tempi compilati
       const timelineSteps = [];
@@ -608,6 +615,7 @@ export default function OffersPage() {
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
             incluso_fornitura: inclusoFornituraText || null,
+            escluso_fornitura: newOffer.escluso_fornitura || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null
@@ -652,6 +660,7 @@ export default function OffersPage() {
             timeline_consegna: '',
             timeline_installazione: '',
             incluso_fornitura: '',
+            escluso_fornitura: '',
             metodi_pagamento: '30% acconto - 70% alla consegna',
             payment_method: 'bonifico',
             payment_agreement: '50% acconto - 50% a consegna'
@@ -1305,6 +1314,16 @@ export default function OffersPage() {
                   value={inclusoCustom}
                   onChange={(e) => setInclusoCustom(e.target.value)}
                   placeholder="Una voce per riga (usa ✓ per le spunte)"
+                  rows={3}
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Cosa Esclude la Fornitura</label>
+                <Textarea
+                  value={newOffer.escluso_fornitura}
+                  onChange={(e) => setNewOffer(prev => ({ ...prev, escluso_fornitura: e.target.value }))}
+                  placeholder="Es: Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, pratiche amministrative..."
                   rows={3}
                 />
               </div>
