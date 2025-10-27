@@ -4988,6 +4988,7 @@ export type Database = {
         Row: {
           archived: boolean | null
           article: string | null
+          assigned_to: string | null
           attachments: Json | null
           back_office_manager: string | null
           back_office_responsible_id: string | null
@@ -5008,12 +5009,15 @@ export type Database = {
           shipping_address: string | null
           shipping_responsible_id: string | null
           status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
           updated_at: string
           work_order_id: string | null
         }
         Insert: {
           archived?: boolean | null
           article?: string | null
+          assigned_to?: string | null
           attachments?: Json | null
           back_office_manager?: string | null
           back_office_responsible_id?: string | null
@@ -5034,12 +5038,15 @@ export type Database = {
           shipping_address?: string | null
           shipping_responsible_id?: string | null
           status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           updated_at?: string
           work_order_id?: string | null
         }
         Update: {
           archived?: boolean | null
           article?: string | null
+          assigned_to?: string | null
           attachments?: Json | null
           back_office_manager?: string | null
           back_office_responsible_id?: string | null
@@ -5060,10 +5067,19 @@ export type Database = {
           shipping_address?: string | null
           shipping_responsible_id?: string | null
           status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           updated_at?: string
           work_order_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shipping_orders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shipping_orders_customer_id_fkey"
             columns: ["customer_id"]
@@ -5076,6 +5092,13 @@ export type Database = {
             columns: ["sales_order_id"]
             isOneToOne: false
             referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipping_orders_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
