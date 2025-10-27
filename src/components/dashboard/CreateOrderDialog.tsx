@@ -137,7 +137,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         if (error) throw error;
 
         if (offerItems && offerItems.length > 0) {
-          const articles = offerItems.map(item => item.description);
+          const articles = offerItems.map(item => {
+            const quantity = item.quantity || 1;
+            return `${quantity}x ${item.description}`;
+          });
           setNewOrder(prev => ({
             ...prev,
             articles: articles

@@ -293,6 +293,7 @@ export default function OrdersPage() {
       planned_start_date: newOrder.planned_start_date || null,
       planned_end_date: newOrder.planned_end_date || null,
       notes: newOrder.notes,
+      article: orderData.article || null, // Copy articles from sales order
       includes_installation: newOrder.order_type === 'odpel',
       sales_order_id: orderId
     };
