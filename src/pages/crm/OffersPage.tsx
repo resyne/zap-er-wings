@@ -1877,7 +1877,7 @@ export default function OffersPage() {
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => navigate('/crm/leads')}
+                      onClick={() => navigate(`/crm/leads?lead=${selectedOffer.lead_id}`)}
                       title="Vai al Lead"
                     >
                       <ExternalLink className="h-4 w-4" />
