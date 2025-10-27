@@ -24,7 +24,7 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
 
   useEffect(() => {
     loadArticles();
-  }, [workOrderId, articleText]);
+  }, [workOrderId]); // Removed articleText from dependencies to avoid recreating articles
 
   const loadArticles = async () => {
     try {
