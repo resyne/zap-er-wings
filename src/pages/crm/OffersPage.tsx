@@ -14,7 +14,7 @@ import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, Fil
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from 'jspdf';
-import html2pdf from 'html2pdf.js';
+import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -354,47 +354,54 @@ export default function OffersPage() {
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
-      // Create temporary container with proper width for A4
+      // Create temporary container
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHtml;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '0';
-      tempDiv.style.width = '210mm';
-      tempDiv.style.maxWidth = '210mm';
+      tempDiv.style.width = '794px'; // A4 width at 96dpi (210mm)
       tempDiv.style.backgroundColor = '#ffffff';
       document.body.appendChild(tempDiv);
 
-      // PDF generation options with html2pdf
-      const opt = {
-        margin: [15, 15, 15, 15] as [number, number, number, number], // top, right, bottom, left in mm
-        filename: `Offerta_${offer.number}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff'
-        },
-        jsPDF: { 
-          unit: 'mm' as const, 
-          format: 'a4' as const, 
-          orientation: 'portrait' as const
-        },
-        pagebreak: { 
-          mode: ['avoid-all', 'css', 'legacy'] as ('avoid-all' | 'css' | 'legacy')[],
-          before: '.page-break-before',
-          after: '.page-break',
-          avoid: ['.section', '.info-box', '.trustpilot-section', '.includes-section', '.nota-bene', '.summary-box', '.timeline-box', 'table']
-        }
-      };
+      // Wait for images to load
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Generate PDF
-      const pdfBlob = await html2pdf().set(opt).from(tempDiv).toPdf().get('pdf');
-      
+      // Generate canvas from HTML
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
       document.body.removeChild(tempDiv);
 
-      return pdfBlob;
+      // PDF setup
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      // Add remaining pages
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      return pdf;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
