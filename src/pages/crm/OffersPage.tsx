@@ -259,7 +259,7 @@ export default function OffersPage() {
       // Determine template based on offer.template field or default to zapper
       const templateName = (offer as any).template || 'zapper';
       const templateMap = {
-        zapper: '/templates/offer-template.html',
+        zapper: '/templates/offer-template-zapper-v2.html',
         vesuviano: '/templates/offer-template-vesuviano.html',
         zapperpro: '/templates/offer-template-zapperpro.html'
       };
@@ -348,47 +348,11 @@ export default function OffersPage() {
       const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
       templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
 
-      // Gestisci timeline_section - mostra solo se ci sono tempi compilati
-      const timelineSteps = [];
-      if (offer.timeline_produzione) {
-        timelineSteps.push(`
-          <div class="timeline-step">
-            <div class="timeline-icon">🏭</div>
-            <div class="timeline-label">Produzione</div>
-            <div class="timeline-duration">${offer.timeline_produzione}</div>
-          </div>
-        `);
-      }
-      if (offer.timeline_consegna) {
-        timelineSteps.push(`
-          <div class="timeline-step">
-            <div class="timeline-icon">🚚</div>
-            <div class="timeline-label">Consegna</div>
-            <div class="timeline-duration">${offer.timeline_consegna}</div>
-          </div>
-        `);
-      }
-      if (offer.timeline_installazione) {
-        timelineSteps.push(`
-          <div class="timeline-step">
-            <div class="timeline-icon">🔧</div>
-            <div class="timeline-label">Installazione</div>
-            <div class="timeline-duration">${offer.timeline_installazione}</div>
-          </div>
-        `);
-      }
-      
-      const timelineSectionHtml = timelineSteps.length > 0 
-        ? `
-          <div class="timeline-box">
-            <div class="timeline-title">⏱️ Tempi Operativi</div>
-            <div class="timeline-steps" style="grid-template-columns: repeat(${timelineSteps.length}, 1fr);">
-              ${timelineSteps.join('')}
-            </div>
-          </div>
-        `
-        : '';
-      templateHtml = templateHtml.replace(/{{timeline_section}}/g, timelineSectionHtml);
+      // Gestisci timeline fields - sostituisci i singoli placeholder
+      templateHtml = templateHtml
+        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || 'Da definire')
+        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
+        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
       // Create temporary container
       const tempDiv = document.createElement('div');
