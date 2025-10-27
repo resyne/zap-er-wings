@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive } from "lucide-react";
+import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
+import { ScheduleInstallationDialog } from "@/components/support/ScheduleInstallationDialog";
 
 interface ServiceWorkOrder {
   id: string;
@@ -67,19 +68,15 @@ interface ServiceWorkOrder {
 }
 
 const statusColors = {
-  to_do: "bg-blue-100 text-blue-800 border-blue-200",
-  in_lavorazione: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  test: "bg-purple-100 text-purple-800 border-purple-200",
-  pronti: "bg-orange-100 text-orange-800 border-orange-200",
-  spediti_consegnati: "bg-green-100 text-green-800 border-green-200"
+  da_programmare: "bg-blue-100 text-blue-800 border-blue-200",
+  programmata: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  completata: "bg-green-100 text-green-800 border-green-200"
 };
 
 const statusLabels = {
-  to_do: "Da Fare",
-  in_lavorazione: "In Lavorazione",
-  test: "Test",
-  pronti: "Pronti",
-  spediti_consegnati: "Spediti/Consegnati"
+  da_programmare: "Da Programmare",
+  programmata: "Programmata",
+  completata: "Completata"
 };
 
 export default function WorkOrdersServicePage() {
@@ -96,6 +93,8 @@ export default function WorkOrdersServicePage() {
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<ServiceWorkOrder | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [workOrderToSchedule, setWorkOrderToSchedule] = useState<ServiceWorkOrder | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -279,7 +278,7 @@ export default function WorkOrdersServicePage() {
         location: formData.location || null,
         equipment_needed: formData.equipment_needed || null,
         notes: formData.notes || null,
-        status: 'to_do'
+        status: 'da_programmare'
       };
 
       // Remove empty string values, replace with null
@@ -478,6 +477,44 @@ export default function WorkOrdersServicePage() {
     }
   };
 
+  const handleScheduleInstallation = async (date: Date) => {
+    if (!workOrderToSchedule) return;
+
+    try {
+      const { error } = await supabase
+        .from('service_work_orders')
+        .update({ 
+          scheduled_date: date.toISOString(),
+          status: 'programmata'
+        })
+        .eq('id', workOrderToSchedule.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Installazione programmata con successo",
+      });
+
+      setWorkOrderToSchedule(null);
+      loadServiceWorkOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile programmare l'installazione: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGenerateReport = async (workOrder: ServiceWorkOrder) => {
+    // Implementazione futura per generare il rapporto di intervento
+    toast({
+      title: "In sviluppo",
+      description: "La funzionalità di generazione rapporto sarà disponibile a breve",
+    });
+  };
+
   const filteredWorkOrders = serviceWorkOrders.filter(wo => {
     const matchesSearch = wo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          wo.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -512,13 +549,11 @@ export default function WorkOrdersServicePage() {
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Filtra per stato" />
           </SelectTrigger>
-          <SelectContent>
+        <SelectContent>
             <SelectItem value="all">Tutti gli stati</SelectItem>
-            <SelectItem value="to_do">Da Fare</SelectItem>
-            <SelectItem value="in_lavorazione">In Lavorazione</SelectItem>
-            <SelectItem value="test">Test</SelectItem>
-            <SelectItem value="pronti">Pronti</SelectItem>
-            <SelectItem value="spediti_consegnati">Spediti/Consegnati</SelectItem>
+            <SelectItem value="da_programmare">Da Programmare</SelectItem>
+            <SelectItem value="programmata">Programmata</SelectItem>
+            <SelectItem value="completata">Completata</SelectItem>
           </SelectContent>
         </Select>
         <Button 
@@ -665,9 +700,9 @@ export default function WorkOrdersServicePage() {
                      </TableCell>
                      <TableCell>
                        <div className="text-sm">
-                         <div className="flex items-center gap-1 text-muted-foreground">
-                           <Calendar className="w-3 h-3" />
-                           {workOrder.scheduled_date ? (
+                         {workOrder.scheduled_date ? (
+                           <div className="flex items-center gap-1 text-muted-foreground">
+                             <Calendar className="w-3 h-3" />
                              <div>
                                <div>{new Date(workOrder.scheduled_date).toLocaleDateString('it-IT')}</div>
                                <div className="text-xs">
@@ -677,14 +712,33 @@ export default function WorkOrdersServicePage() {
                                  })}
                                </div>
                              </div>
-                           ) : (
-                             'Non programmata'
-                           )}
-                         </div>
+                           </div>
+                         ) : (
+                           <Button
+                             size="sm"
+                             variant="default"
+                             onClick={() => {
+                               setWorkOrderToSchedule(workOrder);
+                               setShowScheduleDialog(true);
+                             }}
+                             className="gap-2"
+                           >
+                             <CalendarCheck className="w-4 h-4" />
+                             Programma Installazione
+                           </Button>
+                         )}
                        </div>
                      </TableCell>
                      <TableCell>
                        <div className="flex justify-end gap-1">
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => handleGenerateReport(workOrder)}
+                           title="Genera rapporto di intervento"
+                         >
+                           <FileText className="w-4 h-4" />
+                         </Button>
                          <Button
                            variant="ghost"
                            size="sm"
@@ -957,6 +1011,13 @@ export default function WorkOrdersServicePage() {
         open={showCreateCustomer}
         onOpenChange={setShowCreateCustomer}
         onCustomerCreated={handleCustomerCreated}
+      />
+      
+      <ScheduleInstallationDialog
+        open={showScheduleDialog}
+        onOpenChange={setShowScheduleDialog}
+        onSchedule={handleScheduleInstallation}
+        workOrderNumber={workOrderToSchedule?.number}
       />
     </div>
   );
