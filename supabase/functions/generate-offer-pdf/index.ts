@@ -141,6 +141,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("API Key present:", !!pdfBoltApiKey);
     console.log("API Key length:", pdfBoltApiKey?.length);
     
+    // Encode HTML to base64
+    const encoder = new TextEncoder();
+    const data = encoder.encode(templateHtml);
+    const base64Html = btoa(String.fromCharCode(...data));
+    
     const pdfResponse = await fetch("https://api.pdfbolt.com/v1/direct", {
       method: "POST",
       headers: {
@@ -148,7 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        html: templateHtml,
+        html: base64Html,
         format: "A4",
         printBackground: true,
         preferCSSPageSize: true,
