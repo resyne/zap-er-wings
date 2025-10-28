@@ -4,257 +4,62 @@
   <meta charset="UTF-8">
   <title>Offerta {{numero_offerta}}</title>
   <style>
-    @page { size: A4; margin: 15mm; }
-    
-    body {
-      width: 210mm;
-      margin: 0 auto;
-      padding: 0;
-      font-family: Arial, sans-serif;
-      font-size: 10pt;
-      line-height: 1.3;
-      color: #333;
-    }
-    
-    * { box-sizing: border-box; }
-    
-    .header {
-      background: #38AC4F;
-      color: white;
-      padding: 12px 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-    
-    .logo-text {
-      font-size: 20px;
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
-    
-    .doc-info { text-align: right; font-size: 11px; }
-    
-    .content { padding: 15px; }
-    
-    .section { margin-bottom: 15px; }
-    
-    .section-title {
-      font-size: 13px;
-      font-weight: bold;
-      color: #38AC4F;
-      text-transform: uppercase;
-      border-bottom: 2px solid #38AC4F;
-      padding-bottom: 4px;
-      margin-bottom: 8px;
-    }
-    
-    .oggetto {
-      background: #f9f9f9;
-      padding: 8px 12px;
-      border-left: 3px solid #38AC4F;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 15px 0;
-    }
-    
-    th, td {
-      padding: 8px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    
-    th {
-      background: #38AC4F;
-      color: white;
-      font-weight: bold;
-    }
-    
-    .totals {
-      text-align: right;
-      margin-top: 15px;
-    }
-    
-    .total-row {
-      display: flex;
-      justify-content: flex-end;
-      padding: 4px 0;
-    }
-    
-    .total-label {
-      width: 180px;
-      font-weight: bold;
-    }
-    
-    .total-value {
-      width: 100px;
-      text-align: right;
-    }
-    
-    .total-finale {
-      border-top: 2px solid #38AC4F;
-      padding-top: 6px;
-      color: #38AC4F;
-      font-size: 16px;
-    }
-    
-    .info-box {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin: 15px 0;
-    }
-    
-    .info-item {
-      background: #f9f9f9;
-      padding: 8px;
-      border-left: 3px solid #38AC4F;
-    }
-    
-    .includes-section, .nota-bene {
-      background: #f9f9f9;
-      padding: 10px;
-      margin: 10px 0;
-    }
-    
-    .includes-title {
-      font-size: 12px;
-      font-weight: bold;
-      color: #38AC4F;
-      text-align: center;
-      margin-bottom: 6px;
-    }
-    
-    .includes-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
-    
-    .includes-item {
-      background: white;
-      padding: 6px;
-      display: flex;
-      gap: 4px;
-      border: 1px solid #eee;
-    }
-    
-    .footer {
-      background: #38AC4F;
-      color: white;
-      padding: 12px;
-      text-align: center;
-      font-size: 10px;
-      margin-top: 20px;
-    }
-    
-    .page-break { page-break-after: always; }
+    @page { size: A4; margin: 10mm; }
+    body { font-family: Arial; font-size: 9pt; line-height: 1.2; margin: 0; padding: 10px; }
+    .header { background: #38AC4F; color: white; padding: 10px; margin-bottom: 15px; }
+    .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+    .info { font-size: 10px; margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
+    th, td { padding: 6px; border: 1px solid #ddd; text-align: left; }
+    th { background: #38AC4F; color: white; }
+    .totals { text-align: right; margin: 10px 0; font-size: 10pt; }
+    .total-row { margin: 3px 0; }
+    .total-finale { font-size: 14pt; font-weight: bold; color: #38AC4F; border-top: 2px solid #38AC4F; padding-top: 5px; margin-top: 5px; }
+    .section { margin: 10px 0; padding: 8px; background: #f5f5f5; font-size: 9pt; }
+    .footer { background: #38AC4F; color: white; padding: 8px; text-align: center; font-size: 8pt; margin-top: 15px; }
   </style>
 </head>
-
 <body>
-  <div class="container">
-    <!-- HEADER -->
-    <div class="header">
-      <div>
-        <div class="logo-text">ZAPPER</div>
-        <div style="font-size: 12px; margin-top: 5px;">WWW.ABBATTITORIZAPPER.IT</div>
-        <div style="font-size: 11px; margin-top: 8px;">
-          info@abbattitorizapper.it | 081 19968436
-        </div>
-      </div>
-      <div class="doc-info">
-        <div><strong>OFFERTA N.</strong> {{numero_offerta}}</div>
-        <div>Data: {{data_offerta}}</div>
-        <div>Cliente: {{cliente_nome}}</div>
-      </div>
+  <div class="header">
+    <div class="title">ZAPPER</div>
+    <div class="info">Offerta n. {{numero_offerta}} - {{data_offerta}}</div>
+    <div class="info">Cliente: {{cliente_nome}}</div>
+  </div>
+
+  <div style="margin: 10px 0; padding: 8px; background: #f9f9f9; border-left: 3px solid #38AC4F;">
+    <strong>Oggetto:</strong> {{oggetto_offerta}}
+  </div>
+
+  {{tabella_prodotti}}
+
+  <div class="totals">
+    <div class="total-row">Imponibile: € {{totale_imponibile}}</div>
+    <div class="total-row">IVA 22%: € {{totale_iva}}</div>
+    <div class="total-finale">TOTALE: € {{totale_lordo}}</div>
+  </div>
+
+  <div class="section">
+    <strong>Include:</strong> {{incluso_fornitura}}
+  </div>
+
+  <div class="section">
+    <strong>Esclude:</strong> {{escluso_fornitura}}
+  </div>
+
+  <div class="section">
+    <strong>Validità:</strong> {{validita_offerta}} | <strong>Consegna:</strong> {{tempi_consegna}}
+  </div>
+
+  <div class="section">
+    <strong>Pagamento:</strong> {{metodi_pagamento}}
+    <div style="margin-top: 8px; font-size: 8pt;">
+      CLIMATEL DI ELEFANTE PASQUALE - IBAN: IT82 S030 6976 4511 0000 0003 441
     </div>
+  </div>
 
-    <!-- CONTENUTO -->
-    <div class="content">
-
-      <!-- OGGETTO -->
-      <div class="section">
-        <div class="section-title">Oggetto</div>
-        <div class="oggetto">{{oggetto_offerta}}</div>
-      </div>
-
-      <!-- TABELLA PRODOTTI -->
-      <div class="section">
-        <div class="section-title">Dettaglio Prodotti/Servizi</div>
-        {{tabella_prodotti}}
-      </div>
-
-      <!-- INCLUDES -->
-      <div class="includes-section">
-        <div class="includes-title">Cosa Include la Fornitura</div>
-        <div class="includes-grid">{{incluso_fornitura}}</div>
-      </div>
-
-      <!-- ESCLUSIONI -->
-      <div class="nota-bene">
-        <div class="section-title" style="border: none;">Cosa Esclude la Fornitura</div>
-        {{escluso_fornitura}}
-      </div>
-
-      <!-- TOTALI -->
-      <div class="totals">
-        <div class="total-row"><div class="total-label">Totale Imponibile:</div><div class="total-value">€ {{totale_imponibile}}</div></div>
-        <div class="total-row"><div class="total-label">IVA:</div><div class="total-value">€ {{totale_iva}}</div></div>
-        <div class="total-row total-finale"><div class="total-label">Totale Offerta:</div><div class="total-value">€ {{totale_lordo}}</div></div>
-      </div>
-
-      <!-- INFO BOX -->
-      <div class="info-box">
-        <div class="info-item"><div class="info-label">Validità Offerta</div>{{validita_offerta}}</div>
-        <div class="info-item"><div class="info-label">Tempi di Consegna</div>{{tempi_consegna}}</div>
-      </div>
-
-      <div class="page-break"></div>
-
-      <!-- PAGAMENTI -->
-      <div class="section">
-        <div class="section-title">Metodi di Pagamento</div>
-        <div>{{metodi_pagamento}}</div>
-        <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 4px solid var(--green);">
-          <strong>Coordinate Bancarie:</strong><br>
-          <strong>CLIMATEL DI ELEFANTE PASQUALE</strong><br>
-          Banca: INTESA SANPAOLO<br>
-          IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
-        </div>
-      </div>
-
-      <!-- TIMELINE -->
-      <div class="section">
-        <div class="section-title">Timeline Operativa</div>
-        <div style="display: flex; justify-content: space-between; gap: 10px;">
-          <div style="text-align: center; flex: 1;"><strong>Produzione:</strong> {{timeline_produzione}}</div>
-          <div style="text-align: center; flex: 1;"><strong>Consegna:</strong> {{timeline_consegna}}</div>
-          <div style="text-align: center; flex: 1;"><strong>Installazione:</strong> {{timeline_installazione}}</div>
-        </div>
-      </div>
-
-      <!-- TRUSTPILOT -->
-      <div style="text-align:center; padding:10px; border:1px solid #ddd; margin:10px 0;">
-        <div style="font-weight:bold;">Valutazione Trustpilot: 4.8 / 5 - Oltre 430 recensioni</div>
-        <a href="https://it.trustpilot.com/review/abbattitorizapper.it" style="color:#38AC4F;">abbattitorizapper.it</a>
-      </div>
-
-    </div>
-
-    <!-- FOOTER -->
-    <div class="footer">
-      <strong>ZAPPER - RENEWED AIR</strong><br>
-      WWW.ABBATTITORIZAPPER.IT<br>
-      info@abbattitorizapper.it | 081 19968436 | +39 324 8996189<br>
-      <div style="margin-top:8px; font-size:11px;">
-        CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris 24, 84018 SCAFATI (SA)<br>
-        C.F. LFNPQL67L02I483U | P.IVA 03895390650 | Reg. imprese 330786
-      </div>
-    </div>
+  <div class="footer">
+    ZAPPER - WWW.ABBATTITORIZAPPER.IT - info@abbattitorizapper.it - 081 19968436<br>
+    Via G. Ferraris 24, 84018 SCAFATI (SA) - P.IVA 03895390650
   </div>
 </body>
 </html>
