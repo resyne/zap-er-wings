@@ -241,32 +241,15 @@ export default function OffersPage() {
 
   const generateOfferPDF = async (offer: Offer): Promise<Blob> => {
     try {
-      // Fetch offer items from database
-      const { data: items, error: itemsError } = await supabase
-        .from('offer_items')
-        .select('*')
-        .eq('offer_id', offer.id);
+      // Call the Puppeteer edge function
+      const { data, error } = await supabase.functions.invoke('generate-offer-pdf-puppeteer', {
+        body: { offerId: offer.id }
+      });
 
-      if (itemsError) throw itemsError;
+      if (error) throw error;
 
-      // Import and call pdf-lib generator
-      const { generateOfferPDF: generatePDF } = await import('@/lib/generateOfferPDF');
-      
-      const offerData = {
-        number: offer.number,
-        created_at: offer.created_at,
-        customer_name: offer.customer_name,
-        title: offer.title,
-        amount: offer.amount,
-        valid_until: offer.valid_until,
-        timeline_consegna: offer.timeline_consegna,
-        payment_agreement: offer.payment_agreement,
-        incluso_fornitura: offer.incluso_fornitura,
-        escluso_fornitura: offer.escluso_fornitura,
-        items: items || []
-      };
-
-      const pdfBlob = await generatePDF(offerData);
+      // Convert response to Blob
+      const pdfBlob = new Blob([data], { type: 'application/pdf' });
       return pdfBlob;
     } catch (error) {
       console.error('Error generating PDF:', error);
