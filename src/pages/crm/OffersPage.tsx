@@ -360,12 +360,28 @@ export default function OffersPage() {
       const html2canvas = (await import('html2canvas')).default;
       const jsPDF = (await import('jspdf')).default;
 
-      // A4 dimensions in mm
-      const A4_WIDTH = 210;
-      const A4_HEIGHT = 297;
-      const MARGIN = 18; // 18mm margins
-      const CONTENT_WIDTH = A4_WIDTH - (MARGIN * 2);
-      const CONTENT_HEIGHT = A4_HEIGHT - (MARGIN * 2);
+      // A4 dimensions in mm and pixels (at 96 DPI)
+      const A4_WIDTH_MM = 210;
+      const A4_HEIGHT_MM = 297;
+      const MM_TO_PX = 3.7795275591; // 1mm = 3.78px at 96 DPI
+      const A4_WIDTH_PX = A4_WIDTH_MM * MM_TO_PX;
+      const A4_HEIGHT_PX = A4_HEIGHT_MM * MM_TO_PX;
+
+      // Capture the entire container
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: A4_WIDTH_PX,
+        windowWidth: A4_WIDTH_PX
+      });
+
+      // Calculate how many pages we need
+      const totalHeight = canvas.height;
+      const pageHeightPx = (canvas.width / A4_WIDTH_MM) * A4_HEIGHT_MM;
+      const totalPages = Math.ceil(totalHeight / pageHeightPx);
 
       // Create PDF
       const pdf = new jsPDF({
@@ -374,56 +390,35 @@ export default function OffersPage() {
         format: 'a4'
       });
 
-      // Split content by dividers
-      const dividers = container.querySelectorAll('.divider');
-      const sections: HTMLElement[] = [];
-      
-      let currentSection = document.createElement('div');
-      currentSection.style.width = '210mm';
-      currentSection.style.background = 'white';
-      
-      Array.from(container.children).forEach((child) => {
-        if (child.classList.contains('divider')) {
-          if (currentSection.children.length > 0) {
-            sections.push(currentSection);
-          }
-          currentSection = document.createElement('div');
-          currentSection.style.width = '210mm';
-          currentSection.style.background = 'white';
-        } else {
-          currentSection.appendChild(child.cloneNode(true));
-        }
-      });
-      
-      if (currentSection.children.length > 0) {
-        sections.push(currentSection);
-      }
-
-      // Render each section
-      for (let i = 0; i < sections.length; i++) {
-        const section = sections[i];
-        document.body.appendChild(section);
-        section.style.position = 'fixed';
-        section.style.left = '-9999px';
-
-        const canvas = await html2canvas(section, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          logging: false
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const imgWidth = A4_WIDTH;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        if (i > 0) {
+      // Add pages
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) {
           pdf.addPage();
         }
 
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-        document.body.removeChild(section);
+        // Create a canvas for this page
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = Math.min(pageHeightPx, totalHeight - (page * pageHeightPx));
+        
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(
+            canvas,
+            0,
+            page * pageHeightPx,
+            canvas.width,
+            pageCanvas.height,
+            0,
+            0,
+            canvas.width,
+            pageCanvas.height
+          );
+
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+          const imgHeight = (pageCanvas.height * A4_WIDTH_MM) / canvas.width;
+          pdf.addImage(pageImgData, 'JPEG', 0, 0, A4_WIDTH_MM, imgHeight);
+        }
       }
 
       // Cleanup
