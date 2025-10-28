@@ -13,8 +13,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -243,6 +241,11 @@ export default function OffersPage() {
 
   const generateOfferPDF = async (offer: Offer) => {
     try {
+      toast({
+        title: "Generazione PDF",
+        description: "Generazione del PDF in corso...",
+      });
+
       // Fetch offer items
       const { data: offerItems } = await supabase
         .from('offer_items')
@@ -354,68 +357,53 @@ export default function OffersPage() {
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
-      // PDF Generation Options
-      const pdfOptions = {
-        format: 'A4',
-        margin: {
-          top: 15,    // 15mm
-          right: 15,  // 15mm
-          bottom: 15, // 15mm
-          left: 15    // 15mm
-        },
-        printBackground: true,
-        preferCSSPageSize: true
-      };
-
-      // Create temporary container
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = templateHtml;
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
-      document.body.appendChild(tempDiv);
-
-      // Generate PDF from HTML
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: pdfOptions.printBackground ? '#ffffff' : null
+      // Call ComPDFKit edge function to generate PDF
+      console.log('Calling ComPDFKit edge function...');
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('compdfkit-convert', {
+        body: {
+          html: templateHtml,
+          filename: `Offerta_${offer.number}.html`
+        }
       });
 
-      document.body.removeChild(tempDiv);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', pdfOptions.format.toLowerCase());
-      
-      // Apply margins
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const marginLeft = pdfOptions.margin.left;
-      const marginTop = pdfOptions.margin.top;
-      const marginRight = pdfOptions.margin.right;
-      const marginBottom = pdfOptions.margin.bottom;
-      
-      const contentWidth = pageWidth - marginLeft - marginRight;
-      const contentHeight = pageHeight - marginTop - marginBottom;
-      
-      const pdfWidth = contentWidth;
-      const pdfHeight = (canvas.height * contentWidth) / canvas.width;
-      
-      let heightLeft = pdfHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
-      heightLeft -= contentHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
-        heightLeft -= contentHeight;
+      if (pdfError) {
+        console.error('ComPDFKit conversion error:', pdfError);
+        throw new Error(`Errore nella conversione PDF: ${pdfError.message}`);
       }
 
-      return pdf;
+      if (!pdfData.success) {
+        console.error('ComPDFKit conversion failed:', pdfData.error);
+        throw new Error(`Conversione PDF fallita: ${pdfData.error}`);
+      }
+
+      console.log('PDF generated successfully via ComPDFKit, size:', pdfData.size);
+
+      // Convert base64 to Blob
+      const pdfBase64 = pdfData.pdf;
+      const binaryString = atob(pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+
+      // Return an object that mimics jsPDF's API
+      return {
+        save: (filename: string) => {
+          const url = URL.createObjectURL(pdfBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        output: (type: string) => {
+          if (type === 'blob') {
+            return pdfBlob;
+          }
+          throw new Error(`Unsupported output type: ${type}`);
+        }
+      };
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
