@@ -19,6 +19,7 @@ import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import html2pdf from 'html2pdf.js';
 
 interface Offer {
   id: string;
@@ -359,49 +360,47 @@ export default function OffersPage() {
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
-      // Call ComPDFKit edge function to generate PDF
-      console.log('Calling ComPDFKit edge function...');
-      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('compdfkit-convert', {
-        body: {
-          html: templateHtml,
-          filename: `Offerta_${offer.number}.html`
-        }
-      });
+      // Create a temporary container for the HTML
+      console.log('Generating PDF with html2pdf.js...');
+      const container = document.createElement('div');
+      container.innerHTML = templateHtml;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
 
-      if (pdfError) {
-        console.error('ComPDFKit conversion error:', pdfError);
-        throw new Error(`Errore nella conversione PDF: ${pdfError.message}`);
-      }
-
-      if (!pdfData.success) {
-        console.error('ComPDFKit conversion failed:', pdfData.error);
-        throw new Error(`Conversione PDF fallita: ${pdfData.error}`);
-      }
-
-      console.log('PDF generated successfully via ComPDFKit, size:', pdfData.size);
-
-      // Convert base64 to Blob
-      const pdfBase64 = pdfData.pdf;
-      const binaryString = atob(pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
-
-      // Return an object that mimics jsPDF's API
-      return {
-        save: (filename: string) => {
-          const url = URL.createObjectURL(pdfBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          a.click();
-          URL.revokeObjectURL(url);
+      // Configure html2pdf options
+      const opt = {
+        margin: 15,
+        filename: `Offerta_${offer.number}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false
         },
-        output: (type: string) => {
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' as const
+        }
+      };
+
+      // Generate PDF
+      const pdfWorker = html2pdf().set(opt).from(container);
+      
+      // Clean up the temporary container
+      document.body.removeChild(container);
+
+      console.log('PDF generated successfully with html2pdf.js');
+
+      // Return an object that provides save and output methods
+      return {
+        save: async (filename: string) => {
+          await pdfWorker.save();
+        },
+        output: async (type: string): Promise<Blob> => {
           if (type === 'blob') {
-            return pdfBlob;
+            return await pdfWorker.outputPdf('blob') as Blob;
           }
           throw new Error(`Unsupported output type: ${type}`);
         }
@@ -445,7 +444,7 @@ export default function OffersPage() {
 
       // Generate PDF
       const pdf = await generateOfferPDF(offer);
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob = await pdf.output('blob');
       
       // Convert to base64
       const reader = new FileReader();
