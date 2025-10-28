@@ -315,7 +315,7 @@ export default function OffersPage() {
       const inclusoGrid = inclusoArray.map((item: string) => `
         <div class="includes-item">
           <span class="includes-icon">✓</span>
-          <span>${item.replace('✓', '').trim()}</span>
+          <span class="includes-text">${item.replace('✓', '').trim()}</span>
         </div>
       `).join('');
 
@@ -347,22 +347,90 @@ export default function OffersPage() {
         .replace(/\{\{timeline_consegna\}\}/g, (offer as any).timeline_consegna || '2-3 gg')
         .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '1 gg');
 
-      // Call edge function to generate PDF
-      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-pdf-from-html', {
-        body: { html: htmlTemplate }
+      // Create temporary container
+      const container = document.createElement('div');
+      container.innerHTML = htmlTemplate;
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.width = '210mm';
+      container.style.background = 'white';
+      document.body.appendChild(container);
+
+      // Import libraries dynamically
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+
+      // A4 dimensions in mm
+      const A4_WIDTH = 210;
+      const A4_HEIGHT = 297;
+      const MARGIN = 18; // 18mm margins
+      const CONTENT_WIDTH = A4_WIDTH - (MARGIN * 2);
+      const CONTENT_HEIGHT = A4_HEIGHT - (MARGIN * 2);
+
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
       });
 
-      if (pdfError) throw pdfError;
-      if (!pdfData?.pdf) throw new Error('No PDF data received');
-
-      // Convert base64 to blob
-      const binaryString = atob(pdfData.pdf);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      // Split content by dividers
+      const dividers = container.querySelectorAll('.divider');
+      const sections: HTMLElement[] = [];
+      
+      let currentSection = document.createElement('div');
+      currentSection.style.width = '210mm';
+      currentSection.style.background = 'white';
+      
+      Array.from(container.children).forEach((child) => {
+        if (child.classList.contains('divider')) {
+          if (currentSection.children.length > 0) {
+            sections.push(currentSection);
+          }
+          currentSection = document.createElement('div');
+          currentSection.style.width = '210mm';
+          currentSection.style.background = 'white';
+        } else {
+          currentSection.appendChild(child.cloneNode(true));
+        }
+      });
+      
+      if (currentSection.children.length > 0) {
+        sections.push(currentSection);
       }
-      const blob = new Blob([bytes], { type: 'application/pdf' });
 
+      // Render each section
+      for (let i = 0; i < sections.length; i++) {
+        const section = sections[i];
+        document.body.appendChild(section);
+        section.style.position = 'fixed';
+        section.style.left = '-9999px';
+
+        const canvas = await html2canvas(section, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const imgWidth = A4_WIDTH;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        document.body.removeChild(section);
+      }
+
+      // Cleanup
+      document.body.removeChild(container);
+
+      // Convert to blob
+      const blob = pdf.output('blob');
       return blob;
     } catch (error) {
       console.error('Error generating PDF:', error);
