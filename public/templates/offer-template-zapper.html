@@ -269,9 +269,7 @@
         }
         
         .info-box {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            display: block;
             margin: 12px 0;
         }
         
@@ -658,36 +656,15 @@
                 </div>
             </div>
             
-            <!-- 6. Validità e Tempi di Consegna -->
+            <!-- 6. Validità Offerta -->
             <div class="info-box">
                 <div class="info-item">
                     <div class="info-label">Validità Offerta</div>
                     <div>{{validità_offerta}}</div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">Tempi di Consegna</div>
-                    <div>{{tempi_consegna}}</div>
-                </div>
             </div>
             
-            <!-- 7. Metodi di Pagamento -->
-            <div class="section">
-                <div class="section-title">Metodi di Pagamento</div>
-                <div class="pagamenti-info">
-                    <div>{{metodi_pagamento}}</div>
-                    <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 4px solid #38AC4F;">
-                        <strong>Coordinate Bancarie:</strong><br>
-                        <strong style="font-size: 16px;">CLIMATEL DI ELEFANTE PASQUALE</strong><br>
-                        Banca: INTESA SANPAOLO<br>
-                        IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Divider -->
-            <hr class="divider">
-            
-            <!-- 9. Timeline Operativa -->
+            <!-- Timeline Operativa -->
             <div class="timeline-box">
                 <div class="timeline-title">⏱️ Timeline Operativa</div>
                 <div class="timeline-steps">
@@ -709,7 +686,24 @@
                 </div>
             </div>
             
-            <!-- 10. Trustpilot -->
+            <!-- 7. Metodi di Pagamento -->
+            <div class="section">
+                <div class="section-title">Metodi di Pagamento</div>
+                <div class="pagamenti-info">
+                    <div>{{metodi_pagamento}}</div>
+                    <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 4px solid #38AC4F;">
+                        <strong>Coordinate Bancarie:</strong><br>
+                        <strong style="font-size: 16px;">CLIMATEL DI ELEFANTE PASQUALE</strong><br>
+                        Banca: INTESA SANPAOLO<br>
+                        IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Divider -->
+            <hr class="divider">
+            
+            <!-- Trustpilot -->
             <div class="trustpilot-section">
                 <div class="trustpilot-header">
                     <div class="trust-score">
@@ -760,16 +754,6 @@
                 <div class="trust-link">
                     <a href="https://it.trustpilot.com/review/abbattitorizapper.it" target="_blank">Come viene calcolato il TrustScore?</a>
                 </div>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <strong>ZAPPER® - RENEWED AIR</strong><br>
-            WWW.ABBATTITORIZAPPER.IT<br>
-            📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189<br>
-            <div style="margin-top: 8px; font-size: 11px;">
-                CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris n° 24, 84018 SCAFATI (SA) - Italia<br>
-                C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786
             </div>
         </div>
     </div>
