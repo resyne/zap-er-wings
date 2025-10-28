@@ -153,7 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
         html: base64Html,
         format: "A4",
         printBackground: true,
-        preferCSSPageSize: true,
+        preferCssPageSize: true,
         margin: {
           top: "15mm",
           right: "15mm",
