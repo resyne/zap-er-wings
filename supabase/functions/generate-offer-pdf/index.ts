@@ -144,7 +144,7 @@ const handler = async (req: Request): Promise<Response> => {
     const pdfResponse = await fetch("https://api.pdfbolt.com/v1/direct", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${pdfBoltApiKey}`,
+        "API-KEY": pdfBoltApiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
