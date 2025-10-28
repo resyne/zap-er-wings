@@ -366,45 +366,59 @@ export default function OffersPage() {
       container.innerHTML = templateHtml;
       container.style.position = 'absolute';
       container.style.left = '-9999px';
+      container.style.width = '210mm';
       document.body.appendChild(container);
 
       // Configure html2pdf options
       const opt = {
-        margin: 15,
+        margin: [15, 15, 15, 15] as [number, number, number, number],
         filename: `Offerta_${offer.number}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
+        image: { type: 'jpeg' as const, quality: 0.95 },
         html2canvas: { 
           scale: 2,
           useCORS: true,
-          logging: false
+          logging: false,
+          letterRendering: true
         },
         jsPDF: { 
           unit: 'mm', 
           format: 'a4', 
           orientation: 'portrait' as const
-        }
-      };
-
-      // Generate PDF
-      const pdfWorker = html2pdf().set(opt).from(container);
-      
-      // Clean up the temporary container
-      document.body.removeChild(container);
-
-      console.log('PDF generated successfully with html2pdf.js');
-
-      // Return an object that provides save and output methods
-      return {
-        save: async (filename: string) => {
-          await pdfWorker.save();
         },
-        output: async (type: string): Promise<Blob> => {
-          if (type === 'blob') {
-            return await pdfWorker.outputPdf('blob') as Blob;
-          }
-          throw new Error(`Unsupported output type: ${type}`);
-        }
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
+
+      try {
+        // Generate PDF and wait for completion
+        const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
+        
+        console.log('PDF generated successfully with html2pdf.js, size:', pdfBlob.size);
+
+        // Return an object that provides save and output methods
+        return {
+          save: async (filename: string) => {
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          },
+          output: async (type: string): Promise<Blob> => {
+            if (type === 'blob') {
+              return pdfBlob;
+            }
+            throw new Error(`Unsupported output type: ${type}`);
+          }
+        };
+      } finally {
+        // Clean up the temporary container
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
+        }
+      }
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
@@ -412,9 +426,14 @@ export default function OffersPage() {
   };
 
   const handleDownloadPDF = async (offer: Offer) => {
+    toast({
+      title: "Generazione PDF",
+      description: "Sto generando il PDF, attendere...",
+    });
+
     try {
       const pdf = await generateOfferPDF(offer);
-      pdf.save(`Offerta_${offer.number}.pdf`);
+      await pdf.save(`Offerta_${offer.number}.pdf`);
       
       toast({
         title: "PDF Generato",
