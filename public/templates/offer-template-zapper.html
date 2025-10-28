@@ -1,773 +1,688 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preventivo {{numero_offerta}}</title>
-    <!-- TrustBox script -->
-    <script type="text/javascript" src="//widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js" async></script>
-    <!-- End TrustBox script -->
-    <style>
-        /* PDF A4 Perfect Print Settings */
-        @page {
-            size: A4;
-            margin: 20mm;
-        }
-        
-        html, body {
-            width: 210mm;
-            height: auto;
-            min-height: 297mm;
-            margin: 0 auto;
-            padding: 0;
-            background: white;
-        }
-        
-        body {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            font-size: 12pt;
-            line-height: 1.4;
-        }
-        
-        /* Evita che elementi vengano spezzati tra le pagine */
-        table, tr, td, th, div, p, .section, .info-box, .trustpilot-section {
-            page-break-inside: avoid;
-        }
-        
-        /* Forza interruzioni di pagina dove necessario */
-        .page-break {
-            page-break-after: always;
-        }
-        
-        /* Impedisce interruzioni indesiderate dopo i titoli */
-        h1, h2, h3, h4, h5, h6, .section-title {
-            page-break-after: avoid;
-        }
-        
-        @media print {
-            body {
-                background: white;
-            }
-            .container {
-                box-shadow: none;
-                margin: 0;
-            }
-            .header {
-                position: relative;
-            }
-            .footer {
-                position: relative;
-            }
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #f5f5f5;
-        }
-        
-        .container {
-            max-width: 210mm;
-            margin: 20px auto;
-            background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        }
-        
-        @media print {
-            .container {
-                max-width: 100%;
-                margin: 0;
-            }
-        }
-        
-        .header {
-            background: #38AC4F;
-            padding: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .logo-section {
-            flex: 1;
-        }
-        
-        .logo-image {
-            max-height: 70px;
-            width: auto;
-            margin-bottom: 8px;
-        }
-        
-        .logo-text-area {
-            width: 100%;
-        }
-        
-        .logo {
-            color: white;
-            font-size: 48px;
-            font-weight: bold;
-            font-style: italic;
-            line-height: 1;
-            display: none;
-        }
-        
-        .website {
-            color: white;
-            font-size: 16px;
-            margin-top: 5px;
-            font-weight: 500;
-        }
-        
-        .contatti {
-            color: white;
-            font-size: 13px;
-            margin-top: 8px;
-            line-height: 1.6;
-        }
-        
-        .contatti a {
-            color: white;
-            text-decoration: none;
-            transition: opacity 0.3s;
-        }
-        
-        .contatti a:hover {
-            opacity: 0.8;
-            text-decoration: underline;
-        }
-        
-        .tagline {
-            color: white;
-            font-size: 11px;
-            margin-top: 8px;
-            line-height: 1.4;
-            opacity: 0.95;
-        }
-        
-        .company-name {
-            font-weight: 600;
-        }
-        
-        .doc-info {
-            text-align: right;
-            color: white;
-        }
-        
-        .doc-number {
-            font-size: 24px;
-            font-weight: bold;
-        }
-        
-        .doc-date {
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        
-        .doc-user {
-            font-size: 12px;
-            margin-top: 8px;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 30px;
-        }
-        
-        .section {
-            margin-bottom: 20px;
-        }
-        
-        .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: #38AC4F;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            border-bottom: 2px solid #38AC4F;
-            padding-bottom: 5px;
-        }
-        
-        .client-info {
-            background: #f9f9f9;
-            padding: 20px;
-            border-left: 4px solid #38AC4F;
-        }
-        
-        .client-name {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .oggetto {
-            font-size: 16px;
-            line-height: 1.8;
-            padding: 15px;
-            background: #f9f9f9;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        
-        th {
-            background: #38AC4F;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: bold;
-        }
-        
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        tr:hover {
-            background: #f9f9f9;
-        }
-        
-        .totals {
-            margin-top: 20px;
-            text-align: right;
-        }
-        
-        .total-row {
-            display: flex;
-            justify-content: flex-end;
-            padding: 8px 0;
-        }
-        
-        .total-label {
-            width: 200px;
-            font-weight: bold;
-        }
-        
-        .total-value {
-            width: 150px;
-            text-align: right;
-        }
-        
-        .total-finale {
-            font-size: 20px;
-            color: #38AC4F;
-            border-top: 2px solid #38AC4F;
-            padding-top: 10px;
-            margin-top: 10px;
-        }
-        
-        .info-box {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .info-item {
-            background: #f9f9f9;
-            padding: 15px;
-            border-left: 3px solid #38AC4F;
-        }
-        
-        .info-label {
-            font-weight: bold;
-            color: #38AC4F;
-            font-size: 12px;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-        
-        .footer {
-            background: #38AC4F;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            font-size: 12px;
-        }
-        
-        .pagamenti-info {
-            line-height: 1.8;
-        }
-        
-        .trustpilot-section {
-            background: white;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-        .trustpilot-header {
-            display: flex;
-            align-items: center;
-            gap: 30px;
-            margin-bottom: 15px;
-        }
-        
-        .trust-score {
-            text-align: center;
-        }
-        
-        .trust-rating {
-            font-size: 48px;
-            font-weight: bold;
-            color: #000;
-            line-height: 1;
-        }
-        
-        .trust-label {
-            font-size: 14px;
-            color: #333;
-            margin-top: 5px;
-        }
-        
-        .trust-stars {
-            display: flex;
-            gap: 3px;
-            margin-top: 8px;
-            justify-content: center;
-        }
-        
-        .trust-stars svg {
-            width: 20px;
-            height: 20px;
-            fill: #00b67a;
-        }
-        
-        .trust-reviews {
-            font-size: 13px;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .trust-bars {
-            flex: 1;
-        }
-        
-        .trust-bar-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 6px;
-        }
-        
-        .trust-bar-label {
-            font-size: 13px;
-            color: #333;
-            min-width: 55px;
-        }
-        
-        .trust-bar-bg {
-            flex: 1;
-            height: 8px;
-            background: #e5e5e5;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .trust-bar-fill {
-            height: 100%;
-            background: #00b67a;
-            border-radius: 4px;
-        }
-        
-        .trust-bar-fill.gray {
-            background: #dcdce6;
-        }
-        
-        .trust-link {
-            text-align: center;
-            margin-top: 15px;
-        }
-        
-        .trust-link a {
-            color: #666;
-            font-size: 13px;
-            text-decoration: underline;
-        }
-        
-        .divider {
-            height: 2px;
-            background: linear-gradient(to right, transparent, #38AC4F, transparent);
-            margin: 30px 0;
-            border: none;
-        }
-        
-        .nota-bene {
-            background: #fffdf0;
-            border-left: 3px solid #f0e68c;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 6px;
-        }
-        
-        .nota-bene-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: #666;
-            margin-bottom: 10px;
-        }
-        
-        .nota-bene-content {
-            font-size: 13px;
-            line-height: 1.7;
-            color: #555;
-        }
-        
-        /* Box Riassuntivo Copertina */
-        .summary-box {
-            background: linear-gradient(135deg, #f8fff9 0%, #e8f9ed 100%);
-            border: 2px solid #38AC4F;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 4px 12px rgba(56, 172, 79, 0.15);
-        }
-        
-        .summary-title {
-            font-size: 14px;
-            color: #38AC4F;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-        
-        .summary-content {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 20px;
-            align-items: center;
-        }
-        
-        .summary-details {
-            line-height: 1.8;
-        }
-        
-        .summary-details strong {
-            color: #38AC4F;
-        }
-        
-        .summary-total {
-            background: #38AC4F;
-            color: white;
-            padding: 20px 30px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        
-        .summary-total-label {
-            font-size: 12px;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }
-        
-        .summary-total-amount {
-            font-size: 32px;
-            font-weight: bold;
-            line-height: 1;
-        }
-        
-        /* Timeline Operativa */
-        .timeline-box {
-            background: #f9f9f9;
-            border-radius: 12px;
-            padding: 18px;
-            margin: 20px 0;
-            border-left: 4px solid #38AC4F;
-        }
-        
-        .timeline-title {
-            font-size: 15px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        
-        .timeline-steps {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        
-        .timeline-step {
-            text-align: center;
-            padding: 15px 10px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-        }
-        
-        .timeline-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-        
-        .timeline-label {
-            font-size: 12px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
-            word-wrap: break-word;
-        }
-        
-        .timeline-duration {
-            font-size: 16px;
-            font-weight: bold;
-            color: #38AC4F;
-            word-wrap: break-word;
-        }
-        
-        /* Cosa Include */
-        .includes-section {
-            background: #f9f9f9;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        
-        .includes-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-        
-        .includes-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-        
-        .includes-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 12px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-        }
-        
-        .includes-icon {
-            font-size: 20px;
-            color: #38AC4F;
-            margin-top: 2px;
-        }
-        
-        .includes-text {
-            font-size: 14px;
-            line-height: 1.5;
-            color: #333;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offerta {{numero_offerta}}</title>
+  <style>
+    /* ========== CONFIGURAZIONE A4 OTTIMALE ========== */
+    @page {
+      size: A4;
+      margin: 18mm; /* ≈ 51pt */
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 210mm; /* A4 width */
+      margin: 0 auto;
+      padding: 0;
+      background: white;
+      font-family: 'Helvetica', 'Arial', sans-serif;
+      font-size: 11pt;
+      line-height: 1.4;
+      color: #333;
+    }
+
+    /* ========== HEADER FISSO ========== */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px; /* ≈ 20mm */
+      background: #38AC4F;
+      color: white;
+      padding: 12px 18mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    @media print {
+      .header {
+        position: fixed;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+    }
+
+    .logo-section {
+      flex: 1;
+    }
+
+    .logo-image {
+      max-height: 50px;
+      width: auto;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .header-website {
+      font-size: 11px;
+      font-weight: 600;
+      margin: 3px 0;
+    }
+
+    .header-contacts {
+      font-size: 9px;
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    .header-company {
+      font-size: 8px;
+      line-height: 1.3;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+
+    .doc-info {
+      text-align: right;
+      font-size: 11px;
+    }
+
+    .doc-number {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    .doc-cliente {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      font-size: 9px;
+    }
+
+    .doc-cliente-nome {
+      font-size: 11px;
+      font-weight: bold;
+      margin: 2px 0;
+    }
+
+    /* ========== FOOTER FISSO ========== */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px; /* ≈ 17mm */
+      background: #38AC4F;
+      color: white;
+      padding: 8px 18mm;
+      text-align: center;
+      font-size: 9px;
+      line-height: 1.4;
+      z-index: 1000;
+    }
+
+    @media print {
+      .footer {
+        position: fixed;
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+    }
+
+    .footer strong {
+      font-size: 10px;
+    }
+
+    .footer-small {
+      font-size: 8px;
+      margin-top: 4px;
+      opacity: 0.95;
+    }
+
+    /* ========== CONTENT CON MARGINI PER HEADER/FOOTER ========== */
+    .content {
+      margin-top: 84px; /* header height + spacing ≈ 64px + 20px */
+      margin-bottom: 68px; /* footer height + spacing ≈ 48px + 20px */
+      padding: 0 18mm;
+    }
+
+    @media print {
+      .content {
+        margin-top: 64px;
+        margin-bottom: 48px;
+      }
+    }
+
+    /* ========== SEZIONI - NO BREAK INSIDE ========== */
+    .section {
+      margin-bottom: 16px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #38AC4F;
+      text-transform: uppercase;
+      border-bottom: 2px solid #38AC4F;
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    .oggetto {
+      background: #f9f9f9;
+      padding: 10px 12px;
+      border-left: 3px solid #38AC4F;
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+
+    /* ========== TABELLA - RIGHE NON SI SPEZZANO ========== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 10pt;
+    }
+
+    thead {
+      display: table-header-group; /* Ripete header su ogni pagina */
+    }
+
+    th {
+      background: #38AC4F;
+      color: white;
+      padding: 8px 6px;
+      text-align: left;
+      font-weight: bold;
+      font-size: 10pt;
+      border: 1px solid #38AC4F;
+    }
+
+    td {
+      padding: 8px 6px;
+      border: 1px solid #ddd;
+      font-size: 10pt;
+    }
+
+    tr {
+      page-break-inside: avoid; /* Riga non si spezza */
+      break-inside: avoid;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+
+    /* ========== INCLUDES GRID - NO BREAK ========== */
+    .includes-section {
+      background: #f9f9f9;
+      padding: 12px;
+      border-radius: 6px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .includes-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #38AC4F;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .includes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .includes-item {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      font-size: 10pt;
+      align-items: flex-start;
+    }
+
+    .includes-icon {
+      color: #38AC4F;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    /* ========== ESCLUSIONI - NO BREAK ========== */
+    .esclude-box {
+      background: #fffdf0;
+      border-left: 3px solid #f0e68c;
+      padding: 10px 12px;
+      border-radius: 4px;
+      font-size: 10pt;
+      color: #555;
+      line-height: 1.5;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .esclude-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    /* ========== TOTALI ========== */
+    .totali {
+      text-align: right;
+      margin: 16px 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: flex-end;
+      padding: 4px 0;
+      font-size: 10pt;
+    }
+
+    .total-label {
+      width: 180px;
+      font-weight: bold;
+    }
+
+    .total-value {
+      width: 110px;
+      text-align: right;
+    }
+
+    .total-finale {
+      border-top: 2px solid #38AC4F;
+      padding-top: 6px;
+      margin-top: 4px;
+      color: #38AC4F;
+      font-size: 13pt;
+      font-weight: bold;
+    }
+
+    /* ========== INFO GRID - NO BREAK ========== */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 16px 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .info-item {
+      background: #f9f9f9;
+      padding: 10px;
+      border-left: 3px solid #38AC4F;
+    }
+
+    .info-label {
+      font-size: 9px;
+      font-weight: bold;
+      color: #38AC4F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 10pt;
+    }
+
+    /* ========== PAGAMENTI - NO BREAK ========== */
+    .pagamenti-box {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .pagamenti-iban {
+      background: #f9f9f9;
+      padding: 12px;
+      border-left: 3px solid #38AC4F;
+      border-radius: 4px;
+      margin-top: 8px;
+      font-size: 10pt;
+    }
+
+    /* ========== DIVIDER CON PAGE BREAK ========== */
+    .divider {
+      height: 2px;
+      background: linear-gradient(to right, transparent, #38AC4F, transparent);
+      margin: 20px 0;
+      opacity: 0.4;
+      page-break-after: always; /* FORZA NUOVA PAGINA */
+      break-after: page;
+    }
+
+    /* ========== SUMMARY BOX - NO BREAK ========== */
+    .summary-box {
+      background: linear-gradient(135deg, #f8fff9 0%, #e8f9ed 100%);
+      border: 2px solid #38AC4F;
+      border-radius: 8px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 16px;
+    }
+
+    .summary-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #38AC4F;
+      margin-bottom: 8px;
+    }
+
+    .summary-details {
+      font-size: 10pt;
+      line-height: 1.6;
+    }
+
+    .summary-total {
+      background: #38AC4F;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 6px;
+      text-align: center;
+      min-width: 160px;
+    }
+
+    .summary-total-label {
+      font-size: 9px;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+
+    .summary-total-amount {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 6px 0;
+    }
+
+    /* ========== TIMELINE - NO BREAK ========== */
+    .timeline-box {
+      background: #f9f9f9;
+      border-left: 3px solid #38AC4F;
+      padding: 12px;
+      border-radius: 6px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 16px;
+    }
+
+    .timeline-title {
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .timeline-step {
+      background: white;
+      border-radius: 4px;
+      padding: 10px 8px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .timeline-icon {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .timeline-label {
+      font-size: 10px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .timeline-duration {
+      font-size: 13px;
+      font-weight: bold;
+      color: #38AC4F;
+    }
+
+    /* ========== TRUSTPILOT - NO BREAK ========== */
+    .trustpilot {
+      text-align: center;
+      padding: 12px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      background: white;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .trust-title {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .trust-subtitle {
+      font-size: 10pt;
+      color: #666;
+    }
+
+    /* ========== STAMPA ========== */
+    @media print {
+      html, body {
+        width: 210mm;
+        height: auto;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      .header, .footer {
+        position: fixed;
+      }
+
+      .content {
+        margin-top: 64px;
+        margin-bottom: 48px;
+      }
+
+      /* Impedisci break dopo titoli */
+      .section-title {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      /* Mantieni insieme elementi critici */
+      .section, .includes-section, .esclude-box, .totali, 
+      .info-grid, .summary-box, .timeline-box, .trustpilot {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Divider forza nuova pagina */
+      .divider {
+        page-break-after: always;
+        break-after: page;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo-section">
-                <img src="{{logo}}" alt="Zapper Logo" class="logo-image">
-                <div class="logo-text-area">
-                    <div class="logo">ZAPPER®</div>
-                    <div class="website">WWW.ABBATTITORIZAPPER.IT</div>
-                    <div class="contatti">
-                        📧 <a href="mailto:info@abbattitorizapper.it">info@abbattitorizapper.it</a><br>
-                        📞 <a href="tel:08119968436">081 19968436</a> | 
-                        📱 <a href="http://wa.me/393248996189" target="_blank">+39 324 8996189</a>
-                    </div>
-                    <div class="tagline">
-                        Marchio di proprietà della ditta <span class="company-name">CLIMATEL DI ELEFANTE Pasquale</span><br>
-                        Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia<br>
-                        C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786
-                    </div>
-                </div>
-            </div>
-            <div class="doc-info">
-                <div class="doc-number">OFFERTA N. {{numero_offerta}}</div>
-                <div class="doc-date">Data: {{data_offerta}}</div>
-                <div class="doc-user">Creata da: {{utente}}</div>
-                <div class="doc-cliente">
-                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
-                        <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Spett.le Cliente:</div>
-                        <div style="font-size: 14px; font-weight: bold;">{{cliente.nome}}</div>
-                        <div style="font-size: 12px; opacity: 0.95;">{{cliente.indirizzo}}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="content">
-            <!-- 1. Oggetto -->
-            <div class="section">
-                <div class="section-title">Oggetto</div>
-                <div class="oggetto">{{oggetto_offerta}}</div>
-            </div>
-            
-            <!-- 2. Dettaglio Prodotti/Servizi -->
-            <div class="section">
-                <div class="section-title">Dettaglio Prodotti/Servizi</div>
-                {{tabella_prodotti}}
-            </div>
-            
-            <!-- 3. Cosa Include la Fornitura -->
-            <div class="includes-section">
-                <div class="includes-title">Cosa Include la Fornitura</div>
-                <div class="includes-grid">
-                    {{incluso_fornitura}}
-                </div>
-            </div>
-            
-            <!-- 4. Cosa Esclude la Fornitura -->
-            <div class="nota-bene">
-                <div class="nota-bene-title">Cosa Esclude la Fornitura</div>
-                <div class="nota-bene-content">
-                    {{escluso_fornitura}}
-                </div>
-            </div>
-            
-            <!-- 5. Totali -->
-            <div class="totals">
-                <div class="total-row">
-                    <div class="total-label">Totale Imponibile:</div>
-                    <div class="total-value">€ {{totale_imponibile}}</div>
-                </div>
-                <div class="total-row">
-                    <div class="total-label">IVA:</div>
-                    <div class="total-value">€ {{totale_iva}}</div>
-                </div>
-                <div class="total-row total-finale">
-                    <div class="total-label">Totale Offerta:</div>
-                    <div class="total-value">€ {{totale_lordo}}</div>
-                </div>
-            </div>
-            
-            <!-- 6. Validità e Tempi di Consegna -->
-            <div class="info-box">
-                <div class="info-item">
-                    <div class="info-label">Validità Offerta</div>
-                    <div>{{validità_offerta}}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Tempi di Consegna</div>
-                    <div>{{tempi_consegna}}</div>
-                </div>
-            </div>
-            
-            <!-- 7. Metodi di Pagamento -->
-            <div class="section">
-                <div class="section-title">Metodi di Pagamento</div>
-                <div class="pagamenti-info">
-                    <div>{{metodi_pagamento}}</div>
-                    <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 4px solid #38AC4F;">
-                        <strong>Coordinate Bancarie:</strong><br>
-                        <strong style="font-size: 16px;">CLIMATEL DI ELEFANTE PASQUALE</strong><br>
-                        Banca: INTESA SANPAOLO<br>
-                        IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Divider -->
-            <hr class="divider">
-            
-            <!-- 8. Riepilogo Offerta -->
-            <div class="summary-box">
-                <div class="summary-title">📋 Riepilogo Offerta</div>
-                <div class="summary-content">
-                    <div class="summary-details">
-                        <div><strong>Offerta n.</strong> {{numero_offerta}}</div>
-                        <div><strong>Cliente:</strong> {{cliente.nome}}</div>
-                        <div><strong>Oggetto:</strong> {{oggetto_offerta}}</div>
-                    </div>
-                    <div class="summary-total">
-                        <div class="summary-total-label">TOTALE OFFERTA</div>
-                        <div class="summary-total-amount">€ {{totale_lordo}}</div>
-                        <div class="summary-total-label">IVA inclusa</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 9. Timeline Operativa -->
-            {{timeline_section}}
-            
-            <!-- 10. Trustpilot -->
-            <div class="trustpilot-section">
-                <div class="trustpilot-header">
-                    <div class="trust-score">
-                        <div class="trust-rating">4,8</div>
-                        <div class="trust-label">Eccellente</div>
-                        <div class="trust-stars">
-                            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                        </div>
-                        <div class="trust-reviews">430 recensioni</div>
-                    </div>
-                    <div class="trust-bars">
-                        <div class="trust-bar-row">
-                            <div class="trust-bar-label">5 stelle</div>
-                            <div class="trust-bar-bg">
-                                <div class="trust-bar-fill" style="width: 85%"></div>
-                            </div>
-                        </div>
-                        <div class="trust-bar-row">
-                            <div class="trust-bar-label">4 stelle</div>
-                            <div class="trust-bar-bg">
-                                <div class="trust-bar-fill gray" style="width: 10%"></div>
-                            </div>
-                        </div>
-                        <div class="trust-bar-row">
-                            <div class="trust-bar-label">3 stelle</div>
-                            <div class="trust-bar-bg">
-                                <div class="trust-bar-fill gray" style="width: 3%"></div>
-                            </div>
-                        </div>
-                        <div class="trust-bar-row">
-                            <div class="trust-bar-label">2 stelle</div>
-                            <div class="trust-bar-bg">
-                                <div class="trust-bar-fill gray" style="width: 2%"></div>
-                            </div>
-                        </div>
-                        <div class="trust-bar-row">
-                            <div class="trust-bar-label">1 stella</div>
-                            <div class="trust-bar-bg">
-                                <div class="trust-bar-fill gray" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="trust-link">
-                    <a href="https://it.trustpilot.com/review/abbattitorizapper.it" target="_blank">Come viene calcolato il TrustScore?</a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <strong>ZAPPER® - RENEWED AIR</strong><br>
-            WWW.ABBATTITORIZAPPER.IT<br>
-            📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189<br>
-            <div style="margin-top: 8px; font-size: 11px;">
-                CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris n° 24, 84018 SCAFATI (SA) - Italia<br>
-                C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786
-            </div>
-        </div>
+  <!-- ========== HEADER FISSO ========== -->
+  <div class="header">
+    <div class="logo-section">
+      <img src="{{logo}}" alt="Zapper Logo" class="logo-image">
+      <div class="header-website">WWW.ABBATTITORIZAPPER.IT</div>
+      <div class="header-contacts">
+        📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189
+      </div>
+      <div class="header-company">
+        Marchio di proprietà della ditta <strong>CLIMATEL DI ELEFANTE Pasquale</strong><br>
+        Via G. Ferraris n° 24 - 84018 SCAFATI (SA) | C.F. LFNPQL67L02I483U | P.Iva 03895390650
+      </div>
     </div>
-    
-    <script>
-        // Nessun JavaScript necessario
-    </script>
+    <div class="doc-info">
+      <div class="doc-number">OFFERTA N. {{numero_offerta}}</div>
+      <div>Data: {{data_offerta}}</div>
+      <div>Creata da: {{utente}}</div>
+      <div class="doc-cliente">
+        <div>Spett.le Cliente:</div>
+        <div class="doc-cliente-nome">{{cliente.nome}}</div>
+        <div>{{cliente.indirizzo}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== CONTENT ========== -->
+  <div class="content">
+    <!-- OGGETTO -->
+    <div class="section">
+      <div class="section-title">Oggetto</div>
+      <div class="oggetto">{{oggetto_offerta}}</div>
+    </div>
+
+    <!-- TABELLA PRODOTTI -->
+    <div class="section">
+      <div class="section-title">Dettaglio Prodotti/Servizi</div>
+      {{tabella_prodotti}}
+    </div>
+
+    <!-- COSA INCLUDE -->
+    <div class="section">
+      <div class="includes-section">
+        <div class="includes-title">Cosa Include la Fornitura</div>
+        <div class="includes-grid">
+          {{incluso_fornitura}}
+        </div>
+      </div>
+    </div>
+
+    <!-- COSA ESCLUDE -->
+    <div class="section">
+      <div class="esclude-box">
+        <div class="esclude-title">Cosa Esclude la Fornitura</div>
+        <div>{{escluso_fornitura}}</div>
+      </div>
+    </div>
+
+    <!-- TOTALI -->
+    <div class="totali">
+      <div class="total-row">
+        <div class="total-label">Totale Imponibile:</div>
+        <div class="total-value">€ {{totale_imponibile}}</div>
+      </div>
+      <div class="total-row">
+        <div class="total-label">IVA:</div>
+        <div class="total-value">€ {{totale_iva}}</div>
+      </div>
+      <div class="total-row total-finale">
+        <div class="total-label">Totale Offerta:</div>
+        <div class="total-value">€ {{totale_lordo}}</div>
+      </div>
+    </div>
+
+    <!-- VALIDITÀ E TEMPI -->
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Validità Offerta</div>
+        <div class="info-value">{{validità_offerta}}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Tempi di Consegna</div>
+        <div class="info-value">{{tempi_consegna}}</div>
+      </div>
+    </div>
+
+    <!-- METODI DI PAGAMENTO -->
+    <div class="section pagamenti-box">
+      <div class="section-title">Metodi di Pagamento</div>
+      <div style="margin-bottom: 8px; font-size: 10pt;">{{metodi_pagamento}}</div>
+      <div class="pagamenti-iban">
+        <strong>Coordinate Bancarie:</strong><br>
+        <strong style="font-size: 11pt;">CLIMATEL DI ELEFANTE PASQUALE</strong><br>
+        Banca: INTESA SANPAOLO<br>
+        IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
+      </div>
+    </div>
+
+    <!-- DIVIDER - FORZA NUOVA PAGINA -->
+    <div class="divider"></div>
+
+    <!-- PAGINA 2: RIEPILOGO -->
+    <div class="summary-box">
+      <div>
+        <div class="summary-title">📋 Riepilogo Offerta</div>
+        <div class="summary-details">
+          <strong>Offerta n.</strong> {{numero_offerta}}<br>
+          <strong>Cliente:</strong> {{cliente.nome}}<br>
+          <strong>Oggetto:</strong> {{oggetto_offerta}}
+        </div>
+      </div>
+      <div class="summary-total">
+        <div class="summary-total-label">TOTALE OFFERTA</div>
+        <div class="summary-total-amount">€ {{totale_lordo}}</div>
+        <div class="summary-total-label">IVA inclusa</div>
+      </div>
+    </div>
+
+    <!-- TIMELINE OPERATIVA -->
+    <div class="timeline-box">
+      <div class="timeline-title">⏱️ Timeline Operativa</div>
+      <div class="timeline-grid">
+        <div class="timeline-step">
+          <div class="timeline-icon">🏭</div>
+          <div class="timeline-label">Produzione</div>
+          <div class="timeline-duration">{{timeline_produzione}}</div>
+        </div>
+        <div class="timeline-step">
+          <div class="timeline-icon">🚚</div>
+          <div class="timeline-label">Consegna</div>
+          <div class="timeline-duration">{{timeline_consegna}}</div>
+        </div>
+        <div class="timeline-step">
+          <div class="timeline-icon">🔧</div>
+          <div class="timeline-label">Installazione</div>
+          <div class="timeline-duration">{{timeline_installazione}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRUSTPILOT -->
+    <div class="trustpilot">
+      <div class="trust-title">⭐ Trustpilot: 4,8 / 5 - Eccellente</div>
+      <div class="trust-subtitle">Basato su oltre 430 recensioni verificate</div>
+    </div>
+  </div>
+
+  <!-- ========== FOOTER FISSO ========== -->
+  <div class="footer">
+    <div>
+      <strong>ZAPPER® - RENEWED AIR</strong> | WWW.ABBATTITORIZAPPER.IT<br>
+      📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189
+    </div>
+    <div class="footer-small">
+      CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris n° 24, 84018 SCAFATI (SA) - Italia<br>
+      C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786
+    </div>
+  </div>
 </body>
 </html>
