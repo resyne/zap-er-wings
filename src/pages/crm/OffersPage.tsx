@@ -395,38 +395,19 @@ export default function OffersPage() {
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      let htmlContent = await generateOfferHTML(offer);
-      
-      // Convert relative image paths to absolute URLs
-      const baseUrl = window.location.origin;
-      htmlContent = htmlContent.replace(/src="\/images\//g, `src="${baseUrl}/images/`);
-      htmlContent = htmlContent.replace(/src='\/images\//g, `src='${baseUrl}/images/`);
-      
-      // Open in new window and trigger print
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        
-        // Wait for images and content to load then trigger print dialog
-        printWindow.onload = () => {
-          // Wait a bit more for images
-          setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-          }, 500);
-        };
-      }
+      // Open public offer preview page
+      const previewUrl = `${window.location.origin}/offer-preview/${offer.id}`;
+      window.open(previewUrl, '_blank');
       
       toast({
-        title: "Stampa Pronta",
-        description: "Si aprirà la finestra di stampa. Seleziona 'Salva come PDF' come destinazione.",
+        title: "Apertura Offerta",
+        description: "L'offerta si aprirà in una nuova finestra dove potrai salvarla come PDF",
       });
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error opening offer:', error);
       toast({
         title: "Errore",
-        description: "Errore nella generazione del PDF",
+        description: "Errore nell'apertura dell'offerta",
         variant: "destructive",
       });
     }
