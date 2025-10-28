@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -139,13 +138,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Calling PDFBolt API...");
-    console.log("API Key present:", !!pdfBoltApiKey);
-    console.log("API Key length:", pdfBoltApiKey?.length);
     
-    // Encode HTML to base64 using Deno standard library
-    const encoder = new TextEncoder();
-    const htmlBytes = encoder.encode(templateHtml);
-    const base64Html = base64Encode(htmlBytes);
+    // Encode HTML to base64 - using a more efficient method
+    const base64Html = btoa(unescape(encodeURIComponent(templateHtml)));
+    console.log("HTML encoded successfully, length:", base64Html.length);
     
     const pdfResponse = await fetch("https://api.pdfbolt.com/v1/direct", {
       method: "POST",
