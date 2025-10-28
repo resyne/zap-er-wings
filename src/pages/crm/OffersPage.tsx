@@ -186,18 +186,8 @@ export default function OffersPage() {
 
       // Transform to offers format
       const transformedOffers = (offersData || []).map((offer: any) => ({
-        id: offer.id,
-        number: offer.number,
-        customer_id: offer.customer_id,
+        ...offer,
         customer_name: offer.customers?.name || offer.customer_name,
-        title: offer.title,
-        description: offer.description,
-        amount: offer.amount || 0,
-        status: offer.status,
-        created_at: offer.created_at,
-        valid_until: offer.valid_until,
-        attachments: offer.attachments || [],
-        lead_id: offer.lead_id
       }));
 
       // Load customers
@@ -2025,18 +2015,105 @@ export default function OffersPage() {
                     </Badge>
                   </div>
                 )}
-                {selectedOffer.payment_terms && (
+                {(selectedOffer as any).template && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Condizioni Pagamento</label>
-                    <p className="text-sm">{selectedOffer.payment_terms}</p>
+                    <label className="text-sm font-medium text-muted-foreground">Template</label>
+                    <p className="text-sm capitalize">{(selectedOffer as any).template}</p>
                   </div>
                 )}
               </div>
 
               {selectedOffer.description && (
-                <div>
+                <div className="border-t pt-4">
                   <label className="text-sm font-medium text-muted-foreground">Descrizione</label>
-                  <p className="text-sm mt-1">{selectedOffer.description}</p>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {/* Metodi di Pagamento */}
+              {((selectedOffer as any).metodi_pagamento || (selectedOffer as any).payment_method || (selectedOffer as any).payment_agreement || selectedOffer.payment_terms) && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Informazioni di Pagamento</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {(selectedOffer as any).metodi_pagamento && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Metodi di Pagamento</label>
+                        <p className="text-sm mt-1">{(selectedOffer as any).metodi_pagamento}</p>
+                      </div>
+                    )}
+                    {(selectedOffer as any).payment_method && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Metodo</label>
+                        <p className="text-sm mt-1 capitalize">{(selectedOffer as any).payment_method}</p>
+                      </div>
+                    )}
+                    {(selectedOffer as any).payment_agreement && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Accordo</label>
+                        <p className="text-sm mt-1">{(selectedOffer as any).payment_agreement}</p>
+                      </div>
+                    )}
+                    {selectedOffer.payment_terms && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Condizioni</label>
+                        <p className="text-sm mt-1">{selectedOffer.payment_terms}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline */}
+              {((selectedOffer as any).timeline_produzione || (selectedOffer as any).timeline_consegna || (selectedOffer as any).timeline_installazione || (selectedOffer as any).timeline_collaudo) && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Tempistiche</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {(selectedOffer as any).timeline_produzione && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Produzione</label>
+                        <p className="text-sm mt-1">{(selectedOffer as any).timeline_produzione}</p>
+                      </div>
+                    )}
+                    {(selectedOffer as any).timeline_consegna && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Consegna</label>
+                        <p className="text-sm mt-1">{(selectedOffer as any).timeline_consegna}</p>
+                      </div>
+                    )}
+                    {(selectedOffer as any).timeline_installazione && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Installazione</label>
+                        <p className="text-sm mt-1">{(selectedOffer as any).timeline_installazione}</p>
+                      </div>
+                    )}
+                    {(selectedOffer as any).timeline_collaudo && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Collaudo</label>
+                        <p className="text-sm mt-1">{(selectedOffer as any).timeline_collaudo}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Incluso/Escluso */}
+              {((selectedOffer as any).incluso_fornitura || (selectedOffer as any).escluso_fornitura) && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Dettagli Fornitura</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(selectedOffer as any).incluso_fornitura && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Incluso</label>
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{(selectedOffer as any).incluso_fornitura}</p>
+                      </div>
+                    )}
+                    {(selectedOffer as any).escluso_fornitura && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Escluso</label>
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{(selectedOffer as any).escluso_fornitura}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
