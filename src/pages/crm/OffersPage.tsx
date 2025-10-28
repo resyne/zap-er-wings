@@ -367,7 +367,29 @@ export default function OffersPage() {
       container.style.position = 'absolute';
       container.style.left = '-9999px';
       container.style.width = '210mm';
+      container.style.backgroundColor = 'white';
       document.body.appendChild(container);
+
+      // Wait for images to load
+      const images = container.querySelectorAll('img');
+      const imagePromises = Array.from(images).map(img => {
+        return new Promise((resolve) => {
+          if (img.complete) {
+            resolve(true);
+          } else {
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            // Timeout after 5 seconds
+            setTimeout(() => resolve(false), 5000);
+          }
+        });
+      });
+
+      await Promise.all(imagePromises);
+      console.log('All images loaded, generating PDF...');
+
+      // Wait a bit more for rendering
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Configure html2pdf options
       const opt = {
@@ -377,8 +399,10 @@ export default function OffersPage() {
         html2canvas: { 
           scale: 2,
           useCORS: true,
-          logging: false,
-          letterRendering: true
+          allowTaint: true,
+          logging: true,
+          letterRendering: true,
+          backgroundColor: '#ffffff'
         },
         jsPDF: { 
           unit: 'mm', 
