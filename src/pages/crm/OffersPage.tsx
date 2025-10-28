@@ -364,32 +364,52 @@ export default function OffersPage() {
       console.log('Generating PDF with html2pdf.js...');
       const container = document.createElement('div');
       container.innerHTML = templateHtml;
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
+      
+      // Make it temporarily visible but off-screen
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
       container.style.width = '210mm';
       container.style.backgroundColor = 'white';
+      container.style.zIndex = '-1';
+      container.style.opacity = '0';
+      container.style.pointerEvents = 'none';
+      
       document.body.appendChild(container);
+      console.log('Container HTML length:', container.innerHTML.length);
+      console.log('Container children:', container.children.length);
 
       // Wait for images to load
       const images = container.querySelectorAll('img');
-      const imagePromises = Array.from(images).map(img => {
+      console.log('Found images:', images.length);
+      
+      const imagePromises = Array.from(images).map((img, index) => {
         return new Promise((resolve) => {
           if (img.complete) {
+            console.log(`Image ${index} already loaded`);
             resolve(true);
           } else {
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            // Timeout after 5 seconds
-            setTimeout(() => resolve(false), 5000);
+            img.onload = () => {
+              console.log(`Image ${index} loaded`);
+              resolve(true);
+            };
+            img.onerror = () => {
+              console.log(`Image ${index} failed to load`);
+              resolve(false);
+            };
+            setTimeout(() => {
+              console.log(`Image ${index} timeout`);
+              resolve(false);
+            }, 5000);
           }
         });
       });
 
       await Promise.all(imagePromises);
-      console.log('All images loaded, generating PDF...');
+      console.log('All images processed');
 
-      // Wait a bit more for rendering
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Configure html2pdf options
       const opt = {
@@ -402,23 +422,23 @@ export default function OffersPage() {
           allowTaint: true,
           logging: true,
           letterRendering: true,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          windowWidth: 794, // A4 width in pixels at 96 DPI
+          windowHeight: 1123 // A4 height in pixels at 96 DPI
         },
         jsPDF: { 
           unit: 'mm', 
           format: 'a4', 
           orientation: 'portrait' as const
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        }
       };
 
       try {
-        // Generate PDF and wait for completion
+        console.log('Starting PDF generation...');
         const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
         
-        console.log('PDF generated successfully with html2pdf.js, size:', pdfBlob.size);
+        console.log('PDF generated successfully, size:', pdfBlob.size, 'bytes');
 
-        // Return an object that provides save and output methods
         return {
           save: async (filename: string) => {
             const url = URL.createObjectURL(pdfBlob);
@@ -438,7 +458,6 @@ export default function OffersPage() {
           }
         };
       } finally {
-        // Clean up the temporary container
         if (document.body.contains(container)) {
           document.body.removeChild(container);
         }
