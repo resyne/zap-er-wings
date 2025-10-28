@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -47,6 +47,7 @@ interface Offer {
   payment_method?: string;
   payment_agreement?: string;
   archived?: boolean;
+  unique_code?: string;
 }
 
 interface Lead {
@@ -2036,6 +2037,48 @@ export default function OffersPage() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Descrizione</label>
                   <p className="text-sm mt-1">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {/* Link Pubblico Offerta */}
+              {selectedOffer.unique_code && (
+                <div className="border-t pt-4">
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Link Pubblico dell'Offerta
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`}
+                      readOnly
+                      className="flex-1 font-mono text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`);
+                        toast({
+                          title: "Link Copiato",
+                          description: "Il link pubblico è stato copiato negli appunti",
+                        });
+                      }}
+                      title="Copia link"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => window.open(`/offerta/${selectedOffer.unique_code}`, '_blank')}
+                      title="Apri in nuova scheda"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Condividi questo link con il cliente per visualizzare l'offerta
+                  </p>
                 </div>
               )}
 

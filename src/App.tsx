@@ -79,6 +79,7 @@ import { TasksPage } from "./pages/tasks/TasksPage";
 import ContentCreationPage from "./pages/marketing/ContentCreationPage";
 import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
 import TaskKpiPage from "./pages/direzione/TaskKpiPage";
+import PublicOfferPage from "./pages/PublicOfferPage";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +94,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/offerta/:code" element={<PublicOfferPage />} />
               <Route path="/procurement/purchase-order-confirm" element={<PurchaseOrderConfirmPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>

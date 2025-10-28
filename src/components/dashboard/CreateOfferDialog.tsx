@@ -94,8 +94,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
         ? customPaymentTerms 
         : newOffer.payment_terms;
 
-      // Crea l'offerta - il trigger creerà automaticamente il lead
-      const { error } = await supabase
+      // Crea l'offerta - il trigger creerà automaticamente il lead e il codice univoco
+      const { data: offerData, error } = await supabase
         .from('offers')
         .insert([{
           number: offerNumber,
@@ -109,13 +109,26 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
           assigned_to: newOffer.assigned_to || null,
           priority: newOffer.priority,
           payment_terms: finalPaymentTerms || null
-        }]);
+        }])
+        .select('unique_code')
+        .single();
 
       if (error) throw error;
 
+      // Genera il link pubblico
+      const publicLink = `https://www.erp.abbattitorizapper.it/offerta/${offerData.unique_code}`;
+
       toast({
         title: "Offerta Creata",
-        description: "L'offerta è stata creata. Puoi aggiungerne un'altra per lo stesso cliente.",
+        description: (
+          <div className="space-y-2">
+            <p>L'offerta è stata creata con successo.</p>
+            <div className="bg-background/50 p-2 rounded">
+              <p className="text-xs font-mono break-all">{publicLink}</p>
+            </div>
+            <p className="text-xs">Copia il link per condividerlo con il cliente.</p>
+          </div>
+        ),
       });
 
       resetForm();

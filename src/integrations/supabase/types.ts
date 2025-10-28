@@ -3029,6 +3029,7 @@ export type Database = {
           timeline_installazione: string | null
           timeline_produzione: string | null
           title: string
+          unique_code: string | null
           updated_at: string
           valid_until: string | null
         }
@@ -3058,6 +3059,7 @@ export type Database = {
           timeline_installazione?: string | null
           timeline_produzione?: string | null
           title: string
+          unique_code?: string | null
           updated_at?: string
           valid_until?: string | null
         }
@@ -3087,6 +3089,7 @@ export type Database = {
           timeline_installazione?: string | null
           timeline_produzione?: string | null
           title?: string
+          unique_code?: string | null
           updated_at?: string
           valid_until?: string | null
         }
@@ -6204,6 +6207,7 @@ export type Database = {
       generate_cost_draft_number: { Args: never; Returns: string }
       generate_customer_code: { Args: never; Returns: string }
       generate_material_code: { Args: never; Returns: string }
+      generate_offer_code: { Args: never; Returns: string }
       generate_product_code: { Args: never; Returns: string }
       generate_production_installation_work_order_number: {
         Args: never
