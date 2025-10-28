@@ -241,94 +241,126 @@ export default function OffersPage() {
     }
   };
 
-  const generateOfferHTML = async (offer: Offer) => {
+  const generateOfferPDF = async (offer: Offer) => {
     try {
-      // Load the HTML template based on selected template
-      const templateFile = offer.template === 'vesuviano' 
-        ? 'offer-template-vesuviano.html'
-        : offer.template === 'zapperpro'
-        ? 'offer-template-zapperpro.html'
-        : offer.template === 'zapper'
-        ? 'offer-template-zapper.html'
-        : 'offer-template-new.html';
-        
-      const response = await fetch(`/templates/${templateFile}`);
-      let templateHtml = await response.text();
+      // Fetch offer items
+      const { data: offerItems } = await supabase
+        .from('offer_items')
+        .select('*')
+        .eq('offer_id', offer.id);
 
-      // Get customer details
-      const customer = customers.find(c => c.id === offer.customer_id);
+      // Fetch customer details
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', offer.customer_id)
+        .maybeSingle();
 
-      // Replace logo placeholder
-      const logoUrl = '/images/logo-zapper.png';
-      templateHtml = templateHtml.replace(/{{logo}}/g, logoUrl);
+      // Determine template based on offer.template field or default to zapper
+      const templateName = (offer as any).template || 'zapper';
+      const templateMap = {
+        zapper: '/templates/offer-template-zapper-v2.html',
+        vesuviano: '/templates/offer-template-vesuviano.html',
+        zapperpro: '/templates/offer-template-zapperpro.html'
+      };
+      
+      const templateBrandMap = {
+        zapper: 'ZAPPER S.r.l.',
+        vesuviano: 'VESUVIANO S.r.l.',
+        zapperpro: 'ZAPPER PRO S.r.l.'
+      };
 
-      // Replace offer and customer placeholders
+      // Fetch template
+      const templateResponse = await fetch(templateMap[templateName as keyof typeof templateMap] || templateMap.zapper);
+      let templateHtml = await templateResponse.text();
+
+      // Calculate totals
+      const totaleImponibile = offerItems?.reduce((sum, item) => {
+        const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+        return sum + itemTotal;
+      }, 0) || offer.amount;
+
+      const totaleIva = totaleImponibile * 0.22;
+      const totaleLordo = totaleImponibile + totaleIva;
+
+      // Generate products table
+      let tabellaHtml = '<table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Prezzo Unit.</th><th>Sconto</th><th>Totale</th></tr></thead><tbody>';
+      
+      if (offerItems && offerItems.length > 0) {
+        offerItems.forEach(item => {
+          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+          tabellaHtml += `
+            <tr>
+              <td>${item.description || 'N/A'}</td>
+              <td>${item.quantity}</td>
+              <td>€ ${item.unit_price.toFixed(2)}</td>
+              <td>${item.discount_percent || 0}%</td>
+              <td>€ ${itemTotal.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+      } else {
+        tabellaHtml += `
+          <tr>
+            <td colspan="5">${offer.description || offer.title}</td>
+          </tr>
+        `;
+      }
+      tabellaHtml += '</tbody></table>';
+
+      // Replace placeholders
       templateHtml = templateHtml
         .replace(/{{numero_offerta}}/g, offer.number)
         .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
-        .replace(/{{oggetto}}/g, offer.title)
-        .replace(/{{descrizione}}/g, offer.description || '')
-        .replace(/{{cliente\.nome}}/g, customer?.name || offer.customer_name)
-        .replace(/{{cliente\.indirizzo}}/g, customer?.address || '')
-        .replace(/{{cliente\.codice_fiscale}}/g, customer?.tax_id || '')
-        .replace(/{{validità_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : 'Da definire')
-        .replace(/{{tempi_consegna}}/g, offer.timeline_consegna || 'Da definire')
-        .replace(/{{metodi_pagamento}}/g, offer.metodi_pagamento || offer.payment_terms || 'Da concordare')
-        .replace(/{{incluso_fornitura}}/g, offer.incluso_fornitura || '')
-        .replace(/{{escluso_fornitura}}/g, offer.escluso_fornitura || '');
-
-      // Generate products table
-      const productsHtml = selectedProducts.map(product => `
-        <tr>
-          <td>${product.product_name}</td>
-          <td>${product.description || ''}</td>
-          <td>${product.quantity}</td>
-          <td>€ ${product.unit_price.toFixed(2)}</td>
-          <td>${product.discount_percent}%</td>
-          <td>€ ${(product.quantity * product.unit_price * (1 - product.discount_percent / 100)).toFixed(2)}</td>
-        </tr>
-      `).join('');
-
-      templateHtml = templateHtml.replace(/{{tabella_prodotti}}/g, productsHtml || '<tr><td colspan="6">Nessun prodotto</td></tr>');
-
-      // Calculate totals
-      const subtotal = selectedProducts.reduce((sum, p) => 
-        sum + (p.quantity * p.unit_price * (1 - p.discount_percent / 100)), 0
-      );
-      const totalVAT = selectedProducts.reduce((sum, p) => {
-        const lineTotal = p.quantity * p.unit_price * (1 - p.discount_percent / 100);
-        return sum + (p.reverse_charge ? 0 : lineTotal * p.vat_rate / 100);
-      }, 0);
-      const total = subtotal + totalVAT;
-
+        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
+        .replace(/{{cliente_indirizzo}}/g, customer?.address || 'N/A')
+        .replace(/{{oggetto_offerta}}/g, offer.title)
+        .replace(/{{tabella_prodotti}}/g, tabellaHtml)
+        .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
+        .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
+        .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
+        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
+        .replace(/{{tempi_consegna}}/g, 'Da concordare')
+        .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
+        .replace(/{{logo}}/g, '/images/logo-zapper.png')
+        .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
+        
+      // Gestisci payment_method e payment_agreement
+      const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
+      const paymentAgreementText = offer.payment_agreement === 'altro' 
+        ? (offer.metodi_pagamento || '30% acconto - 70% alla consegna')
+        : offer.payment_agreement || '50% acconto - 50% a consegna';
+      
       templateHtml = templateHtml
-        .replace(/{{totale_imponibile}}/g, `€ ${subtotal.toFixed(2)}`)
-        .replace(/{{totale_iva}}/g, `€ ${totalVAT.toFixed(2)}`)
-        .replace(/{{totale_lordo}}/g, `€ ${total.toFixed(2)}`);
+        .replace(/{{payment_method}}/g, paymentMethodText)
+        .replace(/{{payment_agreement}}/g, paymentAgreementText)
+        .replace(/{{metodi_pagamento}}/g, paymentAgreementText);
+        
+      // Gestisci incluso_fornitura
+      const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
+      const inclusoHtml = inclusoItems.length > 0 
+        ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
+        : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
+      templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
+      
+      // Gestisci escluso_fornitura - converte i newline in <br> per l'HTML
+      const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
+      const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
+      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
 
-      // Handle timeline fields
+      // Gestisci timeline fields - sostituisci i singoli placeholder
       templateHtml = templateHtml
         .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || 'Da definire')
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
-      return templateHtml;
-    } catch (error) {
-      console.error('Error generating HTML:', error);
-      throw error;
-    }
-  };
-
-  const generateOfferPDF = async (offer: Offer) => {
-    try {
-      const htmlContent = await generateOfferHTML(offer);
-      
-      // Create temporary container with A4 dimensions for PDF generation (used for email)
+      // Create temporary container with A4 dimensions
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlContent;
+      tempDiv.innerHTML = templateHtml;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '0';
+      // A4 width in pixels at 96dpi: 210mm = 794px
       tempDiv.style.width = '794px';
       tempDiv.style.maxWidth = '794px';
       tempDiv.style.padding = '0';
@@ -347,7 +379,7 @@ export default function OffersPage() {
       });
       await Promise.all(imagePromises);
 
-      // Generate PDF from HTML
+      // Generate PDF from HTML with optimized settings
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
@@ -376,9 +408,11 @@ export default function OffersPage() {
       let heightLeft = imgHeight;
       let position = 0;
 
+      // Add first page
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
 
+      // Add additional pages if needed
       while (heightLeft > 0) {
         position -= pdfHeight;
         pdf.addPage();
@@ -395,19 +429,18 @@ export default function OffersPage() {
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      // Open public offer preview page
-      const previewUrl = `${window.location.origin}/offer-preview/${offer.id}`;
-      window.open(previewUrl, '_blank');
+      const pdf = await generateOfferPDF(offer);
+      pdf.save(`Offerta_${offer.number}.pdf`);
       
       toast({
-        title: "Apertura Offerta",
-        description: "L'offerta si aprirà in una nuova finestra dove potrai salvarla come PDF",
+        title: "PDF Generato",
+        description: "Il PDF dell'offerta è stato scaricato con successo",
       });
     } catch (error) {
-      console.error('Error opening offer:', error);
+      console.error('Error generating PDF:', error);
       toast({
         title: "Errore",
-        description: "Errore nell'apertura dell'offerta",
+        description: "Errore nella generazione del PDF",
         variant: "destructive",
       });
     }

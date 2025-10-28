@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +16,6 @@ import TechniciansPage from "./pages/hr/TechniciansPage";
 import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
-import OfferPreview from "./pages/crm/OfferPreview";
 import BomPage from "./pages/production/BomPage";
 import ProductionOrdersPage from "./pages/production/ProductionOrdersPage";
 import ExecutionsPage from "./pages/production/ExecutionsPage";
@@ -93,7 +93,6 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/offer-preview/:id" element={<OfferPreview />} />
               <Route path="/procurement/purchase-order-confirm" element={<PurchaseOrderConfirmPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>
