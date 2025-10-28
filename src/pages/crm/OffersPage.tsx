@@ -13,13 +13,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
+import { pdf } from '@react-pdf/renderer';
+import { OfferPDFDocument } from "@/components/crm/OfferPDFDocument";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import html2pdf from 'html2pdf.js';
 
 interface Offer {
   id: string;
@@ -242,15 +243,13 @@ export default function OffersPage() {
 
   const generateOfferPDF = async (offer: Offer) => {
     try {
-      toast({
-        title: "Generazione PDF",
-        description: "Generazione del PDF in corso...",
-      });
-
-      // Fetch offer items
+      // Fetch offer items with product names
       const { data: offerItems } = await supabase
         .from('offer_items')
-        .select('*')
+        .select(`
+          *,
+          products (name)
+        `)
         .eq('offer_id', offer.id);
 
       // Fetch customer details
@@ -260,208 +259,52 @@ export default function OffersPage() {
         .eq('id', offer.customer_id)
         .maybeSingle();
 
-      // Determine template based on offer.template field or default to zapper
-      const templateName = (offer as any).template || 'zapper';
-      const templateMap = {
-        zapper: '/templates/offer-template-zapper-v2.html',
-        vesuviano: '/templates/offer-template-vesuviano.html',
-        zapperpro: '/templates/offer-template-zapperpro.html'
-      };
-      
-      const templateBrandMap = {
-        zapper: 'ZAPPER S.r.l.',
-        vesuviano: 'VESUVIANO S.r.l.',
-        zapperpro: 'ZAPPER PRO S.r.l.'
-      };
-
-      // Fetch template
-      const templateResponse = await fetch(templateMap[templateName as keyof typeof templateMap] || templateMap.zapper);
-      let templateHtml = await templateResponse.text();
-
-      // Calculate totals
-      const totaleImponibile = offerItems?.reduce((sum, item) => {
-        const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-        return sum + itemTotal;
-      }, 0) || offer.amount;
-
-      const totaleIva = totaleImponibile * 0.22;
-      const totaleLordo = totaleImponibile + totaleIva;
-
-      // Generate products table
-      let tabellaHtml = '<table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Prezzo Unit.</th><th>Sconto</th><th>Totale</th></tr></thead><tbody>';
-      
-      if (offerItems && offerItems.length > 0) {
-        offerItems.forEach(item => {
-          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-          tabellaHtml += `
-            <tr>
-              <td>${item.description || 'N/A'}</td>
-              <td>${item.quantity}</td>
-              <td>€ ${item.unit_price.toFixed(2)}</td>
-              <td>${item.discount_percent || 0}%</td>
-              <td>€ ${itemTotal.toFixed(2)}</td>
-            </tr>
-          `;
-        });
-      } else {
-        tabellaHtml += `
-          <tr>
-            <td colspan="5">${offer.description || offer.title}</td>
-          </tr>
-        `;
+      if (!customer) {
+        throw new Error('Cliente non trovato');
       }
-      tabellaHtml += '</tbody></table>';
 
-      // Replace placeholders
-      templateHtml = templateHtml
-        .replace(/{{numero_offerta}}/g, offer.number)
-        .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
-        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
-        .replace(/{{cliente\.nome}}/g, customer?.name || offer.customer_name) // Con punto
-        .replace(/{{cliente_indirizzo}}/g, customer?.address || 'N/A')
-        .replace(/{{cliente\.indirizzo}}/g, customer?.address || 'N/A') // Con punto
-        .replace(/{{oggetto_offerta}}/g, offer.title)
-        .replace(/{{tabella_prodotti}}/g, tabellaHtml)
-        .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
-        .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
-        .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
-        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/{{tempi_consegna}}/g, 'Da concordare')
-        .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
-        .replace(/{{logo}}/g, '/images/logo-zapper.png')
-        .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
-        
-      // Gestisci payment_method e payment_agreement
-      const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
-      const paymentAgreementText = offer.payment_agreement === 'altro' 
-        ? (offer.metodi_pagamento || '30% acconto - 70% alla consegna')
-        : offer.payment_agreement || '50% acconto - 50% a consegna';
-      
-      templateHtml = templateHtml
-        .replace(/{{payment_method}}/g, paymentMethodText)
-        .replace(/{{payment_agreement}}/g, paymentAgreementText)
-        .replace(/{{metodi_pagamento}}/g, paymentAgreementText);
-        
-      // Gestisci incluso_fornitura
-      const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
-      const inclusoHtml = inclusoItems.length > 0 
-        ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
-        : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
-      templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
-      
-      // Gestisci escluso_fornitura - converte i newline in <br> per l'HTML
-      const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
-      const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
-      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
+      // Generate PDF using @react-pdf/renderer
+      const pdfDoc = (
+        <OfferPDFDocument
+          offer={{
+            number: offer.number,
+            created_at: offer.created_at,
+            title: offer.title,
+            description: offer.description,
+            valid_until: offer.valid_until,
+            amount: offer.amount,
+            template: (offer as any).template,
+            timeline_produzione: (offer as any).timeline_produzione,
+            timeline_consegna: (offer as any).timeline_consegna,
+            timeline_installazione: (offer as any).timeline_installazione,
+            incluso_fornitura: (offer as any).incluso_fornitura,
+            escluso_fornitura: (offer as any).escluso_fornitura,
+            payment_method: (offer as any).payment_method,
+            payment_agreement: (offer as any).payment_agreement,
+            metodi_pagamento: (offer as any).metodi_pagamento,
+          }}
+          customer={{
+            name: customer.name,
+            address: customer.address,
+            email: customer.email,
+            tax_id: customer.tax_id,
+          }}
+          items={(offerItems || []).map((item: any) => ({
+            product_name: item.products?.name || 'N/A',
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent,
+          }))}
+          user={{
+            full_name: user?.user_metadata?.full_name,
+            email: user?.email,
+          }}
+        />
+      );
 
-      // Gestisci timeline fields - sostituisci i singoli placeholder
-      templateHtml = templateHtml
-        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || 'Da definire')
-        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
-        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
-
-      // Create a temporary container for the HTML
-      console.log('Generating PDF with html2pdf.js...');
-      const container = document.createElement('div');
-      container.innerHTML = templateHtml;
-      
-      // Make it temporarily visible but off-screen
-      container.style.position = 'fixed';
-      container.style.top = '0';
-      container.style.left = '0';
-      container.style.width = '210mm';
-      container.style.backgroundColor = 'white';
-      container.style.zIndex = '-1';
-      container.style.opacity = '0';
-      container.style.pointerEvents = 'none';
-      
-      document.body.appendChild(container);
-      console.log('Container HTML length:', container.innerHTML.length);
-      console.log('Container children:', container.children.length);
-
-      // Wait for images to load
-      const images = container.querySelectorAll('img');
-      console.log('Found images:', images.length);
-      
-      const imagePromises = Array.from(images).map((img, index) => {
-        return new Promise((resolve) => {
-          if (img.complete) {
-            console.log(`Image ${index} already loaded`);
-            resolve(true);
-          } else {
-            img.onload = () => {
-              console.log(`Image ${index} loaded`);
-              resolve(true);
-            };
-            img.onerror = () => {
-              console.log(`Image ${index} failed to load`);
-              resolve(false);
-            };
-            setTimeout(() => {
-              console.log(`Image ${index} timeout`);
-              resolve(false);
-            }, 5000);
-          }
-        });
-      });
-
-      await Promise.all(imagePromises);
-      console.log('All images processed');
-
-      // Wait for rendering
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Configure html2pdf options
-      const opt = {
-        margin: [15, 15, 15, 15] as [number, number, number, number],
-        filename: `Offerta_${offer.number}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.95 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: true,
-          letterRendering: true,
-          backgroundColor: '#ffffff',
-          windowWidth: 794, // A4 width in pixels at 96 DPI
-          windowHeight: 1123 // A4 height in pixels at 96 DPI
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait' as const
-        }
-      };
-
-      try {
-        console.log('Starting PDF generation...');
-        const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
-        
-        console.log('PDF generated successfully, size:', pdfBlob.size, 'bytes');
-
-        return {
-          save: async (filename: string) => {
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          },
-          output: async (type: string): Promise<Blob> => {
-            if (type === 'blob') {
-              return pdfBlob;
-            }
-            throw new Error(`Unsupported output type: ${type}`);
-          }
-        };
-      } finally {
-        if (document.body.contains(container)) {
-          document.body.removeChild(container);
-        }
-      }
+      const blob = await pdf(pdfDoc).toBlob();
+      return blob;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
@@ -469,14 +312,18 @@ export default function OffersPage() {
   };
 
   const handleDownloadPDF = async (offer: Offer) => {
-    toast({
-      title: "Generazione PDF",
-      description: "Sto generando il PDF, attendere...",
-    });
-
     try {
-      const pdf = await generateOfferPDF(offer);
-      await pdf.save(`Offerta_${offer.number}.pdf`);
+      const blob = await generateOfferPDF(offer);
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Offerta_${offer.number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
       toast({
         title: "PDF Generato",
@@ -505,8 +352,7 @@ export default function OffersPage() {
       }
 
       // Generate PDF
-      const pdf = await generateOfferPDF(offer);
-      const pdfBlob = await pdf.output('blob');
+      const pdfBlob = await generateOfferPDF(offer);
       
       // Convert to base64
       const reader = new FileReader();
