@@ -13,8 +13,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -243,16 +241,32 @@ export default function OffersPage() {
 
   const generateOfferPDF = async (offer: Offer): Promise<Blob> => {
     try {
-      // Call the edge function to generate PDF with PDFBolt
-      const { data, error } = await supabase.functions.invoke('generate-offer-pdf', {
-        body: { offerId: offer.id }
-      });
+      // Fetch offer items from database
+      const { data: items, error: itemsError } = await supabase
+        .from('offer_items')
+        .select('*')
+        .eq('offer_id', offer.id);
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error);
+      if (itemsError) throw itemsError;
 
-      // Convert base64 to Blob
-      const pdfBlob = base64ToBlob(data.pdf, 'application/pdf');
+      // Import and call pdf-lib generator
+      const { generateOfferPDF: generatePDF } = await import('@/lib/generateOfferPDF');
+      
+      const offerData = {
+        number: offer.number,
+        created_at: offer.created_at,
+        customer_name: offer.customer_name,
+        title: offer.title,
+        amount: offer.amount,
+        valid_until: offer.valid_until,
+        timeline_consegna: offer.timeline_consegna,
+        payment_agreement: offer.payment_agreement,
+        incluso_fornitura: offer.incluso_fornitura,
+        escluso_fornitura: offer.escluso_fornitura,
+        items: items || []
+      };
+
+      const pdfBlob = await generatePDF(offerData);
       return pdfBlob;
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -260,15 +274,6 @@ export default function OffersPage() {
     }
   };
 
-  // Helper to convert base64 to Blob
-  const base64ToBlob = (base64: string, type: string) => {
-    const binaryString = window.atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return new Blob([bytes], { type });
-  };
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
