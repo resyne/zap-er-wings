@@ -266,590 +266,411 @@ export default function OffersPage() {
           throw new Error('Cliente non trovato');
         }
 
-        // Calculate totals
-        const totaleImponibile = offerItems?.reduce((sum: number, item: any) => {
-          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-          return sum + itemTotal;
-        }, 0) || offer.amount;
+        // Prepare data for template
+        const data = {
+          logo: '', // Base64 del logo se disponibile
+          numero_offerta: offer.number || 'N/A',
+          data_offerta: new Date(offer.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
+          utente: user?.user_metadata?.full_name || user?.email || 'N/A',
+          cliente: {
+            nome: customer.name || 'Cliente',
+            indirizzo: customer.address || ''
+          },
+          oggetto_offerta: offer.title || '',
+          prodotti: (offerItems || []).map((item: any) => {
+            const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+            return {
+              descrizione: item.description || 'N/A',
+              qta: item.quantity,
+              prezzo: item.unit_price,
+              totale: itemTotal
+            };
+          }),
+          incluso_fornitura: (offer as any).incluso_fornitura 
+            ? (offer as any).incluso_fornitura.split('\n').filter(Boolean)
+            : ['Struttura in acciaio inox 304', 'Quadro elettrico con inverter integrato', 'Manuale d\'uso e manutenzione', 'Assistenza post-vendita 12 mesi', 'Certificazioni CE e sicurezza', 'Formazione operatori inclusa'],
+          escluso_fornitura: (offer as any).escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.',
+          totale_imponibile: '',
+          totale_iva: '',
+          totale_lordo: '',
+          validita_offerta: offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni dalla data di emissione',
+          tempi_consegna: (offer as any).timeline_consegna || '15 giorni lavorativi',
+          metodi_pagamento: (offer as any).payment_agreement === 'altro' 
+            ? ((offer as any).metodi_pagamento || '30% acconto - 70% alla consegna')
+            : ((offer as any).payment_agreement || '50% acconto - 50% a consegna'),
+          timeline_produzione: (offer as any).timeline_produzione || '10 gg',
+          timeline_consegna: (offer as any).timeline_consegna || '3 gg',
+          timeline_installazione: (offer as any).timeline_installazione || '1 gg'
+        };
 
+        // Calculate totals
+        const totaleImponibile = data.prodotti.reduce((sum: number, item: any) => sum + item.totale, 0);
         const totaleIva = totaleImponibile * 0.22;
         const totaleLordo = totaleImponibile + totaleIva;
 
-        // Payment info
-        const paymentAgreementText = (offer as any).payment_agreement === 'altro' 
-          ? ((offer as any).metodi_pagamento || '30% acconto - 70% alla consegna')
-          : ((offer as any).payment_agreement || '50% acconto - 50% a consegna');
+        data.totale_imponibile = totaleImponibile.toFixed(2);
+        data.totale_iva = totaleIva.toFixed(2);
+        data.totale_lordo = totaleLordo.toFixed(2);
 
-        // Parse incluso items
-        const inclusoItems = (offer as any).incluso_fornitura 
-          ? (offer as any).incluso_fornitura.split('\n').filter(Boolean) 
-          : ['✓ Fornitura e installazione completa', '✓ Certificazione di conformità', '✓ 1 anno di garanzia'];
-
-        // Table rows
-        const tableBody: any[] = [
-          [
-            { text: 'Descrizione', style: 'tableHeader' },
-            { text: 'Q.tà', style: 'tableHeader', alignment: 'center' },
-            { text: 'Prezzo Unit.', style: 'tableHeader', alignment: 'right' },
-            { text: 'Sconto', style: 'tableHeader', alignment: 'center' },
-            { text: 'Totale', style: 'tableHeader', alignment: 'right' }
-          ]
-        ];
-
-        if (offerItems && offerItems.length > 0) {
-          offerItems.forEach((item: any, index: number) => {
-            const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-            tableBody.push([
-              { text: item.description || 'N/A', style: 'tableCell' },
-              { text: item.quantity.toString(), alignment: 'center', style: 'tableCell' },
-              { text: `€ ${item.unit_price.toFixed(2)}`, alignment: 'right', style: 'tableCell' },
-              { text: `${item.discount_percent || 0}%`, alignment: 'center', style: 'tableCell' },
-              { text: `€ ${itemTotal.toFixed(2)}`, alignment: 'right', style: 'tableCell' }
-            ]);
-          });
-        } else {
-          tableBody.push([
-            { text: offer.description || offer.title, colSpan: 5, style: 'tableCell' },
-            {}, {}, {}, {}
-          ]);
-        }
-
-        // Create incluso grid (2 columns)
-        const inclusoGrid: any[] = [];
-        for (let i = 0; i < inclusoItems.length; i += 2) {
-          inclusoGrid.push({
-            columns: [
-              {
-                width: '50%',
-                stack: [
-                  {
-                    text: inclusoItems[i],
-                    style: 'includesItem'
-                  }
-                ],
-                margin: [0, 0, 5, 5]
-              },
-              inclusoItems[i + 1] ? {
-                width: '50%',
-                stack: [
-                  {
-                    text: inclusoItems[i + 1],
-                    style: 'includesItem'
-                  }
-                ],
-                margin: [5, 0, 0, 5]
-              } : { width: '50%', text: '' }
-            ]
-          });
-        }
-
-        // Timeline data
-        const timelineProduzione = (offer as any).timeline_produzione || '15-20 giorni';
-        const timelineConsegna = (offer as any).timeline_consegna || '3-5 giorni';
-        const timelineInstallazione = (offer as any).timeline_installazione || '1-2 giorni';
-
-        // Define PDF document
-        const docDefinition: any = {
+        // Define PDF document using optimized template
+        const documentDefinition: any = {
           pageSize: 'A4',
-          pageMargins: [40, 140, 40, 80],
-          header: {
-            stack: [
-              // Header verde background
-              {
-                canvas: [
-                  {
-                    type: 'rect',
-                    x: 0,
-                    y: 0,
-                    w: 595,
-                    h: 130,
-                    color: '#38AC4F'
-                  }
-                ],
-                absolutePosition: { x: 0, y: 0 }
-              },
-              // Header content
-              {
-                columns: [
-                  {
-                    width: '55%',
-                    stack: [
-                      { text: 'WWW.ABBATTITORIZAPPER.IT', style: 'headerWebsite' },
-                      { 
-                        text: '📧 info@abbattitorizapper.it\n📞 081 19968436 | 📱 +39 324 8996189', 
-                        style: 'headerContacts' 
-                      },
-                      { 
-                        text: 'Marchio di proprietà della ditta CLIMATEL DI ELEFANTE Pasquale\nVia G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia\nC.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786', 
-                        style: 'headerCompany' 
-                      }
-                    ]
-                  },
-                  {
-                    width: '45%',
-                    stack: [
-                      { text: `OFFERTA N. ${offer.number}`, style: 'headerDocNumber' },
-                      { text: `Data: ${new Date(offer.created_at).toLocaleDateString('it-IT')}`, style: 'headerDocInfo' },
-                      { text: `Creata da: ${user?.user_metadata?.full_name || user?.email || 'N/A'}`, style: 'headerDocInfo' },
-                      {
-                        canvas: [
-                          {
-                            type: 'line',
-                            x1: 0,
-                            y1: 0,
-                            x2: 180,
-                            y2: 0,
-                            lineWidth: 1,
-                            lineColor: 'rgba(255,255,255,0.3)'
-                          }
-                        ],
-                        margin: [0, 8, 0, 8]
-                      },
-                      { text: 'Spett.le Cliente:', style: 'headerClientLabel' },
-                      { text: customer.name, style: 'headerClientName' },
-                      { text: customer.address || '', style: 'headerClientAddress' }
-                    ],
-                    alignment: 'right'
-                  }
-                ],
-                margin: [40, 15, 40, 0]
-              }
-            ]
+          pageMargins: [40, 40, 40, 40],
+          
+          styles: {
+            header: {
+              fontSize: 18,
+              bold: true,
+              color: '#38AC4F',
+              margin: [0, 0, 0, 10]
+            },
+            subheader: {
+              fontSize: 14,
+              bold: true,
+              color: '#38AC4F',
+              margin: [0, 10, 0, 5]
+            },
+            sectionTitle: {
+              fontSize: 12,
+              bold: true,
+              color: '#38AC4F',
+              margin: [0, 15, 0, 5],
+              decoration: 'underline',
+              decorationColor: '#38AC4F'
+            },
+            tableHeader: {
+              bold: true,
+              fontSize: 11,
+              color: 'white',
+              fillColor: '#38AC4F',
+              alignment: 'left'
+            },
+            tableCell: {
+              fontSize: 10,
+              margin: [0, 5, 0, 5]
+            },
+            infoBox: {
+              fontSize: 10,
+              fillColor: '#f9f9f9',
+              margin: [0, 5, 0, 5]
+            },
+            total: {
+              fontSize: 16,
+              bold: true,
+              color: '#38AC4F'
+            },
+            small: {
+              fontSize: 9,
+              color: '#666'
+            },
+            footer: {
+              fontSize: 9,
+              color: 'white',
+              alignment: 'center'
+            }
           },
-          footer: (currentPage: number, pageCount: number) => {
-            return {
-              stack: [
-                {
-                  canvas: [
-                    {
-                      type: 'rect',
-                      x: 0,
-                      y: 0,
-                      w: 595,
-                      h: 70,
-                      color: '#38AC4F'
-                    }
-                  ],
-                  absolutePosition: { x: 0, y: 772 }
-                },
-                {
-                  stack: [
-                    { text: 'ZAPPER® - RENEWED AIR', style: 'footerBrand' },
-                    { text: 'WWW.ABBATTITORIZAPPER.IT', style: 'footerWebsite' },
-                    { text: '📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189', style: 'footerContacts' },
-                    { 
-                      text: 'CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris n° 24, 84018 SCAFATI (SA) - Italia\nC.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786', 
-                      style: 'footerCompany' 
-                    }
-                  ],
-                  absolutePosition: { x: 40, y: 782 },
-                  alignment: 'center'
-                }
-              ]
-            };
-          },
+
           content: [
-            // Oggetto
-            { text: 'OGGETTO', style: 'sectionTitle' },
-            { 
-              text: offer.title, 
-              style: 'oggetto',
-              margin: [0, 5, 0, 15]
+            // ========== HEADER VERDE ==========
+            {
+              table: {
+                widths: ['*', '*'],
+                body: [
+                  [
+                    {
+                      stack: [
+                        { text: 'ZAPPER®', fontSize: 24, bold: true, color: 'white' },
+                        { text: 'WWW.ABBATTITORIZAPPER.IT', fontSize: 11, color: 'white', bold: true },
+                        { 
+                          text: [
+                            '📧 info@abbattitorizapper.it\n',
+                            '📞 081 19968436 | 📱 +39 324 8996189'
+                          ], 
+                          fontSize: 9, 
+                          color: 'white',
+                          margin: [0, 5, 0, 5]
+                        },
+                        {
+                          text: [
+                            'Marchio di proprietà della ditta ',
+                            { text: 'CLIMATEL DI ELEFANTE Pasquale', bold: true },
+                            '\nVia G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia\n',
+                            'C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786'
+                          ],
+                          fontSize: 8,
+                          color: 'white',
+                          margin: [0, 5, 0, 0]
+                        }
+                      ],
+                      border: [false, false, false, false]
+                    },
+                    {
+                      stack: [
+                        { text: `OFFERTA N. ${data.numero_offerta}`, fontSize: 16, bold: true, color: 'white' },
+                        { text: `Data: ${data.data_offerta}`, fontSize: 11, color: 'white', margin: [0, 3, 0, 0] },
+                        { text: `Creata da: ${data.utente}`, fontSize: 11, color: 'white', margin: [0, 3, 0, 0] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 150, y2: 5, lineWidth: 0.5, lineColor: 'white', opacity: 0.5 }] },
+                        { text: 'Spett.le Cliente:', fontSize: 9, color: 'white', margin: [0, 5, 0, 2], opacity: 0.9 },
+                        { text: data.cliente.nome, fontSize: 12, bold: true, color: 'white', margin: [0, 0, 0, 2] },
+                        { text: data.cliente.indirizzo, fontSize: 9, color: 'white' }
+                      ],
+                      alignment: 'right',
+                      border: [false, false, false, false]
+                    }
+                  ]
+                ]
+              },
+              layout: {
+                fillColor: '#38AC4F',
+                paddingLeft: () => 15,
+                paddingRight: () => 15,
+                paddingTop: () => 15,
+                paddingBottom: () => 15
+              },
+              margin: [0, 0, 0, 20]
             },
 
-            // Dettaglio Prodotti
-            { text: 'DETTAGLIO PRODOTTI/SERVIZI', style: 'sectionTitle', margin: [0, 10, 0, 8] },
+            // ========== OGGETTO ==========
+            { text: 'OGGETTO', style: 'sectionTitle' },
+            {
+              text: data.oggetto_offerta,
+              style: 'infoBox',
+              margin: [0, 0, 0, 15]
+            },
+
+            // ========== DETTAGLIO PRODOTTI ==========
+            { text: 'DETTAGLIO PRODOTTI/SERVIZI', style: 'sectionTitle' },
             {
               table: {
                 headerRows: 1,
-                widths: ['*', 50, 80, 50, 80],
-                body: tableBody
+                widths: ['*', 50, 80, 80],
+                body: [
+                  [
+                    { text: 'Descrizione', style: 'tableHeader' },
+                    { text: 'Q.tà', style: 'tableHeader', alignment: 'center' },
+                    { text: 'Prezzo Unit.', style: 'tableHeader', alignment: 'right' },
+                    { text: 'Totale', style: 'tableHeader', alignment: 'right' }
+                  ],
+                  ...data.prodotti.map((p: any) => [
+                    { text: p.descrizione, style: 'tableCell' },
+                    { text: p.qta.toString(), style: 'tableCell', alignment: 'center' },
+                    { text: `€ ${p.prezzo.toFixed(2)}`, style: 'tableCell', alignment: 'right' },
+                    { text: `€ ${p.totale.toFixed(2)}`, style: 'tableCell', alignment: 'right' }
+                  ])
+                ]
               },
               layout: {
-                fillColor: (rowIndex: number) => {
-                  if (rowIndex === 0) return '#38AC4F';
-                  return rowIndex % 2 === 0 ? '#f9f9f9' : null;
-                },
-                hLineWidth: () => 1,
-                vLineWidth: () => 1,
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
                 hLineColor: () => '#ddd',
                 vLineColor: () => '#ddd'
               },
               margin: [0, 0, 0, 15]
             },
 
-            // Cosa Include la Fornitura
+            // ========== COSA INCLUDE ==========
+            { text: 'Cosa Include la Fornitura', style: 'sectionTitle' },
             {
-              stack: [
-                { text: 'Cosa Include la Fornitura', style: 'includesTitle' },
+              columns: [
                 {
-                  stack: inclusoGrid,
-                  margin: [10, 10, 10, 10]
+                  width: '50%',
+                  stack: data.incluso_fornitura.slice(0, Math.ceil(data.incluso_fornitura.length / 2)).map((item: string) => ({
+                    text: [
+                      { text: '✅ ', color: '#38AC4F', fontSize: 12 },
+                      { text: item, fontSize: 10 }
+                    ],
+                    margin: [0, 3, 0, 3]
+                  }))
+                },
+                {
+                  width: '50%',
+                  stack: data.incluso_fornitura.slice(Math.ceil(data.incluso_fornitura.length / 2)).map((item: string) => ({
+                    text: [
+                      { text: '✅ ', color: '#38AC4F', fontSize: 12 },
+                      { text: item, fontSize: 10 }
+                    ],
+                    margin: [0, 3, 0, 3]
+                  }))
                 }
               ],
-              background: '#f9f9f9',
-              margin: [0, 10, 0, 15]
+              margin: [0, 0, 0, 15]
             },
 
-            // Cosa Esclude
-            ...((offer as any).escluso_fornitura ? [{
-              stack: [
-                { text: 'Cosa Esclude la Fornitura', style: 'excludesTitle' },
-                { text: (offer as any).escluso_fornitura, style: 'excludesContent', margin: [0, 5, 0, 0] }
-              ],
-              background: '#fffdf0',
-              margin: [10, 10, 10, 10]
-            }] : []),
+            // ========== COSA ESCLUDE ==========
+            { text: 'Cosa Esclude la Fornitura', style: 'subheader', fontSize: 11, color: '#666' },
+            {
+              text: data.escluso_fornitura,
+              fontSize: 10,
+              color: '#555',
+              fillColor: '#fffdf0',
+              margin: [10, 5, 10, 5]
+            },
 
-            // Totali
+            // ========== TOTALI ==========
             {
               columns: [
                 { width: '*', text: '' },
                 {
-                  width: 250,
+                  width: 200,
                   stack: [
                     {
                       columns: [
-                        { width: 150, text: 'Totale Imponibile:', style: 'totalLabel' },
-                        { width: 100, text: `€ ${totaleImponibile.toFixed(2)}`, style: 'totalValue' }
+                        { text: 'Totale Imponibile:', bold: true, fontSize: 11 },
+                        { text: `€ ${data.totale_imponibile}`, alignment: 'right', fontSize: 11 }
                       ],
-                      margin: [0, 0, 0, 3]
+                      margin: [0, 5, 0, 5]
                     },
                     {
                       columns: [
-                        { width: 150, text: 'IVA:', style: 'totalLabel' },
-                        { width: 100, text: `€ ${totaleIva.toFixed(2)}`, style: 'totalValue' }
+                        { text: 'IVA:', bold: true, fontSize: 11 },
+                        { text: `€ ${data.totale_iva}`, alignment: 'right', fontSize: 11 }
                       ],
-                      margin: [0, 0, 0, 8]
+                      margin: [0, 0, 0, 5]
                     },
-                    {
-                      canvas: [
-                        {
-                          type: 'line',
-                          x1: 0,
-                          y1: 0,
-                          x2: 250,
-                          y2: 0,
-                          lineWidth: 2,
-                          lineColor: '#38AC4F'
-                        }
-                      ],
-                      margin: [0, 0, 0, 8]
-                    },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 2, lineColor: '#38AC4F' }] },
                     {
                       columns: [
-                        { width: 150, text: 'Totale Offerta:', style: 'totalFinalLabel' },
-                        { width: 100, text: `€ ${totaleLordo.toFixed(2)}`, style: 'totalFinalValue' }
-                      ]
+                        { text: 'Totale Offerta:', bold: true, fontSize: 14, color: '#38AC4F' },
+                        { text: `€ ${data.totale_lordo}`, alignment: 'right', fontSize: 14, bold: true, color: '#38AC4F' }
+                      ],
+                      margin: [0, 8, 0, 0]
                     }
                   ]
                 }
               ],
-              margin: [0, 15, 0, 15]
+              margin: [0, 10, 0, 15]
             },
 
-            // Validità e Tempi
+            // ========== VALIDITÀ E TEMPI ==========
             {
               columns: [
                 {
                   width: '50%',
                   stack: [
-                    { text: 'VALIDITÀ OFFERTA', style: 'infoLabel' },
-                    { text: offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni', style: 'infoValue' }
+                    { text: 'VALIDITÀ OFFERTA', fontSize: 10, bold: true, color: '#38AC4F', margin: [0, 5, 0, 3] },
+                    { text: data.validita_offerta, fontSize: 10, margin: [0, 0, 0, 5] }
                   ],
-                  background: '#f9f9f9',
-                  margin: [0, 8, 5, 8]
+                  fillColor: '#f9f9f9',
+                  margin: [0, 0, 5, 0]
                 },
                 {
                   width: '50%',
                   stack: [
-                    { text: 'TEMPI DI CONSEGNA', style: 'infoLabel' },
-                    { text: timelineConsegna, style: 'infoValue' }
+                    { text: 'TEMPI DI CONSEGNA', fontSize: 10, bold: true, color: '#38AC4F', margin: [0, 5, 0, 3] },
+                    { text: data.tempi_consegna, fontSize: 10, margin: [0, 0, 0, 5] }
                   ],
-                  background: '#f9f9f9',
-                  margin: [5, 8, 0, 8]
+                  fillColor: '#f9f9f9',
+                  margin: [5, 0, 0, 0]
                 }
               ],
-              margin: [0, 10, 0, 15]
+              margin: [0, 0, 0, 15]
             },
 
-            // Metodi di Pagamento
-            { text: 'METODI DI PAGAMENTO', style: 'sectionTitle', margin: [0, 10, 0, 8] },
-            { text: paymentAgreementText, style: 'normalText', margin: [0, 0, 0, 10] },
+            // ========== METODI DI PAGAMENTO ==========
+            { text: 'METODI DI PAGAMENTO', style: 'sectionTitle' },
+            { text: data.metodi_pagamento, fontSize: 10, margin: [0, 0, 0, 10] },
             {
               stack: [
-                { text: 'Coordinate Bancarie:', style: 'bankLabel' },
-                { text: 'CLIMATEL DI ELEFANTE PASQUALE', style: 'bankName' },
-                { text: 'Banca: INTESA SANPAOLO', style: 'bankInfo' },
-                { text: 'IBAN: IT82 S030 6976 4511 0000 0003 441', style: 'bankIban' }
+                { text: 'Coordinate Bancarie:', bold: true, fontSize: 10, margin: [0, 5, 0, 3] },
+                { text: 'CLIMATEL DI ELEFANTE PASQUALE', bold: true, fontSize: 12, margin: [0, 0, 0, 3] },
+                { text: 'Banca: INTESA SANPAOLO', fontSize: 10, margin: [0, 0, 0, 3] },
+                { text: 'IBAN: IT82 S030 6976 4511 0000 0003 441', bold: true, fontSize: 10 }
               ],
-              background: '#f9f9f9',
-              margin: [10, 10, 10, 10]
+              fillColor: '#f9f9f9',
+              margin: [10, 0, 10, 10]
             },
 
-            // Divider decorativo
-            {
-              canvas: [
-                {
-                  type: 'rect',
-                  x: 100,
-                  y: 0,
-                  w: 315,
-                  h: 2,
-                  linearGradient: ['#ffffff', '#38AC4F', '#38AC4F', '#ffffff']
-                }
-              ],
-              margin: [0, 20, 0, 20]
-            },
+            // ========== DIVIDER ==========
+            { canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 2, lineColor: '#38AC4F', opacity: 0.3 }] },
 
-            // Riepilogo Offerta
+            // ========== RIEPILOGO OFFERTA ==========
+            { text: '📋 RIEPILOGO OFFERTA', style: 'header', margin: [0, 20, 0, 10] },
             {
-              stack: [
-                { text: '📋 Riepilogo Offerta', style: 'summaryTitle' },
+              columns: [
                 {
-                  columns: [
-                    {
-                      width: '*',
-                      stack: [
-                        { text: `Offerta n. ${offer.number}`, style: 'summaryDetail' },
-                        { text: `Cliente: ${customer.name}`, style: 'summaryDetail' },
-                        { text: `Oggetto: ${offer.title}`, style: 'summaryDetail' }
-                      ]
-                    },
-                    {
-                      width: 140,
-                      stack: [
-                        { text: 'TOTALE OFFERTA', style: 'summaryTotalLabel' },
-                        { text: `€ ${totaleLordo.toFixed(2)}`, style: 'summaryTotalAmount' },
-                        { text: 'IVA inclusa', style: 'summaryTotalSubLabel' }
-                      ],
-                      background: '#38AC4F',
-                      margin: [10, 10, 10, 10],
-                      alignment: 'center'
-                    }
-                  ]
-                }
-              ],
-              background: '#f8fff9',
-              border: [true, true, true, true],
-              margin: [0, 10, 0, 15]
-            },
-
-            // Timeline Operativa
-            {
-              stack: [
-                { text: '⏱️ Timeline Operativa', style: 'timelineTitle' },
-                {
-                  columns: [
-                    {
-                      width: '33.33%',
-                      stack: [
-                        { text: '🏭', style: 'timelineIcon' },
-                        { text: 'Produzione', style: 'timelineLabel' },
-                        { text: timelineProduzione, style: 'timelineDuration' }
-                      ],
-                      background: 'white',
-                      alignment: 'center',
-                      margin: [5, 10, 5, 10]
-                    },
-                    {
-                      width: '33.33%',
-                      stack: [
-                        { text: '🚚', style: 'timelineIcon' },
-                        { text: 'Consegna', style: 'timelineLabel' },
-                        { text: timelineConsegna, style: 'timelineDuration' }
-                      ],
-                      background: 'white',
-                      alignment: 'center',
-                      margin: [5, 10, 5, 10]
-                    },
-                    {
-                      width: '33.33%',
-                      stack: [
-                        { text: '🔧', style: 'timelineIcon' },
-                        { text: 'Installazione', style: 'timelineLabel' },
-                        { text: timelineInstallazione, style: 'timelineDuration' }
-                      ],
-                      background: 'white',
-                      alignment: 'center',
-                      margin: [5, 10, 5, 10]
-                    }
-                  ]
-                }
-              ],
-              background: '#f9f9f9',
-              margin: [0, 10, 0, 15]
-            },
-
-            // Trustpilot Section
-            {
-              stack: [
-                {
-                  columns: [
-                    {
-                      width: 'auto',
-                      stack: [
-                        { text: '4,8', style: 'trustRating' },
-                        { text: 'Eccellente', style: 'trustLabel' },
-                        { text: '★★★★★', style: 'trustStars' },
-                        { text: '430 recensioni', style: 'trustReviews' }
-                      ],
-                      alignment: 'center',
-                      margin: [10, 10, 20, 10]
-                    },
-                    {
-                      width: '*',
-                      stack: [
-                        {
-                          columns: [
-                            { width: 50, text: '5 stelle', style: 'trustBarLabel' },
-                            {
-                              width: '*',
-                              stack: [
-                                {
-                                  canvas: [
-                                    { type: 'rect', x: 0, y: 0, w: 200, h: 6, color: '#e5e5e5' },
-                                    { type: 'rect', x: 0, y: 0, w: 170, h: 6, color: '#00b67a' }
-                                  ]
-                                }
-                              ],
-                              margin: [0, 4, 0, 0]
-                            }
-                          ],
-                          margin: [0, 0, 0, 3]
-                        },
-                        {
-                          columns: [
-                            { width: 50, text: '4 stelle', style: 'trustBarLabel' },
-                            {
-                              width: '*',
-                              stack: [
-                                {
-                                  canvas: [
-                                    { type: 'rect', x: 0, y: 0, w: 200, h: 6, color: '#e5e5e5' },
-                                    { type: 'rect', x: 0, y: 0, w: 20, h: 6, color: '#dcdce6' }
-                                  ]
-                                }
-                              ],
-                              margin: [0, 4, 0, 0]
-                            }
-                          ],
-                          margin: [0, 0, 0, 3]
-                        },
-                        {
-                          columns: [
-                            { width: 50, text: '3 stelle', style: 'trustBarLabel' },
-                            {
-                              width: '*',
-                              stack: [
-                                {
-                                  canvas: [
-                                    { type: 'rect', x: 0, y: 0, w: 200, h: 6, color: '#e5e5e5' },
-                                    { type: 'rect', x: 0, y: 0, w: 6, h: 6, color: '#dcdce6' }
-                                  ]
-                                }
-                              ],
-                              margin: [0, 4, 0, 0]
-                            }
-                          ],
-                          margin: [0, 0, 0, 3]
-                        }
-                      ],
-                      margin: [0, 10, 10, 10]
-                    }
+                  width: '*',
+                  stack: [
+                    { text: [{ text: 'Offerta n. ', bold: true }, data.numero_offerta], fontSize: 11, margin: [0, 5, 0, 5] },
+                    { text: [{ text: 'Cliente: ', bold: true }, data.cliente.nome], fontSize: 11, margin: [0, 0, 0, 5] },
+                    { text: [{ text: 'Oggetto: ', bold: true }, data.oggetto_offerta], fontSize: 11, margin: [0, 0, 0, 5] }
                   ]
                 },
                 {
-                  text: 'it.trustpilot.com/review/abbattitorizapper.it',
-                  style: 'trustLink',
-                  alignment: 'center',
-                  margin: [0, 5, 0, 10]
+                  width: 150,
+                  stack: [
+                    { text: 'TOTALE OFFERTA', fontSize: 10, color: 'white', alignment: 'center', margin: [5, 10, 5, 5] },
+                    { text: `€ ${data.totale_lordo}`, fontSize: 24, bold: true, color: 'white', alignment: 'center', margin: [5, 5, 5, 5] },
+                    { text: 'IVA inclusa', fontSize: 9, color: 'white', alignment: 'center', margin: [5, 0, 5, 10] }
+                  ],
+                  fillColor: '#38AC4F',
+                  margin: [10, 0, 0, 0]
                 }
               ],
-              background: 'white',
-              margin: [0, 10, 0, 10]
-            }
+              fillColor: '#f8fff9',
+              margin: [0, 0, 0, 15]
+            },
+
+            // ========== TIMELINE ==========
+            { text: '⏱️ Timeline Operativa', style: 'subheader' },
+            {
+              columns: [
+                {
+                  width: '33%',
+                  stack: [
+                    { text: '🏭', fontSize: 20, alignment: 'center', margin: [0, 5, 0, 5] },
+                    { text: 'Produzione', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 3] },
+                    { text: data.timeline_produzione, fontSize: 12, color: '#38AC4F', bold: true, alignment: 'center', margin: [0, 0, 0, 5] }
+                  ],
+                  fillColor: '#f9f9f9',
+                  margin: [0, 0, 3, 0]
+                },
+                {
+                  width: '33%',
+                  stack: [
+                    { text: '🚚', fontSize: 20, alignment: 'center', margin: [0, 5, 0, 5] },
+                    { text: 'Consegna', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 3] },
+                    { text: data.timeline_consegna, fontSize: 12, color: '#38AC4F', bold: true, alignment: 'center', margin: [0, 0, 0, 5] }
+                  ],
+                  fillColor: '#f9f9f9',
+                  margin: [3, 0, 3, 0]
+                },
+                {
+                  width: '33%',
+                  stack: [
+                    { text: '🔧', fontSize: 20, alignment: 'center', margin: [0, 5, 0, 5] },
+                    { text: 'Installazione', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 3] },
+                    { text: data.timeline_installazione, fontSize: 12, color: '#38AC4F', bold: true, alignment: 'center', margin: [0, 0, 0, 5] }
+                  ],
+                  fillColor: '#f9f9f9',
+                  margin: [3, 0, 0, 0]
+                }
+              ],
+              margin: [0, 0, 0, 15]
+            },
+
+            // ========== TRUSTPILOT ==========
+            { text: '⭐ Trustpilot: 4,8 / 5 - Eccellente', style: 'subheader', alignment: 'center' },
+            { text: 'Basato su oltre 430 recensioni verificate', fontSize: 10, alignment: 'center', color: '#666', margin: [0, 5, 0, 10] }
           ],
-          styles: {
-            // Header styles
-            headerWebsite: { fontSize: 11, color: 'white', bold: true, margin: [0, 0, 0, 3] },
-            headerContacts: { fontSize: 8, color: 'white', lineHeight: 1.3, margin: [0, 3, 0, 5] },
-            headerCompany: { fontSize: 7, color: 'white', lineHeight: 1.2, margin: [0, 5, 0, 0] },
-            headerDocNumber: { fontSize: 13, color: 'white', bold: true, margin: [0, 0, 0, 3] },
-            headerDocInfo: { fontSize: 9, color: 'white', margin: [0, 2, 0, 0] },
-            headerClientLabel: { fontSize: 8, color: 'white', margin: [0, 0, 0, 2] },
-            headerClientName: { fontSize: 11, color: 'white', bold: true, margin: [0, 0, 0, 2] },
-            headerClientAddress: { fontSize: 8, color: 'white' },
-            
-            // Content styles
-            sectionTitle: { 
-              fontSize: 11, 
-              bold: true, 
-              color: '#38AC4F', 
-              decoration: 'underline',
-              decorationColor: '#38AC4F',
-              margin: [0, 0, 0, 5]
-            },
-            oggetto: { 
-              fontSize: 11, 
-              background: '#f9f9f9', 
-              margin: [10, 8, 10, 8],
-              lineHeight: 1.4
-            },
-            tableHeader: { fontSize: 9, bold: true, color: 'white', margin: [5, 5, 5, 5] },
-            tableCell: { fontSize: 9, margin: [5, 5, 5, 5] },
-            includesTitle: { fontSize: 12, bold: true, color: '#38AC4F', alignment: 'center', margin: [0, 8, 0, 5] },
-            includesItem: { fontSize: 9, lineHeight: 1.4 },
-            excludesTitle: { fontSize: 10, bold: true, color: '#666', margin: [0, 5, 0, 5] },
-            excludesContent: { fontSize: 9, color: '#555', lineHeight: 1.4 },
-            
-            // Totals
-            totalLabel: { fontSize: 10, bold: true, alignment: 'right' },
-            totalValue: { fontSize: 10, alignment: 'right' },
-            totalFinalLabel: { fontSize: 14, bold: true, color: '#38AC4F', alignment: 'right' },
-            totalFinalValue: { fontSize: 14, bold: true, color: '#38AC4F', alignment: 'right' },
-            
-            // Info box
-            infoLabel: { fontSize: 9, bold: true, color: '#38AC4F', margin: [5, 5, 5, 2] },
-            infoValue: { fontSize: 10, margin: [5, 2, 5, 5] },
-            
-            // Payment
-            normalText: { fontSize: 10 },
-            bankLabel: { fontSize: 9, bold: true, margin: [0, 0, 0, 3] },
-            bankName: { fontSize: 11, bold: true, margin: [0, 0, 0, 2] },
-            bankInfo: { fontSize: 9, margin: [0, 0, 0, 2] },
-            bankIban: { fontSize: 10, bold: true },
-            
-            // Summary
-            summaryTitle: { fontSize: 11, bold: true, color: '#38AC4F', margin: [10, 10, 10, 8] },
-            summaryDetail: { fontSize: 10, margin: [10, 3, 10, 3] },
-            summaryTotalLabel: { fontSize: 8, color: 'white', margin: [0, 0, 0, 3] },
-            summaryTotalAmount: { fontSize: 24, bold: true, color: 'white', margin: [0, 5, 0, 5] },
-            summaryTotalSubLabel: { fontSize: 8, color: 'white' },
-            
-            // Timeline
-            timelineTitle: { fontSize: 11, bold: true, alignment: 'center', margin: [0, 8, 0, 8] },
-            timelineIcon: { fontSize: 20, margin: [0, 0, 0, 5] },
-            timelineLabel: { fontSize: 9, bold: true, margin: [0, 0, 0, 3] },
-            timelineDuration: { fontSize: 12, bold: true, color: '#38AC4F' },
-            
-            // Trustpilot
-            trustRating: { fontSize: 32, bold: true, color: '#000' },
-            trustLabel: { fontSize: 11, color: '#333', margin: [0, 2, 0, 3] },
-            trustStars: { fontSize: 14, color: '#00b67a', margin: [0, 3, 0, 3] },
-            trustReviews: { fontSize: 9, color: '#666' },
-            trustBarLabel: { fontSize: 9, color: '#333' },
-            trustLink: { fontSize: 9, color: '#38AC4F' },
-            
-            // Footer
-            footerBrand: { fontSize: 11, bold: true, color: 'white', margin: [0, 0, 0, 2] },
-            footerWebsite: { fontSize: 10, color: 'white', margin: [0, 0, 0, 2] },
-            footerContacts: { fontSize: 8, color: 'white', margin: [0, 0, 0, 3] },
-            footerCompany: { fontSize: 7, color: 'white', lineHeight: 1.2 }
-          }
+
+          footer: (currentPage: number, pageCount: number) => ({
+            stack: [
+              {
+                stack: [
+                  { text: 'ZAPPER® - RENEWED AIR', bold: true, fontSize: 10, color: 'white', alignment: 'center', margin: [0, 10, 0, 2] },
+                  { text: 'WWW.ABBATTITORIZAPPER.IT', fontSize: 9, color: 'white', alignment: 'center', margin: [0, 0, 0, 2] },
+                  { text: '📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189', fontSize: 9, color: 'white', alignment: 'center', margin: [0, 0, 0, 5] },
+                  { text: 'CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris n° 24, 84018 SCAFATI (SA)\nC.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786', fontSize: 8, color: 'white', alignment: 'center', margin: [0, 0, 0, 10] }
+                ],
+                fillColor: '#38AC4F',
+                margin: [40, 0, 40, 0]
+              },
+              { text: `Pagina ${currentPage} di ${pageCount}`, fontSize: 8, alignment: 'center', margin: [0, 5, 0, 10] }
+            ]
+          })
         };
 
-        pdfMake.createPdf(docDefinition).getBlob((blob: Blob) => {
+        pdfMake.createPdf(documentDefinition).getBlob((blob: Blob) => {
           resolve(blob);
         });
       } catch (error) {
