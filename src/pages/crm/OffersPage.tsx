@@ -13,8 +13,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
-import { pdf } from '@react-pdf/renderer';
-import { OfferPDFDocument } from "@/components/crm/OfferPDFDocument";
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -241,74 +243,267 @@ export default function OffersPage() {
     }
   };
 
-  const generateOfferPDF = async (offer: Offer) => {
-    try {
-      // Fetch offer items with product names
-      const { data: offerItems } = await supabase
-        .from('offer_items')
-        .select(`
-          *,
-          products (name)
-        `)
-        .eq('offer_id', offer.id);
+  const generateOfferPDF = async (offer: Offer): Promise<Blob> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Fetch offer items with product names
+        const { data: offerItems } = await supabase
+          .from('offer_items')
+          .select(`
+            *,
+            products (name)
+          `)
+          .eq('offer_id', offer.id);
 
-      // Fetch customer details
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('id', offer.customer_id)
-        .maybeSingle();
+        // Fetch customer details
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('id', offer.customer_id)
+          .maybeSingle();
 
-      if (!customer) {
-        throw new Error('Cliente non trovato');
+        if (!customer) {
+          throw new Error('Cliente non trovato');
+        }
+
+        // Calculate totals
+        const totaleImponibile = offerItems?.reduce((sum: number, item: any) => {
+          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+          return sum + itemTotal;
+        }, 0) || offer.amount;
+
+        const totaleIva = totaleImponibile * 0.22;
+        const totaleLordo = totaleImponibile + totaleIva;
+
+        // Payment info
+        const paymentAgreementText = (offer as any).payment_agreement === 'altro' 
+          ? ((offer as any).metodi_pagamento || '30% acconto - 70% alla consegna')
+          : ((offer as any).payment_agreement || '50% acconto - 50% a consegna');
+
+        // Parse incluso items
+        const inclusoItems = (offer as any).incluso_fornitura 
+          ? (offer as any).incluso_fornitura.split('\n').filter(Boolean) 
+          : ['Fornitura e installazione completa'];
+
+        // Table rows
+        const tableBody: any[] = [
+          [
+            { text: 'Descrizione', style: 'tableHeader' },
+            { text: 'Q.tà', style: 'tableHeader', alignment: 'right' },
+            { text: 'Prezzo Unit.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Sconto', style: 'tableHeader', alignment: 'right' },
+            { text: 'Totale', style: 'tableHeader', alignment: 'right' }
+          ]
+        ];
+
+        if (offerItems && offerItems.length > 0) {
+          offerItems.forEach((item: any) => {
+            const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+            tableBody.push([
+              item.description || 'N/A',
+              { text: item.quantity.toString(), alignment: 'right' },
+              { text: `€ ${item.unit_price.toFixed(2)}`, alignment: 'right' },
+              { text: `${item.discount_percent || 0}%`, alignment: 'right' },
+              { text: `€ ${itemTotal.toFixed(2)}`, alignment: 'right' }
+            ]);
+          });
+        } else {
+          tableBody.push([
+            { text: offer.description || offer.title, colSpan: 5 },
+            {}, {}, {}, {}
+          ]);
+        }
+
+        // Define PDF document
+        const docDefinition: any = {
+          pageSize: 'A4',
+          pageMargins: [0, 0, 0, 0],
+          content: [
+            // Header verde
+            {
+              canvas: [
+                {
+                  type: 'rect',
+                  x: 0,
+                  y: 0,
+                  w: 595,
+                  h: 120,
+                  color: '#38AC4F'
+                }
+              ],
+              absolutePosition: { x: 0, y: 0 }
+            },
+            {
+              columns: [
+                {
+                  width: '60%',
+                  stack: [
+                    { text: 'WWW.ABBATTITORIZAPPER.IT', style: 'headerWebsite' },
+                    { text: '📧 info@abbattitorizapper.it\n📞 081 19968436 | 📱 +39 324 8996189', style: 'headerContacts' },
+                    { text: 'Marchio di proprietà della ditta CLIMATEL DI ELEFANTE Pasquale\nVia G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia\nC.F. LFNPQL67L02I483U | P.Iva 03895390650', style: 'headerTagline' }
+                  ]
+                },
+                {
+                  width: '40%',
+                  stack: [
+                    { text: `OFFERTA N. ${offer.number}`, style: 'headerDocNumber' },
+                    { text: `Data: ${new Date(offer.created_at).toLocaleDateString('it-IT')}`, style: 'headerDocDate' },
+                    { text: `Creata da: ${user?.user_metadata?.full_name || user?.email || 'N/A'}`, style: 'headerDocUser' },
+                    {
+                      stack: [
+                        { text: 'Spett.le Cliente:', style: 'headerClientLabel' },
+                        { text: customer.name, style: 'headerClientName' },
+                        { text: customer.address || '', style: 'headerClientAddress' }
+                      ],
+                      margin: [0, 10, 0, 0]
+                    }
+                  ],
+                  alignment: 'right'
+                }
+              ],
+              margin: [30, 20, 30, 20]
+            },
+            
+            // Content
+            {
+              stack: [
+                // Oggetto
+                { text: 'OGGETTO', style: 'sectionTitle', margin: [0, 20, 0, 10] },
+                { text: offer.title, style: 'oggetto' },
+
+                // Dettaglio Prodotti
+                { text: 'DETTAGLIO PRODOTTI/SERVIZI', style: 'sectionTitle', margin: [0, 20, 0, 10] },
+                {
+                  table: {
+                    headerRows: 1,
+                    widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                    body: tableBody
+                  },
+                  layout: {
+                    fillColor: (rowIndex: number) => rowIndex === 0 ? '#38AC4F' : (rowIndex % 2 === 0 ? '#f9f9f9' : null)
+                  }
+                },
+
+                // Cosa Include
+                { text: 'COSA INCLUDE LA FORNITURA', style: 'includesTitle', margin: [0, 20, 0, 10] },
+                {
+                  ul: inclusoItems.map((item: string) => ({ text: item, style: 'includesItem' })),
+                  margin: [0, 0, 0, 10]
+                },
+
+                // Cosa Esclude
+                ...((offer as any).escluso_fornitura ? [
+                  { text: 'COSA ESCLUDE LA FORNITURA', style: 'excludesTitle', margin: [0, 20, 0, 10] },
+                  { text: (offer as any).escluso_fornitura, style: 'excludesContent' }
+                ] : []),
+
+                // Totali
+                {
+                  columns: [
+                    { width: '*', text: '' },
+                    {
+                      width: 250,
+                      stack: [
+                        {
+                          columns: [
+                            { width: 150, text: 'Totale Imponibile:', alignment: 'right', bold: true },
+                            { width: 100, text: `€ ${totaleImponibile.toFixed(2)}`, alignment: 'right' }
+                          ]
+                        },
+                        {
+                          columns: [
+                            { width: 150, text: 'IVA:', alignment: 'right', bold: true },
+                            { width: 100, text: `€ ${totaleIva.toFixed(2)}`, alignment: 'right' }
+                          ]
+                        },
+                        {
+                          columns: [
+                            { width: 150, text: 'Totale Offerta:', alignment: 'right', bold: true, fontSize: 14, color: '#38AC4F' },
+                            { width: 100, text: `€ ${totaleLordo.toFixed(2)}`, alignment: 'right', fontSize: 14, bold: true, color: '#38AC4F' }
+                          ],
+                          margin: [0, 5, 0, 0]
+                        }
+                      ]
+                    }
+                  ],
+                  margin: [0, 20, 0, 0]
+                },
+
+                // Metodi di Pagamento
+                { text: 'METODI DI PAGAMENTO', style: 'sectionTitle', margin: [0, 20, 0, 10] },
+                { text: paymentAgreementText, margin: [0, 0, 0, 10] },
+                {
+                  stack: [
+                    { text: 'Coordinate Bancarie:', bold: true },
+                    { text: 'CLIMATEL DI ELEFANTE PASQUALE', bold: true, fontSize: 12 },
+                    { text: 'Banca: INTESA SANPAOLO' },
+                    { text: 'IBAN: IT82 S030 6976 4511 0000 0003 441', bold: true }
+                  ],
+                  background: '#f9f9f9',
+                  margin: [0, 5, 0, 10],
+                  padding: 10
+                },
+
+                // Riepilogo
+                {
+                  columns: [
+                    {
+                      width: '*',
+                      stack: [
+                        { text: `Offerta n. ${offer.number}` },
+                        { text: `Cliente: ${customer.name}` },
+                        { text: `Oggetto: ${offer.title}` }
+                      ]
+                    },
+                    {
+                      width: 150,
+                      stack: [
+                        { text: 'TOTALE OFFERTA', style: 'summaryLabel' },
+                        { text: `€ ${totaleLordo.toFixed(2)}`, style: 'summaryAmount' },
+                        { text: 'IVA inclusa', style: 'summaryLabel' }
+                      ],
+                      background: '#38AC4F',
+                      color: 'white',
+                      alignment: 'center',
+                      margin: [10, 0, 0, 0]
+                    }
+                  ],
+                  margin: [0, 20, 0, 0]
+                }
+              ],
+              margin: [30, 0, 30, 30]
+            }
+          ],
+          styles: {
+            headerWebsite: { fontSize: 12, color: 'white', bold: true, margin: [0, 0, 0, 5] },
+            headerContacts: { fontSize: 9, color: 'white', margin: [0, 5, 0, 0] },
+            headerTagline: { fontSize: 7, color: 'white', margin: [0, 8, 0, 0] },
+            headerDocNumber: { fontSize: 18, color: 'white', bold: true },
+            headerDocDate: { fontSize: 10, color: 'white', margin: [0, 5, 0, 0] },
+            headerDocUser: { fontSize: 9, color: 'white', margin: [0, 5, 0, 0] },
+            headerClientLabel: { fontSize: 8, color: 'white', margin: [0, 0, 0, 3] },
+            headerClientName: { fontSize: 11, color: 'white', bold: true },
+            headerClientAddress: { fontSize: 9, color: 'white', margin: [0, 2, 0, 0] },
+            sectionTitle: { fontSize: 11, bold: true, color: '#38AC4F' },
+            oggetto: { fontSize: 12, background: '#f9f9f9', margin: [0, 5, 0, 0] },
+            tableHeader: { fontSize: 9, bold: true, color: 'white', fillColor: '#38AC4F' },
+            includesTitle: { fontSize: 12, bold: true, color: '#38AC4F', alignment: 'center' },
+            includesItem: { fontSize: 9 },
+            excludesTitle: { fontSize: 10, bold: true, color: '#666' },
+            excludesContent: { fontSize: 9, color: '#555' },
+            summaryLabel: { fontSize: 8, alignment: 'center' },
+            summaryAmount: { fontSize: 22, bold: true, alignment: 'center', margin: [0, 5, 0, 5] }
+          }
+        };
+
+        pdfMake.createPdf(docDefinition).getBlob((blob: Blob) => {
+          resolve(blob);
+        });
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        reject(error);
       }
-
-      // Generate PDF using @react-pdf/renderer
-      const pdfDoc = (
-        <OfferPDFDocument
-          offer={{
-            number: offer.number,
-            created_at: offer.created_at,
-            title: offer.title,
-            description: offer.description,
-            valid_until: offer.valid_until,
-            amount: offer.amount,
-            template: (offer as any).template,
-            timeline_produzione: (offer as any).timeline_produzione,
-            timeline_consegna: (offer as any).timeline_consegna,
-            timeline_installazione: (offer as any).timeline_installazione,
-            incluso_fornitura: (offer as any).incluso_fornitura,
-            escluso_fornitura: (offer as any).escluso_fornitura,
-            payment_method: (offer as any).payment_method,
-            payment_agreement: (offer as any).payment_agreement,
-            metodi_pagamento: (offer as any).metodi_pagamento,
-          }}
-          customer={{
-            name: customer.name,
-            address: customer.address,
-            email: customer.email,
-            tax_id: customer.tax_id,
-          }}
-          items={(offerItems || []).map((item: any) => ({
-            product_name: item.products?.name || 'N/A',
-            description: item.description,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            discount_percent: item.discount_percent,
-          }))}
-          user={{
-            full_name: user?.user_metadata?.full_name,
-            email: user?.email,
-          }}
-        />
-      );
-
-      const blob = await pdf(pdfDoc).toBlob();
-      return blob;
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      throw error;
-    }
+    });
   };
 
   const handleDownloadPDF = async (offer: Offer) => {
