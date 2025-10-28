@@ -31,7 +31,8 @@ serve(async (req: Request): Promise<Response> => {
     const htmlBlob = new Blob([html], { type: 'text/html' });
     const formData = new FormData();
     formData.append('file', htmlBlob, filename);
-    formData.append('language', 'italian');
+    formData.append('language', '1'); // 1 = English, 2 = Chinese
+    formData.append('password', ''); // Required even if empty
     
     // Single API call to convert HTML to PDF (v2 API)
     console.log('Converting HTML to PDF...');
