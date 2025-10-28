@@ -13,10 +13,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
-import pdfMake from 'pdfmake/build/pdfmake';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
-
-pdfMake.vfs = pdfFonts.vfs;
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -243,456 +241,191 @@ export default function OffersPage() {
     }
   };
 
-  const generateOfferPDF = async (offer: Offer): Promise<Blob> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Fetch offer items with product names
-        const { data: offerItems } = await supabase
-          .from('offer_items')
-          .select(`
-            *,
-            products (name)
-          `)
-          .eq('offer_id', offer.id);
+  const generateOfferPDF = async (offer: Offer) => {
+    try {
+      // Fetch offer items
+      const { data: offerItems } = await supabase
+        .from('offer_items')
+        .select('*')
+        .eq('offer_id', offer.id);
 
-        // Fetch customer details
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', offer.customer_id)
-          .maybeSingle();
+      // Fetch customer details
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', offer.customer_id)
+        .maybeSingle();
 
-        if (!customer) {
-          throw new Error('Cliente non trovato');
-        }
+      // Determine template based on offer.template field or default to zapper
+      const templateName = (offer as any).template || 'zapper';
+      const templateMap = {
+        zapper: '/templates/offer-template-zapper-v2.html',
+        vesuviano: '/templates/offer-template-vesuviano.html',
+        zapperpro: '/templates/offer-template-zapperpro.html'
+      };
+      
+      const templateBrandMap = {
+        zapper: 'ZAPPER S.r.l.',
+        vesuviano: 'VESUVIANO S.r.l.',
+        zapperpro: 'ZAPPER PRO S.r.l.'
+      };
 
-        // Prepare data for template
-        const data = {
-          logo: '', // Base64 del logo se disponibile
-          numero_offerta: offer.number || 'N/A',
-          data_offerta: new Date(offer.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
-          utente: user?.user_metadata?.full_name || user?.email || 'N/A',
-          cliente: {
-            nome: customer.name || 'Cliente',
-            indirizzo: customer.address || ''
-          },
-          oggetto_offerta: offer.title || '',
-          prodotti: (offerItems || []).map((item: any) => {
-            const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-            return {
-              descrizione: item.description || 'N/A',
-              qta: item.quantity,
-              prezzo: item.unit_price,
-              totale: itemTotal
-            };
-          }),
-          incluso_fornitura: (offer as any).incluso_fornitura 
-            ? (offer as any).incluso_fornitura.split('\n').filter(Boolean)
-            : ['Struttura in acciaio inox 304', 'Quadro elettrico con inverter integrato', 'Manuale d\'uso e manutenzione', 'Assistenza post-vendita 12 mesi', 'Certificazioni CE e sicurezza', 'Formazione operatori inclusa'],
-          escluso_fornitura: (offer as any).escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.',
-          totale_imponibile: '',
-          totale_iva: '',
-          totale_lordo: '',
-          validita_offerta: offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni dalla data di emissione',
-          tempi_consegna: (offer as any).timeline_consegna || '15 giorni lavorativi',
-          metodi_pagamento: (offer as any).payment_agreement === 'altro' 
-            ? ((offer as any).metodi_pagamento || '30% acconto - 70% alla consegna')
-            : ((offer as any).payment_agreement || '50% acconto - 50% a consegna'),
-          timeline_produzione: (offer as any).timeline_produzione || '10 gg',
-          timeline_consegna: (offer as any).timeline_consegna || '3 gg',
-          timeline_installazione: (offer as any).timeline_installazione || '1 gg'
-        };
+      // Fetch template
+      const templateResponse = await fetch(templateMap[templateName as keyof typeof templateMap] || templateMap.zapper);
+      let templateHtml = await templateResponse.text();
 
-        // Calculate totals
-        const totaleImponibile = data.prodotti.reduce((sum: number, item: any) => sum + item.totale, 0);
-        const totaleIva = totaleImponibile * 0.22;
-        const totaleLordo = totaleImponibile + totaleIva;
+      // Calculate totals
+      const totaleImponibile = offerItems?.reduce((sum, item) => {
+        const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+        return sum + itemTotal;
+      }, 0) || offer.amount;
 
-        data.totale_imponibile = totaleImponibile.toFixed(2);
-        data.totale_iva = totaleIva.toFixed(2);
-        data.totale_lordo = totaleLordo.toFixed(2);
+      const totaleIva = totaleImponibile * 0.22;
+      const totaleLordo = totaleImponibile + totaleIva;
 
-        // Define PDF document using optimized template
-        const documentDefinition: any = {
-          pageSize: 'A4',
-          pageMargins: [40, 40, 40, 40],
-          
-          styles: {
-            header: {
-              fontSize: 18,
-              bold: true,
-              color: '#38AC4F',
-              margin: [0, 0, 0, 10]
-            },
-            subheader: {
-              fontSize: 14,
-              bold: true,
-              color: '#38AC4F',
-              margin: [0, 10, 0, 5]
-            },
-            sectionTitle: {
-              fontSize: 12,
-              bold: true,
-              color: '#38AC4F',
-              margin: [0, 15, 0, 5],
-              decoration: 'underline',
-              decorationColor: '#38AC4F'
-            },
-            tableHeader: {
-              bold: true,
-              fontSize: 11,
-              color: 'white',
-              fillColor: '#38AC4F',
-              alignment: 'left'
-            },
-            tableCell: {
-              fontSize: 10,
-              margin: [0, 5, 0, 5]
-            },
-            infoBox: {
-              fontSize: 10,
-              fillColor: '#f9f9f9',
-              margin: [0, 5, 0, 5]
-            },
-            total: {
-              fontSize: 16,
-              bold: true,
-              color: '#38AC4F'
-            },
-            small: {
-              fontSize: 9,
-              color: '#666'
-            },
-            footer: {
-              fontSize: 9,
-              color: 'white',
-              alignment: 'center'
-            }
-          },
-
-          content: [
-            // ========== HEADER VERDE ==========
-            {
-              table: {
-                widths: ['*', '*'],
-                body: [
-                  [
-                    {
-                      stack: [
-                        { text: 'ZAPPER®', fontSize: 24, bold: true, color: 'white' },
-                        { text: 'WWW.ABBATTITORIZAPPER.IT', fontSize: 11, color: 'white', bold: true },
-                        { 
-                          text: [
-                            '📧 info@abbattitorizapper.it\n',
-                            '📞 081 19968436 | 📱 +39 324 8996189'
-                          ], 
-                          fontSize: 9, 
-                          color: 'white',
-                          margin: [0, 5, 0, 5]
-                        },
-                        {
-                          text: [
-                            'Marchio di proprietà della ditta ',
-                            { text: 'CLIMATEL DI ELEFANTE Pasquale', bold: true },
-                            '\nVia G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia\n',
-                            'C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786'
-                          ],
-                          fontSize: 8,
-                          color: 'white',
-                          margin: [0, 5, 0, 0]
-                        }
-                      ],
-                      border: [false, false, false, false]
-                    },
-                    {
-                      stack: [
-                        { text: `OFFERTA N. ${data.numero_offerta}`, fontSize: 16, bold: true, color: 'white' },
-                        { text: `Data: ${data.data_offerta}`, fontSize: 11, color: 'white', margin: [0, 3, 0, 0] },
-                        { text: `Creata da: ${data.utente}`, fontSize: 11, color: 'white', margin: [0, 3, 0, 0] },
-                        { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 150, y2: 5, lineWidth: 0.5, lineColor: 'white', opacity: 0.5 }] },
-                        { text: 'Spett.le Cliente:', fontSize: 9, color: 'white', margin: [0, 5, 0, 2], opacity: 0.9 },
-                        { text: data.cliente.nome, fontSize: 12, bold: true, color: 'white', margin: [0, 0, 0, 2] },
-                        { text: data.cliente.indirizzo, fontSize: 9, color: 'white' }
-                      ],
-                      alignment: 'right',
-                      border: [false, false, false, false]
-                    }
-                  ]
-                ]
-              },
-              layout: {
-                fillColor: '#38AC4F',
-                paddingLeft: () => 15,
-                paddingRight: () => 15,
-                paddingTop: () => 15,
-                paddingBottom: () => 15
-              },
-              margin: [0, 0, 0, 20]
-            },
-
-            // ========== OGGETTO ==========
-            { text: 'OGGETTO', style: 'sectionTitle' },
-            {
-              text: data.oggetto_offerta,
-              style: 'infoBox',
-              margin: [0, 0, 0, 15]
-            },
-
-            // ========== DETTAGLIO PRODOTTI ==========
-            { text: 'DETTAGLIO PRODOTTI/SERVIZI', style: 'sectionTitle' },
-            {
-              table: {
-                headerRows: 1,
-                widths: ['*', 50, 80, 80],
-                body: [
-                  [
-                    { text: 'Descrizione', style: 'tableHeader' },
-                    { text: 'Q.tà', style: 'tableHeader', alignment: 'center' },
-                    { text: 'Prezzo Unit.', style: 'tableHeader', alignment: 'right' },
-                    { text: 'Totale', style: 'tableHeader', alignment: 'right' }
-                  ],
-                  ...data.prodotti.map((p: any) => [
-                    { text: p.descrizione, style: 'tableCell' },
-                    { text: p.qta.toString(), style: 'tableCell', alignment: 'center' },
-                    { text: `€ ${p.prezzo.toFixed(2)}`, style: 'tableCell', alignment: 'right' },
-                    { text: `€ ${p.totale.toFixed(2)}`, style: 'tableCell', alignment: 'right' }
-                  ])
-                ]
-              },
-              layout: {
-                hLineWidth: () => 0.5,
-                vLineWidth: () => 0.5,
-                hLineColor: () => '#ddd',
-                vLineColor: () => '#ddd'
-              },
-              margin: [0, 0, 0, 15]
-            },
-
-            // ========== COSA INCLUDE ==========
-            { text: 'Cosa Include la Fornitura', style: 'sectionTitle' },
-            {
-              columns: [
-                {
-                  width: '50%',
-                  stack: data.incluso_fornitura.slice(0, Math.ceil(data.incluso_fornitura.length / 2)).map((item: string) => ({
-                    text: [
-                      { text: '✅ ', color: '#38AC4F', fontSize: 12 },
-                      { text: item, fontSize: 10 }
-                    ],
-                    margin: [0, 3, 0, 3]
-                  }))
-                },
-                {
-                  width: '50%',
-                  stack: data.incluso_fornitura.slice(Math.ceil(data.incluso_fornitura.length / 2)).map((item: string) => ({
-                    text: [
-                      { text: '✅ ', color: '#38AC4F', fontSize: 12 },
-                      { text: item, fontSize: 10 }
-                    ],
-                    margin: [0, 3, 0, 3]
-                  }))
-                }
-              ],
-              margin: [0, 0, 0, 15]
-            },
-
-            // ========== COSA ESCLUDE ==========
-            { text: 'Cosa Esclude la Fornitura', style: 'subheader', fontSize: 11, color: '#666' },
-            {
-              text: data.escluso_fornitura,
-              fontSize: 10,
-              color: '#555',
-              fillColor: '#fffdf0',
-              margin: [10, 5, 10, 5]
-            },
-
-            // ========== TOTALI ==========
-            {
-              columns: [
-                { width: '*', text: '' },
-                {
-                  width: 200,
-                  stack: [
-                    {
-                      columns: [
-                        { text: 'Totale Imponibile:', bold: true, fontSize: 11 },
-                        { text: `€ ${data.totale_imponibile}`, alignment: 'right', fontSize: 11 }
-                      ],
-                      margin: [0, 5, 0, 5]
-                    },
-                    {
-                      columns: [
-                        { text: 'IVA:', bold: true, fontSize: 11 },
-                        { text: `€ ${data.totale_iva}`, alignment: 'right', fontSize: 11 }
-                      ],
-                      margin: [0, 0, 0, 5]
-                    },
-                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 2, lineColor: '#38AC4F' }] },
-                    {
-                      columns: [
-                        { text: 'Totale Offerta:', bold: true, fontSize: 14, color: '#38AC4F' },
-                        { text: `€ ${data.totale_lordo}`, alignment: 'right', fontSize: 14, bold: true, color: '#38AC4F' }
-                      ],
-                      margin: [0, 8, 0, 0]
-                    }
-                  ]
-                }
-              ],
-              margin: [0, 10, 0, 15]
-            },
-
-            // ========== VALIDITÀ E TEMPI ==========
-            {
-              columns: [
-                {
-                  width: '50%',
-                  stack: [
-                    { text: 'VALIDITÀ OFFERTA', fontSize: 10, bold: true, color: '#38AC4F', margin: [0, 5, 0, 3] },
-                    { text: data.validita_offerta, fontSize: 10, margin: [0, 0, 0, 5] }
-                  ],
-                  fillColor: '#f9f9f9',
-                  margin: [0, 0, 5, 0]
-                },
-                {
-                  width: '50%',
-                  stack: [
-                    { text: 'TEMPI DI CONSEGNA', fontSize: 10, bold: true, color: '#38AC4F', margin: [0, 5, 0, 3] },
-                    { text: data.tempi_consegna, fontSize: 10, margin: [0, 0, 0, 5] }
-                  ],
-                  fillColor: '#f9f9f9',
-                  margin: [5, 0, 0, 0]
-                }
-              ],
-              margin: [0, 0, 0, 15]
-            },
-
-            // ========== METODI DI PAGAMENTO ==========
-            { text: 'METODI DI PAGAMENTO', style: 'sectionTitle' },
-            { text: data.metodi_pagamento, fontSize: 10, margin: [0, 0, 0, 10] },
-            {
-              stack: [
-                { text: 'Coordinate Bancarie:', bold: true, fontSize: 10, margin: [0, 5, 0, 3] },
-                { text: 'CLIMATEL DI ELEFANTE PASQUALE', bold: true, fontSize: 12, margin: [0, 0, 0, 3] },
-                { text: 'Banca: INTESA SANPAOLO', fontSize: 10, margin: [0, 0, 0, 3] },
-                { text: 'IBAN: IT82 S030 6976 4511 0000 0003 441', bold: true, fontSize: 10 }
-              ],
-              fillColor: '#f9f9f9',
-              margin: [10, 0, 10, 10]
-            },
-
-            // ========== DIVIDER ==========
-            { canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 2, lineColor: '#38AC4F', opacity: 0.3 }] },
-
-            // ========== RIEPILOGO OFFERTA ==========
-            { text: '📋 RIEPILOGO OFFERTA', style: 'header', margin: [0, 20, 0, 10] },
-            {
-              columns: [
-                {
-                  width: '*',
-                  stack: [
-                    { text: [{ text: 'Offerta n. ', bold: true }, data.numero_offerta], fontSize: 11, margin: [0, 5, 0, 5] },
-                    { text: [{ text: 'Cliente: ', bold: true }, data.cliente.nome], fontSize: 11, margin: [0, 0, 0, 5] },
-                    { text: [{ text: 'Oggetto: ', bold: true }, data.oggetto_offerta], fontSize: 11, margin: [0, 0, 0, 5] }
-                  ]
-                },
-                {
-                  width: 150,
-                  stack: [
-                    { text: 'TOTALE OFFERTA', fontSize: 10, color: 'white', alignment: 'center', margin: [5, 10, 5, 5] },
-                    { text: `€ ${data.totale_lordo}`, fontSize: 24, bold: true, color: 'white', alignment: 'center', margin: [5, 5, 5, 5] },
-                    { text: 'IVA inclusa', fontSize: 9, color: 'white', alignment: 'center', margin: [5, 0, 5, 10] }
-                  ],
-                  fillColor: '#38AC4F',
-                  margin: [10, 0, 0, 0]
-                }
-              ],
-              fillColor: '#f8fff9',
-              margin: [0, 0, 0, 15]
-            },
-
-            // ========== TIMELINE ==========
-            { text: '⏱️ Timeline Operativa', style: 'subheader' },
-            {
-              columns: [
-                {
-                  width: '33%',
-                  stack: [
-                    { text: '🏭', fontSize: 20, alignment: 'center', margin: [0, 5, 0, 5] },
-                    { text: 'Produzione', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 3] },
-                    { text: data.timeline_produzione, fontSize: 12, color: '#38AC4F', bold: true, alignment: 'center', margin: [0, 0, 0, 5] }
-                  ],
-                  fillColor: '#f9f9f9',
-                  margin: [0, 0, 3, 0]
-                },
-                {
-                  width: '33%',
-                  stack: [
-                    { text: '🚚', fontSize: 20, alignment: 'center', margin: [0, 5, 0, 5] },
-                    { text: 'Consegna', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 3] },
-                    { text: data.timeline_consegna, fontSize: 12, color: '#38AC4F', bold: true, alignment: 'center', margin: [0, 0, 0, 5] }
-                  ],
-                  fillColor: '#f9f9f9',
-                  margin: [3, 0, 3, 0]
-                },
-                {
-                  width: '33%',
-                  stack: [
-                    { text: '🔧', fontSize: 20, alignment: 'center', margin: [0, 5, 0, 5] },
-                    { text: 'Installazione', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 3] },
-                    { text: data.timeline_installazione, fontSize: 12, color: '#38AC4F', bold: true, alignment: 'center', margin: [0, 0, 0, 5] }
-                  ],
-                  fillColor: '#f9f9f9',
-                  margin: [3, 0, 0, 0]
-                }
-              ],
-              margin: [0, 0, 0, 15]
-            },
-
-            // ========== TRUSTPILOT ==========
-            { text: '⭐ Trustpilot: 4,8 / 5 - Eccellente', style: 'subheader', alignment: 'center' },
-            { text: 'Basato su oltre 430 recensioni verificate', fontSize: 10, alignment: 'center', color: '#666', margin: [0, 5, 0, 10] }
-          ],
-
-          footer: (currentPage: number, pageCount: number) => ({
-            stack: [
-              {
-                stack: [
-                  { text: 'ZAPPER® - RENEWED AIR', bold: true, fontSize: 10, color: 'white', alignment: 'center', margin: [0, 10, 0, 2] },
-                  { text: 'WWW.ABBATTITORIZAPPER.IT', fontSize: 9, color: 'white', alignment: 'center', margin: [0, 0, 0, 2] },
-                  { text: '📧 info@abbattitorizapper.it | 📞 081 19968436 | 📱 +39 324 8996189', fontSize: 9, color: 'white', alignment: 'center', margin: [0, 0, 0, 5] },
-                  { text: 'CLIMATEL DI ELEFANTE Pasquale - Via G. Ferraris n° 24, 84018 SCAFATI (SA)\nC.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786', fontSize: 8, color: 'white', alignment: 'center', margin: [0, 0, 0, 10] }
-                ],
-                fillColor: '#38AC4F',
-                margin: [40, 0, 40, 0]
-              },
-              { text: `Pagina ${currentPage} di ${pageCount}`, fontSize: 8, alignment: 'center', margin: [0, 5, 0, 10] }
-            ]
-          })
-        };
-
-        pdfMake.createPdf(documentDefinition).getBlob((blob: Blob) => {
-          resolve(blob);
+      // Generate products table
+      let tabellaHtml = '<table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Prezzo Unit.</th><th>Sconto</th><th>Totale</th></tr></thead><tbody>';
+      
+      if (offerItems && offerItems.length > 0) {
+        offerItems.forEach(item => {
+          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
+          tabellaHtml += `
+            <tr>
+              <td>${item.description || 'N/A'}</td>
+              <td>${item.quantity}</td>
+              <td>€ ${item.unit_price.toFixed(2)}</td>
+              <td>${item.discount_percent || 0}%</td>
+              <td>€ ${itemTotal.toFixed(2)}</td>
+            </tr>
+          `;
         });
-      } catch (error) {
-        console.error('Error generating PDF:', error);
-        reject(error);
+      } else {
+        tabellaHtml += `
+          <tr>
+            <td colspan="5">${offer.description || offer.title}</td>
+          </tr>
+        `;
       }
-    });
+      tabellaHtml += '</tbody></table>';
+
+      // Replace placeholders
+      templateHtml = templateHtml
+        .replace(/{{numero_offerta}}/g, offer.number)
+        .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
+        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
+        .replace(/{{cliente_indirizzo}}/g, customer?.address || 'N/A')
+        .replace(/{{oggetto_offerta}}/g, offer.title)
+        .replace(/{{tabella_prodotti}}/g, tabellaHtml)
+        .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
+        .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
+        .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
+        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
+        .replace(/{{tempi_consegna}}/g, 'Da concordare')
+        .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
+        .replace(/{{logo}}/g, '/images/logo-zapper.png')
+        .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
+        
+      // Gestisci payment_method e payment_agreement
+      const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
+      const paymentAgreementText = offer.payment_agreement === 'altro' 
+        ? (offer.metodi_pagamento || '30% acconto - 70% alla consegna')
+        : offer.payment_agreement || '50% acconto - 50% a consegna';
+      
+      templateHtml = templateHtml
+        .replace(/{{payment_method}}/g, paymentMethodText)
+        .replace(/{{payment_agreement}}/g, paymentAgreementText)
+        .replace(/{{metodi_pagamento}}/g, paymentAgreementText);
+        
+      // Gestisci incluso_fornitura
+      const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
+      const inclusoHtml = inclusoItems.length > 0 
+        ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
+        : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
+      templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
+      
+      // Gestisci escluso_fornitura - converte i newline in <br> per l'HTML
+      const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
+      const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
+      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
+
+      // Gestisci timeline fields - sostituisci i singoli placeholder
+      templateHtml = templateHtml
+        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || 'Da definire')
+        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
+        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
+
+      // PDF Generation Options
+      const pdfOptions = {
+        format: 'A4',
+        margin: {
+          top: 15,    // 15mm
+          right: 15,  // 15mm
+          bottom: 15, // 15mm
+          left: 15    // 15mm
+        },
+        printBackground: true,
+        preferCSSPageSize: true
+      };
+
+      // Create temporary container
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = templateHtml;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      document.body.appendChild(tempDiv);
+
+      // Generate PDF from HTML
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: pdfOptions.printBackground ? '#ffffff' : null
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', pdfOptions.format.toLowerCase());
+      
+      // Apply margins
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const marginLeft = pdfOptions.margin.left;
+      const marginTop = pdfOptions.margin.top;
+      const marginRight = pdfOptions.margin.right;
+      const marginBottom = pdfOptions.margin.bottom;
+      
+      const contentWidth = pageWidth - marginLeft - marginRight;
+      const contentHeight = pageHeight - marginTop - marginBottom;
+      
+      const pdfWidth = contentWidth;
+      const pdfHeight = (canvas.height * contentWidth) / canvas.width;
+      
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
+      heightLeft -= contentHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', marginLeft, marginTop + position, pdfWidth, pdfHeight);
+        heightLeft -= contentHeight;
+      }
+
+      return pdf;
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      throw error;
+    }
   };
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      const blob = await generateOfferPDF(offer);
-      
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Offerta_${offer.number}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const pdf = await generateOfferPDF(offer);
+      pdf.save(`Offerta_${offer.number}.pdf`);
       
       toast({
         title: "PDF Generato",
@@ -721,7 +454,8 @@ export default function OffersPage() {
       }
 
       // Generate PDF
-      const pdfBlob = await generateOfferPDF(offer);
+      const pdf = await generateOfferPDF(offer);
+      const pdfBlob = pdf.output('blob');
       
       // Convert to base64
       const reader = new FileReader();
