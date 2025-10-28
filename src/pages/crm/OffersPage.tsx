@@ -14,9 +14,9 @@ import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, Fil
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+pdfMake.vfs = pdfFonts.vfs;
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
