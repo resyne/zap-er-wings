@@ -395,7 +395,12 @@ export default function OffersPage() {
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      const htmlContent = await generateOfferHTML(offer);
+      let htmlContent = await generateOfferHTML(offer);
+      
+      // Convert relative image paths to absolute URLs
+      const baseUrl = window.location.origin;
+      htmlContent = htmlContent.replace(/src="\/images\//g, `src="${baseUrl}/images/`);
+      htmlContent = htmlContent.replace(/src='\/images\//g, `src='${baseUrl}/images/`);
       
       // Open in new window and trigger print
       const printWindow = window.open('', '_blank');
@@ -403,10 +408,13 @@ export default function OffersPage() {
         printWindow.document.write(htmlContent);
         printWindow.document.close();
         
-        // Wait for content to load then trigger print dialog
+        // Wait for images and content to load then trigger print dialog
         printWindow.onload = () => {
-          printWindow.focus();
-          printWindow.print();
+          // Wait a bit more for images
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+          }, 500);
         };
       }
       
