@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapporto di Intervento {{intervention_date}}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      font-size: 11pt;
+      line-height: 1.4;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header {
+      background: #38AC4F;
+      color: white;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      max-height: 50px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      flex: 1;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #38AC4F;
+      border-bottom: 2px solid #38AC4F;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 8px 15px;
+      margin-bottom: 10px;
+    }
+
+    .info-label {
+      font-weight: bold;
+      color: #555;
+    }
+
+    .info-value {
+      color: #333;
+    }
+
+    .content-box {
+      background: #f9f9f9;
+      padding: 12px;
+      border-left: 3px solid #38AC4F;
+      margin: 10px 0;
+    }
+
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 30px;
+      page-break-inside: avoid;
+    }
+
+    .signature-box {
+      text-align: center;
+    }
+
+    .signature-label {
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    .signature-image {
+      max-width: 200px;
+      max-height: 100px;
+      border: 1px solid #ddd;
+      padding: 5px;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #38AC4F;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      font-size: 9pt;
+    }
+
+    .economic-details {
+      background: #f0f9f2;
+      border: 1px solid #38AC4F;
+      padding: 15px;
+      margin: 15px 0;
+    }
+
+    .total-amount {
+      font-size: 16px;
+      font-weight: bold;
+      color: #38AC4F;
+      text-align: right;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="{{logo}}" alt="Logo" class="logo">
+    <div class="title">RAPPORTO DI INTERVENTO</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Cliente</div>
+    <div class="info-grid">
+      <div class="info-label">Nome:</div>
+      <div class="info-value">{{customer_name}}</div>
+      {{#if company_name}}
+      <div class="info-label">Azienda:</div>
+      <div class="info-value">{{company_name}}</div>
+      {{/if}}
+      {{#if customer_email}}
+      <div class="info-label">Email:</div>
+      <div class="info-value">{{customer_email}}</div>
+      {{/if}}
+      {{#if customer_phone}}
+      <div class="info-label">Tel:</div>
+      <div class="info-value">{{customer_phone}}</div>
+      {{/if}}
+      {{#if customer_address}}
+      <div class="info-label">Indirizzo:</div>
+      <div class="info-value">{{customer_address}}</div>
+      {{/if}}
+    </div>
+  </div>
+
+  {{#if work_order}}
+  <div class="section">
+    <div class="section-title">Commessa di Lavoro</div>
+    <div class="content-box">{{work_order}}</div>
+  </div>
+  {{/if}}
+
+  <div class="section">
+    <div class="section-title">Dettagli Intervento</div>
+    <div class="info-grid">
+      <div class="info-label">Data:</div>
+      <div class="info-value">{{intervention_date}}</div>
+      {{#if time_range}}
+      <div class="info-label">Orario:</div>
+      <div class="info-value">{{time_range}}</div>
+      {{/if}}
+      <div class="info-label">Tipo:</div>
+      <div class="info-value">{{intervention_type}}</div>
+      <div class="info-label">Tecnico:</div>
+      <div class="info-value">{{technician_name}}</div>
+    </div>
+  </div>
+
+  {{#if description}}
+  <div class="section">
+    <div class="section-title">Descrizione Problema</div>
+    <div class="content-box">{{description}}</div>
+  </div>
+  {{/if}}
+
+  <div class="section">
+    <div class="section-title">Lavori Eseguiti</div>
+    <div class="content-box">{{work_performed}}</div>
+  </div>
+
+  {{#if materials_used}}
+  <div class="section">
+    <div class="section-title">Materiali Utilizzati</div>
+    <div class="content-box">{{materials_used}}</div>
+  </div>
+  {{/if}}
+
+  {{#if notes}}
+  <div class="section">
+    <div class="section-title">Note</div>
+    <div class="content-box">{{notes}}</div>
+  </div>
+  {{/if}}
+
+  {{#if amount}}
+  <div class="economic-details">
+    <div class="section-title">Dettagli Economici</div>
+    <div class="info-grid">
+      <div class="info-label">Importo:</div>
+      <div class="info-value">€ {{amount}}</div>
+      <div class="info-label">IVA:</div>
+      <div class="info-value">{{vat_rate}}%</div>
+    </div>
+    <div class="total-amount">Totale: € {{total_amount}}</div>
+  </div>
+  {{/if}}
+
+  <div class="signatures">
+    <div class="signature-box">
+      <div class="signature-label">Firma Cliente</div>
+      <img src="{{customer_signature}}" alt="Firma Cliente" class="signature-image">
+    </div>
+    <div class="signature-box">
+      <div class="signature-label">Firma Tecnico</div>
+      <img src="{{technician_signature}}" alt="Firma Tecnico" class="signature-image">
+    </div>
+  </div>
+
+  <div class="footer">
+    <strong>CLIMATEL DI ELEFANTE Pasquale</strong><br>
+    Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia<br>
+    C.F. LFNPQL67L02I483U | P.Iva 03895390650<br>
+    www.abbattitorizapper.it | 📞 081 19968436
+  </div>
+</body>
+</html>

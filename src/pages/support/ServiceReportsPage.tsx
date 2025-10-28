@@ -12,7 +12,6 @@ import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail } from "luc
 import { CreateContactDialog } from "@/components/support/CreateContactDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
-import jsPDF from "jspdf";
 
 interface Contact {
   id: string;
@@ -323,171 +322,154 @@ export default function ServiceReportsPage() {
     }
   };
 
-  const generatePDF = () => {
-    if (!selectedContact || !selectedTechnician) return;
+  const generatePDFFromReport = async (report: ServiceReport, contact: Contact | undefined, technician: Technician | undefined) => {
+    if (!contact || !technician) {
+      toast({
+        title: "Errore",
+        description: "Dati mancanti per generare il PDF",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const doc = new jsPDF();
-    let y = 20;
+    try {
+      toast({
+        title: "Generazione PDF",
+        description: "Generazione del PDF in corso...",
+      });
 
-    // Logo aziendale
-    const logoImg = new Image();
-    logoImg.src = '/images/logo-zapper.png';
-    logoImg.onload = () => {
-      doc.addImage(logoImg, 'PNG', 15, 10, 40, 15);
-      
-      // Intestazione
-      doc.setFontSize(18);
-      doc.setFont(undefined, "bold");
-      doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
-      y = 35;
+      // Fetch template
+      const templateResponse = await fetch('/templates/service-report-template.html');
+      let templateHtml = await templateResponse.text();
 
-      // Informazioni cliente
-      doc.setFontSize(12);
-      doc.setFont(undefined, "bold");
-      doc.text("Cliente:", 20, y);
-      doc.setFont(undefined, "normal");
-      y += 7;
-      doc.text(`${selectedContact.first_name} ${selectedContact.last_name}`, 20, y);
-      if (selectedContact.company_name) {
-        y += 7;
-        doc.text(selectedContact.company_name, 20, y);
-      }
-      if (selectedContact.email) {
-        y += 7;
-        doc.text(`Email: ${selectedContact.email}`, 20, y);
-      }
-      if (selectedContact.phone) {
-        y += 7;
-        doc.text(`Tel: ${selectedContact.phone}`, 20, y);
-      }
-      if (selectedContact.address) {
-        y += 7;
-        doc.text(`Indirizzo: ${selectedContact.address}`, 20, y);
-      }
-      y += 10;
+      // Build template data
+      const customerName = `${contact.first_name} ${contact.last_name}`;
+      const technicianName = `${technician.first_name} ${technician.last_name}`;
+      const workOrder = report.work_orders || report.service_work_orders 
+        ? `${(report.work_orders || report.service_work_orders)?.number} - ${(report.work_orders || report.service_work_orders)?.title}` 
+        : '';
+      const timeRange = (report.start_time && report.end_time) 
+        ? `${report.start_time} - ${report.end_time}` 
+        : '';
 
-      // Commessa di lavoro
-      if (selectedWorkOrder) {
-        doc.setFont(undefined, "bold");
-        doc.text("Commessa di Lavoro:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
-        y += 10;
-      }
+      // Simple template replacement
+      templateHtml = templateHtml
+        .replace(/{{logo}}/g, '/images/logo-zapper.png')
+        .replace(/{{customer_name}}/g, customerName)
+        .replace(/{{company_name}}/g, contact.company_name || '')
+        .replace(/{{customer_email}}/g, contact.email || '')
+        .replace(/{{customer_phone}}/g, contact.phone || '')
+        .replace(/{{customer_address}}/g, contact.address || '')
+        .replace(/{{work_order}}/g, workOrder)
+        .replace(/{{intervention_date}}/g, new Date(report.intervention_date).toLocaleDateString('it-IT'))
+        .replace(/{{time_range}}/g, timeRange)
+        .replace(/{{intervention_type}}/g, report.intervention_type)
+        .replace(/{{technician_name}}/g, technicianName)
+        .replace(/{{description}}/g, report.description || '')
+        .replace(/{{work_performed}}/g, report.work_performed)
+        .replace(/{{materials_used}}/g, report.materials_used || '')
+        .replace(/{{notes}}/g, report.notes || '')
+        .replace(/{{amount}}/g, report.amount ? report.amount.toFixed(2) : '')
+        .replace(/{{vat_rate}}/g, report.vat_rate?.toString() || '')
+        .replace(/{{total_amount}}/g, report.total_amount ? report.total_amount.toFixed(2) : '')
+        .replace(/{{customer_signature}}/g, report.customer_signature || '')
+        .replace(/{{technician_signature}}/g, report.technician_signature || '');
 
-      // Dettagli intervento
-      doc.setFont(undefined, "bold");
-      doc.text("Dettagli Intervento:", 20, y);
-      doc.setFont(undefined, "normal");
-      y += 7;
-      doc.text(`Data: ${formData.intervention_date}`, 20, y);
-      y += 7;
-      if (formData.start_time && formData.end_time) {
-        doc.text(`Orario: ${formData.start_time} - ${formData.end_time}`, 20, y);
-        y += 7;
-      }
-      doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
-      y += 7;
-      doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
-      y += 10;
+      // Remove conditional blocks for empty fields
+      templateHtml = templateHtml
+        .replace(/{{#if company_name}}[\s\S]*?{{\/if}}/g, contact.company_name ? '$&' : '')
+        .replace(/{{#if customer_email}}[\s\S]*?{{\/if}}/g, contact.email ? '$&' : '')
+        .replace(/{{#if customer_phone}}[\s\S]*?{{\/if}}/g, contact.phone ? '$&' : '')
+        .replace(/{{#if customer_address}}[\s\S]*?{{\/if}}/g, contact.address ? '$&' : '')
+        .replace(/{{#if work_order}}[\s\S]*?{{\/if}}/g, workOrder ? '$&' : '')
+        .replace(/{{#if time_range}}[\s\S]*?{{\/if}}/g, timeRange ? '$&' : '')
+        .replace(/{{#if description}}[\s\S]*?{{\/if}}/g, report.description ? '$&' : '')
+        .replace(/{{#if materials_used}}[\s\S]*?{{\/if}}/g, report.materials_used ? '$&' : '')
+        .replace(/{{#if notes}}[\s\S]*?{{\/if}}/g, report.notes ? '$&' : '')
+        .replace(/{{#if amount}}[\s\S]*?{{\/if}}/g, report.amount ? '$&' : '');
 
-      if (formData.description) {
-        doc.setFont(undefined, "bold");
-        doc.text("Descrizione Problema:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        const descLines = doc.splitTextToSize(formData.description, 170);
-        doc.text(descLines, 20, y);
-        y += descLines.length * 7 + 3;
-      }
+      // Clean up remaining conditional tags
+      templateHtml = templateHtml
+        .replace(/{{#if \w+}}/g, '')
+        .replace(/{{\/if}}/g, '');
 
-      if (formData.work_performed) {
-        doc.setFont(undefined, "bold");
-        doc.text("Lavori Eseguiti:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        const workLines = doc.splitTextToSize(formData.work_performed, 170);
-        doc.text(workLines, 20, y);
-        y += workLines.length * 7 + 3;
-      }
-
-      if (formData.materials_used) {
-        doc.setFont(undefined, "bold");
-        doc.text("Materiali Utilizzati:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        const matLines = doc.splitTextToSize(formData.materials_used, 170);
-        doc.text(matLines, 20, y);
-        y += matLines.length * 7 + 3;
-      }
-
-      if (formData.notes) {
-        doc.setFont(undefined, "bold");
-        doc.text("Note:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        const noteLines = doc.splitTextToSize(formData.notes, 170);
-        doc.text(noteLines, 20, y);
-        y += noteLines.length * 7 + 3;
-      }
-
-      // Dettagli economici
-      if (formData.amount) {
-        if (y > 220) {
-          doc.addPage();
-          y = 20;
+      // Call ComPDFKit edge function
+      console.log('Calling ComPDFKit edge function...');
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('compdfkit-convert', {
+        body: {
+          html: templateHtml,
+          filename: `rapporto_intervento_${report.intervention_date}.html`
         }
-        y += 10;
-        doc.setFont(undefined, "bold");
-        doc.text("Dettagli Economici:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        doc.text(`Importo: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
-        y += 7;
-        doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y);
-        y += 7;
-        doc.setFont(undefined, "bold");
-        doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
-        doc.setFont(undefined, "normal");
-        y += 10;
+      });
+
+      if (pdfError) {
+        console.error('ComPDFKit conversion error:', pdfError);
+        throw new Error(`Errore nella conversione PDF: ${pdfError.message}`);
       }
 
-      // Firme
-      if (y > 220) {
-        doc.addPage();
-        y = 20;
-      }
-      y += 10;
-
-      doc.setFont(undefined, "bold");
-      doc.text("Firma Cliente:", 20, y);
-      if (customerSignature) {
-        doc.addImage(customerSignature, "PNG", 20, y + 5, 70, 30);
+      if (!pdfData.success) {
+        console.error('ComPDFKit conversion failed:', pdfData.error);
+        throw new Error(`Conversione PDF fallita: ${pdfData.error}`);
       }
 
-      doc.text("Firma Tecnico:", 110, y);
-      if (technicianSignature) {
-        doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
+      // Convert base64 to Blob and download
+      const pdfBase64 = pdfData.pdf;
+      const binaryString = atob(pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
+      const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
 
-      // Footer con contatti aziendali
-      const pageHeight = doc.internal.pageSize.height;
-      doc.setFontSize(8);
-      doc.setFont(undefined, "normal");
-      doc.text("CLIMATEL DI ELEFANTE Pasquale", 105, pageHeight - 20, { align: "center" });
-      doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
-      doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
-      doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
-
-      const fileName = `rapporto_intervento_${formData.intervention_date}_${selectedContact.last_name}.pdf`;
-      doc.save(fileName);
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapporto_intervento_${report.intervention_date}_${contact.last_name}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
 
       toast({
         title: "PDF Scaricato",
         description: "Il rapporto è stato scaricato in formato PDF",
       });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella generazione del PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generatePDF = async () => {
+    if (!selectedContact || !selectedTechnician) return;
+
+    // Create a ServiceReport object from current form data
+    const report: ServiceReport = {
+      id: '',
+      intervention_date: formData.intervention_date,
+      intervention_type: formData.intervention_type,
+      work_performed: formData.work_performed,
+      status: 'draft',
+      contact_id: selectedContact.id,
+      technician_id: selectedTechnician.id,
+      created_at: new Date().toISOString(),
+      description: formData.description || undefined,
+      materials_used: formData.materials_used || undefined,
+      notes: formData.notes || undefined,
+      start_time: formData.start_time || undefined,
+      end_time: formData.end_time || undefined,
+      amount: formData.amount ? parseFloat(formData.amount) : undefined,
+      vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : undefined,
+      total_amount: formData.total_amount ? parseFloat(formData.total_amount) : undefined,
+      customer_signature: customerSignature || undefined,
+      technician_signature: technicianSignature || undefined,
+      work_orders: selectedWorkOrder,
+      service_work_orders: selectedWorkOrder?.type === 'service' ? selectedWorkOrder : undefined,
     };
+
+    await generatePDFFromReport(report, selectedContact, selectedTechnician);
   };
 
   const sendEmail = async () => {
@@ -1046,164 +1028,11 @@ export default function ServiceReportsPage() {
         report={selectedReport}
         onDownloadPDF={() => {
           if (selectedReport) {
-            const doc = new jsPDF();
-            let y = 20;
-            const contact = selectedReport.crm_contacts;
-            const technician = selectedReport.technicians;
-
-            // Logo aziendale
-            const logoImg = new Image();
-            logoImg.src = '/images/logo-zapper.png';
-            logoImg.onload = () => {
-              doc.addImage(logoImg, 'PNG', 15, 10, 40, 15);
-              
-              // Intestazione
-              doc.setFontSize(18);
-              doc.setFont(undefined, "bold");
-              doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
-              y = 35;
-
-              // Informazioni cliente
-              doc.setFontSize(12);
-              doc.setFont(undefined, "bold");
-              doc.text("Cliente:", 20, y);
-              doc.setFont(undefined, "normal");
-              y += 7;
-              doc.text(`${contact?.first_name} ${contact?.last_name}`, 20, y);
-              if (contact?.company_name) {
-                y += 7;
-                doc.text(contact.company_name, 20, y);
-              }
-              if (contact?.email) {
-                y += 7;
-                doc.text(`Email: ${contact.email}`, 20, y);
-              }
-              if (contact?.phone) {
-                y += 7;
-                doc.text(`Tel: ${contact.phone}`, 20, y);
-              }
-              if (contact?.address) {
-                y += 7;
-                doc.text(`Indirizzo: ${contact.address}`, 20, y);
-              }
-              y += 10;
-
-              // Dettagli intervento
-              doc.setFont(undefined, "bold");
-              doc.text("Dettagli Intervento:", 20, y);
-              doc.setFont(undefined, "normal");
-              y += 7;
-              doc.text(`Data: ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}`, 20, y);
-              y += 7;
-              if (selectedReport.start_time && selectedReport.end_time) {
-                doc.text(`Orario: ${selectedReport.start_time} - ${selectedReport.end_time}`, 20, y);
-                y += 7;
-              }
-              doc.text(`Tipo: ${selectedReport.intervention_type}`, 20, y);
-              y += 7;
-              doc.text(`Tecnico: ${technician?.first_name} ${technician?.last_name}`, 20, y);
-              y += 10;
-
-              if (selectedReport.description) {
-                doc.setFont(undefined, "bold");
-                doc.text("Descrizione Problema:", 20, y);
-                doc.setFont(undefined, "normal");
-                y += 7;
-                const descLines = doc.splitTextToSize(selectedReport.description, 170);
-                doc.text(descLines, 20, y);
-                y += descLines.length * 7 + 3;
-              }
-
-              if (selectedReport.work_performed) {
-                doc.setFont(undefined, "bold");
-                doc.text("Lavori Eseguiti:", 20, y);
-                doc.setFont(undefined, "normal");
-                y += 7;
-                const workLines = doc.splitTextToSize(selectedReport.work_performed, 170);
-                doc.text(workLines, 20, y);
-                y += workLines.length * 7 + 3;
-              }
-
-              if (selectedReport.materials_used) {
-                doc.setFont(undefined, "bold");
-                doc.text("Materiali Utilizzati:", 20, y);
-                doc.setFont(undefined, "normal");
-                y += 7;
-                const matLines = doc.splitTextToSize(selectedReport.materials_used, 170);
-                doc.text(matLines, 20, y);
-                y += matLines.length * 7 + 3;
-              }
-
-              if (selectedReport.notes) {
-                doc.setFont(undefined, "bold");
-                doc.text("Note:", 20, y);
-                doc.setFont(undefined, "normal");
-                y += 7;
-                const noteLines = doc.splitTextToSize(selectedReport.notes, 170);
-                doc.text(noteLines, 20, y);
-                y += noteLines.length * 7 + 3;
-              }
-
-              // Dettagli economici
-              if (selectedReport.amount) {
-                if (y > 220) {
-                  doc.addPage();
-                  y = 20;
-                }
-                y += 10;
-                doc.setFont(undefined, "bold");
-                doc.text("Dettagli Economici:", 20, y);
-                doc.setFont(undefined, "normal");
-                y += 7;
-                doc.text(`Importo: €${selectedReport.amount.toFixed(2)}`, 20, y);
-                y += 7;
-                if (selectedReport.vat_rate) {
-                  doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y);
-                  y += 7;
-                }
-                if (selectedReport.total_amount) {
-                  doc.setFont(undefined, "bold");
-                  doc.text(`Totale: €${selectedReport.total_amount.toFixed(2)}`, 20, y);
-                  doc.setFont(undefined, "normal");
-                  y += 10;
-                }
-              }
-
-              // Firme
-              if (y > 220) {
-                doc.addPage();
-                y = 20;
-              }
-              y += 10;
-
-              doc.setFont(undefined, "bold");
-              doc.text("Firma Cliente:", 20, y);
-              if (selectedReport.customer_signature) {
-                doc.addImage(selectedReport.customer_signature, "PNG", 20, y + 5, 70, 30);
-              }
-
-              doc.text("Firma Tecnico:", 110, y);
-              if (selectedReport.technician_signature) {
-                doc.addImage(selectedReport.technician_signature, "PNG", 110, y + 5, 70, 30);
-              }
-
-              // Footer con contatti aziendali
-              const pageHeight = doc.internal.pageSize.height;
-              doc.setFontSize(8);
-              doc.setFont(undefined, "normal");
-              doc.text("CLIMATEL DI ELEFANTE Pasquale", 105, pageHeight - 20, { align: "center" });
-              doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
-              doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
-              doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
-
-              const fileName = `rapporto_intervento_${selectedReport.intervention_date}_${contact?.last_name || 'report'}.pdf`;
-              doc.save(fileName);
-
-              toast({
-                title: "PDF Scaricato",
-                description: "Il rapporto è stato scaricato in formato PDF",
-              });
-            };
+            generatePDFFromReport(
+              selectedReport,
+              selectedReport.crm_contacts,
+              selectedReport.technicians
+            );
           }
         }}
         onSendEmail={async () => {
