@@ -356,37 +356,78 @@ export default function OffersPage() {
       container.style.background = 'white';
       document.body.appendChild(container);
 
-      // Import jsPDF dynamically
+      // Import libraries dynamically
+      const html2canvas = (await import('html2canvas')).default;
       const jsPDF = (await import('jspdf')).default;
 
-      // Create PDF with proper settings
+      // A4 dimensions in mm and pixels
+      const A4_WIDTH_MM = 210;
+      const A4_HEIGHT_MM = 297;
+      const MM_TO_PX = 3.7795275591; // 1mm = 3.78px at 96 DPI
+      const MARGIN_MM = 10; // 10mm margins on all sides
+      const CONTENT_WIDTH_MM = A4_WIDTH_MM - (MARGIN_MM * 2);
+      const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2);
+      const A4_WIDTH_PX = A4_WIDTH_MM * MM_TO_PX;
+
+      // Capture the entire container
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: A4_WIDTH_PX,
+        windowWidth: A4_WIDTH_PX
+      });
+
+      // Calculate page height in pixels
+      const pageHeightPx = (canvas.width / A4_WIDTH_MM) * CONTENT_HEIGHT_MM;
+      const totalHeight = canvas.height;
+      const totalPages = Math.ceil(totalHeight / pageHeightPx);
+
+      // Create PDF
       const pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'pt',
+        unit: 'mm',
         format: 'a4'
       });
 
-      // Use jsPDF.html() with autoPaging to avoid cutting elements
-      await new Promise<void>((resolve, reject) => {
-        pdf.html(container, {
-          callback: function (doc) {
-            resolve();
-          },
-          margin: [40, 40, 40, 40], // 40pt margins (~14mm)
-          autoPaging: 'text',
-          html2canvas: {
-            scale: 0.55, // Adjust scale to fit A4
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: false
-          },
-          x: 0,
-          y: 0,
-          width: 515, // A4 width in pt minus margins (595 - 80)
-          windowWidth: 794 // A4 width in pixels at 96 DPI
-        }).catch(reject);
-      });
+      // Add pages with margins
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) {
+          pdf.addPage();
+        }
+
+        // Create a canvas for this page
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        const remainingHeight = totalHeight - (page * pageHeightPx);
+        pageCanvas.height = Math.min(pageHeightPx, remainingHeight);
+        
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          
+          ctx.drawImage(
+            canvas,
+            0,
+            page * pageHeightPx,
+            canvas.width,
+            pageCanvas.height,
+            0,
+            0,
+            canvas.width,
+            pageCanvas.height
+          );
+
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+          const imgHeight = (pageCanvas.height * A4_WIDTH_MM) / canvas.width;
+          
+          // Add image with margins
+          pdf.addImage(pageImgData, 'JPEG', MARGIN_MM, MARGIN_MM, CONTENT_WIDTH_MM, imgHeight);
+        }
+      }
 
       // Cleanup
       document.body.removeChild(container);
