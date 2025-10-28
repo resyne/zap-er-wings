@@ -241,18 +241,66 @@ export default function OffersPage() {
 
   const generateOfferPDF = async (offer: Offer): Promise<Blob> => {
     try {
-      // Call the Puppeteer edge function
-      const { data, error } = await supabase.functions.invoke('generate-offer-pdf-puppeteer', {
-        body: { offerId: offer.id }
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
 
-      if (error) throw error;
+      // Fetch offer items
+      const { data: items } = await supabase
+        .from('offer_items')
+        .select('*')
+        .eq('offer_id', offer.id);
 
-      // Convert response to Blob
-      const pdfBlob = new Blob([data], { type: 'application/pdf' });
-      return pdfBlob;
+      // Get customer info
+      const customer = customers.find(c => c.id === offer.customer_id);
+      
+      // Prepare data for PDF generation
+      const offerData = {
+        numero_offerta: offer.number || '',
+        data_offerta: new Date(offer.created_at).toLocaleDateString('it-IT'),
+        utente: user?.email || '',
+        cliente: {
+          nome: customer?.name || '',
+          indirizzo: customer?.address || '',
+        },
+        oggetto_offerta: offer.title || '',
+        items: (items || []).map(item => ({
+          descrizione: item.description || '',
+          quantita: item.quantity || 1,
+          prezzo_unitario: item.unit_price || 0,
+          totale: (item.quantity || 1) * (item.unit_price || 0),
+        })),
+        incluso_fornitura: [
+          'Fornitura completa',
+          'Installazione professionale',
+          'Collaudo e test',
+          'Garanzia 24 mesi',
+          'Assistenza tecnica',
+          'Documentazione tecnica'
+        ],
+        escluso_fornitura: 'Opere murarie, impianto elettrico, scarichi idrici, trasporto al piano superiore senza ascensore.',
+        totale_imponibile: (offer.amount || 0).toFixed(2),
+        totale_iva: ((offer.amount || 0) * 0.22).toFixed(2),
+        totale_lordo: ((offer.amount || 0) * 1.22).toFixed(2),
+        validita_offerta: offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni',
+        tempi_consegna: '30-45 giorni lavorativi',
+        metodi_pagamento: offer.payment_terms || 'Da concordare',
+        timeline_produzione: '20-30 gg',
+        timeline_consegna: '5-7 gg',
+        timeline_installazione: '1-2 gg',
+      };
+
+      // Generate PDF using pdf-lib
+      const { generateOfferPDF } = await import('@/lib/generateOfferPDFNew');
+      const pdfBytes = await generateOfferPDF(offerData);
+      
+      return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
     } catch (error) {
       console.error('Error generating PDF:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile generare il PDF",
+        variant: "destructive"
+      });
       throw error;
     }
   };
