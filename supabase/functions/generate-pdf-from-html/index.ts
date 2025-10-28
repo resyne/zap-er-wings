@@ -22,25 +22,30 @@ serve(async (req) => {
 
     console.log('Generating PDF from HTML...');
 
-    // Using html2pdf.app API (free tier)
-    const pdfResponse = await fetch('https://api.html2pdf.app/v1/generate', {
+    const PDFBOLT_API_KEY = Deno.env.get('PDFBOLT_API_KEY');
+    
+    if (!PDFBOLT_API_KEY) {
+      throw new Error('PDFBOLT_API_KEY not configured');
+    }
+
+    // Using PDFBolt API
+    const pdfResponse = await fetch('https://api.pdfbolt.io/v1/pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${PDFBOLT_API_KEY}`
       },
       body: JSON.stringify({
         html: html,
-        options: {
-          format: 'A4',
-          printBackground: true,
-          margin: {
-            top: '0mm',
-            right: '0mm',
-            bottom: '0mm',
-            left: '0mm'
-          },
-          preferCSSPageSize: true
-        }
+        format: 'A4',
+        margin: {
+          top: '20mm',
+          right: '20mm',
+          bottom: '20mm',
+          left: '20mm'
+        },
+        printBackground: true,
+        scale: 1
       })
     });
 
