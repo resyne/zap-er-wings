@@ -2127,7 +2127,7 @@ export default function OffersPage() {
                   <>
                     <div className="flex gap-2">
                       <Input
-                        value={`${window.location.origin}/offerta/${selectedOffer.unique_code}`}
+                        value={`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`}
                         readOnly
                         className="flex-1 font-mono text-sm"
                       />
@@ -2135,7 +2135,7 @@ export default function OffersPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/offerta/${selectedOffer.unique_code}`);
+                          navigator.clipboard.writeText(`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`);
                           toast({
                             title: "Link Copiato",
                             description: "Il link pubblico è stato copiato negli appunti",

@@ -115,8 +115,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
 
       if (error) throw error;
 
-      // Genera il link pubblico usando il dominio corrente
-      const publicLink = `${window.location.origin}/offerta/${offerData.unique_code}`;
+      // Genera il link pubblico con il dominio personalizzato
+      const publicLink = `https://www.erp.abbattitorizapper.it/offerta/${offerData.unique_code}`;
 
       toast({
         title: "Offerta Creata",
