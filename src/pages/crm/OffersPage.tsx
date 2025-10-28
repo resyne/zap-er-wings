@@ -354,20 +354,46 @@ export default function OffersPage() {
         .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
         .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
 
-      // Create temporary container
+      // Create temporary container with A4 dimensions
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHtml;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
+      tempDiv.style.top = '0';
+      // A4 width in pixels at 96dpi: 210mm = 794px
+      tempDiv.style.width = '794px';
+      tempDiv.style.maxWidth = '794px';
+      tempDiv.style.padding = '0';
+      tempDiv.style.margin = '0';
+      tempDiv.style.boxSizing = 'border-box';
       document.body.appendChild(tempDiv);
 
-      // Generate PDF from HTML
+      // Wait for images to load
+      const images = tempDiv.getElementsByTagName('img');
+      const imagePromises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      });
+      await Promise.all(imagePromises);
+
+      // Generate PDF from HTML with optimized settings
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        windowWidth: 794,
+        width: 794,
+        onclone: (clonedDoc) => {
+          const clonedDiv = clonedDoc.querySelector('div');
+          if (clonedDiv) {
+            clonedDiv.style.width = '794px';
+            clonedDiv.style.maxWidth = '794px';
+          }
+        }
       });
 
       document.body.removeChild(tempDiv);
@@ -375,19 +401,23 @@ export default function OffersPage() {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      let heightLeft = pdfHeight;
+      let heightLeft = imgHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
 
+      // Add additional pages if needed
       while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
+        position -= pdfHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
       }
 
       return pdf;
