@@ -316,7 +316,9 @@ export default function OffersPage() {
         .replace(/{{numero_offerta}}/g, offer.number)
         .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
         .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
+        .replace(/{{cliente\.nome}}/g, customer?.name || offer.customer_name) // Con punto
         .replace(/{{cliente_indirizzo}}/g, customer?.address || 'N/A')
+        .replace(/{{cliente\.indirizzo}}/g, customer?.address || 'N/A') // Con punto
         .replace(/{{oggetto_offerta}}/g, offer.title)
         .replace(/{{tabella_prodotti}}/g, tabellaHtml)
         .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
