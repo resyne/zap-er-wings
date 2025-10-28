@@ -13,8 +13,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { pdf } from '@react-pdf/renderer';
+import { OfferPDFDocument } from "@/components/crm/OfferPDFDocument";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
@@ -243,10 +243,13 @@ export default function OffersPage() {
 
   const generateOfferPDF = async (offer: Offer) => {
     try {
-      // Fetch offer items
+      // Fetch offer items with product names
       const { data: offerItems } = await supabase
         .from('offer_items')
-        .select('*')
+        .select(`
+          *,
+          products (name)
+        `)
         .eq('offer_id', offer.id);
 
       // Fetch customer details
@@ -256,171 +259,52 @@ export default function OffersPage() {
         .eq('id', offer.customer_id)
         .maybeSingle();
 
-      // Determine template based on offer.template field or default to zapper
-      const templateName = (offer as any).template || 'zapper';
-      const templateMap = {
-        zapper: '/templates/offer-template-zapper-v2.html',
-        vesuviano: '/templates/offer-template-vesuviano.html',
-        zapperpro: '/templates/offer-template-zapperpro.html'
-      };
-      
-      const templateBrandMap = {
-        zapper: 'ZAPPER S.r.l.',
-        vesuviano: 'VESUVIANO S.r.l.',
-        zapperpro: 'ZAPPER PRO S.r.l.'
-      };
-
-      // Fetch template
-      const templateResponse = await fetch(templateMap[templateName as keyof typeof templateMap] || templateMap.zapper);
-      let templateHtml = await templateResponse.text();
-
-      // Calculate totals
-      const totaleImponibile = offerItems?.reduce((sum, item) => {
-        const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-        return sum + itemTotal;
-      }, 0) || offer.amount;
-
-      const totaleIva = totaleImponibile * 0.22;
-      const totaleLordo = totaleImponibile + totaleIva;
-
-      // Generate products table
-      let tabellaHtml = '<table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Prezzo Unit.</th><th>Sconto</th><th>Totale</th></tr></thead><tbody>';
-      
-      if (offerItems && offerItems.length > 0) {
-        offerItems.forEach(item => {
-          const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
-          tabellaHtml += `
-            <tr>
-              <td>${item.description || 'N/A'}</td>
-              <td>${item.quantity}</td>
-              <td>€ ${item.unit_price.toFixed(2)}</td>
-              <td>${item.discount_percent || 0}%</td>
-              <td>€ ${itemTotal.toFixed(2)}</td>
-            </tr>
-          `;
-        });
-      } else {
-        tabellaHtml += `
-          <tr>
-            <td colspan="5">${offer.description || offer.title}</td>
-          </tr>
-        `;
-      }
-      tabellaHtml += '</tbody></table>';
-
-      // Replace placeholders
-      templateHtml = templateHtml
-        .replace(/{{numero_offerta}}/g, offer.number)
-        .replace(/{{data_offerta}}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
-        .replace(/{{cliente_nome}}/g, customer?.name || offer.customer_name)
-        .replace(/{{cliente_indirizzo}}/g, customer?.address || 'N/A')
-        .replace(/{{oggetto_offerta}}/g, offer.title)
-        .replace(/{{tabella_prodotti}}/g, tabellaHtml)
-        .replace(/{{totale_imponibile}}/g, totaleImponibile.toFixed(2))
-        .replace(/{{totale_iva}}/g, totaleIva.toFixed(2))
-        .replace(/{{totale_lordo}}/g, totaleLordo.toFixed(2))
-        .replace(/{{validita_offerta}}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/{{tempi_consegna}}/g, 'Da concordare')
-        .replace(/{{utente}}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
-        .replace(/{{logo}}/g, '/images/logo-zapper.png')
-        .replace(/{{firma_commerciale}}/g, templateBrandMap[templateName as keyof typeof templateBrandMap] || 'ZAPPER S.r.l.');
-        
-      // Gestisci payment_method e payment_agreement
-      const paymentMethodText = offer.payment_method === 'bonifico' ? 'Bonifico bancario' : 'Contrassegno';
-      const paymentAgreementText = offer.payment_agreement === 'altro' 
-        ? (offer.metodi_pagamento || '30% acconto - 70% alla consegna')
-        : offer.payment_agreement || '50% acconto - 50% a consegna';
-      
-      templateHtml = templateHtml
-        .replace(/{{payment_method}}/g, paymentMethodText)
-        .replace(/{{payment_agreement}}/g, paymentAgreementText)
-        .replace(/{{metodi_pagamento}}/g, paymentAgreementText);
-        
-      // Gestisci incluso_fornitura
-      const inclusoItems = offer.incluso_fornitura ? offer.incluso_fornitura.split('\n').filter(Boolean) : [];
-      const inclusoHtml = inclusoItems.length > 0 
-        ? inclusoItems.map(item => `<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">${item}</div></div>`).join('\n')
-        : '<div class="includes-item"><div class="includes-icon">✓</div><div class="includes-text">Fornitura e installazione completa</div></div>';
-      templateHtml = templateHtml.replace(/{{incluso_fornitura}}/g, inclusoHtml);
-      
-      // Gestisci escluso_fornitura - converte i newline in <br> per l'HTML
-      const esclusoText = offer.escluso_fornitura || 'Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, eventuali pratiche amministrative.';
-      const esclusoTextFormatted = esclusoText.replace(/\n/g, '<br>');
-      templateHtml = templateHtml.replace(/{{escluso_fornitura}}/g, esclusoTextFormatted);
-
-      // Gestisci timeline fields - sostituisci i singoli placeholder
-      templateHtml = templateHtml
-        .replace(/{{timeline_produzione}}/g, offer.timeline_produzione || 'Da definire')
-        .replace(/{{timeline_consegna}}/g, offer.timeline_consegna || 'Da definire')
-        .replace(/{{timeline_installazione}}/g, offer.timeline_installazione || 'Da definire');
-
-      // Create temporary container with A4 dimensions
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = templateHtml;
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      // A4 width in pixels at 96dpi: 210mm = 794px
-      tempDiv.style.width = '794px';
-      tempDiv.style.maxWidth = '794px';
-      tempDiv.style.padding = '0';
-      tempDiv.style.margin = '0';
-      tempDiv.style.boxSizing = 'border-box';
-      document.body.appendChild(tempDiv);
-
-      // Wait for images to load
-      const images = tempDiv.getElementsByTagName('img');
-      const imagePromises = Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-      });
-      await Promise.all(imagePromises);
-
-      // Generate PDF from HTML with optimized settings
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 794,
-        width: 794,
-        onclone: (clonedDoc) => {
-          const clonedDiv = clonedDoc.querySelector('div');
-          if (clonedDiv) {
-            clonedDiv.style.width = '794px';
-            clonedDiv.style.maxWidth = '794px';
-          }
-        }
-      });
-
-      document.body.removeChild(tempDiv);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position -= pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+      if (!customer) {
+        throw new Error('Cliente non trovato');
       }
 
-      return pdf;
+      // Generate PDF using @react-pdf/renderer
+      const pdfDoc = (
+        <OfferPDFDocument
+          offer={{
+            number: offer.number,
+            created_at: offer.created_at,
+            title: offer.title,
+            description: offer.description,
+            valid_until: offer.valid_until,
+            amount: offer.amount,
+            template: (offer as any).template,
+            timeline_produzione: (offer as any).timeline_produzione,
+            timeline_consegna: (offer as any).timeline_consegna,
+            timeline_installazione: (offer as any).timeline_installazione,
+            incluso_fornitura: (offer as any).incluso_fornitura,
+            escluso_fornitura: (offer as any).escluso_fornitura,
+            payment_method: (offer as any).payment_method,
+            payment_agreement: (offer as any).payment_agreement,
+            metodi_pagamento: (offer as any).metodi_pagamento,
+          }}
+          customer={{
+            name: customer.name,
+            address: customer.address,
+            email: customer.email,
+            tax_id: customer.tax_id,
+          }}
+          items={(offerItems || []).map((item: any) => ({
+            product_name: item.products?.name || 'N/A',
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_percent: item.discount_percent,
+          }))}
+          user={{
+            full_name: user?.user_metadata?.full_name,
+            email: user?.email,
+          }}
+        />
+      );
+
+      const blob = await pdf(pdfDoc).toBlob();
+      return blob;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
@@ -429,8 +313,17 @@ export default function OffersPage() {
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      const pdf = await generateOfferPDF(offer);
-      pdf.save(`Offerta_${offer.number}.pdf`);
+      const blob = await generateOfferPDF(offer);
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Offerta_${offer.number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
       toast({
         title: "PDF Generato",
@@ -459,8 +352,7 @@ export default function OffersPage() {
       }
 
       // Generate PDF
-      const pdf = await generateOfferPDF(offer);
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob = await generateOfferPDF(offer);
       
       // Convert to base64
       const reader = new FileReader();
