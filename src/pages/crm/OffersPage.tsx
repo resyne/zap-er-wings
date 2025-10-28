@@ -311,18 +311,13 @@ export default function OffersPage() {
       `;
 
       // Build includes grid
-      const inclusoArray = ((offer as any).incluso_fornitura || 
-        `Fornitura del prodotto come da specifiche
-Trasporto e consegna presso la sede del cliente
-Installazione e messa in funzione
-Assistenza tecnica telefonica
-Garanzia 2 anni`).split('\n').filter((line: string) => line.trim());
-      const inclusoGrid = inclusoArray.map((item: string) => `
+      const inclusoArray = ((offer as any).incluso_fornitura || '').split('\n').filter((line: string) => line.trim());
+      const inclusoGrid = inclusoArray.length > 0 ? inclusoArray.map((item: string) => `
         <div class="includes-item">
           <span class="includes-icon">✓</span>
           <span class="includes-text">${item.replace('✓', '').trim()}</span>
         </div>
-      `).join('');
+      `).join('') : '<div class="includes-item"><span class="includes-text">Nessun elemento specificato</span></div>';
 
       // Calculate totals
       const totalImponibile = offer.amount || 0;
@@ -341,8 +336,7 @@ Garanzia 2 anni`).split('\n').filter((line: string) => line.trim());
         .replace(/\{\{oggetto_offerta\}\}/g, offer.title || '')
         .replace(/\{\{tabella_prodotti\}\}/g, productsTable)
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
-        .replace(/\{\{escluso_fornitura\}\}/g, (offer as any).escluso_fornitura || 
-          'Opere murarie ed elettriche necessarie per l\'installazione. Eventuali accessori non specificatamente indicati nell\'offerta. Costi di smaltimento di apparecchiature esistenti.')
+        .replace(/\{\{escluso_fornitura\}\}/g, (offer as any).escluso_fornitura || '')
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
         .replace(/\{\{totale_iva\}\}/g, totalIva.toFixed(2))
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
