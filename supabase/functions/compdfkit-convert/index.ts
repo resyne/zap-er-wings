@@ -50,12 +50,33 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error(`HTML to PDF conversion failed: ${errorText}`);
     }
 
-    // The response is directly the PDF file
-    const pdfBlob = await convertResponse.blob();
+    // Parse JSON response to get download URL
+    const responseData = await convertResponse.json();
+    console.log('Conversion response:', JSON.stringify(responseData, null, 2));
+
+    if (responseData.code !== '200') {
+      throw new Error(`API returned error code: ${responseData.code}, message: ${responseData.msg}`);
+    }
+
+    if (!responseData.data?.fileInfoDTOList?.[0]?.downloadUrl) {
+      throw new Error('No download URL in response');
+    }
+
+    const downloadUrl = responseData.data.fileInfoDTOList[0].downloadUrl;
+    console.log('Downloading PDF from:', downloadUrl);
+
+    // Download the converted PDF
+    const pdfResponse = await fetch(downloadUrl);
+    
+    if (!pdfResponse.ok) {
+      throw new Error(`Failed to download PDF from ${downloadUrl}`);
+    }
+
+    const pdfBlob = await pdfResponse.blob();
     const pdfArrayBuffer = await pdfBlob.arrayBuffer();
     const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfArrayBuffer)));
 
-    console.log('PDF generated successfully, size:', pdfArrayBuffer.byteLength, 'bytes');
+    console.log('PDF downloaded successfully, size:', pdfArrayBuffer.byteLength, 'bytes');
 
     return new Response(
       JSON.stringify({ 
