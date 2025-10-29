@@ -375,6 +375,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     
     // Converti stringhe vuote in null per i campi foreign key
     const assignedTo = commission.responsible?.trim() !== '' ? commission.responsible : null;
+    const effectiveLeadId = newOrder.lead_id || leadId || null;
     
     const productionData = {
       number: '',
@@ -382,6 +383,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       description: newOrder.description || newOrder.notes || '',
       status: 'da_fare' as const,
       customer_id: newOrder.customer_id,
+      lead_id: effectiveLeadId,
       production_responsible_id: assignedTo,
       priority: newOrder.priority,
       notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
@@ -541,6 +543,57 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   };
 
+  const copyLeadPhotosToWorkOrder = async (leadId: string, workOrderId: string) => {
+    try {
+      // Get all files from the lead
+      const { data: leadFiles, error: leadFilesError } = await supabase
+        .from('lead_files')
+        .select('*')
+        .eq('lead_id', leadId);
+
+      if (leadFilesError) throw leadFilesError;
+      if (!leadFiles || leadFiles.length === 0) return;
+
+      // Filter image and video files
+      const mediaFiles = leadFiles.filter(file => 
+        file.file_type?.startsWith('image/') || 
+        file.file_type?.startsWith('video/') ||
+        /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
+      );
+
+      if (mediaFiles.length === 0) return;
+
+      // Copy each media file to production-files bucket
+      for (const file of mediaFiles) {
+        // Download file from lead-files bucket
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('lead-files')
+          .download(file.file_path);
+
+        if (downloadError) {
+          console.error(`Error downloading file ${file.file_name}:`, downloadError);
+          continue;
+        }
+
+        // Upload to production-files bucket
+        const fileExt = file.file_name.split('.').pop();
+        const newFileName = `${workOrderId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('production-files')
+          .upload(newFileName, fileData, {
+            contentType: file.file_type || 'application/octet-stream'
+          });
+
+        if (uploadError) {
+          console.error(`Error uploading file to work order ${file.file_name}:`, uploadError);
+        }
+      }
+    } catch (error) {
+      console.error('Error copying lead photos to work order:', error);
+    }
+  };
+
   const handleCreateOrder = async () => {
     const { production, service, shipping } = newOrder.commissions;
     const hasAtLeastOneCommission = production.enabled || service.enabled || shipping.enabled;
@@ -624,6 +677,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         if (production.enabled) {
           productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
           console.log('Production work order created:', productionWO);
+          
+          // Copy photos from lead to production work order if lead is connected
+          if (effectiveLeadId && productionWO) {
+            await copyLeadPhotosToWorkOrder(effectiveLeadId, productionWO.id);
+          }
         }
       } catch (error: any) {
         console.error('Error creating production work order:', error);
