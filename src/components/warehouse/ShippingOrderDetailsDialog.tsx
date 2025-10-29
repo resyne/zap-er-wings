@@ -46,6 +46,15 @@ interface ShippingOrder {
         products?: { name: string };
       }>;
     };
+    sales_order_items?: Array<{
+      id: string;
+      product_name: string;
+      description: string;
+      quantity: number;
+      unit_price: number;
+      discount_percent: number;
+      notes?: string;
+    }>;
   };
   shipping_order_items?: any[];
 }
@@ -233,12 +242,52 @@ export function ShippingOrderDetailsDialog({
           )}
 
           {/* Order Items from Sales Order */}
-          {order.sales_orders?.offers?.offer_items && order.sales_orders.offers.offer_items.length > 0 && (
+          {(order.sales_orders?.sales_order_items && order.sales_orders.sales_order_items.length > 0) || 
+           (order.sales_orders?.offers?.offer_items && order.sales_orders.offers.offer_items.length > 0) ? (
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli dall'Ordine di Vendita</h4>
               <div className="border rounded-lg divide-y">
-                {order.sales_orders.offers.offer_items.map((item: any, index: number) => (
-                  <div key={index} className="p-4 space-y-2">
+                {/* First show sales_order_items if present */}
+                {order.sales_orders.sales_order_items?.map((item: any, index: number) => (
+                  <div key={`order-${index}`} className="p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{item.product_name}</p>
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                        )}
+                        {item.notes && (
+                          <p className="text-sm text-muted-foreground mt-1 italic">Note: {item.notes}</p>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="text-sm text-muted-foreground">
+                          Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          €{item.unit_price.toFixed(2)} x {item.quantity}
+                        </p>
+                        {item.discount_percent > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Sconto: {item.discount_percent}%
+                          </p>
+                        )}
+                        <p className="text-lg font-semibold text-primary mt-1">
+                          €{(() => {
+                            const subtotal = item.quantity * item.unit_price;
+                            const afterDiscount = subtotal * (1 - item.discount_percent / 100);
+                            return afterDiscount.toFixed(2);
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Then show offer_items if no sales_order_items */}
+                {(!order.sales_orders.sales_order_items || order.sales_orders.sales_order_items.length === 0) &&
+                 order.sales_orders.offers?.offer_items?.map((item: any, index: number) => (
+                  <div key={`offer-${index}`} className="p-4 space-y-2">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <p className="font-semibold text-base">{item.products?.name || item.description}</p>
@@ -272,21 +321,27 @@ export function ShippingOrderDetailsDialog({
                     </div>
                   </div>
                 ))}
+                
                 <div className="p-4 bg-muted">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-lg">Totale Ordine:</span>
                     <span className="font-bold text-xl text-primary">
-                      €{order.sales_orders.offers.offer_items.reduce((sum: number, item: any) => {
-                        const subtotal = item.quantity * item.unit_price;
-                        const afterDiscount = subtotal * (1 - item.discount_percent / 100);
-                        return sum + afterDiscount;
-                      }, 0).toFixed(2)}
+                      €{(() => {
+                        const items = order.sales_orders.sales_order_items && order.sales_orders.sales_order_items.length > 0
+                          ? order.sales_orders.sales_order_items
+                          : order.sales_orders.offers?.offer_items || [];
+                        return items.reduce((sum: number, item: any) => {
+                          const subtotal = item.quantity * item.unit_price;
+                          const afterDiscount = subtotal * (1 - (item.discount_percent || 0) / 100);
+                          return sum + afterDiscount;
+                        }, 0).toFixed(2);
+                      })()}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Shipping Order Items */}
           {order.shipping_order_items && order.shipping_order_items.length > 0 && (

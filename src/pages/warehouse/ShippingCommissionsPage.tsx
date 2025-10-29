@@ -67,6 +67,15 @@ interface ShippingOrder {
         products?: { name: string };
       }>;
     };
+    sales_order_items?: Array<{
+      id: string;
+      product_name: string;
+      description: string;
+      quantity: number;
+      unit_price: number;
+      discount_percent: number;
+      notes?: string;
+    }>;
   };
   shipping_order_items?: ShippingOrderItem[];
   assigned_user?: { first_name?: string; last_name?: string; email?: string };
@@ -162,6 +171,15 @@ export default function ShippingOrdersPage() {
                 notes,
                 products(name)
               )
+            ),
+            sales_order_items(
+              id,
+              product_name,
+              description,
+              quantity,
+              unit_price,
+              discount_percent,
+              notes
             )
           ),
           shipping_order_items(
