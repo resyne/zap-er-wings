@@ -85,7 +85,7 @@ export default function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
-  const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("kanban");
+  const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
@@ -825,7 +825,11 @@ export default function WorkOrdersPage() {
                   </TableRow>
                 ) : (
                   filteredWorkOrders.map((wo: any) => (
-                    <TableRow key={wo.id}>
+                    <TableRow 
+                      key={wo.id}
+                      onClick={() => handleViewDetails(wo)}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {wo.number}
@@ -882,57 +886,76 @@ export default function WorkOrdersPage() {
                            wo.priority === 'medium' ? 'Media' : 'Bassa'}
                         </Badge>
                       </TableCell>
-                       <TableCell>
-                          <Select 
-                            value={wo.status} 
-                            onValueChange={(value: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => 
-                              handleStatusChange(wo.id, value)
-                            }
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue>
-                                <StatusBadge status={wo.status} />
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="da_fare">
-                                <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
-                              </SelectItem>
-                              <SelectItem value="in_lavorazione">
-                                <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
-                              </SelectItem>
-                              <SelectItem value="in_test">
-                                <Badge className="bg-orange-500 text-white">In Test</Badge>
-                              </SelectItem>
-                              <SelectItem value="pronto">
-                                <Badge className="bg-blue-500 text-white">Pronto</Badge>
-                              </SelectItem>
-                              <SelectItem value="completato">
-                                <Badge className="bg-success text-success-foreground">Completato</Badge>
-                              </SelectItem>
-                              <SelectItem value="standby">
-                                <Badge className="bg-purple-500 text-white">Standby</Badge>
-                              </SelectItem>
-                              <SelectItem value="bloccato">
-                                <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
-                              </SelectItem>
-                            </SelectContent>
-                           </Select>
-                       </TableCell>
+                        <TableCell>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Select 
+                              value={wo.status} 
+                              onValueChange={(value: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => 
+                                handleStatusChange(wo.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-40">
+                                <SelectValue>
+                                  <StatusBadge status={wo.status} />
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="da_fare">
+                                  <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
+                                </SelectItem>
+                                <SelectItem value="in_lavorazione">
+                                  <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
+                                </SelectItem>
+                                <SelectItem value="in_test">
+                                  <Badge className="bg-orange-500 text-white">In Test</Badge>
+                                </SelectItem>
+                                <SelectItem value="pronto">
+                                  <Badge className="bg-blue-500 text-white">Pronto</Badge>
+                                </SelectItem>
+                                <SelectItem value="completato">
+                                  <Badge className="bg-success text-success-foreground">Completato</Badge>
+                                </SelectItem>
+                                <SelectItem value="standby">
+                                  <Badge className="bg-purple-500 text-white">Standby</Badge>
+                                </SelectItem>
+                                <SelectItem value="bloccato">
+                                  <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableCell>
                        <TableCell className="text-right">
                          <div className="flex items-center justify-end space-x-2">
-                           <Button variant="ghost" size="sm" onClick={() => handleEdit(wo)}>
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleEdit(wo);
+                             }}
+                           >
                              <Edit className="h-4 w-4" />
                            </Button>
                            <Button 
                              variant="ghost" 
                              size="sm" 
-                             onClick={() => handleArchive(wo.id, wo.archived || false)}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleArchive(wo.id, wo.archived || false);
+                             }}
                              title={wo.archived ? "Ripristina" : "Archivia"}
                            >
                              <Archive className="h-4 w-4" />
                            </Button>
-                           <Button variant="ghost" size="sm" onClick={() => handleDelete(wo.id)}>
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleDelete(wo.id);
+                             }}
+                           >
                              <Trash2 className="h-4 w-4" />
                            </Button>
                          </div>
