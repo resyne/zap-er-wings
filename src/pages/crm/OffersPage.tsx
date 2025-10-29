@@ -574,7 +574,9 @@ export default function OffersPage() {
             timeline_produzione: newOffer.timeline_produzione || null,
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
+            timeline_collaudo: newOffer.timeline_collaudo || null,
             incluso_fornitura: inclusoFornituraText || null,
+            escluso_fornitura: newOffer.escluso_fornitura || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null
@@ -593,15 +595,21 @@ export default function OffersPage() {
             .delete()
             .eq('offer_id', offerData.id);
 
-          const offerItems = selectedProducts.map(item => ({
-            offer_id: offerData.id,
-            product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
-            description: `${item.product_name}\n${item.description}`,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            discount_percent: item.discount_percent || 0,
-            notes: item.notes
-          }));
+          const offerItems = selectedProducts.map(item => {
+            const productName = item.product_name?.trim() || 'Prodotto';
+            const productDesc = item.description?.trim() || '';
+            const fullDescription = productDesc ? `${productName}\n${productDesc}` : productName;
+            
+            return {
+              offer_id: offerData.id,
+              product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
+              description: fullDescription,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              discount_percent: item.discount_percent || 0,
+              notes: item.notes || null
+            };
+          });
 
           const { error: itemsError } = await supabase
             .from('offer_items')
@@ -642,15 +650,21 @@ export default function OffersPage() {
 
         // Insert offer items if any products were selected
         if (selectedProducts.length > 0 && offerData) {
-          const offerItems = selectedProducts.map(item => ({
-            offer_id: offerData.id,
-            product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
-            description: `${item.product_name}\n${item.description}`,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            discount_percent: item.discount_percent || 0,
-            notes: item.notes
-          }));
+          const offerItems = selectedProducts.map(item => {
+            const productName = item.product_name?.trim() || 'Prodotto';
+            const productDesc = item.description?.trim() || '';
+            const fullDescription = productDesc ? `${productName}\n${productDesc}` : productName;
+            
+            return {
+              offer_id: offerData.id,
+              product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
+              description: fullDescription,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              discount_percent: item.discount_percent || 0,
+              notes: item.notes || null
+            };
+          });
 
           const { error: itemsError } = await supabase
             .from('offer_items')
@@ -691,11 +705,17 @@ export default function OffersPage() {
         title: "Successo",
         description: newOffer.id ? "Offerta preparata con successo" : "Offerta creata con successo",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating offer:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       toast({
         title: "Errore",
-        description: "Errore nella creazione dell'offerta",
+        description: error.message || "Errore nella creazione dell'offerta",
         variant: "destructive",
       });
     }
