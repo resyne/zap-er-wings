@@ -87,6 +87,7 @@ export default function OffersPage() {
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [selectedOfferItems, setSelectedOfferItems] = useState<any[]>([]);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -168,8 +169,7 @@ export default function OffersPage() {
       if (offerId) {
         const offer = offers.find(o => o.id === offerId);
         if (offer) {
-          setSelectedOffer(offer);
-          setIsDetailsDialogOpen(true);
+          openDetails(offer);
           // Remove the parameter to prevent reopening on refresh
           setSearchParams({});
         }
@@ -1067,9 +1067,27 @@ export default function OffersPage() {
     }
   };
 
-  const openDetails = (offer: Offer) => {
+  const openDetails = async (offer: Offer) => {
     setSelectedOffer(offer);
     setIsDetailsDialogOpen(true);
+    
+    // Load offer items
+    try {
+      const { data: offerItems, error } = await supabase
+        .from('offer_items')
+        .select(`
+          *,
+          products (name, code)
+        `)
+        .eq('offer_id', offer.id)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      setSelectedOfferItems(offerItems || []);
+    } catch (error) {
+      console.error('Error loading offer items:', error);
+      setSelectedOfferItems([]);
+    }
   };
 
   const handleCreateOrderFromOffer = async (offer: Offer) => {
@@ -2150,8 +2168,56 @@ export default function OffersPage() {
 
               {selectedOffer.description && (
                 <div className="border-t pt-4">
-                  <label className="text-sm font-medium text-muted-foreground">Descrizione</label>
-                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedOffer.description}</p>
+                  <h3 className="text-sm font-semibold mb-2">Oggetto dell'Offerta</h3>
+                  <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-md">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {/* Prodotti dell'Offerta */}
+              {selectedOfferItems.length > 0 && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Prodotti/Servizi Inclusi</h3>
+                  <div className="space-y-2">
+                    {selectedOfferItems.map((item, index) => (
+                      <div key={item.id} className="border rounded-lg p-3 bg-muted/30">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">
+                              {item.products?.name || 'Prodotto'}
+                              {item.products?.code && <span className="text-xs text-muted-foreground ml-2">({item.products.code})</span>}
+                            </div>
+                            {item.description && (
+                              <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
+                          <div>
+                            <span className="text-muted-foreground">Quantità:</span>
+                            <span className="ml-1 font-medium">{item.quantity}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Prezzo:</span>
+                            <span className="ml-1 font-medium">€{item.unit_price?.toFixed(2)}</span>
+                          </div>
+                          {item.discount_percent > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Sconto:</span>
+                              <span className="ml-1 font-medium">{item.discount_percent}%</span>
+                            </div>
+                          )}
+                          <div className="text-right">
+                            <span className="text-muted-foreground">Totale:</span>
+                            <span className="ml-1 font-semibold">
+                              €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
