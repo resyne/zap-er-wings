@@ -2166,62 +2166,40 @@ export default function OffersPage() {
                 )}
               </div>
 
-              {selectedOffer.description && (
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold mb-2">Oggetto dell'Offerta</h3>
-                  <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-md">{selectedOffer.description}</p>
+              {/* Collegamento Lead */}
+              <div className="border-t pt-4">
+                <label className="text-sm font-medium">Lead Collegato</label>
+                <div className="flex gap-2 mt-2">
+                  <Select 
+                    value={selectedOffer.lead_id || "none"} 
+                    onValueChange={(value) => handleLinkLead(selectedOffer.id, value === "none" ? null : value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona un lead" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessun lead</SelectItem>
+                      {leads.map((lead) => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {lead.company_name} - {lead.contact_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedOffer.lead_id && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => navigate(`/crm/leads?lead=${selectedOffer.lead_id}`)}
+                      title="Vai al Lead"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* Prodotti dell'Offerta */}
-              {selectedOfferItems.length > 0 && (
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold mb-3">Prodotti/Servizi Inclusi</h3>
-                  <div className="space-y-2">
-                    {selectedOfferItems.map((item, index) => (
-                      <div key={item.id} className="border rounded-lg p-3 bg-muted/30">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">
-                              {item.products?.name || 'Prodotto'}
-                              {item.products?.code && <span className="text-xs text-muted-foreground ml-2">({item.products.code})</span>}
-                            </div>
-                            {item.description && (
-                              <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
-                                {item.description}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
-                          <div>
-                            <span className="text-muted-foreground">Quantità:</span>
-                            <span className="ml-1 font-medium">{item.quantity}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Prezzo:</span>
-                            <span className="ml-1 font-medium">€{item.unit_price?.toFixed(2)}</span>
-                          </div>
-                          {item.discount_percent > 0 && (
-                            <div>
-                              <span className="text-muted-foreground">Sconto:</span>
-                              <span className="ml-1 font-medium">{item.discount_percent}%</span>
-                            </div>
-                          )}
-                          <div className="text-right">
-                            <span className="text-muted-foreground">Totale:</span>
-                            <span className="ml-1 font-semibold">
-                              €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Link Pubblico Offerta - Spostato in alto */}
+              {/* Link Pubblico Offerta */}
               <div className="border-t pt-4">
                 <label className="text-sm font-medium mb-2 block flex items-center gap-2">
                   <Link2 className="h-4 w-4" />
@@ -2319,6 +2297,62 @@ export default function OffersPage() {
                 )}
               </div>
 
+              {selectedOffer.description && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-2">Oggetto dell'Offerta</h3>
+                  <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-md">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {/* Prodotti dell'Offerta */}
+              {selectedOfferItems.length > 0 && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-3">Prodotti/Servizi Inclusi</h3>
+                  <div className="space-y-2">
+                    {selectedOfferItems.map((item, index) => (
+                      <div key={item.id} className="border rounded-lg p-3 bg-muted/30">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">
+                              {item.products?.name || 'Prodotto'}
+                              {item.products?.code && <span className="text-xs text-muted-foreground ml-2">({item.products.code})</span>}
+                            </div>
+                            {item.description && (
+                              <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
+                          <div>
+                            <span className="text-muted-foreground">Quantità:</span>
+                            <span className="ml-1 font-medium">{item.quantity}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Prezzo:</span>
+                            <span className="ml-1 font-medium">€{item.unit_price?.toFixed(2)}</span>
+                          </div>
+                          {item.discount_percent > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Sconto:</span>
+                              <span className="ml-1 font-medium">{item.discount_percent}%</span>
+                            </div>
+                          )}
+                          <div className="text-right">
+                            <span className="text-muted-foreground">Totale:</span>
+                            <span className="ml-1 font-semibold">
+                              €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
               {/* Metodi di Pagamento */}
               {((selectedOffer as any).metodi_pagamento || (selectedOffer as any).payment_method || (selectedOffer as any).payment_agreement || selectedOffer.payment_terms) && (
                 <div className="border-t pt-4">
@@ -2405,39 +2439,6 @@ export default function OffersPage() {
                   </div>
                 </div>
               )}
-
-              {/* Collegamento Lead */}
-              <div className="border-t pt-4">
-                <label className="text-sm font-medium">Lead Collegato</label>
-                <div className="flex gap-2 mt-2">
-                  <Select 
-                    value={selectedOffer.lead_id || "none"} 
-                    onValueChange={(value) => handleLinkLead(selectedOffer.id, value === "none" ? null : value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Seleziona un lead" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessun lead</SelectItem>
-                      {leads.map((lead) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          {lead.company_name} - {lead.contact_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedOffer.lead_id && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => navigate(`/crm/leads?lead=${selectedOffer.lead_id}`)}
-                      title="Vai al Lead"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
 
 
               {/* Actions */}
