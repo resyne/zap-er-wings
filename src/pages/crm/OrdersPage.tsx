@@ -1507,16 +1507,21 @@ export default function OrdersPage() {
                                                </div>
                                                <div className="text-xs text-foreground space-y-1">
                                                  {order.article.split('\n')
-                                                   .filter(line => /^\d+x\s/i.test(line.trim()))
+                                                   .filter(line => line.trim().length > 0 && /^\d+x\s/i.test(line.trim()))
                                                    .slice(0, 3)
-                                                   .map((line, idx) => (
-                                                     <div key={idx} className="font-medium">
-                                                       {line.trim()}
-                                                     </div>
-                                                   ))}
-                                                 {order.article.split('\n').filter(line => /^\d+x\s/i.test(line.trim())).length > 3 && (
+                                                   .map((line, idx) => {
+                                                     const trimmedLine = line.trim();
+                                                     // Extract only the product title (first line before any description)
+                                                     const productTitle = trimmedLine.split('\n')[0];
+                                                     return (
+                                                       <div key={idx} className="font-medium">
+                                                         {productTitle}
+                                                       </div>
+                                                     );
+                                                   })}
+                                                 {order.article.split('\n').filter(line => line.trim().length > 0 && /^\d+x\s/i.test(line.trim())).length > 3 && (
                                                    <div className="text-muted-foreground italic">
-                                                     +{order.article.split('\n').filter(line => /^\d+x\s/i.test(line.trim())).length - 3} altri prodotti...
+                                                     +{order.article.split('\n').filter(line => line.trim().length > 0 && /^\d+x\s/i.test(line.trim())).length - 3} altri prodotti...
                                                    </div>
                                                  )}
                                                </div>
