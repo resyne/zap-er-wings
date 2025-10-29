@@ -701,17 +701,8 @@ export default function WorkOrdersServicePage() {
                 filteredWorkOrders.map((workOrder: any) => (
                   <TableRow key={workOrder.id}>
                      <TableCell>
-                       <div className="space-y-1">
-                         <div className="font-mono text-sm font-medium">
-                           {workOrder.number}
-                         </div>
-                         {workOrder.sales_orders && (
-                           <div className="text-xs text-muted-foreground">
-                             <Badge variant="outline" className="text-xs">
-                               {workOrder.sales_orders.number}
-                             </Badge>
-                           </div>
-                         )}
+                       <div className="font-mono text-sm font-medium">
+                         {workOrder.number}
                        </div>
                      </TableCell>
                      <TableCell>
