@@ -6487,6 +6487,7 @@ export type Database = {
       is_admin_user: { Args: never; Returns: boolean }
       is_same_site_user: { Args: { target_user_id: string }; Returns: boolean }
       is_user_admin: { Args: { user_uuid?: string }; Returns: boolean }
+      populate_missing_shipping_order_items: { Args: never; Returns: number }
       should_hide_amounts: { Args: never; Returns: boolean }
       user_created_quote: { Args: { quote_id: string }; Returns: boolean }
       validate_quote_code: { Args: { input_code: string }; Returns: boolean }
