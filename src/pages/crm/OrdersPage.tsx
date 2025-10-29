@@ -199,6 +199,7 @@ export default function OrdersPage() {
           *,
           customers(name, code),
           leads(id, company_name),
+          offers(id, number, title),
           work_orders(id, number, status, includes_installation),
           service_work_orders(id, number, status),
           shipping_orders(id, number, status)
@@ -1766,17 +1767,17 @@ export default function OrdersPage() {
                     <div className="text-sm text-muted-foreground">{selectedOrder.customers?.code}</div>
                   </div>
                   <div>
-                    <Label className="text-sm text-muted-foreground">Lead</Label>
-                    {selectedOrder.leads ? (
+                    <Label className="text-sm text-muted-foreground">Offerta</Label>
+                    {selectedOrder.offers ? (
                       <Link 
-                        to={`/crm/opportunities?lead=${selectedOrder.lead_id}`}
+                        to={`/crm/offers`}
                         className="text-primary hover:underline flex items-center gap-1 font-semibold"
                       >
-                        {selectedOrder.leads.company_name}
+                        {selectedOrder.offers.number} - {selectedOrder.offers.title}
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : (
-                      <div className="text-sm text-muted-foreground">Non collegato</div>
+                      <div className="text-sm text-muted-foreground">Non collegata</div>
                     )}
                   </div>
                   <div>
