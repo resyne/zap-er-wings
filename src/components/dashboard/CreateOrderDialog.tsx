@@ -377,11 +377,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const assignedTo = commission.responsible?.trim() !== '' ? commission.responsible : null;
     const effectiveLeadId = newOrder.lead_id || leadId || null;
     
+    // Imposta lo status in base all'assegnazione
+    const workOrderStatus = assignedTo ? 'in_lavorazione' as const : 'da_fare' as const;
+    
     const productionData = {
       number: '',
       title: newOrder.title || `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.description || newOrder.notes || '',
-      status: 'da_fare' as const,
+      status: workOrderStatus,
       customer_id: newOrder.customer_id,
       lead_id: effectiveLeadId,
       production_responsible_id: assignedTo,
