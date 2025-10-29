@@ -4433,6 +4433,7 @@ export type Database = {
           lead_id: string | null
           notes: string | null
           number: string
+          offer_id: string | null
           order_date: string | null
           order_source: string | null
           order_type: string | null
@@ -4456,6 +4457,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           number: string
+          offer_id?: string | null
           order_date?: string | null
           order_source?: string | null
           order_type?: string | null
@@ -4479,6 +4481,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           number?: string
+          offer_id?: string | null
           order_date?: string | null
           order_source?: string | null
           order_type?: string | null
@@ -4500,6 +4503,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
             referencedColumns: ["id"]
           },
           {
