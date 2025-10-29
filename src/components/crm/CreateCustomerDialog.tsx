@@ -23,11 +23,13 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
     company_name: "",
     email: "",
     phone: "",
+    tax_id: "",
+    pec: "",
+    sdi_code: "",
     address: "",
     shipping_address: "",
     city: "",
     country: "",
-    tax_id: "",
     active: true,
     incomplete_registry: false
   });
@@ -59,11 +61,13 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           company_name: formData.company_name || null,
           email: formData.email || null,
           phone: formData.phone || null,
+          tax_id: formData.tax_id || null,
+          pec: formData.pec || null,
+          sdi_code: formData.sdi_code || null,
           address: formData.address || null,
           shipping_address: sameBillingAddress ? null : (formData.shipping_address || null),
           city: formData.city || null,
           country: formData.country || null,
-          tax_id: formData.tax_id || null,
           active: formData.active,
           incomplete_registry: formData.incomplete_registry
         })
@@ -84,11 +88,13 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
         company_name: "",
         email: "",
         phone: "",
+        tax_id: "",
+        pec: "",
+        sdi_code: "",
         address: "",
         shipping_address: "",
         city: "",
         country: "",
-        tax_id: "",
         active: true,
         incomplete_registry: false
       });
@@ -158,6 +164,38 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="tax_id">Partita IVA</Label>
+            <Input
+              id="tax_id"
+              value={formData.tax_id}
+              onChange={(e) => handleInputChange('tax_id', e.target.value)}
+              placeholder="IT12345678901"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pec">PEC</Label>
+              <Input
+                id="pec"
+                type="email"
+                value={formData.pec}
+                onChange={(e) => handleInputChange('pec', e.target.value)}
+                placeholder="pec@cliente.it"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sdi_code">Codice Destinatario</Label>
+              <Input
+                id="sdi_code"
+                value={formData.sdi_code}
+                onChange={(e) => handleInputChange('sdi_code', e.target.value)}
+                placeholder="XXXXXXX"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="address">Indirizzo di Fatturazione</Label>
             <Textarea
               id="address"
@@ -167,33 +205,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
               rows={2}
             />
           </div>
-
-          <div className="flex items-center space-x-2 pt-2">
-            <Checkbox
-              id="same_billing"
-              checked={sameBillingAddress}
-              onCheckedChange={(checked) => {
-                setSameBillingAddress(checked as boolean);
-                if (checked) {
-                  handleInputChange('shipping_address', '');
-                }
-              }}
-            />
-            <Label htmlFor="same_billing">Stesso indirizzo di fatturazione</Label>
-          </div>
-
-          {!sameBillingAddress && (
-            <div className="space-y-2">
-              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
-              <Textarea
-                id="shipping_address"
-                value={formData.shipping_address}
-                onChange={(e) => handleInputChange('shipping_address', e.target.value)}
-                placeholder="Via, numero civico"
-                rows={2}
-              />
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -214,16 +225,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
                 placeholder="Italia"
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tax_id">Partita IVA</Label>
-            <Input
-              id="tax_id"
-              value={formData.tax_id}
-              onChange={(e) => handleInputChange('tax_id', e.target.value)}
-              placeholder="IT12345678901"
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-2">

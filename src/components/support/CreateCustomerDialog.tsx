@@ -21,11 +21,13 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
     company_name: "",
     email: "",
     phone: "",
+    tax_id: "",
+    pec: "",
+    sdi_code: "",
     address: "",
     shipping_address: "",
     city: "",
     country: "",
-    tax_id: "",
     active: true
   });
   const { toast } = useToast();
@@ -56,11 +58,13 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           company_name: formData.company_name || null,
           email: formData.email || null,
           phone: formData.phone || null,
+          tax_id: formData.tax_id || null,
+          pec: formData.pec || null,
+          sdi_code: formData.sdi_code || null,
           address: formData.address || null,
           shipping_address: formData.shipping_address || null,
           city: formData.city || null,
           country: formData.country || null,
-          tax_id: formData.tax_id || null,
           active: formData.active
         })
         .select()
@@ -79,11 +83,13 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
         company_name: "",
         email: "",
         phone: "",
+        tax_id: "",
+        pec: "",
+        sdi_code: "",
         address: "",
         shipping_address: "",
         city: "",
         country: "",
-        tax_id: "",
         active: true
       });
       onOpenChange(false);
@@ -152,23 +158,44 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="tax_id">Partita IVA</Label>
+            <Input
+              id="tax_id"
+              value={formData.tax_id}
+              onChange={(e) => handleInputChange('tax_id', e.target.value)}
+              placeholder="IT12345678901"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pec">PEC</Label>
+              <Input
+                id="pec"
+                type="email"
+                value={formData.pec}
+                onChange={(e) => handleInputChange('pec', e.target.value)}
+                placeholder="pec@cliente.it"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sdi_code">Codice Destinatario</Label>
+              <Input
+                id="sdi_code"
+                value={formData.sdi_code}
+                onChange={(e) => handleInputChange('sdi_code', e.target.value)}
+                placeholder="XXXXXXX"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="address">Indirizzo di Fatturazione</Label>
             <Textarea
               id="address"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder="Via, numero civico"
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="shipping_address">Indirizzo di Spedizione (se diverso)</Label>
-            <Textarea
-              id="shipping_address"
-              value={formData.shipping_address}
-              onChange={(e) => handleInputChange('shipping_address', e.target.value)}
-              placeholder="Via, numero civico (lascia vuoto se uguale all'indirizzo di fatturazione)"
               rows={2}
             />
           </div>
@@ -194,24 +221,24 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="tax_id">Partita IVA</Label>
-              <Input
-                id="tax_id"
-                value={formData.tax_id}
-                onChange={(e) => handleInputChange('tax_id', e.target.value)}
-                placeholder="IT12345678901"
-              />
-            </div>
-            <div className="flex items-center space-x-2 pt-6">
-              <Switch
-                id="active"
-                checked={formData.active}
-                onCheckedChange={(checked) => handleInputChange('active', checked)}
-              />
-              <Label htmlFor="active">Cliente attivo</Label>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="shipping_address">Indirizzo di Spedizione (se diverso)</Label>
+            <Textarea
+              id="shipping_address"
+              value={formData.shipping_address}
+              onChange={(e) => handleInputChange('shipping_address', e.target.value)}
+              placeholder="Via, numero civico (lascia vuoto se uguale all'indirizzo di fatturazione)"
+              rows={2}
+            />
+          </div>
+
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch
+              id="active"
+              checked={formData.active}
+              onCheckedChange={(checked) => handleInputChange('active', checked)}
+            />
+            <Label htmlFor="active">Cliente attivo</Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
