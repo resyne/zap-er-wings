@@ -126,6 +126,9 @@ export default function PublicOfferPage() {
       const ivaDisplay = isReverseCharge 
         ? '0.00</div><div style="font-size: 9px; color: #dc3545; margin-top: 3px;">N6.7 - Inversione contabile' 
         : totalIva.toFixed(2);
+      
+      // Format IVA percentage display
+      const ivaPercentDisplay = isReverseCharge ? '0%' : '22%';
 
       // Combine payment method and payment agreement
       const paymentInfo = [offer.payment_method, offer.payment_agreement]
@@ -165,6 +168,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{escluso_fornitura\}\}/g, offer.escluso_fornitura || '')
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
         .replace(/\{\{totale_iva\}\}/g, ivaDisplay)
+        .replace(/\{\{iva_percent\}\}/g, ivaPercentDisplay)
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
