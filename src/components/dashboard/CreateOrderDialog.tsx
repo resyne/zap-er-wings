@@ -123,35 +123,55 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   }, [open, prefilledData]);
 
-  // Load offer items when offer_id changes
+  // Load offer items and financial data when offer_id changes
   useEffect(() => {
-    const loadOfferItems = async () => {
+    const loadOfferData = async () => {
       if (!newOrder.offer_id) return;
 
       try {
-        const { data: offerItems, error } = await supabase
+        // Load offer items
+        const { data: offerItems, error: itemsError } = await supabase
           .from('offer_items')
           .select('description, quantity')
           .eq('offer_id', newOrder.offer_id);
 
-        if (error) throw error;
+        if (itemsError) throw itemsError;
 
+        // Load offer financial data
+        const { data: offerData, error: offerError } = await supabase
+          .from('offers')
+          .select('amount')
+          .eq('id', newOrder.offer_id)
+          .single();
+
+        if (offerError) throw offerError;
+
+        const updates: any = {};
+
+        // Update articles
         if (offerItems && offerItems.length > 0) {
           const articles = offerItems.map(item => {
             const quantity = item.quantity || 1;
             return `${quantity}x ${item.description}`;
           });
-          setNewOrder(prev => ({
-            ...prev,
-            articles: articles
-          }));
+          updates.articles = articles;
         }
+
+        // Update payment amount from offer
+        if (offerData && offerData.amount) {
+          updates.payment_amount = offerData.amount.toString();
+        }
+
+        setNewOrder(prev => ({
+          ...prev,
+          ...updates
+        }));
       } catch (error) {
-        console.error('Error loading offer items:', error);
+        console.error('Error loading offer data:', error);
       }
     };
 
-    loadOfferItems();
+    loadOfferData();
   }, [newOrder.offer_id]);
 
   // Load lead photos when lead_id changes
@@ -576,7 +596,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         notes: newOrder.notes || null,
         order_type: orderType,
         order_source: newOrder.order_source,
-        lead_id: newOrder.lead_id || leadId || null
+        lead_id: newOrder.lead_id || leadId || null,
+        offer_id: newOrder.offer_id || null,
+        total_amount: newOrder.payment_amount ? parseFloat(newOrder.payment_amount) : null
       };
 
       const { data: salesOrder, error: salesError } = await supabase
