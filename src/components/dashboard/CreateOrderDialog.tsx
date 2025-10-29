@@ -75,6 +75,17 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string }>>([]);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [slideshowStartIndex, setSlideshowStartIndex] = useState(0);
+
+  // Products state
+  const [currentProductId, setCurrentProductId] = useState<string>('');
+  const [selectedProducts, setSelectedProducts] = useState<Array<{
+    product_id: string;
+    product_name: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    discount_percent: number;
+  }>>([]);
   
   const [newOrder, setNewOrder] = useState({
     customer_id: "",
@@ -92,6 +103,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     priority: "medium",
     payment_on_delivery: false,
     payment_amount: "",
+    payment_method: "",
+    payment_agreement: "",
     commissions: {
       production: {
         enabled: false,
@@ -127,27 +140,30 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   useEffect(() => {
     const loadOfferData = async () => {
       if (!newOrder.offer_id) {
-        // Se non c'è offer_id, pulisci gli articoli
+        // Se non c'è offer_id, pulisci gli articoli e prodotti
         setNewOrder(prev => ({
           ...prev,
-          articles: []
+          articles: [],
+          payment_method: '',
+          payment_agreement: ''
         }));
+        setSelectedProducts([]);
         return;
       }
 
       try {
-        // Load offer items
+        // Load offer items with product info
         const { data: offerItems, error: itemsError } = await supabase
           .from('offer_items')
-          .select('description, quantity')
+          .select('product_id, description, quantity, unit_price, discount_percent, products(name)')
           .eq('offer_id', newOrder.offer_id);
 
         if (itemsError) throw itemsError;
 
-        // Load offer financial data
+        // Load offer financial and payment data
         const { data: offerData, error: offerError } = await supabase
           .from('offers')
-          .select('amount')
+          .select('amount, payment_method, payment_agreement')
           .eq('id', newOrder.offer_id)
           .single();
 
@@ -155,24 +171,45 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
         const updates: any = {};
 
-        // Update articles - create clean array to avoid duplicates
+        // Update products from offer items
         if (offerItems && offerItems.length > 0) {
-          const articles = offerItems.map(item => {
+          const products = offerItems.map((item: any) => ({
+            product_id: item.product_id || `manual-${Date.now()}-${Math.random()}`,
+            product_name: item.products?.name || item.description || '',
+            description: item.description || '',
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 0,
+            discount_percent: item.discount_percent || 0
+          }));
+          setSelectedProducts(products);
+          
+          // Also update articles for backward compatibility
+          const articles = offerItems.map((item: any) => {
             const quantity = item.quantity || 1;
-            return `${quantity}x ${item.description}`;
+            const name = item.products?.name || item.description || '';
+            return `${quantity}x ${name}`;
           });
           updates.articles = articles;
-          console.log('Loaded articles from offer:', articles);
+          console.log('Loaded products from offer:', products);
         } else {
+          setSelectedProducts([]);
           updates.articles = [];
         }
 
-        // Update payment amount from offer
-        if (offerData && offerData.amount) {
-          updates.payment_amount = offerData.amount.toString();
+        // Update payment data from offer
+        if (offerData) {
+          if (offerData.amount) {
+            updates.payment_amount = offerData.amount.toString();
+          }
+          if (offerData.payment_method) {
+            updates.payment_method = offerData.payment_method;
+          }
+          if (offerData.payment_agreement) {
+            updates.payment_agreement = offerData.payment_agreement;
+          }
         }
 
-        // Replace articles completely, don't merge
+        // Replace data completely, don't merge
         setNewOrder(prev => ({
           ...prev,
           ...updates
@@ -621,10 +658,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       return;
     }
 
-    if (!newOrder.articles || newOrder.articles.length === 0) {
+    if (selectedProducts.length === 0 && (!newOrder.articles || newOrder.articles.length === 0)) {
       toast({
         title: "Errore",
-        description: "Aggiungi almeno un articolo",
+        description: "Aggiungi almeno un prodotto/servizio",
         variant: "destructive",
       });
       return;
@@ -653,10 +690,24 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         orderType = "ods"; // Solo Spedizione
       }
 
+      // Calculate total from selectedProducts if available
+      const calculatedTotal = selectedProducts.length > 0 
+        ? selectedProducts.reduce((total, item) => {
+            const subtotal = item.quantity * item.unit_price;
+            const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
+            return total + (subtotal - discount);
+          }, 0)
+        : (newOrder.payment_amount ? parseFloat(newOrder.payment_amount) : null);
+
+      // Build article string from selectedProducts or use existing articles
+      const articlesString = selectedProducts.length > 0
+        ? selectedProducts.map(item => `${item.quantity}x ${item.product_name}`).join('\n')
+        : newOrder.articles.join('\n') || null;
+
       const orderData = {
         number: "",
         customer_id: newOrder.customer_id,
-        article: newOrder.articles.join('\n') || null,
+        article: articlesString,
         order_date: newOrder.order_date || null,
         delivery_date: newOrder.delivery_date || null,
         status: newOrder.status,
@@ -665,7 +716,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         order_source: newOrder.order_source,
         lead_id: newOrder.lead_id || leadId || null,
         offer_id: newOrder.offer_id || null,
-        total_amount: newOrder.payment_amount ? parseFloat(newOrder.payment_amount) : null
+        total_amount: calculatedTotal
       };
 
       const { data: salesOrder, error: salesError } = await supabase
@@ -773,6 +824,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       priority: "medium",
       payment_on_delivery: false,
       payment_amount: "",
+      payment_method: "",
+      payment_agreement: "",
       commissions: {
         production: {
           enabled: false,
@@ -791,6 +844,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
     });
     setProductSearch("");
+    setSelectedProducts([]);
+    setCurrentProductId("");
   };
 
   return (
@@ -1042,100 +1097,231 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             </div>
           </div>
 
-          {/* Articoli */}
+          {/* Sezione Prodotti e Servizi */}
           <div className="space-y-3">
-            <Label>Articoli / Prodotti *</Label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative" ref={productInputRef}>
-                <Input
-                  placeholder="Cerca prodotto dall'anagrafica o scrivi manualmente..."
-                  value={productSearch}
-                  onChange={(e) => {
-                    setProductSearch(e.target.value);
-                    setShowProductDropdown(true);
+            <div className="flex items-center justify-between">
+              <Label>Prodotti e Servizi *</Label>
+              {!newOrder.offer_id && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedProducts([...selectedProducts, {
+                      product_id: `manual-${Date.now()}`,
+                      product_name: '',
+                      description: '',
+                      quantity: 1,
+                      unit_price: 0,
+                      discount_percent: 0
+                    }]);
                   }}
-                  onFocus={() => setShowProductDropdown(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && productSearch.trim()) {
-                      e.preventDefault();
-                      setNewOrder({ 
-                        ...newOrder, 
-                        articles: [...newOrder.articles, productSearch.trim()] 
-                      });
-                      setProductSearch("");
-                      setShowProductDropdown(false);
-                    }
-                  }}
-                />
-                {showProductDropdown && filteredProducts.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
-                    {filteredProducts.map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => {
-                          const productText = `${product.code} - ${product.name}${product.description ? ` (${product.description})` : ''}`;
-                          setNewOrder({ 
-                            ...newOrder, 
-                            articles: [...newOrder.articles, productText] 
-                          });
-                          setProductSearch("");
-                          setShowProductDropdown(false);
-                        }}
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{product.code} - {product.name}</span>
-                          {product.description && (
-                            <span className="text-xs text-muted-foreground">{product.description}</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  if (productSearch.trim()) {
-                    setNewOrder({ 
-                      ...newOrder, 
-                      articles: [...newOrder.articles, productSearch.trim()] 
-                    });
-                    setProductSearch("");
-                    setShowProductDropdown(false);
-                  }
-                }}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi Voce Manuale
+                </Button>
+              )}
             </div>
-            
-            {/* Lista articoli aggiunti */}
-            {newOrder.articles.length > 0 && (
-              <div className="space-y-2 border rounded-lg p-3 bg-muted/50">
-                {newOrder.articles.map((article, index) => (
-                  <div key={index} className="flex items-center justify-between gap-2 bg-background p-2 rounded border">
-                    <span className="text-sm flex-1">{article}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setNewOrder({
-                          ...newOrder,
-                          articles: newOrder.articles.filter((_, i) => i !== index)
-                        });
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+
+            {/* Se c'è un'offerta, mostra i prodotti dell'offerta (readonly) */}
+            {newOrder.offer_id && selectedProducts.length > 0 && (
+              <div className="border rounded-lg p-3 bg-muted/10">
+                <p className="text-sm text-muted-foreground mb-3">Prodotti dall'offerta selezionata:</p>
+                <div className="space-y-2">
+                  {selectedProducts.map((item, index) => (
+                    <div key={index} className="border rounded p-3 bg-background">
+                      <div className="font-medium">{item.product_name}</div>
+                      {item.description && <div className="text-sm text-muted-foreground mt-1">{item.description}</div>}
+                      <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
+                        <div>Quantità: {item.quantity}</div>
+                        <div>Prezzo Unitario: €{item.unit_price.toFixed(2)}</div>
+                        <div>Sconto: {item.discount_percent}%</div>
+                      </div>
+                      <div className="text-sm font-medium text-right mt-2">
+                        Totale: €{((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-lg font-bold text-right pt-2 border-t mt-3">
+                  Totale Generale: €{selectedProducts.reduce((total, item) => {
+                    return total + ((item.quantity * item.unit_price) * (1 - item.discount_percent / 100));
+                  }, 0).toFixed(2)}
+                </div>
               </div>
             )}
+
+            {/* Se non c'è offerta, permetti inserimento manuale */}
+            {!newOrder.offer_id && (
+              <>
+                <div className="flex gap-2">
+                  <Select
+                    value={currentProductId}
+                    onValueChange={setCurrentProductId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona prodotto dall'anagrafica" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.code} - {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const product = products.find(p => p.id === currentProductId);
+                      if (product) {
+                        setSelectedProducts([...selectedProducts, {
+                          product_id: product.id,
+                          product_name: product.name,
+                          description: product.description || '',
+                          quantity: 1,
+                          unit_price: 0,
+                          discount_percent: 0
+                        }]);
+                        setCurrentProductId('');
+                      }
+                    }}
+                    disabled={!currentProductId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi
+                  </Button>
+                </div>
+
+                {/* Lista prodotti editabili */}
+                {selectedProducts.length > 0 && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    {selectedProducts.map((item, index) => (
+                      <div key={index} className="border rounded p-4 space-y-3 bg-muted/50">
+                        <div className="flex items-start justify-between gap-2">
+                          <Input
+                            placeholder="Nome prodotto/servizio"
+                            value={item.product_name}
+                            onChange={(e) => {
+                              const updated = [...selectedProducts];
+                              updated[index].product_name = e.target.value;
+                              setSelectedProducts(updated);
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedProducts(selectedProducts.filter((_, i) => i !== index))}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Textarea
+                          placeholder="Descrizione"
+                          value={item.description}
+                          onChange={(e) => {
+                            const updated = [...selectedProducts];
+                            updated[index].description = e.target.value;
+                            setSelectedProducts(updated);
+                          }}
+                          rows={2}
+                        />
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-xs">Quantità</Label>
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const updated = [...selectedProducts];
+                                updated[index].quantity = parseFloat(e.target.value) || 0;
+                                setSelectedProducts(updated);
+                              }}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Prezzo Unitario</Label>
+                            <Input
+                              type="number"
+                              value={item.unit_price}
+                              onChange={(e) => {
+                                const updated = [...selectedProducts];
+                                updated[index].unit_price = parseFloat(e.target.value) || 0;
+                                setSelectedProducts(updated);
+                              }}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Sconto %</Label>
+                            <Input
+                              type="number"
+                              value={item.discount_percent}
+                              onChange={(e) => {
+                                const updated = [...selectedProducts];
+                                updated[index].discount_percent = parseFloat(e.target.value) || 0;
+                                setSelectedProducts(updated);
+                              }}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                            />
+                          </div>
+                        </div>
+                        <div className="text-sm font-medium text-right">
+                          Totale: €{((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="text-lg font-bold text-right pt-2 border-t">
+                      Totale Generale: €{selectedProducts.reduce((total, item) => {
+                        return total + ((item.quantity * item.unit_price) * (1 - item.discount_percent / 100));
+                      }, 0).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Metodi di Pagamento */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Metodo di Pagamento</Label>
+              <Select 
+                value={newOrder.payment_method} 
+                onValueChange={(value) => setNewOrder({ ...newOrder, payment_method: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona metodo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bonifico">Bonifico bancario</SelectItem>
+                  <SelectItem value="contrassegno">Contrassegno</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Accordi di Pagamento</Label>
+              <Select 
+                value={newOrder.payment_agreement || ''} 
+                onValueChange={(value) => setNewOrder({ ...newOrder, payment_agreement: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona accordo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
+                  <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Note */}
