@@ -1501,14 +1501,6 @@ export default function OffersPage() {
                 </div>
               </div>
               
-              <div>
-                <label className="text-sm font-medium">Sconto (se applicabile)</label>
-                <Input
-                  value={newOffer.discount}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, discount: e.target.value }))}
-                  placeholder="Es: 10% di sconto per ordini anticipati"
-                />
-              </div>
               
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -1644,7 +1636,7 @@ export default function OffersPage() {
                           </Button>
                         </div>
                         
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-5 gap-2">
                           <div>
                             <label className="text-xs text-muted-foreground">Quantità</label>
                             <Input
@@ -1672,6 +1664,23 @@ export default function OffersPage() {
                               }}
                               placeholder="Prezzo"
                               min="0"
+                              step="0.01"
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Sconto %</label>
+                            <Input
+                              type="number"
+                              value={item.discount_percent}
+                              onChange={(e) => {
+                                const updated = [...selectedProducts];
+                                updated[index].discount_percent = parseFloat(e.target.value) || 0;
+                                setSelectedProducts(updated);
+                              }}
+                              placeholder="Sconto"
+                              min="0"
+                              max="100"
                               step="0.01"
                               className="text-sm"
                             />
