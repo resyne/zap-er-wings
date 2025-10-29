@@ -466,6 +466,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                   <SelectContent>
                     <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
                     <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
+                    <SelectItem value="altro - personalizzato">altro - personalizzato</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
