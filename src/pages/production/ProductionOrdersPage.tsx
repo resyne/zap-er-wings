@@ -73,6 +73,14 @@ interface WorkOrder {
     id: string;
     company_name: string;
   };
+  work_order_items?: Array<{
+    id: string;
+    quantity: number;
+    materials?: {
+      name: string;
+      code: string;
+    };
+  }>;
 }
 
 export default function WorkOrdersPage() {
@@ -131,7 +139,8 @@ export default function WorkOrdersPage() {
           customers(name, code),
           sales_orders(number),
           leads(id, company_name),
-          service_work_orders!production_work_order_id(id, number, title)
+          service_work_orders!production_work_order_id(id, number, title),
+          work_order_items(id, quantity, materials(name, code))
         `)
         .order('updated_at', { ascending: false });
 
@@ -1017,9 +1026,31 @@ export default function WorkOrdersPage() {
                                         {(wo.technician || wo.planned_start_date || !wo.assigned_to) && (
                                           <div className="pt-2 border-t space-y-1">
                                             {wo.technician ? (
-                                              <div className="text-xs text-muted-foreground">
-                                                <span className="font-medium">Tecnico:</span> {wo.technician.first_name} {wo.technician.last_name}
-                                              </div>
+                                              <>
+                                                <div className="text-xs text-muted-foreground">
+                                                  <span className="font-medium">Responsabile:</span> {wo.technician.first_name} {wo.technician.last_name}
+                                                </div>
+                                                {wo.work_order_items && wo.work_order_items.length > 0 && (
+                                                  <div className="text-xs pt-1">
+                                                    <span className="font-medium text-muted-foreground">Prodotti:</span>
+                                                    <div className="mt-1 space-y-0.5">
+                                                      {wo.work_order_items.slice(0, 3).map((item) => (
+                                                        <div key={item.id} className="flex items-center gap-1 text-muted-foreground">
+                                                          <span className="text-[10px]">•</span>
+                                                          <span className="text-[11px]">
+                                                            {item.materials?.name || 'N/A'} <span className="text-muted-foreground/70">(x{item.quantity})</span>
+                                                          </span>
+                                                        </div>
+                                                      ))}
+                                                      {wo.work_order_items.length > 3 && (
+                                                        <div className="text-[10px] text-muted-foreground/70 italic">
+                                                          +{wo.work_order_items.length - 3} altri...
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </>
                                             ) : (
                                               <Button
                                                 size="sm"
