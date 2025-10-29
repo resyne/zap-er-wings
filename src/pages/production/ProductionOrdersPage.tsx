@@ -1390,6 +1390,213 @@ export default function WorkOrdersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedWO ? 'Modifica Commessa di Produzione' : 'Nuova Commessa di Produzione'}</DialogTitle>
+            <DialogDescription>
+              {selectedWO ? 'Modifica i dettagli della commessa' : 'Crea una nuova commessa di produzione'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Titolo *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Titolo della commessa"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bom_id">Distinta Base</Label>
+                <Select value={formData.bom_id} onValueChange={(value) => setFormData({ ...formData, bom_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona BOM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boms.map((bom) => (
+                      <SelectItem key={bom.id} value={bom.id}>
+                        {bom.name} (v{bom.version})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="customer_id">Cliente</Label>
+                <div className="flex gap-2">
+                  <Select value={formData.customer_id} onValueChange={(value) => setFormData({ ...formData, customer_id: value })}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleziona cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowCreateCustomer(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="assigned_to">Assegna a</Label>
+                <Select value={formData.assigned_to || "none"} onValueChange={(value) => setFormData({ ...formData, assigned_to: value === "none" ? "" : value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Nessun assegnato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessun assegnato</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="priority">Priorità</Label>
+                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Bassa</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="planned_start_date">Data Inizio Pianificata</Label>
+                <Input
+                  id="planned_start_date"
+                  type="datetime-local"
+                  value={formData.planned_start_date}
+                  onChange={(e) => setFormData({ ...formData, planned_start_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="planned_end_date">Data Fine Pianificata</Label>
+                <Input
+                  id="planned_end_date"
+                  type="datetime-local"
+                  value={formData.planned_end_date}
+                  onChange={(e) => setFormData({ ...formData, planned_end_date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setPlannedDuration(24)}>
+                +24h
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setPlannedDuration(48)}>
+                +48h
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setPlannedDuration(72)}>
+                +72h
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Note</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Note aggiuntive"
+                rows={3}
+              />
+            </div>
+
+            {!selectedWO && (
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="createServiceOrder"
+                    checked={formData.createServiceOrder}
+                    onCheckedChange={(checked) => setFormData({ ...formData, createServiceOrder: checked as boolean })}
+                  />
+                  <Label htmlFor="createServiceOrder" className="cursor-pointer">
+                    Crea anche Commessa di Lavoro collegata
+                  </Label>
+                </div>
+
+                {formData.createServiceOrder && (
+                  <div className="space-y-3 pl-6 border-l-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="serviceOrderTitle">Titolo CdL</Label>
+                      <Input
+                        id="serviceOrderTitle"
+                        value={formData.serviceOrderTitle}
+                        onChange={(e) => setFormData({ ...formData, serviceOrderTitle: e.target.value })}
+                        placeholder="Titolo della commessa di lavoro"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="serviceOrderNotes">Note CdL</Label>
+                      <Textarea
+                        id="serviceOrderNotes"
+                        value={formData.serviceOrderNotes}
+                        onChange={(e) => setFormData({ ...formData, serviceOrderNotes: e.target.value })}
+                        placeholder="Note per la commessa di lavoro"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2 border-t pt-4">
+              <Button type="button" variant="outline" onClick={() => {
+                setIsDialogOpen(false);
+                setSelectedWO(null);
+                setFormData({
+                  title: "",
+                  bom_id: "",
+                  accessori_ids: [],
+                  customer_id: "",
+                  assigned_to: "",
+                  back_office_manager: "",
+                  priority: "medium",
+                  planned_start_date: "",
+                  planned_end_date: "",
+                  notes: "",
+                  createServiceOrder: false,
+                  serviceOrderTitle: "",
+                  serviceOrderNotes: ""
+                });
+              }}>
+                Annulla
+              </Button>
+              <Button type="submit">
+                {selectedWO ? 'Salva Modifiche' : 'Crea Commessa'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Filters Dialog */}
       <Dialog open={showFiltersDialog} onOpenChange={setShowFiltersDialog}>
         <DialogContent>
