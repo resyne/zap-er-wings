@@ -5068,6 +5068,7 @@ export type Database = {
           notes: string | null
           picked_at: string | null
           picked_by: string | null
+          product_name: string | null
           quantity: number
           shipping_order_id: string
           total_price: number | null
@@ -5082,6 +5083,7 @@ export type Database = {
           notes?: string | null
           picked_at?: string | null
           picked_by?: string | null
+          product_name?: string | null
           quantity: number
           shipping_order_id: string
           total_price?: number | null
@@ -5096,6 +5098,7 @@ export type Database = {
           notes?: string | null
           picked_at?: string | null
           picked_by?: string | null
+          product_name?: string | null
           quantity?: number
           shipping_order_id?: string
           total_price?: number | null

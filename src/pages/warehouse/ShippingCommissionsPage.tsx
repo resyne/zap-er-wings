@@ -84,7 +84,8 @@ interface ShippingOrder {
 
 interface ShippingOrderItem {
   id?: string;
-  material_id: string;
+  material_id?: string | null;
+  product_name?: string;
   quantity: number;
   unit_price: number;
   total_price: number;
@@ -92,7 +93,7 @@ interface ShippingOrderItem {
   is_picked?: boolean;
   picked_at?: string;
   picked_by?: string;
-  materials?: { name: string; code: string };
+  materials?: { name: string; code: string } | null;
   profiles?: { id: string; first_name: string; last_name: string; email: string } | null;
 }
 
@@ -189,6 +190,7 @@ export default function ShippingOrdersPage() {
           shipping_order_items(
             id,
             material_id,
+            product_name,
             quantity,
             unit_price,
             total_price,
@@ -341,19 +343,14 @@ export default function ShippingOrdersPage() {
 
         if (!orderItemsError && orderItemsData && orderItemsData.length > 0) {
           // Usa gli articoli direttamente dall'ordine
-          itemsToCreate = orderItemsData
-            .filter((item: any) => {
-              const hasMaterial = item.products?.material_id;
-              if (!hasMaterial) skippedItems++;
-              return hasMaterial;
-            })
-            .map((item: any) => ({
-              material_id: item.products.material_id,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.quantity * item.unit_price,
-              notes: `${item.product_name}${item.description ? ` - ${item.description}` : ''}`
-            }));
+          itemsToCreate = orderItemsData.map((item: any) => ({
+            material_id: item.products?.material_id || null,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.quantity * item.unit_price,
+            notes: item.description || null
+          }));
         } else {
           // Se non ci sono sales_order_items, prova con l'offerta collegata
           const { data: salesOrderData, error: salesOrderError } = await supabase
@@ -377,27 +374,23 @@ export default function ShippingOrdersPage() {
           if (!salesOrderError && salesOrderData?.offers?.offer_items) {
             const allItems = salesOrderData.offers.offer_items;
             
-            itemsToCreate = allItems
-              .filter((item: any) => {
-                const hasMaterial = item.products?.material_id;
-                if (!hasMaterial) skippedItems++;
-                return hasMaterial;
-              })
-              .map((item: any) => ({
-                material_id: item.products.material_id,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                total_price: item.quantity * item.unit_price,
-                notes: `${item.products.name}${item.description ? ` - ${item.description}` : ''}`
-              }));
+            itemsToCreate = allItems.map((item: any) => ({
+              material_id: item.products?.material_id || null,
+              product_name: item.products?.name || item.description,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.quantity * item.unit_price,
+              notes: item.description || null
+            }));
           }
         }
       }
 
       if (itemsToCreate && itemsToCreate.length > 0) {
-        const itemsToInsert = itemsToCreate.map((item: ShippingOrderItem) => ({
+        const itemsToInsert = itemsToCreate.map((item: any) => ({
           shipping_order_id: newOrder.id,
           material_id: item.material_id,
+          product_name: item.product_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total_price,
@@ -457,9 +450,10 @@ export default function ShippingOrdersPage() {
 
         // Insert new items
         if (items.length > 0) {
-          const itemsToInsert = items.map((item: ShippingOrderItem) => ({
+          const itemsToInsert = items.map((item: any) => ({
             shipping_order_id: id,
             material_id: item.material_id,
+            product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
             total_price: item.total_price,

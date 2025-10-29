@@ -306,10 +306,14 @@ export function ShippingOrderDetailsDialog({
                             </Badge>
                           )}
                           <div className="flex-1">
-                            <p className="font-semibold text-base">{item.materials?.name || "N/A"}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Codice: <span className="font-mono">{item.materials?.code || "N/A"}</span>
+                            <p className="font-semibold text-base">
+                              {item.materials?.name || item.product_name || "N/A"}
                             </p>
+                            {item.materials && (
+                              <p className="text-sm text-muted-foreground">
+                                Codice: <span className="font-mono">{item.materials.code}</span>
+                              </p>
+                            )}
                           </div>
                         </div>
                         {item.notes && (
