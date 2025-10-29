@@ -23,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Offer {
   id: string;
@@ -94,6 +95,7 @@ export default function OffersPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Array<{
@@ -1142,47 +1144,50 @@ export default function OffersPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Offerte Commerciali</h1>
-          <p className="text-muted-foreground">Segui il processo dalle richieste all'accettazione</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Offerte Commerciali</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Segui il processo dalle richieste all'accettazione</p>
         </div>
         
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           <div className="flex gap-1 border rounded-md p-1">
             <Button
               variant={viewMode === 'kanban' ? "default" : "ghost"}
-              size="sm"
+              size={isMobile ? "icon" : "sm"}
               onClick={() => setViewMode('kanban')}
+              title="Vista Kanban"
             >
               <LayoutGrid className="w-4 h-4" />
             </Button>
             <Button
               variant={viewMode === 'list' ? "default" : "ghost"}
-              size="sm"
+              size={isMobile ? "icon" : "sm"}
               onClick={() => setViewMode('list')}
+              title="Vista Lista"
             >
               <List className="w-4 h-4" />
             </Button>
           </div>
           <Button
             variant={showArchived ? "default" : "outline"}
+            size={isMobile ? "sm" : "default"}
             onClick={() => setShowArchived(!showArchived)}
           >
-            {showArchived ? <ArchiveRestore className="w-4 h-4 mr-2" /> : <Archive className="w-4 h-4 mr-2" />}
-            {showArchived ? "Mostra Attive" : "Mostra Archiviate"}
+            {showArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+            {!isMobile && (showArchived ? " Mostra Attive" : " Mostra Archiviate")}
           </Button>
           <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" size={isMobile ? "sm" : "default"}>
                 <Plus className="w-4 h-4 mr-2" />
                 Richiesta di Offerta
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className={isMobile ? "max-w-[95vw]" : "max-w-md"}>
               <DialogHeader>
-                <DialogTitle>Richiesta di Offerta</DialogTitle>
+                <DialogTitle className={isMobile ? "text-lg" : ""}>Richiesta di Offerta</DialogTitle>
                 <DialogDescription>
                   Crea una richiesta veloce di offerta
                 </DialogDescription>
@@ -1280,12 +1285,12 @@ export default function OffersPage() {
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Nuova Offerta
+              <Button size={isMobile ? "sm" : "default"}>
+                <Plus className="w-4 h-4" />
+                {!isMobile && <span className="ml-2">Nuova Offerta</span>}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh]">
+            <DialogContent className={isMobile ? "max-w-[95vw] max-h-[90vh] p-4" : "max-w-2xl max-h-[90vh]"}>
             <DialogHeader>
               <DialogTitle>Crea Nuova Offerta</DialogTitle>
               <DialogDescription>
@@ -1831,32 +1836,32 @@ export default function OffersPage() {
       />
 
       {/* Sezione Richieste di Offerta - Vista Orizzontale */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      <Card className="mb-4 sm:mb-6">
+        <CardHeader className={isMobile ? "p-4" : ""}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-slate-600" />
-              <CardTitle>Richieste di Offerta</CardTitle>
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
+              <CardTitle className={isMobile ? "text-base" : ""}>Richieste di Offerta</CardTitle>
               <Badge variant="secondary">{statusCounts.richiesta_offerta}</Badge>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className={isMobile ? "p-2" : ""}>
           <ScrollArea className="w-full">
-            <div className="flex gap-4 pb-4">
+            <div className="flex gap-3 sm:gap-4 pb-4">
               {offers.filter(o => o.status === 'richiesta_offerta').length === 0 ? (
-                <div className="text-muted-foreground text-sm w-full text-center py-8">
+                <div className="text-muted-foreground text-xs sm:text-sm w-full text-center py-6 sm:py-8">
                   Nessuna richiesta di offerta in sospeso
                 </div>
               ) : (
                 offers.filter(o => o.status === 'richiesta_offerta').map(offer => (
-                  <Card key={offer.id} className="min-w-[300px] hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
+                  <Card key={offer.id} className="min-w-[260px] sm:min-w-[300px] hover:shadow-md transition-shadow">
+                    <CardContent className={isMobile ? "p-3" : "p-4"}>
+                      <div className="space-y-2 sm:space-y-3">
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="font-medium">{offer.number}</div>
-                            <div className="text-sm text-muted-foreground">{offer.customer_name}</div>
+                            <div className={isMobile ? "text-sm font-medium" : "font-medium"}>{offer.number}</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">{offer.customer_name}</div>
                           </div>
                           <Badge variant="outline" className="text-xs">
                             <Clock className="w-3 h-3 mr-1" />
@@ -1864,9 +1869,9 @@ export default function OffersPage() {
                           </Badge>
                         </div>
                         
-                        <div className="text-sm line-clamp-2">{offer.title}</div>
+                        <div className="text-xs sm:text-sm line-clamp-2">{offer.title}</div>
                         
-                        <div className="text-lg font-bold text-primary">
+                        <div className={isMobile ? "text-base font-bold text-primary" : "text-lg font-bold text-primary"}>
                           € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                         </div>
                         
@@ -1878,7 +1883,7 @@ export default function OffersPage() {
                             onClick={() => openDetails(offer)}
                           >
                             <Eye className="w-3 h-3 mr-1" />
-                            Vedi
+                            {!isMobile && "Vedi"}
                           </Button>
                           <Button 
                             size="sm" 
@@ -1909,7 +1914,7 @@ export default function OffersPage() {
                             }}
                           >
                             <FileCheck className="w-3 h-3 mr-1" />
-                            Prepara
+                            {!isMobile && "Prepara"}
                           </Button>
                         </div>
                       </div>
@@ -1924,33 +1929,33 @@ export default function OffersPage() {
 
       {/* Vista Kanban o Lista - Solo Offerte Generate */}
       <div>
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold">Offerte Generate</h3>
-          <p className="text-sm text-muted-foreground">Gestisci le offerte in fase di elaborazione</p>
+        <div className="mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold">Offerte Generate</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">Gestisci le offerte in fase di elaborazione</p>
         </div>
         
         {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Colonna: Pronte */}
         <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
+          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-blue-600" />
-              <CardTitle className="text-sm">Pronte</CardTitle>
+              <FileCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Pronte</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit">{statusCounts.offerta_pronta}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.offerta_pronta}</Badge>
           </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-2 pr-2">
+          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
+            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
+              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
                 {offers.filter(o => o.status === 'offerta_pronta').map(offer => (
-                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-blue-200">
-                      <div className="space-y-2">
-                      <div className="font-medium text-sm">{offer.number}</div>
+                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-blue-200" : "p-3 hover:shadow-md transition-shadow border-blue-200"}>
+                      <div className="space-y-1.5 sm:space-y-2">
+                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
                         <Eye className="w-3 h-3 mr-1" />
                         Dettagli
                       </Button>
@@ -1964,38 +1969,38 @@ export default function OffersPage() {
 
         {/* Colonna: Inviate */}
         <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
+          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
-              <Send className="w-4 h-4 text-purple-600" />
-              <CardTitle className="text-sm">Inviate</CardTitle>
+              <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Inviate</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit">{statusCounts.offerta_inviata}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.offerta_inviata}</Badge>
           </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-2 pr-2">
+          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
+            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
+              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
                 {offers.filter(o => o.status === 'offerta_inviata').map(offer => (
-                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-purple-200">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">{offer.number}</div>
+                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-purple-200" : "p-3 hover:shadow-md transition-shadow border-purple-200"}>
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
                       <div className="text-xs text-muted-foreground">
                         {new Date(offer.created_at).toLocaleDateString('it-IT')}
                       </div>
-                      <div className="flex gap-1 pt-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => openDetails(offer)}>
+                      <div className={isMobile ? "flex gap-1 pt-1" : "flex gap-1 pt-2"}>
+                        <Button size="sm" variant="outline" className={isMobile ? "flex-1 h-7 text-xs" : "flex-1"} onClick={() => openDetails(offer)}>
                           <Eye className="w-3 h-3" />
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="flex-1" 
+                          className={isMobile ? "flex-1 h-7 text-xs" : "flex-1"}
                           onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
                         >
-                          <MessageSquare className="w-3 h-3 mr-1" />
-                          Negozia
+                          <MessageSquare className="w-3 h-3" />
+                          {!isMobile && <span className="ml-1">Negozia</span>}
                         </Button>
                       </div>
                     </div>
@@ -2008,45 +2013,46 @@ export default function OffersPage() {
 
         {/* Colonna: In Negoziazione */}
         <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
+          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-orange-600" />
-              <CardTitle className="text-sm">Negoziazione</CardTitle>
+              <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600" />
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Negoziazione</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit">{statusCounts.negoziazione}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.negoziazione}</Badge>
           </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-2 pr-2">
+          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
+            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
+              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
                 {offers.filter(o => o.status === 'negoziazione').map(offer => (
-                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-orange-200">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">{offer.number}</div>
+                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-orange-200" : "p-3 hover:shadow-md transition-shadow border-orange-200"}>
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className="flex gap-1 pt-2">
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className={isMobile ? "flex gap-1 pt-1" : "flex gap-1 pt-2"}>
+                        <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
                           <Eye className="w-3 h-3 mr-1" />
-                          Dettagli
+                          {!isMobile && "Dettagli"}
                         </Button>
                       </div>
                       <div className="grid grid-cols-2 gap-1">
                         <Button 
                           size="sm" 
-                          className="bg-green-600 hover:bg-green-700" 
+                          className={isMobile ? "bg-green-600 hover:bg-green-700 h-7 text-xs" : "bg-green-600 hover:bg-green-700"}
                           onClick={() => handleChangeStatus(offer.id, 'accettata')}
                         >
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Accettata
+                          <CheckCircle2 className="w-3 h-3" />
+                          {!isMobile && <span className="ml-1">Accetta</span>}
                         </Button>
                         <Button 
                           size="sm" 
                           variant="destructive"
+                          className={isMobile ? "h-7 text-xs" : ""}
                           onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
                         >
-                          <XCircle className="w-3 h-3 mr-1" />
-                          Rifiutata
+                          <XCircle className="w-3 h-3" />
+                          {!isMobile && <span className="ml-1">Rifiuta</span>}
                         </Button>
                       </div>
                     </div>
@@ -2059,29 +2065,29 @@ export default function OffersPage() {
 
         {/* Colonna: Accettate */}
         <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
+          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <CardTitle className="text-sm">Accettate</CardTitle>
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Accettate</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit">{statusCounts.accettata}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.accettata}</Badge>
           </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-2 pr-2">
+          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
+            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
+              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
                 {offers.filter(o => o.status === 'accettata').map(offer => (
-                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-green-200 bg-green-50/50">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">{offer.number}</div>
+                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-green-200 bg-green-50/50" : "p-3 hover:shadow-md transition-shadow border-green-200 bg-green-50/50"}>
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className="text-sm font-semibold text-green-700">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className="flex flex-col gap-1 pt-2">
-                        <Button size="sm" variant="default" className="w-full" onClick={() => handleCreateOrderFromOffer(offer)}>
+                      <div className={isMobile ? "text-xs font-semibold text-green-700" : "text-sm font-semibold text-green-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className={isMobile ? "flex flex-col gap-1 pt-1" : "flex flex-col gap-1 pt-2"}>
+                        <Button size="sm" variant="default" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => handleCreateOrderFromOffer(offer)}>
                           <ShoppingCart className="w-3 h-3 mr-1" />
                           Crea Ordine
                         </Button>
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                        <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
                           <Eye className="w-3 h-3 mr-1" />
                           Dettagli
                         </Button>
@@ -2096,27 +2102,27 @@ export default function OffersPage() {
 
         {/* Colonna: Rifiutate */}
         <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
+          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-red-600" />
-              <CardTitle className="text-sm">Rifiutate</CardTitle>
+              <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600" />
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Rifiutate</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit">{statusCounts.rifiutata}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.rifiutata}</Badge>
           </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-2 pr-2">
+          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
+            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
+              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
                 {offers.filter(o => o.status === 'rifiutata').map(offer => (
-                  <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-red-200 bg-red-50/50">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">{offer.number}</div>
+                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-red-200 bg-red-50/50" : "p-3 hover:shadow-md transition-shadow border-red-200 bg-red-50/50"}>
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className="text-sm font-semibold text-red-700">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className="flex gap-1 pt-2">
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                      <div className={isMobile ? "text-xs font-semibold text-red-700" : "text-sm font-semibold text-red-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className={isMobile ? "flex gap-1 pt-1" : "flex gap-1 pt-2"}>
+                        <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
                           <Eye className="w-3 h-3 mr-1" />
-                          Dettagli
+                          {!isMobile && "Dettagli"}
                         </Button>
                       </div>
                     </div>
@@ -2130,6 +2136,83 @@ export default function OffersPage() {
       ) : (
         <Card>
           <CardContent className="p-0">
+            {isMobile ? (
+              <div className="p-2 space-y-2">
+                {offers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
+                  <Card key={offer.id} className="p-3 hover:shadow-sm transition-shadow">
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{offer.number}</div>
+                          <div className="text-xs text-muted-foreground truncate">{offer.customer_name}</div>
+                        </div>
+                        <Badge className={`${getStatusColor(offer.status)} text-xs`}>
+                          {getStatusText(offer.status)}
+                        </Badge>
+                      </div>
+                      <div className="text-xs line-clamp-2">{offer.title}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(offer.created_at).toLocaleDateString('it-IT')}
+                        </span>
+                      </div>
+                      <div className="flex gap-1 pt-1 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDetails(offer)}
+                          className="h-7 text-xs flex-1 min-w-0"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        {offer.status === 'offerta_inviata' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
+                            className="h-7 text-xs flex-1 min-w-0"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {offer.status === 'negoziazione' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                              onClick={() => handleChangeStatus(offer.id, 'accettata')}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
+                              className="h-7 text-xs"
+                            >
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                        {offer.status === 'accettata' && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleCreateOrderFromOffer(offer)}
+                            className="h-7 text-xs flex-1 min-w-0"
+                          >
+                            <ShoppingCart className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -2210,6 +2293,7 @@ export default function OffersPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       )}
@@ -2225,32 +2309,32 @@ export default function OffersPage() {
 
       {/* Dialog Dettagli Offerta */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={isMobile ? "max-w-[95vw] max-h-[90vh] overflow-y-auto p-4" : "max-w-3xl max-h-[90vh] overflow-y-auto"}>
           <DialogHeader>
-            <DialogTitle>Dettagli Offerta - {selectedOffer?.number}</DialogTitle>
+            <DialogTitle className={isMobile ? "text-lg" : ""}>Dettagli Offerta - {selectedOffer?.number}</DialogTitle>
             <DialogDescription>
               Gestisci i file e i collegamenti dell'offerta
             </DialogDescription>
           </DialogHeader>
 
           {selectedOffer && (
-            <div className="space-y-6">
+            <div className={isMobile ? "space-y-4" : "space-y-6"}>
               {/* Info Offerta */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className={isMobile ? "grid grid-cols-1 gap-3" : "grid grid-cols-2 gap-4"}>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Cliente</label>
-                  <p className="text-sm">{selectedOffer.customer_name}</p>
+                  <label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Cliente</label>
+                  <p className={isMobile ? "text-sm" : "text-sm"}>{selectedOffer.customer_name}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Importo</label>
-                  <p className="text-sm">€ {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                  <label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Importo</label>
+                  <p className={isMobile ? "text-sm" : "text-sm"}>€ {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Titolo</label>
-                  <p className="text-sm">{selectedOffer.title}</p>
+                  <label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Titolo</label>
+                  <p className={isMobile ? "text-sm" : "text-sm"}>{selectedOffer.title}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Stato</label>
+                  <label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Stato</label>
                   <Badge className={`ml-2 ${getStatusColor(selectedOffer.status)}`}>
                     {getStatusText(selectedOffer.status)}
                   </Badge>
