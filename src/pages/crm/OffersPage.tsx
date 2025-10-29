@@ -2025,6 +2025,18 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className="w-full h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
                         <Eye className="w-3 h-3 mr-1" />
                         Dettagli
@@ -2059,20 +2071,22 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">
                         {new Date(offer.created_at).toLocaleDateString('it-IT')}
                       </div>
-                      <div className={isMobile ? "flex gap-1 pt-1" : "flex gap-1 pt-2"}>
-                        <Button size="sm" variant="outline" className={isMobile ? "flex-1 h-7 text-xs" : "flex-1"} onClick={() => openDetails(offer)}>
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className={isMobile ? "flex-1 h-7 text-xs" : "flex-1"}
-                          onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                          {!isMobile && <span className="ml-1">Negozia</span>}
-                        </Button>
-                      </div>
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
+                        <Eye className="w-3 h-3 mr-1" />
+                        Dettagli
+                      </Button>
                     </div>
                   </Card>
                 ))}
@@ -2100,31 +2114,22 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className={isMobile ? "flex gap-1 pt-1" : "flex gap-1 pt-2"}>
-                        <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
-                          <Eye className="w-3 h-3 mr-1" />
-                          {!isMobile && "Dettagli"}
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        <Button 
-                          size="sm" 
-                          className={isMobile ? "bg-green-600 hover:bg-green-700 h-7 text-xs" : "bg-green-600 hover:bg-green-700"}
-                          onClick={() => handleChangeStatus(offer.id, 'accettata')}
-                        >
-                          <CheckCircle2 className="w-3 h-3" />
-                          {!isMobile && <span className="ml-1">Accetta</span>}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          className={isMobile ? "h-7 text-xs" : ""}
-                          onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
-                        >
-                          <XCircle className="w-3 h-3" />
-                          {!isMobile && <span className="ml-1">Rifiuta</span>}
-                        </Button>
-                      </div>
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
+                        <Eye className="w-3 h-3 mr-1" />
+                        Dettagli
+                      </Button>
                     </div>
                   </Card>
                 ))}
@@ -2152,7 +2157,19 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold text-green-700" : "text-sm font-semibold text-green-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className={isMobile ? "flex flex-col gap-1 pt-1" : "flex flex-col gap-1 pt-2"}>
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className={isMobile ? "flex flex-col gap-1" : "flex flex-col gap-1"}>
                         <Button size="sm" variant="default" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => handleCreateOrderFromOffer(offer)}>
                           <ClipboardList className="w-3 h-3 mr-1" />
                           Crea Ordine
@@ -2189,12 +2206,22 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold text-red-700" : "text-sm font-semibold text-red-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className={isMobile ? "flex gap-1 pt-1" : "flex gap-1 pt-2"}>
-                        <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
-                          <Eye className="w-3 h-3 mr-1" />
-                          {!isMobile && "Dettagli"}
-                        </Button>
-                      </div>
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
+                        <Eye className="w-3 h-3 mr-1" />
+                        Dettagli
+                      </Button>
                     </div>
                   </Card>
                 ))}
@@ -2229,52 +2256,37 @@ export default function OffersPage() {
                           {new Date(offer.created_at).toLocaleDateString('it-IT')}
                         </span>
                       </div>
-                      <div className="flex gap-1 pt-1 flex-wrap">
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className="w-full h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-1 pt-1">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => openDetails(offer)}
-                          className="h-7 text-xs flex-1 min-w-0"
+                          className="h-7 text-xs flex-1"
                         >
-                          <Eye className="w-3 h-3" />
+                          <Eye className="w-3 h-3 mr-1" />
+                          Dettagli
                         </Button>
-                        {offer.status === 'offerta_inviata' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
-                            className="h-7 text-xs flex-1 min-w-0"
-                          >
-                            <MessageSquare className="w-3 h-3" />
-                          </Button>
-                        )}
-                        {offer.status === 'negoziazione' && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 h-7 text-xs"
-                              onClick={() => handleChangeStatus(offer.id, 'accettata')}
-                            >
-                              <CheckCircle2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
-                              className="h-7 text-xs"
-                            >
-                              <XCircle className="w-3 h-3" />
-                            </Button>
-                          </>
-                        )}
                         {offer.status === 'accettata' && (
                           <Button
                             size="sm"
                             variant="default"
                             onClick={() => handleCreateOrderFromOffer(offer)}
-                            className="h-7 text-xs flex-1 min-w-0"
+                            className="h-7 text-xs flex-1"
                           >
-                            <ClipboardList className="w-3 h-3" />
+                            <ClipboardList className="w-3 h-3 mr-1" />
+                            Ordine
                           </Button>
                         )}
                       </div>
@@ -2305,9 +2317,18 @@ export default function OffersPage() {
                       € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(offer.status)}>
-                        {getStatusText(offer.status)}
-                      </Badge>
+                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                        <SelectTrigger className="w-[140px] h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                          <SelectItem value="accettata">Accettata</SelectItem>
+                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       {new Date(offer.created_at).toLocaleDateString('it-IT')}
@@ -2321,33 +2342,6 @@ export default function OffersPage() {
                         >
                           <Eye className="w-3 h-3" />
                         </Button>
-                        {offer.status === 'offerta_inviata' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
-                          >
-                            <MessageSquare className="w-3 h-3" />
-                          </Button>
-                        )}
-                        {offer.status === 'negoziazione' && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleChangeStatus(offer.id, 'accettata')}
-                            >
-                              <CheckCircle2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
-                            >
-                              <XCircle className="w-3 h-3" />
-                            </Button>
-                          </>
-                        )}
                         {offer.status === 'accettata' && (
                           <Button
                             size="sm"
