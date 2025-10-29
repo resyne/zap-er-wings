@@ -1144,139 +1144,310 @@ export default function WorkOrdersPage() {
 
       {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Dettagli Commessa di Produzione</DialogTitle>
             <DialogDescription>
-              Informazioni complete sulla commessa di produzione {selectedWO?.number}
+              Modifica i dettagli della commessa di produzione {selectedWO?.number}
             </DialogDescription>
           </DialogHeader>
           {selectedWO && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Numero</Label>
-                  <p className="text-sm">{selectedWO.number}</p>
+                  <Label className="text-sm font-medium">Numero</Label>
+                  <p className="text-sm mt-1">{selectedWO.number}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Stato</Label>
-                  <div className="mt-1">
-                    <Select 
-                      value={selectedWO.status} 
-                      onValueChange={(value) => {
-                        handleStatusChange(selectedWO.id, value as any);
-                        setSelectedWO({ ...selectedWO, status: value });
-                      }}
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue>
-                          <Badge className={getStatusColor(selectedWO.status)}>
-                            {selectedWO.status === 'to_do' ? 'Da Fare' :
-                             selectedWO.status === 'in_lavorazione' ? 'In Lavorazione' :
-                             selectedWO.status === 'test' ? 'Test' :
-                             selectedWO.status === 'pronti' ? 'Pronti' :
-                             selectedWO.status === 'spediti_consegnati' ? 'Spediti' : selectedWO.status}
-                          </Badge>
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="to_do">
-                          <Badge className="bg-gray-500">Da Fare</Badge>
-                        </SelectItem>
-                        <SelectItem value="in_lavorazione">
-                          <Badge className="bg-blue-600">In Lavorazione</Badge>
-                        </SelectItem>
-                        <SelectItem value="test">
-                          <Badge className="bg-orange-500">Test</Badge>
-                        </SelectItem>
-                        <SelectItem value="pronti">
-                          <Badge className="bg-green-600">Pronti</Badge>
-                        </SelectItem>
-                        <SelectItem value="spediti_consegnati">
-                          <Badge className="bg-purple-600">Spediti/Consegnati</Badge>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Label className="text-sm font-medium">Stato</Label>
+                  <Select 
+                    value={selectedWO.status} 
+                    onValueChange={async (value) => {
+                      await handleStatusChange(selectedWO.id, value as any);
+                      setSelectedWO({ ...selectedWO, status: value });
+                    }}
+                  >
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue>
+                        <StatusBadge status={selectedWO.status} />
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="da_fare">
+                        <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
+                      </SelectItem>
+                      <SelectItem value="in_lavorazione">
+                        <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
+                      </SelectItem>
+                      <SelectItem value="in_test">
+                        <Badge className="bg-orange-500 text-white">In Test</Badge>
+                      </SelectItem>
+                      <SelectItem value="pronto">
+                        <Badge className="bg-blue-500 text-white">Pronto</Badge>
+                      </SelectItem>
+                      <SelectItem value="completato">
+                        <Badge className="bg-success text-success-foreground">Completato</Badge>
+                      </SelectItem>
+                      <SelectItem value="standby">
+                        <Badge className="bg-purple-500 text-white">Standby</Badge>
+                      </SelectItem>
+                      <SelectItem value="bloccato">
+                        <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Titolo</Label>
-                <p className="text-sm">{selectedWO.title}</p>
+                <Label className="text-sm font-medium">Titolo</Label>
+                <Input
+                  value={selectedWO.title}
+                  onChange={(e) => setSelectedWO({ ...selectedWO, title: e.target.value })}
+                  onBlur={async () => {
+                    const { error } = await supabase
+                      .from('work_orders')
+                      .update({ title: selectedWO.title })
+                      .eq('id', selectedWO.id);
+                    if (!error) {
+                      toast({ title: "Titolo aggiornato" });
+                      fetchWorkOrders();
+                    }
+                  }}
+                  className="mt-1"
+                />
               </div>
               
-              <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Cliente</Label>
-                  <p className={isMobile ? "text-sm" : "text-sm"}>
-                    {selectedWO.customers ? `${selectedWO.customers.name} (${selectedWO.customers.code})` : 'Non assegnato'}
-                  </p>
+                  <Label className="text-sm font-medium">Cliente</Label>
+                  <Select 
+                    value={selectedWO.customer_id || "none"} 
+                    onValueChange={async (value) => {
+                      const newCustomerId = value === "none" ? null : value;
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ customer_id: newCustomerId })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Cliente aggiornato" });
+                        fetchWorkOrders();
+                        const customer = customers.find(c => c.id === value);
+                        setSelectedWO({ 
+                          ...selectedWO, 
+                          customer_id: newCustomerId,
+                          customers: customer ? { name: customer.name, code: customer.code } : undefined
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Seleziona cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessun cliente</SelectItem>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Priorità</Label>
-                  <Badge variant={
-                    selectedWO.priority === 'urgent' ? 'destructive' :
-                    selectedWO.priority === 'high' ? 'default' :
-                    selectedWO.priority === 'medium' ? 'secondary' : 'outline'
-                  }>
-                    {selectedWO.priority === 'urgent' ? 'Urgente' :
-                     selectedWO.priority === 'high' ? 'Alta' :
-                     selectedWO.priority === 'medium' ? 'Media' : 'Bassa'}
-                  </Badge>
+                  <Label className="text-sm font-medium">Priorità</Label>
+                  <Select 
+                    value={selectedWO.priority || "medium"} 
+                    onValueChange={async (value) => {
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ priority: value })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Priorità aggiornata" });
+                        fetchWorkOrders();
+                        setSelectedWO({ ...selectedWO, priority: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Bassa</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Lead</Label>
+                  <Label className="text-sm font-medium">Lead</Label>
                   {selectedWO.leads ? (
                     <Link 
                       to={`/crm/opportunities?lead=${selectedWO.lead_id}`}
-                      className={isMobile ? "text-sm text-primary hover:underline flex items-center gap-1" : "text-sm text-primary hover:underline flex items-center gap-1"}
+                      className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
                     >
                       {selectedWO.leads.company_name}
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   ) : (
-                    <p className={isMobile ? "text-sm text-muted-foreground" : "text-sm text-muted-foreground"}>Non collegato</p>
+                    <p className="text-sm text-muted-foreground mt-1">Non collegato</p>
                   )}
                 </div>
                 <div>
-                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Ordine di Vendita</Label>
-                  <p className={isMobile ? "text-sm" : "text-sm"}>
+                  <Label className="text-sm font-medium">Ordine di Vendita</Label>
+                  <p className="text-sm mt-1">
                     {selectedWO.sales_orders ? selectedWO.sales_orders.number : 'Non collegato'}
                   </p>
                 </div>
               </div>
 
-              <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Tecnico</Label>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm">
-                      {selectedWO.technician ? `${selectedWO.technician.first_name} ${selectedWO.technician.last_name} (${selectedWO.technician.employee_code})` : 'Non assegnato'}
-                    </p>
-                    {!selectedWO.assigned_to && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleTakeOwnership(selectedWO.id)}
-                        className="ml-2"
-                      >
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        Prendi in carico
-                      </Button>
-                    )}
-                  </div>
+                  <Label className="text-sm font-medium">Tecnico Assegnato</Label>
+                  <Select 
+                    value={selectedWO.assigned_to || "none"} 
+                    onValueChange={async (value) => {
+                      const newAssignedTo = value === "none" ? null : value;
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ assigned_to: newAssignedTo })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Assegnazione aggiornata" });
+                        fetchWorkOrders();
+                        const user = users.find(u => u.id === value);
+                        setSelectedWO({ 
+                          ...selectedWO, 
+                          assigned_to: newAssignedTo,
+                          technician: user ? {
+                            id: user.id,
+                            first_name: user.first_name,
+                            last_name: user.last_name,
+                            employee_code: user.email?.split('@')[0] || ''
+                          } : undefined
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Nessun assegnato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessun assegnato</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Distinta Base</Label>
-                  <p className="text-sm">
-                    {selectedWO.boms ? `${selectedWO.boms.name} (${selectedWO.boms.version})` : 'Non assegnata'}
-                  </p>
+                  <Label className="text-sm font-medium">Distinta Base</Label>
+                  <Select 
+                    value={selectedWO.bom_id || "none"} 
+                    onValueChange={async (value) => {
+                      const newBomId = value === "none" ? null : value;
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ bom_id: newBomId })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Distinta base aggiornata" });
+                        fetchWorkOrders();
+                        const bom = boms.find(b => b.id === value);
+                        setSelectedWO({ 
+                          ...selectedWO, 
+                          bom_id: newBomId,
+                          boms: bom ? { name: bom.name, version: bom.version } : undefined
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Nessuna BOM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessuna BOM</SelectItem>
+                      {boms.map((bom) => (
+                        <SelectItem key={bom.id} value={bom.id}>
+                          {bom.name} (v{bom.version})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Data Inizio Pianificata</Label>
+                  <Input
+                    type="datetime-local"
+                    value={selectedWO.planned_start_date || ""}
+                    onChange={(e) => setSelectedWO({ ...selectedWO, planned_start_date: e.target.value })}
+                    onBlur={async () => {
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ planned_start_date: selectedWO.planned_start_date || null })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Data inizio aggiornata" });
+                        fetchWorkOrders();
+                      }
+                    }}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Data Fine Pianificata</Label>
+                  <Input
+                    type="datetime-local"
+                    value={selectedWO.planned_end_date || ""}
+                    onChange={(e) => setSelectedWO({ ...selectedWO, planned_end_date: e.target.value })}
+                    onBlur={async () => {
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ planned_end_date: selectedWO.planned_end_date || null })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Data fine aggiornata" });
+                        fetchWorkOrders();
+                      }
+                    }}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+
+              {selectedWO.notes !== undefined && (
+                <div>
+                  <Label className="text-sm font-medium">Note</Label>
+                  <Textarea
+                    value={selectedWO.notes || ""}
+                    onChange={(e) => setSelectedWO({ ...selectedWO, notes: e.target.value })}
+                    onBlur={async () => {
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ notes: selectedWO.notes })
+                        .eq('id', selectedWO.id);
+                      if (!error) {
+                        toast({ title: "Note aggiornate" });
+                        fetchWorkOrders();
+                      }
+                    }}
+                    placeholder="Aggiungi note..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+              )}
 
               {/* Articles */}
               {selectedWO.article && (
@@ -1348,18 +1519,6 @@ export default function WorkOrdersPage() {
 
               {/* Actions */}
               <div className={isMobile ? "border-t pt-3 flex flex-col gap-2" : "border-t pt-4 flex gap-2"}>
-                <Button
-                  variant="outline"
-                  className={isMobile ? "w-full text-sm h-9" : "flex-1"}
-                  size={isMobile ? "sm" : "default"}
-                  onClick={() => {
-                    setShowDetailsDialog(false);
-                    handleEdit(selectedWO);
-                  }}
-                >
-                  <Edit className={isMobile ? "h-3 w-3 mr-2" : "h-4 w-4 mr-2"} />
-                  Modifica
-                </Button>
                 <Button
                   variant="destructive"
                   className={isMobile ? "w-full text-sm h-9" : "flex-1"}
