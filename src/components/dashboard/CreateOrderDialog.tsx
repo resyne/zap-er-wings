@@ -85,6 +85,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     quantity: number;
     unit_price: number;
     discount_percent: number;
+    vat_rate: number;
   }>>([]);
   
   const [newOrder, setNewOrder] = useState({
@@ -179,7 +180,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             description: item.description || '',
             quantity: item.quantity || 1,
             unit_price: item.unit_price || 0,
-            discount_percent: item.discount_percent || 0
+            discount_percent: item.discount_percent || 0,
+            vat_rate: 22
           }));
           setSelectedProducts(products);
           
@@ -690,12 +692,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         orderType = "ods"; // Solo Spedizione
       }
 
-      // Calculate total from selectedProducts if available
+      // Calculate total from selectedProducts if available (with VAT)
       const calculatedTotal = selectedProducts.length > 0 
         ? selectedProducts.reduce((total, item) => {
             const subtotal = item.quantity * item.unit_price;
             const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
-            return total + (subtotal - discount);
+            const subtotalAfterDiscount = subtotal - discount;
+            const vat = (subtotalAfterDiscount * item.vat_rate) / 100;
+            return total + subtotalAfterDiscount + vat;
           }, 0)
         : (newOrder.payment_amount ? parseFloat(newOrder.payment_amount) : null);
 
@@ -1113,7 +1117,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                       description: '',
                       quantity: 1,
                       unit_price: 0,
-                      discount_percent: 0
+                      discount_percent: 0,
+                      vat_rate: 22
                     }]);
                   }}
                 >
@@ -1137,16 +1142,35 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                         <div>Prezzo Unitario: €{item.unit_price.toFixed(2)}</div>
                         <div>Sconto: {item.discount_percent}%</div>
                       </div>
-                      <div className="text-sm font-medium text-right mt-2">
-                        Totale: €{((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)).toFixed(2)}
+                      <div className="text-sm text-right mt-2 space-y-1">
+                        <div>Imponibile: €{((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)).toFixed(2)}</div>
+                        <div>IVA ({item.vat_rate}%): €{(((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)) * item.vat_rate / 100).toFixed(2)}</div>
+                        <div className="font-medium">Totale: €{(((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)) * (1 + item.vat_rate / 100)).toFixed(2)}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="text-lg font-bold text-right pt-2 border-t mt-3">
-                  Totale Generale: €{selectedProducts.reduce((total, item) => {
-                    return total + ((item.quantity * item.unit_price) * (1 - item.discount_percent / 100));
-                  }, 0).toFixed(2)}
+                <div className="space-y-1 pt-2 border-t mt-3">
+                  <div className="flex justify-between text-sm">
+                    <span>Imponibile:</span>
+                    <span>€{selectedProducts.reduce((total, item) => {
+                      return total + ((item.quantity * item.unit_price) * (1 - item.discount_percent / 100));
+                    }, 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>IVA (22%):</span>
+                    <span>€{selectedProducts.reduce((total, item) => {
+                      const subtotal = (item.quantity * item.unit_price) * (1 - item.discount_percent / 100);
+                      return total + (subtotal * item.vat_rate / 100);
+                    }, 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Totale Generale:</span>
+                    <span>€{selectedProducts.reduce((total, item) => {
+                      const subtotal = (item.quantity * item.unit_price) * (1 - item.discount_percent / 100);
+                      return total + subtotal + (subtotal * item.vat_rate / 100);
+                    }, 0).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1181,7 +1205,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                           description: product.description || '',
                           quantity: 1,
                           unit_price: 0,
-                          discount_percent: 0
+                          discount_percent: 0,
+                          vat_rate: 22
                         }]);
                         setCurrentProductId('');
                       }
@@ -1273,15 +1298,34 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
                             />
                           </div>
                         </div>
-                        <div className="text-sm font-medium text-right">
-                          Totale: €{((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)).toFixed(2)}
+                        <div className="text-sm text-right space-y-1">
+                          <div>Imponibile: €{((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)).toFixed(2)}</div>
+                          <div>IVA ({item.vat_rate}%): €{(((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)) * item.vat_rate / 100).toFixed(2)}</div>
+                          <div className="font-medium">Totale: €{(((item.quantity * item.unit_price) * (1 - item.discount_percent / 100)) * (1 + item.vat_rate / 100)).toFixed(2)}</div>
                         </div>
                       </div>
                     ))}
-                    <div className="text-lg font-bold text-right pt-2 border-t">
-                      Totale Generale: €{selectedProducts.reduce((total, item) => {
-                        return total + ((item.quantity * item.unit_price) * (1 - item.discount_percent / 100));
-                      }, 0).toFixed(2)}
+                    <div className="space-y-1 pt-2 border-t">
+                      <div className="flex justify-between text-sm">
+                        <span>Imponibile:</span>
+                        <span>€{selectedProducts.reduce((total, item) => {
+                          return total + ((item.quantity * item.unit_price) * (1 - item.discount_percent / 100));
+                        }, 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>IVA (22%):</span>
+                        <span>€{selectedProducts.reduce((total, item) => {
+                          const subtotal = (item.quantity * item.unit_price) * (1 - item.discount_percent / 100);
+                          return total + (subtotal * item.vat_rate / 100);
+                        }, 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Totale Generale:</span>
+                        <span>€{selectedProducts.reduce((total, item) => {
+                          const subtotal = (item.quantity * item.unit_price) * (1 - item.discount_percent / 100);
+                          return total + subtotal + (subtotal * item.vat_rate / 100);
+                        }, 0).toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
                 )}
