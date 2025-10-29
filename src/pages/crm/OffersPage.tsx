@@ -69,6 +69,7 @@ interface Customer {
   address?: string;
   tax_id?: string;
   code?: string;
+  company_name?: string;
 }
 
 
@@ -1247,7 +1248,7 @@ export default function OffersPage() {
                         {newOffer.customer_id
                           ? (() => {
                               const customer = customers.find((c) => c.id === newOffer.customer_id);
-                              return customer ? `${customer.code} - ${customer.name}` : "Seleziona cliente";
+                              return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona cliente";
                             })()
                           : "Seleziona cliente"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1262,7 +1263,7 @@ export default function OffersPage() {
                             {customers.map((customer) => (
                               <CommandItem
                                 key={customer.id}
-                                value={`${customer.code} ${customer.name}`}
+                                value={`${customer.code} ${customer.company_name || customer.name}`}
                                 onSelect={() => {
                                   setNewOffer(prev => ({ ...prev, customer_id: customer.id }));
                                   setCustomerSearchOpen(false);
@@ -1274,7 +1275,7 @@ export default function OffersPage() {
                                     newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0"
                                   )}
                                 />
-                                {customer.code} - {customer.name}
+                                {customer.code} - {customer.company_name || customer.name}
                               </CommandItem>
                             ))}
                           </CommandGroup>
