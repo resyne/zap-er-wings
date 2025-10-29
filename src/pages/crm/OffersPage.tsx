@@ -2559,50 +2559,53 @@ export default function OffersPage() {
                 </div>
               )}
 
-              {/* Prodotti dell'Offerta */}
-              {selectedOfferItems.length > 0 && (
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold mb-3">Prodotti/Servizi Inclusi</h3>
-                  <div className="space-y-2">
+              {/* Prodotti e Riepilogo Importi */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Prodotti/Servizi Inclusi</h3>
+                
+                {selectedOfferItems.length > 0 ? (
+                  <div className="space-y-2 mb-4">
                     {selectedOfferItems.map((item, index) => (
                       <div key={item.id} className="border rounded-lg p-3 bg-muted/30">
 ...
                       </div>
                     ))}
                   </div>
-                  
-                  {/* Riepilogo Importi */}
-                  <div className="mt-4 bg-muted/50 p-4 rounded-lg space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Imponibile Netto:</span>
-                      <span className="font-medium">
-                        € {selectedOffer.reverse_charge 
-                          ? selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })
-                          : (selectedOffer.amount / 1.22).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        }
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {selectedOffer.reverse_charge ? 'IVA (Reverse Charge):' : 'IVA 22%:'}
-                      </span>
-                      <span className="font-medium">
-                        {selectedOffer.reverse_charge 
-                          ? '€ 0,00'
-                          : `€ ${(selectedOffer.amount - (selectedOffer.amount / 1.22)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        }
-                      </span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="font-semibold">Importo Totale:</span>
-                      <span className="text-lg font-bold text-primary">
-                        € {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mb-4 italic">Nessun prodotto/servizio specificato nel dettaglio</p>
+                )}
+                
+                {/* Riepilogo Importi */}
+                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Imponibile Netto:</span>
+                    <span className="font-medium">
+                      € {selectedOffer.reverse_charge 
+                        ? selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })
+                        : (selectedOffer.amount / 1.22).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {selectedOffer.reverse_charge ? 'IVA (Reverse Charge):' : 'IVA 22%:'}
+                    </span>
+                    <span className="font-medium">
+                      {selectedOffer.reverse_charge 
+                        ? '€ 0,00'
+                        : `€ ${(selectedOffer.amount - (selectedOffer.amount / 1.22)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      }
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Importo Totale:</span>
+                    <span className="text-lg font-bold text-primary">
+                      € {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
-              )}
+              </div>
 
 
               {/* Metodi di Pagamento */}
