@@ -450,27 +450,43 @@ export default function OffersPage() {
 
   const handleDownloadPDF = async (offer: Offer) => {
     try {
-      const blob = await generateOfferPDF(offer);
+      if (!offer.unique_code) {
+        toast({
+          title: "Errore",
+          description: "Genera prima il link pubblico per scaricare il PDF",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Open the public offer link in a new window
+      const offerUrl = `${window.location.origin}/offerta/${offer.unique_code}`;
+      const printWindow = window.open(offerUrl, '_blank');
       
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Offerta_${offer.number}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "PDF Generato",
-        description: "Il PDF dell'offerta è stato scaricato con successo",
-      });
+      if (printWindow) {
+        // Wait for the page to load, then trigger print dialog
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+        
+        toast({
+          title: "Stampa in corso",
+          description: "Usa 'Salva come PDF' nella finestra di stampa",
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: "Non è possibile aprire la finestra di stampa. Verifica le impostazioni del popup.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error opening print dialog:', error);
       toast({
         title: "Errore",
-        description: "Errore nella generazione del PDF",
+        description: "Errore nell'apertura della finestra di stampa",
         variant: "destructive",
       });
     }
