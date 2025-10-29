@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +45,7 @@ interface WorkOrder {
   accessori_ids?: string[];
   sales_order_id?: string;
   lead_id?: string;
+  offer_id?: string;
   archived?: boolean;
   attachments?: any[];
   boms?: {
@@ -73,10 +74,14 @@ interface WorkOrder {
     id: string;
     company_name: string;
   };
+  offers?: {
+    number: string;
+  };
 }
 
 export default function WorkOrdersPage() {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
@@ -131,6 +136,7 @@ export default function WorkOrdersPage() {
           customers(name, code),
           sales_orders(number),
           leads(id, company_name),
+          offers(number),
           service_work_orders!production_work_order_id(id, number, title)
         `)
         .order('updated_at', { ascending: false });
@@ -1324,6 +1330,32 @@ export default function WorkOrdersPage() {
                   <Label className="text-sm font-medium">Ordine di Vendita</Label>
                   <p className="text-sm mt-1">
                     {selectedWO.sales_orders ? selectedWO.sales_orders.number : 'Non collegato'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Offerta Collegata</Label>
+                  {selectedWO.offer_id && selectedWO.offers ? (
+                    <Button
+                      variant="link"
+                      className="h-auto p-0 text-sm mt-1 text-primary hover:underline flex items-center gap-1"
+                      onClick={() => {
+                        navigate(`/crm/offers?offer=${selectedWO.offer_id}`);
+                      }}
+                    >
+                      {selectedWO.offers.number}
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">Nessuna offerta collegata</p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Cliente</Label>
+                  <p className="text-sm mt-1">
+                    {selectedWO.customers ? `${selectedWO.customers.name} (${selectedWO.customers.code})` : 'Non collegato'}
                   </p>
                 </div>
               </div>
