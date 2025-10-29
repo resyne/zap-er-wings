@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy, ChevronsUpDown, Check } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -19,6 +19,9 @@ import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface Offer {
   id: string;
@@ -87,6 +90,7 @@ export default function OffersPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
     product_name: string;
@@ -1202,20 +1206,52 @@ export default function OffersPage() {
               <div>
                 <label className="text-sm font-medium">Cliente</label>
                 <div className="flex gap-2">
-                  <Select value={newOffer.customer_id} onValueChange={(value) => 
-                    setNewOffer(prev => ({ ...prev, customer_id: value }))
-                  }>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Seleziona cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={customerSearchOpen}
+                        className="flex-1 justify-between"
+                      >
+                        {newOffer.customer_id
+                          ? (() => {
+                              const customer = customers.find((c) => c.id === newOffer.customer_id);
+                              return customer ? `${customer.code} - ${customer.name}` : "Seleziona cliente";
+                            })()
+                          : "Seleziona cliente"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Cerca cliente..." />
+                        <CommandList>
+                          <CommandEmpty>Nessun cliente trovato.</CommandEmpty>
+                          <CommandGroup>
+                            {customers.map((customer) => (
+                              <CommandItem
+                                key={customer.id}
+                                value={`${customer.code} ${customer.name}`}
+                                onSelect={() => {
+                                  setNewOffer(prev => ({ ...prev, customer_id: customer.id }));
+                                  setCustomerSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {customer.code} - {customer.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     type="button"
                     variant="outline"
