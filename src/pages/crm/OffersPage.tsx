@@ -144,9 +144,9 @@ export default function OffersPage() {
     timeline_collaudo: '',
     incluso_fornitura: '',
     escluso_fornitura: '',
-    metodi_pagamento: '30% acconto - 70% alla consegna',
-    payment_method: 'bonifico',
-    payment_agreement: '50% acconto - 50% a consegna',
+    metodi_pagamento: '',
+    payment_method: '',
+    payment_agreement: '',
     reverse_charge: false
   });
 
@@ -342,11 +342,11 @@ export default function OffersPage() {
         .replace(/\{\{totale_iva\}\}/g, totalIva.toFixed(2))
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/\{\{tempi_consegna\}\}/g, '10-15 giorni lavorativi')
-        .replace(/\{\{metodi_pagamento\}\}/g, (offer as any).metodi_pagamento || '50% anticipo, 50% alla consegna')
-        .replace(/\{\{timeline_produzione\}\}/g, (offer as any).timeline_produzione || '7-10 gg')
-        .replace(/\{\{timeline_consegna\}\}/g, (offer as any).timeline_consegna || '2-3 gg')
-        .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '1 gg');
+        .replace(/\{\{tempi_consegna\}\}/g, (offer as any).timeline_consegna || '')
+        .replace(/\{\{metodi_pagamento\}\}/g, (offer as any).metodi_pagamento || (offer as any).payment_agreement || '')
+        .replace(/\{\{timeline_produzione\}\}/g, (offer as any).timeline_produzione || '')
+        .replace(/\{\{timeline_consegna\}\}/g, (offer as any).timeline_consegna || '')
+        .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '');
 
       // Create temporary container
       const container = document.createElement('div');
@@ -697,9 +697,9 @@ export default function OffersPage() {
             timeline_collaudo: '',
             incluso_fornitura: '',
             escluso_fornitura: '',
-            metodi_pagamento: '30% acconto - 70% alla consegna',
-            payment_method: 'bonifico',
-            payment_agreement: '50% acconto - 50% a consegna',
+            metodi_pagamento: '',
+            payment_method: '',
+            payment_agreement: '',
             reverse_charge: false
           });
       setSelectedProducts([]);
@@ -1809,9 +1809,9 @@ export default function OffersPage() {
                                 timeline_collaudo: offer.timeline_collaudo || '',
                                 incluso_fornitura: offer.incluso_fornitura || '',
                                 escluso_fornitura: offer.escluso_fornitura || '',
-                                metodi_pagamento: offer.metodi_pagamento || '30% acconto - 70% alla consegna',
-                                payment_method: offer.payment_method || 'bonifico',
-                                payment_agreement: offer.payment_agreement || '50% acconto - 50% a consegna',
+                                metodi_pagamento: offer.metodi_pagamento || '',
+                                payment_method: offer.payment_method || '',
+                                payment_agreement: offer.payment_agreement || '',
                                 reverse_charge: offer.reverse_charge || false
                               });
                               setSelectedProducts([]);

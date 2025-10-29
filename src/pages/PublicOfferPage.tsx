@@ -163,7 +163,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{tempi_consegna\}\}/g, offer.timeline_consegna || '')
-        .replace(/\{\{metodi_pagamento\}\}/g, offer.metodi_pagamento || offer.payment_method || '')
+        .replace(/\{\{metodi_pagamento\}\}/g, offer.metodi_pagamento || offer.payment_agreement || '')
         .replace(/\{\{timeline_produzione\}\}/g, offer.timeline_produzione || '')
         .replace(/\{\{timeline_consegna\}\}/g, offer.timeline_consegna || '')
         .replace(/\{\{timeline_installazione\}\}/g, offer.timeline_installazione || '')
