@@ -34,6 +34,10 @@ const getEntityRoute = (entityType: string | null, entityId: string | null) => {
       return "/crm/leads";
     case "work_order":
       return "/production/work-orders";
+    case "service_work_order":
+      return "/support/service-orders";
+    case "shipping_order":
+      return "/warehouse/shipping-commissions";
     default:
       return null;
   }
