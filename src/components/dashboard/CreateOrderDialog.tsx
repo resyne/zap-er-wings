@@ -164,7 +164,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         // Load offer financial and payment data
         const { data: offerData, error: offerError } = await supabase
           .from('offers')
-          .select('amount, payment_method, payment_agreement, reverse_charge')
+          .select('amount, payment_method, payment_agreement, reverse_charge, customer_id')
           .eq('id', newOrder.offer_id)
           .single();
 
@@ -208,6 +208,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           }
           if (offerData.payment_agreement) {
             updates.payment_agreement = offerData.payment_agreement;
+          }
+          if (offerData.customer_id) {
+            updates.customer_id = offerData.customer_id;
           }
         }
 
