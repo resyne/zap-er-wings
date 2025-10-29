@@ -699,7 +699,14 @@ export default function WorkOrdersServicePage() {
                 </TableRow>
               ) : (
                 filteredWorkOrders.map((workOrder: any) => (
-                  <TableRow key={workOrder.id}>
+                  <TableRow 
+                    key={workOrder.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => {
+                      setSelectedWorkOrder(workOrder);
+                      setShowDetailsDialog(true);
+                    }}
+                  >
                      <TableCell>
                        <div className="font-mono text-sm font-medium">
                          {workOrder.number}
@@ -793,50 +800,20 @@ export default function WorkOrdersServicePage() {
                          )}
                        </div>
                      </TableCell>
-                     <TableCell>
-                       <div className="flex justify-end gap-1">
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => {
-                             setSelectedWorkOrder(workOrder);
-                             setFormData({
-                               title: workOrder.title,
-                               description: workOrder.description || "",
-                               customer_id: workOrder.customer_id || "",
-                               assigned_to: workOrder.assigned_to || "",
-                               priority: workOrder.priority || "medium",
-                               scheduled_date: workOrder.scheduled_date || "",
-                               estimated_hours: workOrder.estimated_hours?.toString() || "",
-                               location: workOrder.location || "",
-                               equipment_needed: workOrder.equipment_needed || "",
-                               notes: workOrder.notes || ""
-                             });
-                             setShowEditDialog(true);
-                           }}
-                            title="Modifica commessa di lavoro"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteWorkOrder(workOrder.id)}
-                            title="Elimina commessa di lavoro"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                         </Button>
-                         <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleArchive(workOrder.id)}
-                            title="Archivia ordine"
-                          >
-                            <Archive className="w-4 h-4" />
-                          </Button>
-                       </div>
-                     </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedWorkOrder(workOrder);
+                            setShowDetailsDialog(true);
+                          }}
+                          title="Visualizza dettagli"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                   </TableRow>
                 ))
               )}
@@ -918,6 +895,55 @@ export default function WorkOrdersServicePage() {
                   <Label className="text-sm font-medium text-muted-foreground">Ultimo Aggiornamento</Label>
                   <p className="text-base">{new Date(selectedWorkOrder.updated_at).toLocaleDateString('it-IT')}</p>
                 </div>
+              </div>
+              
+              {/* Azioni */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setFormData({
+                      title: selectedWorkOrder.title,
+                      description: selectedWorkOrder.description || "",
+                      customer_id: selectedWorkOrder.customer_id || "",
+                      assigned_to: selectedWorkOrder.assigned_to || "",
+                      priority: selectedWorkOrder.priority || "medium",
+                      scheduled_date: selectedWorkOrder.scheduled_date || "",
+                      estimated_hours: selectedWorkOrder.estimated_hours?.toString() || "",
+                      location: selectedWorkOrder.location || "",
+                      equipment_needed: selectedWorkOrder.equipment_needed || "",
+                      notes: selectedWorkOrder.notes || ""
+                    });
+                    setShowDetailsDialog(false);
+                    setShowEditDialog(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Modifica
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleArchive(selectedWorkOrder.id);
+                    setShowDetailsDialog(false);
+                  }}
+                  className="gap-2"
+                >
+                  <Archive className="w-4 h-4" />
+                  {selectedWorkOrder.archived ? "Ripristina" : "Archivia"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleDeleteWorkOrder(selectedWorkOrder.id);
+                    setShowDetailsDialog(false);
+                  }}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Elimina
+                </Button>
               </div>
             </div>
           )}
