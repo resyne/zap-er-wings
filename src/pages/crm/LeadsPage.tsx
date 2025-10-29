@@ -18,6 +18,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 
 interface Lead {
@@ -82,6 +83,7 @@ export default function LeadsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hideAmounts } = useHideAmounts();
+  const isMobile = useIsMobile();
   const [users, setUsers] = useState<Array<{id: string, first_name: string, last_name: string, email: string}>>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -874,23 +876,23 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={`container mx-auto ${isMobile ? 'p-3' : 'p-6'} space-y-6`}>
+      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'}`}>
         <div>
-          <h1 className="text-3xl font-bold">Lead Management</h1>
-          <p className="text-muted-foreground">Gestisci i tuoi lead con il kanban board</p>
+          <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold`}>Lead Management</h1>
+          <p className={`text-muted-foreground ${isMobile ? 'text-sm' : ''}`}>Gestisci i tuoi lead con il kanban board</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleOpenBigin} variant="outline">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Apri Bigin CRM
+        <div className={`flex ${isMobile ? 'flex-col w-full' : 'gap-2'}`}>
+          <Button onClick={handleOpenBigin} variant="outline" size={isMobile ? "sm" : "default"} className={isMobile ? 'mb-2' : ''}>
+            <ExternalLink className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
+            {isMobile ? 'Bigin CRM' : 'Apri Bigin CRM'}
           </Button>
-          <Button onClick={handleOpenCreateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
+          <Button onClick={handleOpenCreateDialog} size={isMobile ? "sm" : "default"}>
+            <Plus className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
             Nuovo Lead
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className={`${isMobile ? 'max-w-[95vw] p-4' : 'max-w-2xl'} max-h-[90vh] overflow-y-auto`}>
               <DialogHeader>
                 <DialogTitle>Crea Nuovo Lead</DialogTitle>
               </DialogHeader>
@@ -1392,7 +1394,7 @@ export default function LeadsPage() {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[200px] space-y-3 ${
+                    className={`${isMobile ? 'min-h-[200px] space-y-2' : 'min-h-[200px] space-y-3'} ${
                       snapshot.isDraggingOver ? 'bg-muted/50' : ''
                     }`}
                   >
@@ -1410,41 +1412,41 @@ export default function LeadsPage() {
                               setIsDetailsDialogOpen(true);
                             }}
                           >
-                             <CardContent className="p-4 space-y-3">
-                               {/* Header con titolo e azioni */}
-                               <div className="flex items-start justify-between">
-                                 <div className="flex-1 min-w-0">
-                                   <div className="flex items-center gap-2 mb-1">
-                                     <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
-                                     <h4 className="font-semibold text-sm truncate">{lead.company_name}</h4>
-                                   </div>
-                                   {lead.contact_name && (
-                                     <p className="text-xs text-muted-foreground truncate ml-6">{lead.contact_name}</p>
-                                   )}
-                                 </div>
-                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       handleEditLead(lead);
-                                     }}
-                                     className="h-6 w-6 p-0 hover:bg-muted"
-                                   >
-                                     <Edit className="h-3 w-3" />
-                                   </Button>
-                                   <AlertDialog>
-                                     <AlertDialogTrigger asChild>
-                                       <Button
-                                         variant="ghost"
-                                         size="sm"
-                                         onClick={(e) => e.stopPropagation()}
-                                         className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                       >
-                                         <Trash2 className="h-3 w-3" />
-                                       </Button>
-                                     </AlertDialogTrigger>
+                             <CardContent className={`${isMobile ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
+                                {/* Header con titolo e azioni */}
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className={`flex items-center gap-2 ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
+                                      <Building2 className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-primary flex-shrink-0`} />
+                                      <h4 className={`font-semibold ${isMobile ? 'text-xs' : 'text-sm'} truncate`}>{lead.company_name}</h4>
+                                    </div>
+                                    {lead.contact_name && (
+                                      <p className={`${isMobile ? 'text-[10px] ml-5' : 'text-xs ml-6'} text-muted-foreground truncate`}>{lead.contact_name}</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditLead(lead);
+                                      }}
+                                      className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} p-0 hover:bg-muted`}
+                                    >
+                                      <Edit className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} p-0 text-destructive hover:text-destructive hover:bg-destructive/10`}
+                                        >
+                                          <Trash2 className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
+                                        </Button>
+                                      </AlertDialogTrigger>
                                      <AlertDialogContent>
                                        <AlertDialogHeader>
                                          <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
@@ -1466,84 +1468,84 @@ export default function LeadsPage() {
                                  </div>
                                </div>
 
-                               {/* Informazioni di contatto */}
-                               <div className="space-y-2 border-t pt-2">
-                                 {lead.email && (
-                                   <div className="flex items-center gap-2">
-                                     <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                     <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
-                                   </div>
-                                 )}
+                                {/* Informazioni di contatto */}
+                                <div className={`${isMobile ? 'space-y-1 border-t pt-1.5' : 'space-y-2 border-t pt-2'}`}>
+                                  {lead.email && (
+                                    <div className="flex items-center gap-2">
+                                      <Mail className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
+                                      <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground truncate`}>{lead.email}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {lead.phone && (
+                                    <div className="flex items-center gap-2">
+                                      <Phone className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
+                                      <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>{lead.phone}</span>
+                                    </div>
+                                  )}
+                                </div>
                                  
-                                 {lead.phone && (
-                                   <div className="flex items-center gap-2">
-                                     <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                     <span className="text-xs text-muted-foreground">{lead.phone}</span>
-                                   </div>
-                                 )}
-                               </div>
-                                 
-                                 {/* Prossima attività */}
-                                 {(lead.next_activity_type || lead.next_activity_date) && (() => {
-                                   const isOverdue = lead.next_activity_date && new Date(lead.next_activity_date) < new Date();
-                                   return (
-                                   <div className={`border-t pt-2 ${isOverdue ? 'bg-destructive/10 -mx-4 px-4 py-2 rounded-b-lg border-l-4 border-l-destructive' : ''}`}>
-                                     <div className="flex items-center gap-2 mb-1">
-                                       <Calendar className={`h-3 w-3 flex-shrink-0 ${isOverdue ? 'text-destructive' : 'text-blue-600'}`} />
-                                       <span className={`text-xs font-medium ${isOverdue ? 'text-destructive' : 'text-blue-600'}`}>
-                                         Prossima attività
-                                       </span>
-                                       {isOverdue && (
-                                         <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 animate-pulse">
-                                           Scaduta!
-                                         </Badge>
-                                       )}
-                                     </div>
-                                     <div className="ml-5 space-y-1">
-                                       {lead.next_activity_type && (
-                                         <div className={`text-xs ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                           <span className="font-medium">
-                                             {lead.next_activity_type === "call" ? "Chiamata" :
-                                              lead.next_activity_type === "email" ? "Email" :
-                                              lead.next_activity_type === "meeting" ? "Incontro" :
-                                              lead.next_activity_type === "demo" ? "Demo" :
-                                              lead.next_activity_type === "follow_up" ? "Follow-up" :
-                                              lead.next_activity_type === "quote" ? "Preventivo" :
-                                              lead.next_activity_type}
-                                           </span>
-                                         </div>
-                                       )}
-                                       {lead.next_activity_date && (
-                                         <div className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                           <Clock className="h-3 w-3" />
-                                           <span>
-                                             {new Date(lead.next_activity_date).toLocaleDateString('it-IT', {
-                                               day: '2-digit',
-                                               month: '2-digit',
-                                               year: 'numeric',
-                                               hour: '2-digit',
-                                               minute: '2-digit'
-                                             })}
-                                           </span>
-                                         </div>
-                                       )}
-                                        {lead.next_activity_notes && (
-                                          <div className={`text-xs italic truncate ${isOverdue ? 'text-destructive/80' : 'text-muted-foreground'}`}>
-                                            {lead.next_activity_notes}
-                                          </div>
+                                  {/* Prossima attività */}
+                                  {(lead.next_activity_type || lead.next_activity_date) && (() => {
+                                    const isOverdue = lead.next_activity_date && new Date(lead.next_activity_date) < new Date();
+                                    return (
+                                    <div className={`${isMobile ? 'border-t pt-1.5' : 'border-t pt-2'} ${isOverdue ? 'bg-destructive/10 -mx-3 px-3 py-2 rounded-b-lg border-l-4 border-l-destructive' : ''}`}>
+                                      <div className={`flex items-center gap-2 ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
+                                        <Calendar className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} flex-shrink-0 ${isOverdue ? 'text-destructive' : 'text-blue-600'}`} />
+                                        <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium ${isOverdue ? 'text-destructive' : 'text-blue-600'}`}>
+                                          Prossima attività
+                                        </span>
+                                        {isOverdue && (
+                                          <Badge variant="destructive" className={`${isMobile ? 'text-[9px] px-1 py-0 h-3.5' : 'text-[10px] px-1.5 py-0 h-4'} animate-pulse`}>
+                                            Scaduta!
+                                          </Badge>
                                         )}
-                                        {lead.next_activity_assigned_to && (
-                                          <div className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                            <User className="h-3 w-3" />
-                                            <span>
-                                              {users.find(u => u.id === lead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === lead.next_activity_assigned_to)?.last_name}
+                                      </div>
+                                      <div className={`${isMobile ? 'ml-4 space-y-0.5' : 'ml-5 space-y-1'}`}>
+                                        {lead.next_activity_type && (
+                                          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                            <span className="font-medium">
+                                              {lead.next_activity_type === "call" ? "Chiamata" :
+                                               lead.next_activity_type === "email" ? "Email" :
+                                               lead.next_activity_type === "meeting" ? "Incontro" :
+                                               lead.next_activity_type === "demo" ? "Demo" :
+                                               lead.next_activity_type === "follow_up" ? "Follow-up" :
+                                               lead.next_activity_type === "quote" ? "Preventivo" :
+                                               lead.next_activity_type}
                                             </span>
                                           </div>
                                         )}
-                                      </div>
-                                   </div>
-                                   );
-                                 })()}
+                                        {lead.next_activity_date && (
+                                          <div className={`flex items-center gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'} ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                            <Clock className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
+                                            <span>
+                                              {new Date(lead.next_activity_date).toLocaleDateString('it-IT', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                              })}
+                                            </span>
+                                          </div>
+                                        )}
+                                         {lead.next_activity_notes && (
+                                           <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} italic truncate ${isOverdue ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+                                             {lead.next_activity_notes}
+                                           </div>
+                                         )}
+                                         {lead.next_activity_assigned_to && (
+                                           <div className={`flex items-center gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'} ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                             <User className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
+                                             <span>
+                                               {users.find(u => u.id === lead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === lead.next_activity_assigned_to)?.last_name}
+                                             </span>
+                                           </div>
+                                         )}
+                                       </div>
+                                    </div>
+                                    );
+                                  })()}
 
                                   {/* Offerta collegata o pulsante per collegarla */}
                                   <div className="border-t pt-2">
@@ -1771,7 +1773,7 @@ export default function LeadsPage() {
 
       {/* Lead Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={`${isMobile ? 'max-w-[95vw] p-4' : 'max-w-4xl'} max-h-[90vh] overflow-y-auto`}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
@@ -2023,7 +2025,7 @@ export default function LeadsPage() {
 
       {/* Edit Lead Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={`${isMobile ? 'max-w-[95vw] p-4' : 'max-w-2xl'} max-h-[90vh] overflow-y-auto`}>
           <DialogHeader>
             <DialogTitle>Modifica Lead</DialogTitle>
           </DialogHeader>
