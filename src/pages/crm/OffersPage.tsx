@@ -2121,6 +2121,104 @@ export default function OffersPage() {
                 </div>
               )}
 
+              {/* Link Pubblico Offerta - Spostato in alto */}
+              <div className="border-t pt-4">
+                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Link Pubblico dell'Offerta
+                </label>
+                {selectedOffer.unique_code ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        value={`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`}
+                        readOnly
+                        className="flex-1 font-mono text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`);
+                          toast({
+                            title: "Link Copiato",
+                            description: "Il link pubblico è stato copiato negli appunti",
+                          });
+                        }}
+                        title="Copia link"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => window.open(`/offerta/${selectedOffer.unique_code}`, '_blank')}
+                        title="Apri in nuova scheda"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDownloadPDF(selectedOffer)}
+                        title="Scarica PDF"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Condividi questo link con il cliente per visualizzare l'offerta
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          // Call the generate_offer_code function
+                          const { data: codeData, error: codeError } = await supabase.rpc('generate_offer_code');
+                          
+                          if (codeError) throw codeError;
+                          
+                          // Update the offer with the new code
+                          const { error: updateError } = await supabase
+                            .from('offers')
+                            .update({ unique_code: codeData })
+                            .eq('id', selectedOffer.id);
+                          
+                          if (updateError) throw updateError;
+                          
+                          // Update local state
+                          setSelectedOffer({ ...selectedOffer, unique_code: codeData });
+                          setOffers(offers.map(o => 
+                            o.id === selectedOffer.id ? { ...o, unique_code: codeData } : o
+                          ));
+                          
+                          toast({
+                            title: "Link Generato",
+                            description: "Il link pubblico è stato generato con successo",
+                          });
+                        } catch (error) {
+                          console.error('Error generating link:', error);
+                          toast({
+                            title: "Errore",
+                            description: "Errore nella generazione del link pubblico",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
+                      <Link2 className="w-4 h-4 mr-2" />
+                      Genera Link Pubblico
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Genera un link pubblico per condividere questa offerta con il cliente
+                    </p>
+                  </>
+                )}
+              </div>
+
               {/* Metodi di Pagamento */}
               {((selectedOffer as any).metodi_pagamento || (selectedOffer as any).payment_method || (selectedOffer as any).payment_agreement || selectedOffer.payment_terms) && (
                 <div className="border-t pt-4">
@@ -2207,96 +2305,6 @@ export default function OffersPage() {
                   </div>
                 </div>
               )}
-
-              {/* Link Pubblico Offerta */}
-              <div className="border-t pt-4">
-                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                  <Link2 className="h-4 w-4" />
-                  Link Pubblico dell'Offerta
-                </label>
-                {selectedOffer.unique_code ? (
-                  <>
-                    <div className="flex gap-2">
-                      <Input
-                        value={`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`}
-                        readOnly
-                        className="flex-1 font-mono text-sm"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`);
-                          toast({
-                            title: "Link Copiato",
-                            description: "Il link pubblico è stato copiato negli appunti",
-                          });
-                        }}
-                        title="Copia link"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => window.open(`/offerta/${selectedOffer.unique_code}`, '_blank')}
-                        title="Apri in nuova scheda"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Condividi questo link con il cliente per visualizzare l'offerta
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          // Call the generate_offer_code function
-                          const { data: codeData, error: codeError } = await supabase.rpc('generate_offer_code');
-                          
-                          if (codeError) throw codeError;
-                          
-                          // Update the offer with the new code
-                          const { error: updateError } = await supabase
-                            .from('offers')
-                            .update({ unique_code: codeData })
-                            .eq('id', selectedOffer.id);
-                          
-                          if (updateError) throw updateError;
-                          
-                          // Update local state
-                          setSelectedOffer({ ...selectedOffer, unique_code: codeData });
-                          setOffers(offers.map(o => 
-                            o.id === selectedOffer.id ? { ...o, unique_code: codeData } : o
-                          ));
-                          
-                          toast({
-                            title: "Link Generato",
-                            description: "Il link pubblico è stato generato con successo",
-                          });
-                        } catch (error) {
-                          console.error('Error generating link:', error);
-                          toast({
-                            title: "Errore",
-                            description: "Errore nella generazione del link pubblico",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                    >
-                      <Link2 className="w-4 h-4 mr-2" />
-                      Genera Link Pubblico
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Genera un link pubblico per condividere questa offerta con il cliente
-                    </p>
-                  </>
-                )}
-              </div>
 
               {/* Collegamento Lead */}
               <div className="border-t pt-4">
