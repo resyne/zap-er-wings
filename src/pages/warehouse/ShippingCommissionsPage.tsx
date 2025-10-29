@@ -38,18 +38,36 @@ interface ShippingOrder {
   status_changed_at?: string;
   customers?: { 
     name: string; 
+    code: string;
     address?: string; 
     email?: string;
     phone?: string;
     tax_id?: string;
-    code?: string;
     company_name?: string;
     shipping_address?: string;
     pec?: string;
     sdi_code?: string;
+    city?: string;
+    country?: string;
   } | null;
   work_orders?: { number: string; title: string };
-  sales_orders?: { number: string };
+  sales_orders?: { 
+    number: string;
+    offer_id?: string;
+    offers?: {
+      payment_method?: string;
+      payment_agreement?: string;
+      offer_items?: Array<{
+        id: string;
+        description: string;
+        quantity: number;
+        unit_price: number;
+        discount_percent: number;
+        notes?: string;
+        products?: { name: string };
+      }>;
+    };
+  };
   shipping_order_items?: ShippingOrderItem[];
   assigned_user?: { first_name?: string; last_name?: string; email?: string };
   status_changed_user?: { first_name?: string; last_name?: string; email?: string };
@@ -127,9 +145,25 @@ export default function ShippingOrdersPage() {
         .from("shipping_orders")
         .select(`
           *,
-          customers!customer_id(name, address, email, phone, tax_id, code, company_name, shipping_address, pec, sdi_code),
+          customers!customer_id(name, address, email, phone, tax_id, code, company_name, shipping_address, pec, sdi_code, city, country),
           work_orders!work_order_id(number, title),
-          sales_orders!sales_order_id(number),
+          sales_orders!sales_order_id(
+            number,
+            offer_id,
+            offers(
+              payment_method, 
+              payment_agreement,
+              offer_items(
+                id,
+                description,
+                quantity,
+                unit_price,
+                discount_percent,
+                notes,
+                products(name)
+              )
+            )
+          ),
           shipping_order_items(
             *,
             materials(name, code)

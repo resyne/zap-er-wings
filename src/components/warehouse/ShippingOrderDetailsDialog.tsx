@@ -15,9 +15,38 @@ interface ShippingOrder {
   payment_amount?: number;
   notes?: string;
   article?: string;
-  companies?: { name: string; address?: string };
+  customers?: { 
+    name: string; 
+    code: string;
+    address?: string;
+    email?: string;
+    phone?: string;
+    tax_id?: string;
+    company_name?: string;
+    shipping_address?: string;
+    pec?: string;
+    sdi_code?: string;
+    city?: string;
+    country?: string;
+  };
   work_orders?: { number: string; title: string };
-  sales_orders?: { number: string };
+  sales_orders?: { 
+    number: string;
+    offer_id?: string;
+    offers?: {
+      payment_method?: string;
+      payment_agreement?: string;
+      offer_items?: Array<{
+        id: string;
+        description: string;
+        quantity: number;
+        unit_price: number;
+        discount_percent: number;
+        notes?: string;
+        products?: { name: string };
+      }>;
+    };
+  };
   shipping_order_items?: any[];
 }
 
@@ -85,12 +114,57 @@ export function ShippingOrderDetailsDialog({
 
           {/* Order Details */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-semibold text-sm text-muted-foreground">Cliente</h4>
-              <p className="font-medium">{order.companies?.name || "N/A"}</p>
-              {order.companies?.address && (
-                <p className="text-sm text-muted-foreground mt-1">{order.companies.address}</p>
-              )}
+            <div className="col-span-2">
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Cliente</h4>
+              <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                <p className="font-medium text-lg">{order.customers?.company_name || order.customers?.name || "N/A"}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Codice: </span>
+                    <span className="font-medium">{order.customers?.code || "N/A"}</span>
+                  </div>
+                  {order.customers?.tax_id && (
+                    <div>
+                      <span className="text-muted-foreground">P.IVA: </span>
+                      <span className="font-medium">{order.customers.tax_id}</span>
+                    </div>
+                  )}
+                </div>
+                {order.customers?.address && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Indirizzo: </span>
+                    {order.customers.address}
+                    {order.customers.city && `, ${order.customers.city}`}
+                    {order.customers.country && ` - ${order.customers.country}`}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {order.customers?.email && (
+                    <div>
+                      <span className="text-muted-foreground">Email: </span>
+                      <span className="font-medium">{order.customers.email}</span>
+                    </div>
+                  )}
+                  {order.customers?.phone && (
+                    <div>
+                      <span className="text-muted-foreground">Telefono: </span>
+                      <span className="font-medium">{order.customers.phone}</span>
+                    </div>
+                  )}
+                </div>
+                {order.customers?.pec && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">PEC: </span>
+                    <span className="font-medium">{order.customers.pec}</span>
+                  </p>
+                )}
+                {order.customers?.sdi_code && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Codice SDI: </span>
+                    <span className="font-medium">{order.customers.sdi_code}</span>
+                  </p>
+                )}
+              </div>
             </div>
             <div>
               <h4 className="font-semibold text-sm text-muted-foreground">Data Ordine</h4>
@@ -101,6 +175,27 @@ export function ShippingOrderDetailsDialog({
               })}</p>
             </div>
           </div>
+
+          {/* Payment Agreement */}
+          {order.sales_orders?.offers && (order.sales_orders.offers.payment_method || order.sales_orders.offers.payment_agreement) && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Accordi di Pagamento</h4>
+              <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                {order.sales_orders.offers.payment_method && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Metodo: </span>
+                    <span className="font-medium capitalize">{order.sales_orders.offers.payment_method}</span>
+                  </p>
+                )}
+                {order.sales_orders.offers.payment_agreement && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Accordo: </span>
+                    <span className="font-medium">{order.sales_orders.offers.payment_agreement}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {order.shipping_address && (
             <div>
@@ -130,9 +225,65 @@ export function ShippingOrderDetailsDialog({
                 )}
                 {order.sales_orders && (
                   <p className="text-sm">
-                    <strong>OdV:</strong> {order.sales_orders.number}
+                    <strong>OdV:</strong> Ordine {order.sales_orders.number}
                   </p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Order Items from Sales Order */}
+          {order.sales_orders?.offers?.offer_items && order.sales_orders.offers.offer_items.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli dall'Ordine di Vendita</h4>
+              <div className="border rounded-lg divide-y">
+                {order.sales_orders.offers.offer_items.map((item: any, index: number) => (
+                  <div key={index} className="p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{item.products?.name || item.description}</p>
+                        {item.description && item.products?.name && (
+                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                        )}
+                        {item.notes && (
+                          <p className="text-sm text-muted-foreground mt-1 italic">Note: {item.notes}</p>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="text-sm text-muted-foreground">
+                          Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          €{item.unit_price.toFixed(2)} x {item.quantity}
+                        </p>
+                        {item.discount_percent > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Sconto: {item.discount_percent}%
+                          </p>
+                        )}
+                        <p className="text-lg font-semibold text-primary mt-1">
+                          €{(() => {
+                            const subtotal = item.quantity * item.unit_price;
+                            const afterDiscount = subtotal * (1 - item.discount_percent / 100);
+                            return afterDiscount.toFixed(2);
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="p-4 bg-muted">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-lg">Totale Ordine:</span>
+                    <span className="font-bold text-xl text-primary">
+                      €{order.sales_orders.offers.offer_items.reduce((sum: number, item: any) => {
+                        const subtotal = item.quantity * item.unit_price;
+                        const afterDiscount = subtotal * (1 - item.discount_percent / 100);
+                        return sum + afterDiscount;
+                      }, 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
