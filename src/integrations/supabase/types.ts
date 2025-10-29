@@ -6201,6 +6201,7 @@ export type Database = {
           location: string | null
           notes: string | null
           number: string
+          offer_id: string | null
           payment_amount: number | null
           payment_on_delivery: boolean | null
           planned_end_date: string | null
@@ -6236,6 +6237,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           number: string
+          offer_id?: string | null
           payment_amount?: number | null
           payment_on_delivery?: boolean | null
           planned_end_date?: string | null
@@ -6271,6 +6273,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           number?: string
+          offer_id?: string | null
           payment_amount?: number | null
           payment_on_delivery?: boolean | null
           planned_end_date?: string | null
@@ -6311,6 +6314,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
             referencedColumns: ["id"]
           },
           {
