@@ -120,6 +120,7 @@ export default function OffersPage() {
     timeline_produzione?: string;
     timeline_consegna?: string;
     timeline_installazione?: string;
+    timeline_collaudo?: string;
     incluso_fornitura?: string;
     escluso_fornitura?: string;
     metodi_pagamento?: string;
@@ -137,6 +138,7 @@ export default function OffersPage() {
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
+    timeline_collaudo: '',
     incluso_fornitura: '',
     escluso_fornitura: '',
     metodi_pagamento: '30% acconto - 70% alla consegna',
@@ -626,6 +628,7 @@ export default function OffersPage() {
             timeline_produzione: newOffer.timeline_produzione || null,
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
+            timeline_collaudo: newOffer.timeline_collaudo || null,
             incluso_fornitura: inclusoFornituraText || null,
             escluso_fornitura: newOffer.escluso_fornitura || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
@@ -671,6 +674,7 @@ export default function OffersPage() {
             timeline_produzione: '',
             timeline_consegna: '',
             timeline_installazione: '',
+            timeline_collaudo: '',
             incluso_fornitura: '',
             escluso_fornitura: '',
             metodi_pagamento: '30% acconto - 70% alla consegna',
@@ -1303,7 +1307,7 @@ export default function OffersPage() {
               </div>
               
               {/* Timeline Operativa */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Tempi di Produzione</label>
                   <Input
@@ -1326,6 +1330,14 @@ export default function OffersPage() {
                     value={newOffer.timeline_installazione}
                     onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_installazione: e.target.value }))}
                     placeholder="Es: 1 giorno (lascia vuoto per non includere)"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Tempi di Collaudo</label>
+                  <Input
+                    value={newOffer.timeline_collaudo}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_collaudo: e.target.value }))}
+                    placeholder="Es: 2 ore (lascia vuoto per non includere)"
                   />
                 </div>
               </div>
