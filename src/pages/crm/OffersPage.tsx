@@ -1878,28 +1878,14 @@ export default function OffersPage() {
               <div className="space-y-2 pr-2">
                 {offers.filter(o => o.status === 'offerta_pronta').map(offer => (
                   <Card key={offer.id} className="p-3 hover:shadow-md transition-shadow border-blue-200">
-                    <div className="space-y-2">
+                      <div className="space-y-2">
                       <div className="font-medium text-sm">{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className="text-sm font-semibold">€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <div className="flex gap-1 pt-2">
-                        <Button size="sm" variant="outline" onClick={() => openDetails(offer)}>
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(offer)}>
-                          <Download className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-blue-600 hover:bg-blue-700" 
-                        onClick={() => {
-                          handleSendEmail(offer);
-                        }}
-                      >
-                        <Send className="w-3 h-3 mr-1" />
-                        Invia
+                      <Button size="sm" variant="outline" className="w-full" onClick={() => openDetails(offer)}>
+                        <Eye className="w-3 h-3 mr-1" />
+                        Dettagli
                       </Button>
                     </div>
                   </Card>
