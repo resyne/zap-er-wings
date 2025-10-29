@@ -57,28 +57,41 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
         return;
       }
 
-      // Group lines intelligently: short lines (titles) with following longer lines (descriptions)
+      // Group lines by products (lines starting with quantity like "1x", "2x", etc.)
       const groupedArticles: string[] = [];
-      let i = 0;
+      let currentProduct: string[] = [];
       
-      while (i < allLines.length) {
-        const currentLine = allLines[i];
+      for (let i = 0; i < allLines.length; i++) {
+        const line = allLines[i];
         
-        // Check if this is a short line (likely a title) followed by a longer line (description)
-        if (i + 1 < allLines.length) {
-          const nextLine = allLines[i + 1];
-          
-          // If current line is short (<= 60 chars) and next line is longer, group them
-          if (currentLine.length <= 60 && nextLine.length > currentLine.length) {
-            groupedArticles.push(`${currentLine}\n${nextLine}`);
-            i += 2;
-            continue;
+        // Check if line starts with a quantity pattern (e.g., "1x", "2x", "10x")
+        const isProductLine = /^\d+x\s/i.test(line);
+        
+        if (isProductLine) {
+          // If we have a current product being built, save it
+          if (currentProduct.length > 0) {
+            groupedArticles.push(currentProduct.join('\n'));
           }
+          // Start a new product group
+          currentProduct = [line];
+        } else {
+          // Add line to current product description (if we have one)
+          if (currentProduct.length > 0) {
+            currentProduct.push(line);
+          }
+          // If no current product, skip this line (it's a standalone description like "Diam 300 mm")
         }
-        
-        // Otherwise, add the line as-is
-        groupedArticles.push(currentLine);
-        i++;
+      }
+      
+      // Don't forget the last product
+      if (currentProduct.length > 0) {
+        groupedArticles.push(currentProduct.join('\n'));
+      }
+
+      // If no products were found, don't create any articles
+      if (groupedArticles.length === 0) {
+        setArticles([]);
+        return;
       }
 
       // Create new articles from grouped text - only if none exist
