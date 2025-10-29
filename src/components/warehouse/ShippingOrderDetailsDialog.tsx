@@ -318,9 +318,25 @@ export function ShippingOrderDetailsDialog({
                           </p>
                         )}
                         {item.is_picked && item.picked_at && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Prelevato il {new Date(item.picked_at).toLocaleString('it-IT')}
-                          </p>
+                          <div className="text-xs text-muted-foreground mt-2 border-t pt-2">
+                            <p className="font-medium">
+                              Prelevato il {new Date(item.picked_at).toLocaleString('it-IT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            {item.picked_by_profile && (
+                              <p className="mt-1">
+                                da <span className="font-medium">{item.picked_by_profile.first_name} {item.picked_by_profile.last_name}</span>
+                                {item.picked_by_profile.email && (
+                                  <span className="text-muted-foreground"> ({item.picked_by_profile.email})</span>
+                                )}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="text-right">
