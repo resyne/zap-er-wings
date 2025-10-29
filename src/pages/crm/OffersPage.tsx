@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search, ClipboardList } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -2154,7 +2154,7 @@ export default function OffersPage() {
                       <div className={isMobile ? "text-xs font-semibold text-green-700" : "text-sm font-semibold text-green-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
                       <div className={isMobile ? "flex flex-col gap-1 pt-1" : "flex flex-col gap-1 pt-2"}>
                         <Button size="sm" variant="default" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => handleCreateOrderFromOffer(offer)}>
-                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          <ClipboardList className="w-3 h-3 mr-1" />
                           Crea Ordine
                         </Button>
                         <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
@@ -2274,7 +2274,7 @@ export default function OffersPage() {
                             onClick={() => handleCreateOrderFromOffer(offer)}
                             className="h-7 text-xs flex-1 min-w-0"
                           >
-                            <ShoppingCart className="w-3 h-3" />
+                            <ClipboardList className="w-3 h-3" />
                           </Button>
                         )}
                       </div>
@@ -2354,7 +2354,7 @@ export default function OffersPage() {
                             variant="default"
                             onClick={() => handleCreateOrderFromOffer(offer)}
                           >
-                            <ShoppingCart className="w-3 h-3" />
+                            <ClipboardList className="w-3 h-3" />
                           </Button>
                         )}
                       </div>
@@ -2740,7 +2740,7 @@ export default function OffersPage() {
                         setIsDetailsDialogOpen(false);
                       }}
                     >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      <ClipboardList className="w-4 h-4 mr-2" />
                       Crea Ordine
                     </Button>
                   )}
