@@ -8,13 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { ScheduleInstallationDialog } from "@/components/support/ScheduleInstallationDialog";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek } from "date-fns";
+import { it } from "date-fns/locale";
 
 interface ServiceWorkOrder {
   id: string;
@@ -95,6 +98,8 @@ export default function WorkOrdersServicePage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [workOrderToSchedule, setWorkOrderToSchedule] = useState<ServiceWorkOrder | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -628,6 +633,31 @@ export default function WorkOrdersServicePage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Calendar view helpers
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  const getWorkOrdersForDay = (day: Date) => {
+    return filteredWorkOrders.filter(wo => 
+      wo.scheduled_date && isSameDay(new Date(wo.scheduled_date), day)
+    );
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1));
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
@@ -668,15 +698,30 @@ export default function WorkOrdersServicePage() {
         </Button>
       </div>
 
-      {/* Tabella Commesse di Lavoro */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wrench className="w-5 h-5" />
-            Commesse di Lavoro ({filteredWorkOrders.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Tabs per Vista Tabella/Calendario */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "calendar")} className="mb-6">
+        <TabsList>
+          <TabsTrigger value="table" className="gap-2">
+            <TableIcon className="w-4 h-4" />
+            Tabella
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="gap-2">
+            <CalendarIcon className="w-4 h-4" />
+            Calendario
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Vista Tabella */}
+      {viewMode === "table" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5" />
+              Commesse di Lavoro ({filteredWorkOrders.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
@@ -762,9 +807,9 @@ export default function WorkOrdersServicePage() {
                        <div className="space-y-2">
                          {workOrder.scheduled_date ? (
                            <>
-                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                               <Calendar className="w-3 h-3" />
-                               <div>
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <CalendarIcon className="w-3 h-3" />
+                                <div>
                                  <div>{new Date(workOrder.scheduled_date).toLocaleDateString('it-IT')}</div>
                                  <div className="text-xs">
                                    {new Date(workOrder.scheduled_date).toLocaleTimeString('it-IT', { 
@@ -821,6 +866,91 @@ export default function WorkOrdersServicePage() {
           </Table>
         </CardContent>
       </Card>
+      )}
+
+      {/* Vista Calendario */}
+      {viewMode === "calendar" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5" />
+                Calendario Lavori Programmati
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
+                  Mese Precedente
+                </Button>
+                <Button variant="outline" size="sm" onClick={goToToday}>
+                  Oggi
+                </Button>
+                <Button variant="outline" size="sm" onClick={goToNextMonth}>
+                  Mese Successivo
+                </Button>
+              </div>
+            </div>
+            <CardDescription>
+              {format(currentMonth, "MMMM yyyy", { locale: it })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-7 gap-2">
+              {/* Header giorni della settimana */}
+              {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((day) => (
+                <div key={day} className="text-center font-semibold text-sm text-muted-foreground p-2">
+                  {day}
+                </div>
+              ))}
+              
+              {/* Celle del calendario */}
+              {calendarDays.map((day, idx) => {
+                const workOrders = getWorkOrdersForDay(day);
+                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                const isToday = isSameDay(day, new Date());
+                
+                return (
+                  <div
+                    key={idx}
+                    className={`min-h-32 border rounded-lg p-2 ${
+                      !isCurrentMonth ? "bg-muted/30" : ""
+                    } ${isToday ? "ring-2 ring-primary" : ""}`}
+                  >
+                    <div className={`text-sm font-medium mb-2 ${
+                      !isCurrentMonth ? "text-muted-foreground" : ""
+                    } ${isToday ? "text-primary font-bold" : ""}`}>
+                      {format(day, "d")}
+                    </div>
+                    <div className="space-y-1">
+                      {workOrders.map((wo) => (
+                        <div
+                          key={wo.id}
+                          onClick={() => {
+                            setSelectedWorkOrder(wo);
+                            setShowDetailsDialog(true);
+                          }}
+                          className="cursor-pointer bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded p-1 text-xs transition-colors"
+                        >
+                          <div className="font-medium truncate" title={wo.title}>
+                            {wo.title}
+                          </div>
+                          <div className="text-muted-foreground truncate" title={wo.customers?.name}>
+                            {wo.customers?.name}
+                          </div>
+                          {wo.scheduled_date && (
+                            <div className="text-muted-foreground">
+                              {format(new Date(wo.scheduled_date), "HH:mm")}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dialog Dettagli */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
