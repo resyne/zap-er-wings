@@ -1313,9 +1313,9 @@ export default function OffersPage() {
             </DialogTrigger>
             <DialogContent className={isMobile ? "max-w-[95vw] max-h-[90vh] p-4" : "max-w-2xl max-h-[90vh]"}>
             <DialogHeader>
-              <DialogTitle>Crea Nuova Offerta</DialogTitle>
+              <DialogTitle>{newOffer.id ? 'Modifica Offerta' : 'Crea Nuova Offerta'}</DialogTitle>
               <DialogDescription>
-                Inserisci i dettagli dell'offerta commerciale
+                {newOffer.id ? 'Modifica i dettagli dell\'offerta commerciale' : 'Inserisci i dettagli dell\'offerta commerciale'}
               </DialogDescription>
             </DialogHeader>
             
@@ -1848,7 +1848,7 @@ export default function OffersPage() {
                   Annulla
                 </Button>
                 <Button onClick={handleCreateOffer}>
-                  Crea Offerta
+                  {newOffer.id ? 'Salva Modifiche' : 'Crea Offerta'}
                 </Button>
               </div>
             </div>
