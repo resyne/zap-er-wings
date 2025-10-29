@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -93,7 +93,9 @@ export default function OffersPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
   const [showArchived, setShowArchived] = useState(false);
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('list');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
@@ -870,16 +872,35 @@ export default function OffersPage() {
     }
   };
 
-  const filteredOffers = offers;
+  const filteredOffers = offers.filter(offer => {
+    // Filter by archived status
+    if (showArchived && !offer.archived) return false;
+    if (!showArchived && offer.archived) return false;
+    
+    // Filter by status
+    if (selectedStatus !== 'all' && offer.status !== selectedStatus) return false;
+    
+    // Filter by search term (search in number, customer name, title)
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const matchesNumber = offer.number.toLowerCase().includes(search);
+      const matchesCustomer = offer.customer_name.toLowerCase().includes(search);
+      const matchesTitle = offer.title.toLowerCase().includes(search);
+      
+      if (!matchesNumber && !matchesCustomer && !matchesTitle) return false;
+    }
+    
+    return true;
+  });
 
   const statusCounts = {
-    all: offers.length,
-    richiesta_offerta: offers.filter(o => o.status === 'richiesta_offerta').length,
-    offerta_pronta: offers.filter(o => o.status === 'offerta_pronta').length,
-    offerta_inviata: offers.filter(o => o.status === 'offerta_inviata').length,
-    negoziazione: offers.filter(o => o.status === 'negoziazione').length,
-    accettata: offers.filter(o => o.status === 'accettata').length,
-    rifiutata: offers.filter(o => o.status === 'rifiutata').length,
+    all: filteredOffers.length,
+    richiesta_offerta: filteredOffers.filter(o => o.status === 'richiesta_offerta').length,
+    offerta_pronta: filteredOffers.filter(o => o.status === 'offerta_pronta').length,
+    offerta_inviata: filteredOffers.filter(o => o.status === 'offerta_inviata').length,
+    negoziazione: filteredOffers.filter(o => o.status === 'negoziazione').length,
+    accettata: filteredOffers.filter(o => o.status === 'accettata').length,
+    rifiutata: filteredOffers.filter(o => o.status === 'rifiutata').length,
   };
 
   const handleChangeStatus = async (offerId: string, newStatus: Offer['status']) => {
@@ -1927,6 +1948,55 @@ export default function OffersPage() {
         </CardContent>
       </Card>
 
+
+      {/* Controlli di Ricerca e Filtro */}
+      <Card className="mb-4">
+        <CardContent className={isMobile ? "p-3 pt-4" : "p-4 pt-6"}>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-muted-foreground`} />
+              <Input
+                placeholder="Cerca per numero, cliente o titolo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`pl-10 ${isMobile ? 'h-9 text-sm' : ''}`}
+              />
+            </div>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className={`w-full sm:w-[200px] ${isMobile ? 'h-9 text-sm' : ''}`}>
+                <SelectValue placeholder="Filtra per stato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                <SelectItem value="offerta_pronta">Pronte</SelectItem>
+                <SelectItem value="offerta_inviata">Inviate</SelectItem>
+                <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                <SelectItem value="accettata">Accettate</SelectItem>
+                <SelectItem value="rifiutata">Rifiutate</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {(searchTerm || selectedStatus !== 'all') && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Risultati: {filteredOffers.filter(o => o.status !== 'richiesta_offerta').length}</span>
+              {(searchTerm || selectedStatus !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedStatus('all');
+                  }}
+                  className="h-6 px-2 text-xs"
+                >
+                  Cancella filtri
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Vista Kanban o Lista - Solo Offerte Generate */}
       <div>
         <div className="mb-3 sm:mb-4">
@@ -1948,7 +2018,7 @@ export default function OffersPage() {
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {offers.filter(o => o.status === 'offerta_pronta').map(offer => (
+                {filteredOffers.filter(o => o.status === 'offerta_pronta').map(offer => (
                   <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-blue-200" : "p-3 hover:shadow-md transition-shadow border-blue-200"}>
                       <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
@@ -1979,7 +2049,7 @@ export default function OffersPage() {
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {offers.filter(o => o.status === 'offerta_inviata').map(offer => (
+                {filteredOffers.filter(o => o.status === 'offerta_inviata').map(offer => (
                   <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-purple-200" : "p-3 hover:shadow-md transition-shadow border-purple-200"}>
                     <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
@@ -2023,7 +2093,7 @@ export default function OffersPage() {
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {offers.filter(o => o.status === 'negoziazione').map(offer => (
+                {filteredOffers.filter(o => o.status === 'negoziazione').map(offer => (
                   <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-orange-200" : "p-3 hover:shadow-md transition-shadow border-orange-200"}>
                     <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
@@ -2075,7 +2145,7 @@ export default function OffersPage() {
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {offers.filter(o => o.status === 'accettata').map(offer => (
+                {filteredOffers.filter(o => o.status === 'accettata').map(offer => (
                   <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-green-200 bg-green-50/50" : "p-3 hover:shadow-md transition-shadow border-green-200 bg-green-50/50"}>
                     <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
@@ -2112,7 +2182,7 @@ export default function OffersPage() {
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {offers.filter(o => o.status === 'rifiutata').map(offer => (
+                {filteredOffers.filter(o => o.status === 'rifiutata').map(offer => (
                   <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-red-200 bg-red-50/50" : "p-3 hover:shadow-md transition-shadow border-red-200 bg-red-50/50"}>
                     <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
@@ -2138,7 +2208,7 @@ export default function OffersPage() {
           <CardContent className="p-0">
             {isMobile ? (
               <div className="p-2 space-y-2">
-                {offers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
+                {filteredOffers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
                   <Card key={offer.id} className="p-3 hover:shadow-sm transition-shadow">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
@@ -2226,7 +2296,7 @@ export default function OffersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {offers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
+                {filteredOffers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
                   <TableRow key={offer.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{offer.number}</TableCell>
                     <TableCell>{offer.customer_name}</TableCell>
