@@ -63,10 +63,23 @@ export default function PublicOfferPage() {
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
         const total = subtotal - discount;
         
+        // Extract product name and description
+        // For manual items, the description contains: "ProductName\nDescription"
+        // For catalog items, use products.name
+        let productName = item.products?.name || '';
+        let productDescription = item.description || '';
+        
+        if (!productName && item.description) {
+          // This is a manual item, split the description
+          const lines = item.description.split('\n');
+          productName = lines[0] || 'N/A';
+          productDescription = lines.slice(1).join('\n');
+        }
+        
         return `
           <tr>
-            <td style="padding: 8px; font-size: 11px; color: #333; border-bottom: 1px solid #e9ecef;">${item.products?.name || 'N/A'}</td>
-            <td style="padding: 8px; font-size: 11px; color: #666; border-bottom: 1px solid #e9ecef;">${item.description || '-'}</td>
+            <td style="padding: 8px; font-size: 11px; color: #333; border-bottom: 1px solid #e9ecef;">${productName}</td>
+            <td style="padding: 8px; font-size: 11px; color: #666; border-bottom: 1px solid #e9ecef;">${productDescription || '-'}</td>
             <td style="padding: 8px; font-size: 11px; color: #333; text-align: center; border-bottom: 1px solid #e9ecef;">${item.quantity}</td>
             <td style="padding: 8px; font-size: 11px; color: #333; text-align: right; border-bottom: 1px solid #e9ecef;">€ ${item.unit_price.toFixed(2)}</td>
             <td style="padding: 8px; font-size: 11px; color: #333; text-align: center; border-bottom: 1px solid #e9ecef;">${item.discount_percent || 0}%</td>

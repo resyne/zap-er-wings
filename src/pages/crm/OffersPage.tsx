@@ -595,7 +595,7 @@ export default function OffersPage() {
 
           const offerItems = selectedProducts.map(item => ({
             offer_id: offerData.id,
-            product_id: item.product_id,
+            product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
             description: `${item.product_name}\n${item.description}`,
             quantity: item.quantity,
             unit_price: item.unit_price,
@@ -644,7 +644,7 @@ export default function OffersPage() {
         if (selectedProducts.length > 0 && offerData) {
           const offerItems = selectedProducts.map(item => ({
             offer_id: offerData.id,
-            product_id: item.product_id,
+            product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
             description: `${item.product_name}\n${item.description}`,
             quantity: item.quantity,
             unit_price: item.unit_price,
