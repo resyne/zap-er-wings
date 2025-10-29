@@ -467,7 +467,7 @@ export default function OffersPage() {
       }
 
       // Open the public offer link in a new window
-      const offerUrl = `${window.location.origin}/offerta/${offer.unique_code}`;
+      const offerUrl = `https://www.erp.abbattitorizapper.it/offerta/${offer.unique_code}`;
       const printWindow = window.open(offerUrl, '_blank');
       
       if (printWindow) {
@@ -2171,7 +2171,7 @@ export default function OffersPage() {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open(`/offerta/${selectedOffer.unique_code}`, '_blank')}
+                        onClick={() => window.open(`https://www.erp.abbattitorizapper.it/offerta/${selectedOffer.unique_code}`, '_blank')}
                         title="Apri in nuova scheda"
                       >
                         <ExternalLink className="h-4 w-4" />
