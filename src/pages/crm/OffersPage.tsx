@@ -2439,55 +2439,6 @@ export default function OffersPage() {
                 </div>
               </div>
 
-              {/* Upload Files */}
-              <div className="border-t pt-4">
-                <label className="text-sm font-medium mb-2 block">Documenti Allegati</label>
-                <FileUpload
-                  value={offerFiles}
-                  onChange={setOfferFiles}
-                  maxFiles={10}
-                  acceptedFileTypes={[
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'image/jpeg',
-                    'image/png',
-                    'image/jpg'
-                  ]}
-                />
-                {offerFiles.length > 0 && (
-                  <div className="mt-2">
-                    <Button onClick={() => handleUploadFiles(offerFiles)}>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Carica {offerFiles.length} file
-                    </Button>
-                  </div>
-                )}
-
-                {/* Lista file esistenti */}
-                {selectedOffer.attachments && selectedOffer.attachments.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-sm font-medium">File caricati:</p>
-                    {selectedOffer.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm">{attachment.split('/').pop()}</span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={async () => {
-                            const { data } = supabase.storage
-                              .from('documents')
-                              .getPublicUrl(attachment);
-                            window.open(data.publicUrl, '_blank');
-                          }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               {/* Actions */}
               <div className="border-t pt-4 flex justify-between items-center">
