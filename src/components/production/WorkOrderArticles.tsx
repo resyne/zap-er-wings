@@ -24,7 +24,7 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
 
   useEffect(() => {
     loadArticles();
-  }, [workOrderId]); // Removed articleText from dependencies to avoid recreating articles
+  }, [workOrderId]);
 
   const loadArticles = async () => {
     try {
@@ -39,10 +39,34 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
 
       if (fetchError) throw fetchError;
 
-      // ALWAYS use existing articles if they exist - never recreate
+      // Check for duplicates in existing articles
+      const uniqueArticles: ArticleItem[] = [];
+      const seenDescriptions = new Set<string>();
+      
       if (existingArticles && existingArticles.length > 0) {
-        setArticles(existingArticles);
-        return; // Exit early to prevent any recreation
+        // Remove exact duplicates based on description
+        for (const article of existingArticles) {
+          const normalizedDesc = article.description.trim().toLowerCase();
+          if (!seenDescriptions.has(normalizedDesc)) {
+            seenDescriptions.add(normalizedDesc);
+            uniqueArticles.push(article);
+          } else {
+            // Delete duplicate from database
+            console.log('Removing duplicate article:', article.description.substring(0, 50));
+            await supabase
+              .from("work_order_article_items")
+              .delete()
+              .eq("id", article.id);
+          }
+        }
+        
+        setArticles(uniqueArticles);
+        
+        // If we removed duplicates, show a toast
+        if (uniqueArticles.length < existingArticles.length) {
+          toast.success(`Rimossi ${existingArticles.length - uniqueArticles.length} articoli duplicati`);
+        }
+        return;
       }
 
       // Only create articles if NONE exist for this work order

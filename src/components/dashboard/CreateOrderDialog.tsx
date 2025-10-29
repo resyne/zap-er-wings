@@ -126,7 +126,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   // Load offer items and financial data when offer_id changes
   useEffect(() => {
     const loadOfferData = async () => {
-      if (!newOrder.offer_id) return;
+      if (!newOrder.offer_id) {
+        // Se non c'è offer_id, pulisci gli articoli
+        setNewOrder(prev => ({
+          ...prev,
+          articles: []
+        }));
+        return;
+      }
 
       try {
         // Load offer items
@@ -148,13 +155,16 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
         const updates: any = {};
 
-        // Update articles
+        // Update articles - create clean array to avoid duplicates
         if (offerItems && offerItems.length > 0) {
           const articles = offerItems.map(item => {
             const quantity = item.quantity || 1;
             return `${quantity}x ${item.description}`;
           });
           updates.articles = articles;
+          console.log('Loaded articles from offer:', articles);
+        } else {
+          updates.articles = [];
         }
 
         // Update payment amount from offer
@@ -162,6 +172,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           updates.payment_amount = offerData.amount.toString();
         }
 
+        // Replace articles completely, don't merge
         setNewOrder(prev => ({
           ...prev,
           ...updates
