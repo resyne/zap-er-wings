@@ -36,7 +36,18 @@ interface ShippingOrder {
   assigned_to?: string;
   status_changed_by?: string;
   status_changed_at?: string;
-  companies?: { name: string; address?: string };
+  customers?: { 
+    name: string; 
+    address?: string; 
+    email?: string;
+    phone?: string;
+    tax_id?: string;
+    code?: string;
+    company_name?: string;
+    shipping_address?: string;
+    pec?: string;
+    sdi_code?: string;
+  };
   work_orders?: { number: string; title: string };
   sales_orders?: { number: string };
   shipping_order_items?: ShippingOrderItem[];
@@ -54,19 +65,18 @@ interface ShippingOrderItem {
   materials?: { name: string; code: string };
 }
 
-interface Company {
+interface Customer {
   id: string;
   name: string;
   code: string;
   address?: string;
-}
-
-interface CrmContact {
-  id: string;
-  first_name?: string;
-  last_name?: string;
+  email?: string;
+  phone?: string;
+  tax_id?: string;
   company_name?: string;
-  address?: string;
+  shipping_address?: string;
+  pec?: string;
+  sdi_code?: string;
 }
 
 interface WorkOrder {
@@ -117,7 +127,7 @@ export default function ShippingOrdersPage() {
         .from("shipping_orders")
         .select(`
           *,
-          companies!customer_id(name, address),
+          customers!customer_id(name, address, email, phone, tax_id, code, company_name, shipping_address, pec, sdi_code),
           work_orders!work_order_id(number, title),
           sales_orders!sales_order_id(number),
           shipping_order_items(
@@ -127,7 +137,7 @@ export default function ShippingOrdersPage() {
           assigned_user:profiles!assigned_to(first_name, last_name, email),
           status_changed_user:profiles!status_changed_by(first_name, last_name, email)
         `)
-        .order("created_at", { ascending: false });
+        .order("number", { ascending: false });
       
       // Applica il filtro archiviati
       if (showArchivedOrders) {
@@ -143,26 +153,14 @@ export default function ShippingOrdersPage() {
     },
   });
 
-  const { data: companies } = useQuery({
-    queryKey: ["companies"],
+  const { data: customers } = useQuery({
+    queryKey: ["customers"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("companies")
-        .select("id, name, code, address")
+        .from("customers")
+        .select("id, name, code, address, email, phone, tax_id, company_name, shipping_address, pec, sdi_code")
+        .eq("active", true)
         .order("name");
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: crmContacts } = useQuery({
-    queryKey: ["crm-contacts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_contacts")
-        .select("id, first_name, last_name, company_name, address")
-        .order("first_name");
 
       if (error) throw error;
       return data;
@@ -579,27 +577,15 @@ export default function ShippingOrdersPage() {
   };
 
   const getCustomerDisplayName = (order: ShippingOrder) => {
-    if (order.companies?.name) {
-      return order.companies.name;
+    if (order.customers) {
+      return order.customers.company_name || order.customers.name;
     }
-    
-    // Check if customer_id belongs to a CRM contact
-    const contact = crmContacts?.find(c => c.id === order.customer_id);
-    if (contact) {
-      return `${contact.first_name} ${contact.last_name} - ${contact.company_name}`;
-    }
-    
     return "N/A";
   };
 
   const getSelectedCustomerAddress = (customerId: string) => {
-    const company = companies?.find(c => c.id === customerId);
-    if (company?.address) return company.address;
-    
-    const contact = crmContacts?.find(c => c.id === customerId);
-    if (contact?.address) return contact.address;
-    
-    return null;
+    const customer = customers?.find(c => c.id === customerId);
+    return customer?.shipping_address || customer?.address || null;
   };
 
   if (isLoading) {

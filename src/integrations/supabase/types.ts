@@ -6365,9 +6365,10 @@ export type Database = {
       generate_service_work_order_number:
         | { Args: never; Returns: string }
         | { Args: { sales_order_number?: string }; Returns: string }
-      generate_shipping_order_number:
-        | { Args: never; Returns: string }
-        | { Args: { sales_order_number?: string }; Returns: string }
+      generate_shipping_order_number: {
+        Args: { sales_order_number?: string }
+        Returns: string
+      }
       generate_ticket_number: { Args: never; Returns: string }
       get_quote_by_code: {
         Args: { input_code: string }
