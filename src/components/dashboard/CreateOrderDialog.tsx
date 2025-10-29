@@ -403,7 +403,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       number: '',
       title: newOrder.title || `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.description || newOrder.notes || '',
-      status: 'planned' as const,
+      status: 'da_programmare' as const,
       customer_id: newOrder.customer_id,
       lead_id: newOrder.lead_id || null,
       service_responsible_id: serviceResponsible,
