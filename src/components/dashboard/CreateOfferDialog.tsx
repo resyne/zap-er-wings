@@ -33,7 +33,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
     amount: 0,
     valid_until: '',
     status: 'richiesta_offerta' as const,
-    assigned_to: '',
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     payment_terms: ''
   });
@@ -106,7 +105,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
           amount: newOffer.amount,
           valid_until: newOffer.valid_until || null,
           status: newOffer.status,
-          assigned_to: newOffer.assigned_to || null,
           priority: newOffer.priority,
           payment_terms: finalPaymentTerms || null
         }])
@@ -155,7 +153,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
       amount: 0,
       valid_until: '',
       status: 'richiesta_offerta',
-      assigned_to: '',
       priority: 'medium',
       payment_terms: ''
     });
@@ -242,24 +239,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="assigned_to">Assegnato a</Label>
-              <Select value={newOffer.assigned_to || "unassigned"} onValueChange={(value) => setNewOffer({ ...newOffer, assigned_to: value === "unassigned" ? "" : value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona responsabile" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Nessuno</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.first_name && user.last_name 
-                        ? `${user.first_name} ${user.last_name}`
-                        : user.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <Label htmlFor="priority">Urgenza *</Label>
               <Select value={newOffer.priority} onValueChange={(value: any) => setNewOffer({ ...newOffer, priority: value })}>
