@@ -141,12 +141,26 @@
                 font-size: 24px;
             }
             
+            .table-wrapper {
+                margin: 15px -20px;
+                padding: 0 20px;
+                overflow-x: auto;
+            }
+            
             table {
-                font-size: 11px;
+                font-size: 9px;
+                min-width: 100%;
             }
             
             th, td {
-                padding: 8px 4px;
+                padding: 8px 6px;
+                white-space: nowrap;
+            }
+            
+            td:nth-child(2) {
+                white-space: normal;
+                min-width: 150px;
+                max-width: 200px;
             }
             
             .trustpilot-header {
@@ -180,10 +194,16 @@
                 font-size: 18px;
             }
             
+            .table-wrapper {
+                margin: 10px -20px;
+            }
+            
             table {
-                display: block;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                font-size: 8px;
+            }
+            
+            th, td {
+                padding: 6px 4px;
             }
             
             .trustpilot-section {
@@ -317,10 +337,17 @@
             background: #f9f9f9;
         }
         
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 20px 0;
+        }
+        
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            min-width: 600px;
         }
         
         th {

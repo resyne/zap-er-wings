@@ -89,21 +89,23 @@ export default function PublicOfferPage() {
       }).join('');
       
       const productsTable = `
-        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
-          <thead>
-            <tr style="background: #f9f9f9;">
-              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: left; border-bottom: 2px solid #e9ecef;">Prodotto</th>
-              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: left; border-bottom: 2px solid #e9ecef;">Descrizione</th>
-              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: center; border-bottom: 2px solid #e9ecef;">Qtà</th>
-              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: right; border-bottom: 2px solid #e9ecef;">Prezzo Unit.</th>
-              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: center; border-bottom: 2px solid #e9ecef;">Sconto</th>
-              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: right; border-bottom: 2px solid #e9ecef;">Totale</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${productsTableRows}
-          </tbody>
-        </table>
+        <div class="table-wrapper">
+          <table style="width: 100%; min-width: 600px; border-collapse: collapse; margin: 10px 0; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+            <thead>
+              <tr style="background: #f9f9f9;">
+                <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: left; border-bottom: 2px solid #e9ecef;">Prodotto</th>
+                <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: left; border-bottom: 2px solid #e9ecef;">Descrizione</th>
+                <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: center; border-bottom: 2px solid #e9ecef;">Qtà</th>
+                <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: right; border-bottom: 2px solid #e9ecef;">Prezzo Unit.</th>
+                <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: center; border-bottom: 2px solid #e9ecef;">Sconto</th>
+                <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: right; border-bottom: 2px solid #e9ecef;">Totale</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${productsTableRows}
+            </tbody>
+          </table>
+        </div>
       `;
 
       // Build includes grid
