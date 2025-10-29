@@ -967,20 +967,21 @@ export default function WorkOrdersPage() {
                               .map((wo, index) => (
                                 <Draggable key={wo.id} draggableId={wo.id} index={index}>
                                   {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      onClick={() => handleViewDetails(wo)}
-                                      className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                        snapshot.isDragging ? 'shadow-lg opacity-90' : ''
-                                      }`}
-                                    >
-                                     <div className="space-y-3">
+                                     <div
+                                       ref={provided.innerRef}
+                                       {...provided.draggableProps}
+                                       {...provided.dragHandleProps}
+                                       onClick={() => handleViewDetails(wo)}
+                                       className={`p-3 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all ${
+                                         snapshot.isDragging ? 'shadow-lg opacity-90 ring-2 ring-primary' : ''
+                                       }`}
+                                     >
+                                      <div className="space-y-2.5">
+                                        {/* Header con numero e priorità */}
                                         <div className="flex items-start justify-between gap-2">
                                           <div className="flex-1 min-w-0">
-                                            <div className="font-semibold text-sm">{wo.number}</div>
-                                            <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                            <div className="font-semibold text-sm text-foreground">{wo.number}</div>
+                                            <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                                               {wo.title}
                                             </div>
                                           </div>
@@ -1000,49 +1001,60 @@ export default function WorkOrdersPage() {
                                           )}
                                         </div>
                                         
-                                        {wo.customers && (
-                                          <div className="text-xs text-muted-foreground">
-                                            <span className="font-medium">Cliente:</span> {wo.customers.name}
-                                          </div>
-                                        )}
+                                        {/* Cliente e BOM */}
+                                        <div className="space-y-1.5">
+                                          {wo.customers && (
+                                            <div className="flex items-start gap-1.5 text-xs">
+                                              <span className="text-muted-foreground shrink-0">Cliente:</span>
+                                              <span className="font-medium text-foreground line-clamp-1">{wo.customers.name}</span>
+                                            </div>
+                                          )}
+                                          
+                                          {wo.boms && (
+                                            <div className="flex items-center gap-1">
+                                              <Badge variant="outline" className="text-xs">
+                                                {wo.boms.name}
+                                              </Badge>
+                                            </div>
+                                          )}
+                                        </div>
                                         
-                                        {wo.boms && (
-                                          <div className="flex items-center gap-1">
-                                            <Badge variant="outline" className="text-xs">
-                                              {wo.boms.name}
-                                            </Badge>
-                                          </div>
-                                        )}
-                                        
-                                        {(wo.technician || wo.planned_start_date || !wo.assigned_to) && (
-                                          <div className="pt-2 border-t space-y-1">
-                                            {wo.technician ? (
-                                              <div className="text-xs text-muted-foreground">
-                                                <span className="font-medium">Responsabile:</span> {wo.technician.first_name} {wo.technician.last_name}
+                                        {/* Responsabile e info aggiuntive */}
+                                        <div className="pt-2 border-t space-y-1.5">
+                                          {wo.technician ? (
+                                            <div className="flex items-center gap-1.5 text-xs bg-primary/5 rounded px-2 py-1.5">
+                                              <UserPlus className="h-3.5 w-3.5 text-primary shrink-0" />
+                                              <div className="flex-1 min-w-0">
+                                                <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Responsabile</span>
+                                                <div className="font-medium text-foreground truncate">
+                                                  {wo.technician.first_name} {wo.technician.last_name}
+                                                </div>
                                               </div>
-                                            ) : (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleTakeOwnership(wo.id);
-                                                }}
-                                                className="w-full text-xs h-7"
-                                              >
-                                                <UserPlus className="h-3 w-3 mr-1" />
-                                                Prendi in carico
-                                              </Button>
-                                            )}
-                                            {wo.planned_start_date && (
-                                              <div className="text-xs text-muted-foreground">
-                                                <span className="font-medium">Inizio:</span> {new Date(wo.planned_start_date).toLocaleDateString('it-IT')}
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
+                                            </div>
+                                          ) : (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleTakeOwnership(wo.id);
+                                              }}
+                                              className="w-full text-xs h-8"
+                                            >
+                                              <UserPlus className="h-3 w-3 mr-1.5" />
+                                              Prendi in carico
+                                            </Button>
+                                          )}
+                                          
+                                          {wo.planned_start_date && (
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                              <CalendarIcon className="h-3 w-3 shrink-0" />
+                                              <span>Inizio: {new Date(wo.planned_start_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
+                                     </div>
                                   )}
                                 </Draggable>
                               ))}
