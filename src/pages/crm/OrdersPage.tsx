@@ -199,7 +199,6 @@ export default function OrdersPage() {
           *,
           customers(name, code),
           leads(id, company_name),
-          offers(id, number, title),
           work_orders(id, number, status, includes_installation),
           service_work_orders(id, number, status),
           shipping_orders(id, number, status)
@@ -1768,12 +1767,12 @@ export default function OrdersPage() {
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Offerta</Label>
-                    {selectedOrder.offers ? (
+                    {selectedOrder.offer_id ? (
                       <Link 
                         to={`/crm/offers`}
                         className="text-primary hover:underline flex items-center gap-1 font-semibold"
                       >
-                        {selectedOrder.offers.number} - {selectedOrder.offers.title}
+                        Offerta collegata
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : (
