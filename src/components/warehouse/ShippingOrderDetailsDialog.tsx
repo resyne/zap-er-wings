@@ -288,10 +288,10 @@ export function ShippingOrderDetailsDialog({
             </div>
           )}
 
-          {/* Order Items */}
+          {/* Shipping Order Items */}
           {order.shipping_order_items && order.shipping_order_items.length > 0 && (
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli dell'Ordine di Spedizione</h4>
               <div className="border rounded-lg divide-y">
                 {order.shipping_order_items.map((item: any, index: number) => (
                   <div key={index} className="p-4 space-y-2">
@@ -321,7 +321,7 @@ export function ShippingOrderDetailsDialog({
                 ))}
                 <div className="p-4 bg-muted">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-lg">Totale Ordine:</span>
+                    <span className="font-semibold text-lg">Totale:</span>
                     <span className="font-bold text-xl text-primary">
                       €{order.shipping_order_items.reduce((sum: number, item: any) => 
                         sum + (typeof item.total_price === 'number' ? item.total_price : 0), 0
@@ -333,7 +333,8 @@ export function ShippingOrderDetailsDialog({
             </div>
           )}
           
-          {(!order.shipping_order_items || order.shipping_order_items.length === 0) && (
+          {(!order.shipping_order_items || order.shipping_order_items.length === 0) && 
+           (!order.sales_orders?.offers?.offer_items || order.sales_orders.offers.offer_items.length === 0) && (
             <div className="border rounded-lg p-4 text-center text-muted-foreground">
               Nessun articolo presente in questo ordine
             </div>
