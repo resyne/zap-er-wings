@@ -5111,6 +5111,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shipping_order_items_picked_by_fkey"
+            columns: ["picked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shipping_order_items_shipping_order_id_fkey"
             columns: ["shipping_order_id"]
             isOneToOne: false

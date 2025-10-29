@@ -93,7 +93,7 @@ interface ShippingOrderItem {
   picked_at?: string;
   picked_by?: string;
   materials?: { name: string; code: string };
-  picked_by_profile?: { id: string; first_name: string; last_name: string; email: string };
+  profiles?: { id: string; first_name: string; last_name: string; email: string } | null;
 }
 
 interface Customer {
@@ -197,7 +197,7 @@ export default function ShippingOrdersPage() {
             picked_at,
             picked_by,
             materials(name, code),
-            picked_by_profile:profiles!shipping_order_items_picked_by_fkey(id, first_name, last_name, email)
+            profiles!shipping_order_items_picked_by_fkey(id, first_name, last_name, email)
           ),
           assigned_user:profiles!assigned_to(first_name, last_name, email),
           status_changed_user:profiles!status_changed_by(first_name, last_name, email)

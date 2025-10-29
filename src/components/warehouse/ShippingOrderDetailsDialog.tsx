@@ -328,11 +328,11 @@ export function ShippingOrderDetailsDialog({
                                 minute: '2-digit'
                               })}
                             </p>
-                            {item.picked_by_profile && (
+                            {item.profiles && (
                               <p className="mt-1">
-                                da <span className="font-medium">{item.picked_by_profile.first_name} {item.picked_by_profile.last_name}</span>
-                                {item.picked_by_profile.email && (
-                                  <span className="text-muted-foreground"> ({item.picked_by_profile.email})</span>
+                                da <span className="font-medium">{item.profiles.first_name} {item.profiles.last_name}</span>
+                                {item.profiles.email && (
+                                  <span className="text-muted-foreground"> ({item.profiles.email})</span>
                                 )}
                               </p>
                             )}
