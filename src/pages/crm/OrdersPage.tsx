@@ -507,6 +507,9 @@ export default function OrdersPage() {
         description: successMessage,
       });
 
+      // Ricarica gli ordini per mostrare le commesse collegate
+      await loadOrders();
+      
       setIsDialogOpen(false);
       setNewOrder({
         customer_id: "",
