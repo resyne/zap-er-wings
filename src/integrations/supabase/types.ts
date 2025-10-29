@@ -6153,10 +6153,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "work_orders_assigned_to_technician_fkey"
+            foreignKeyName: "work_orders_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
-            referencedRelation: "technicians"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
