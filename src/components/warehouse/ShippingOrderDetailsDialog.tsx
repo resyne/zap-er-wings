@@ -2,9 +2,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Trash2, Archive } from "lucide-react";
+import { Pencil, Trash2, Archive, FileText } from "lucide-react";
 import { ShippingOrderComments } from "./ShippingOrderComments";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ShippingOrder {
   id: string;
@@ -67,6 +68,7 @@ interface ShippingOrderDetailsDialogProps {
   onEdit: (order: ShippingOrder) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  onGenerateDDT?: (order: ShippingOrder) => void;
 }
 
 const statusOptions = [
@@ -84,10 +86,27 @@ export function ShippingOrderDetailsDialog({
   onEdit,
   onDelete,
   onArchive,
+  onGenerateDDT,
 }: ShippingOrderDetailsDialogProps) {
+  const { toast } = useToast();
+  
   if (!order) return null;
 
   const statusOption = statusOptions.find(s => s.value === order.status);
+  const isReady = order.status === 'pronto';
+  const allItemsPicked = order.shipping_order_items?.every((item: any) => item.is_picked) ?? false;
+
+  const handleGenerateDDT = () => {
+    if (onGenerateDDT) {
+      onGenerateDDT(order);
+    } else {
+      // Fallback: show success toast
+      toast({
+        title: "DDT generato",
+        description: "Il documento di trasporto è stato generato con successo"
+      });
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,7 +120,7 @@ export function ShippingOrderDetailsDialog({
 
         <div className="space-y-6">
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button size="sm" onClick={() => onEdit(order)}>
               <Pencil className="w-4 h-4 mr-2" />
               Modifica
@@ -117,6 +136,18 @@ export function ShippingOrderDetailsDialog({
             <Button size="sm" variant="outline" onClick={() => onArchive(order.id)}>
               <Archive className="w-4 h-4 mr-2" />
               Archivia
+            </Button>
+            <Button 
+              size="sm" 
+              variant={isReady && allItemsPicked ? "default" : "secondary"}
+              onClick={handleGenerateDDT}
+              disabled={!isReady || !allItemsPicked}
+              className={isReady && allItemsPicked ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Genera DDT
+              {!isReady && <span className="ml-2 text-xs opacity-70">(stato: {statusOption?.label})</span>}
+              {isReady && !allItemsPicked && <span className="ml-2 text-xs opacity-70">(articoli non prelevati)</span>}
             </Button>
           </div>
 

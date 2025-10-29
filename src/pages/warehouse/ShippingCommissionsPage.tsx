@@ -922,6 +922,7 @@ export default function ShippingOrdersPage() {
         }}
         onDelete={deleteOrderMutation.mutate}
         onArchive={handleArchive}
+        onGenerateDDT={handleGenerateDDT}
       />
 
       {/* Edit Dialog */}
