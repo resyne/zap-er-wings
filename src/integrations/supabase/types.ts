@@ -1063,7 +1063,9 @@ export type Database = {
           incomplete_registry: boolean | null
           name: string
           payment_terms: number | null
+          pec: string | null
           phone: string | null
+          sdi_code: string | null
           shipping_address: string | null
           tax_id: string | null
           updated_at: string | null
@@ -1082,7 +1084,9 @@ export type Database = {
           incomplete_registry?: boolean | null
           name: string
           payment_terms?: number | null
+          pec?: string | null
           phone?: string | null
+          sdi_code?: string | null
           shipping_address?: string | null
           tax_id?: string | null
           updated_at?: string | null
@@ -1101,7 +1105,9 @@ export type Database = {
           incomplete_registry?: boolean | null
           name?: string
           payment_terms?: number | null
+          pec?: string | null
           phone?: string | null
+          sdi_code?: string | null
           shipping_address?: string | null
           tax_id?: string | null
           updated_at?: string | null
