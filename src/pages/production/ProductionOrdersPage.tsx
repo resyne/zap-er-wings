@@ -1205,13 +1205,24 @@ export default function WorkOrdersPage() {
                   value={selectedWO.title}
                   onChange={(e) => setSelectedWO({ ...selectedWO, title: e.target.value })}
                   onBlur={async () => {
-                    const { error } = await supabase
-                      .from('work_orders')
-                      .update({ title: selectedWO.title })
-                      .eq('id', selectedWO.id);
-                    if (!error) {
-                      toast({ title: "Titolo aggiornato" });
+                    try {
+                      const { error } = await supabase
+                        .from('work_orders')
+                        .update({ title: selectedWO.title })
+                        .eq('id', selectedWO.id);
+                      if (error) throw error;
+                      toast({ 
+                        title: "Successo",
+                        description: "Titolo aggiornato" 
+                      });
                       fetchWorkOrders();
+                    } catch (error: any) {
+                      console.error('Error updating title:', error);
+                      toast({ 
+                        title: "Errore",
+                        description: error.message,
+                        variant: "destructive"
+                      });
                     }
                   }}
                   className="mt-1"
@@ -1224,19 +1235,30 @@ export default function WorkOrdersPage() {
                   <Select 
                     value={selectedWO.customer_id || "none"} 
                     onValueChange={async (value) => {
-                      const newCustomerId = value === "none" ? null : value;
-                      const { error } = await supabase
-                        .from('work_orders')
-                        .update({ customer_id: newCustomerId })
-                        .eq('id', selectedWO.id);
-                      if (!error) {
-                        toast({ title: "Cliente aggiornato" });
+                      try {
+                        const newCustomerId = value === "none" ? null : value;
+                        const { error } = await supabase
+                          .from('work_orders')
+                          .update({ customer_id: newCustomerId })
+                          .eq('id', selectedWO.id);
+                        if (error) throw error;
+                        toast({ 
+                          title: "Successo",
+                          description: "Cliente aggiornato" 
+                        });
                         fetchWorkOrders();
                         const customer = customers.find(c => c.id === value);
                         setSelectedWO({ 
                           ...selectedWO, 
                           customer_id: newCustomerId,
                           customers: customer ? { name: customer.name, code: customer.code } : undefined
+                        });
+                      } catch (error: any) {
+                        console.error('Error updating customer:', error);
+                        toast({ 
+                          title: "Errore",
+                          description: error.message,
+                          variant: "destructive"
                         });
                       }
                     }}
