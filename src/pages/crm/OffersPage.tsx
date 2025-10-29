@@ -1510,6 +1510,17 @@ export default function OffersPage() {
                 />
               </div>
               
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="offer-reverse-charge"
+                  checked={newOffer.reverse_charge}
+                  onCheckedChange={(checked) => setNewOffer(prev => ({ ...prev, reverse_charge: checked === true }))}
+                />
+                <label htmlFor="offer-reverse-charge" className="text-sm cursor-pointer">
+                  Reverse Charge (IVA a 0% - Inversione contabile)
+                </label>
+              </div>
+              
               {newOffer.payment_agreement === 'altro' && (
                 <div>
                   <label className="text-sm font-medium">Accordo Personalizzato</label>
