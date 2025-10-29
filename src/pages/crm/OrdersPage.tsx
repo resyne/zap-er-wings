@@ -38,6 +38,7 @@ interface Order {
   offer_id?: string;
   archived?: boolean;
   created_at: string;
+  created_by?: string;
   attachments?: Array<{
     path: string;
     name: string;
@@ -73,6 +74,11 @@ interface Order {
     number: string;
     status: string;
   }>;
+  profiles?: {
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
 }
 
 const orderStatuses = ["commissionato", "in_lavorazione", "completato"];
@@ -195,7 +201,8 @@ export default function OrdersPage() {
           leads(id, company_name),
           work_orders(id, number, status, includes_installation),
           service_work_orders(id, number, status),
-          shipping_orders(id, number, status)
+          shipping_orders(id, number, status),
+          profiles:created_by(email, first_name, last_name)
         `)
         .order("created_at", { ascending: false });
 
@@ -1375,120 +1382,150 @@ export default function OrdersPage() {
                                           snapshot.isDragging ? 'shadow-lg opacity-90' : ''
                                         }`}
                                       >
-                                        <div className="space-y-3">
-                                          <div className="flex items-start justify-between gap-2">
-                                            <div className="flex-1 min-w-0">
-                                              <div className="font-semibold text-base">{order.number}</div>
-                                              <div className="text-sm text-muted-foreground truncate">
-                                                {order.customers?.name}
-                                              </div>
-                                              {order.order_date && (
-                                                <div className="text-xs text-muted-foreground mt-1">
-                                                  {new Date(order.order_date).toLocaleDateString('it-IT')}
-                                                </div>
-                                              )}
+                                         <div className="space-y-3">
+                                           <div className="flex items-start justify-between gap-2">
+                                             <div className="flex-1 min-w-0">
+                                               <div className="font-semibold text-base">{order.number}</div>
+                                               <div className="text-sm text-muted-foreground truncate">
+                                                 {order.customers?.name}
+                                               </div>
+                                               {order.order_date && (
+                                                 <div className="text-xs text-muted-foreground mt-1">
+                                                   {new Date(order.order_date).toLocaleDateString('it-IT')}
+                                                 </div>
+                                               )}
+                                             </div>
+                                             <div className="flex items-center gap-2 shrink-0">
+                                               <DropdownMenu>
+                                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                   <Button variant="ghost" size="sm">
+                                                     <MoreHorizontal className="h-4 w-4" />
+                                                   </Button>
+                                                 </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                  <DropdownMenuItem onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEditOrder(order);
+                                                  }}>
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    Modifica
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchiveOrder(order.id);
+                                                  }}>
+                                                    <Package className="mr-2 h-4 w-4" />
+                                                    Archivia
+                                                  </DropdownMenuItem>
+                                                  <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                      <DropdownMenuItem
+                                                        onSelect={(e) => e.preventDefault()}
+                                                        className="text-destructive"
+                                                      >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Elimina
+                                                      </DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                      <AlertDialogHeader>
+                                                        <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          Questa azione eliminerà permanentemente l'ordine e tutti i sotto-ordini associati (CdP, CdL, CdS). Questa azione non può essere annullata.
+                                                        </AlertDialogDescription>
+                                                      </AlertDialogHeader>
+                                                      <AlertDialogFooter>
+                                                        <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                                                          Elimina
+                                                        </AlertDialogAction>
+                                                      </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                  </AlertDialog>
+                                                </DropdownMenuContent>
+                                              </DropdownMenu>
                                             </div>
-                                            <div className="flex items-center gap-2 shrink-0">
-                                              <DropdownMenu>
-                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                  <Button variant="ghost" size="sm">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                  </Button>
-                                                </DropdownMenuTrigger>
-                                               <DropdownMenuContent align="end">
-                                                 <DropdownMenuItem onClick={(e) => {
-                                                   e.stopPropagation();
-                                                   handleEditOrder(order);
-                                                 }}>
-                                                   <Edit className="mr-2 h-4 w-4" />
-                                                   Modifica
-                                                 </DropdownMenuItem>
-                                                 <DropdownMenuItem onClick={(e) => {
-                                                   e.stopPropagation();
-                                                   handleArchiveOrder(order.id);
-                                                 }}>
-                                                   <Package className="mr-2 h-4 w-4" />
-                                                   Archivia
-                                                 </DropdownMenuItem>
-                                                 <AlertDialog>
-                                                   <AlertDialogTrigger asChild>
-                                                     <DropdownMenuItem
-                                                       onSelect={(e) => e.preventDefault()}
-                                                       className="text-destructive"
-                                                     >
-                                                       <Trash2 className="mr-2 h-4 w-4" />
-                                                       Elimina
-                                                     </DropdownMenuItem>
-                                                   </AlertDialogTrigger>
-                                                   <AlertDialogContent>
-                                                     <AlertDialogHeader>
-                                                       <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                                                       <AlertDialogDescription>
-                                                         Questa azione eliminerà permanentemente l'ordine e tutti i sotto-ordini associati (CdP, CdL, CdS). Questa azione non può essere annullata.
-                                                       </AlertDialogDescription>
-                                                     </AlertDialogHeader>
-                                                     <AlertDialogFooter>
-                                                       <AlertDialogCancel>Annulla</AlertDialogCancel>
-                                                       <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
-                                                         Elimina
-                                                       </AlertDialogAction>
-                                                     </AlertDialogFooter>
-                                                   </AlertDialogContent>
-                                                 </AlertDialog>
-                                               </DropdownMenuContent>
-                                             </DropdownMenu>
                                            </div>
-                                          </div>
-                                          
-                                          {/* Lead collegato */}
-                                          {order.leads && (
-                                            <div className="space-y-1.5">
-                                              <div className="flex items-center gap-2 text-xs">
-                                                <span className="text-muted-foreground">Lead:</span>
-                                                <Link 
-                                                  to={`/crm/opportunities?lead=${order.lead_id}`}
-                                                  className="text-primary hover:underline font-medium"
-                                                  onClick={(e) => e.stopPropagation()}
-                                                >
-                                                  {order.leads.company_name}
-                                                </Link>
+                                           
+                                           {/* Created by and time */}
+                                           <div className="flex items-center justify-between text-xs text-muted-foreground border-b pb-2">
+                                             <span>
+                                               {order.profiles ? 
+                                                 `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() || order.profiles.email 
+                                                 : 'N/A'}
+                                             </span>
+                                             <span>
+                                               {new Date(order.created_at).toLocaleString('it-IT', {
+                                                 day: '2-digit',
+                                                 month: '2-digit',
+                                                 year: 'numeric',
+                                                 hour: '2-digit',
+                                                 minute: '2-digit'
+                                               })}
+                                             </span>
+                                           </div>
+                                           
+                                           {/* Lead collegato */}
+                                           {order.leads && (
+                                             <div className="space-y-1.5">
+                                               <div className="flex items-center gap-2 text-xs">
+                                                 <span className="text-muted-foreground">Lead:</span>
+                                                 <Link 
+                                                   to={`/crm/opportunities?lead=${order.lead_id}`}
+                                                   className="text-primary hover:underline font-medium"
+                                                   onClick={(e) => e.stopPropagation()}
+                                                 >
+                                                   {order.leads.company_name}
+                                                 </Link>
+                                               </div>
+                                             </div>
+                                           )}
+                                           
+                                           {/* Article/Product Preview */}
+                                           {order.article && order.article.trim().length > 0 && (
+                                             <div className="pt-2 border-t">
+                                               <div className="text-xs font-medium text-muted-foreground mb-1">
+                                                 Prodotti/Servizi:
+                                               </div>
+                                               <div className="text-xs text-foreground line-clamp-3 bg-muted/30 p-2 rounded">
+                                                 {order.article}
+                                               </div>
+                                             </div>
+                                           )}
+                                           
+                                           {/* Riferimenti ordini collegati */}
+                                          {getSubOrdersStatus(order).length > 0 && (
+                                            <div className="pt-2 border-t space-y-2">
+                                              <div className="text-xs font-medium text-muted-foreground">
+                                                Ordini Collegati:
                                               </div>
+                                              {getSubOrdersStatus(order).map((subStatus, idx) => (
+                                                <div key={idx} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <Badge className={subStatus.color} variant="outline">
+                                                      {subStatus.type}
+                                                    </Badge>
+                                                    <span className="text-xs font-mono truncate">
+                                                      {subStatus.number}
+                                                    </span>
+                                                  </div>
+                                                  <span className="text-xs font-medium whitespace-nowrap">
+                                                    {getSubOrderStatusLabel(subStatus.status)}
+                                                  </span>
+                                                </div>
+                                              ))}
                                             </div>
                                           )}
                                           
-                                          {/* Riferimenti ordini collegati */}
-                                         {getSubOrdersStatus(order).length > 0 && (
-                                           <div className="pt-2 border-t space-y-2">
-                                             <div className="text-xs font-medium text-muted-foreground">
-                                               Ordini Collegati:
-                                             </div>
-                                             {getSubOrdersStatus(order).map((subStatus, idx) => (
-                                               <div key={idx} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded">
-                                                 <div className="flex items-center gap-2 min-w-0">
-                                                   <Badge className={subStatus.color} variant="outline">
-                                                     {subStatus.type}
-                                                   </Badge>
-                                                   <span className="text-xs font-mono truncate">
-                                                     {subStatus.number}
-                                                   </span>
-                                                 </div>
-                                                 <span className="text-xs font-medium whitespace-nowrap">
-                                                   {getSubOrderStatusLabel(subStatus.status)}
-                                                 </span>
-                                               </div>
-                                             ))}
-                                           </div>
-                                         )}
-                                         
-                                         {/* Note preview */}
-                                         {order.notes && order.notes.length > 0 && (
-                                           <div className="pt-2 border-t">
-                                             <div className="text-xs text-muted-foreground line-clamp-2">
-                                               {order.notes}
-                                             </div>
-                                           </div>
-                                         )}
-                                      </div>
+                                          {/* Note preview */}
+                                          {order.notes && order.notes.length > 0 && (
+                                            <div className="pt-2 border-t">
+                                              <div className="text-xs text-muted-foreground line-clamp-2">
+                                                {order.notes}
+                                              </div>
+                                            </div>
+                                          )}
+                                       </div>
                                     </div>
                                   )}
                                 </Draggable>
