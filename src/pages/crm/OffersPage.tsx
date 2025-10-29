@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search, ClipboardList } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search, ClipboardList, Edit } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -2726,7 +2726,56 @@ export default function OffersPage() {
 
               {/* Actions */}
               <div className="border-t pt-4 flex justify-between items-center">
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      // Pre-compila il form di modifica con i dati dell'offerta
+                      setNewOffer({
+                        id: selectedOffer.id,
+                        customer_id: selectedOffer.customer_id || '',
+                        title: selectedOffer.title,
+                        description: selectedOffer.description || '',
+                        amount: selectedOffer.amount,
+                        valid_until: selectedOffer.valid_until || '',
+                        status: selectedOffer.status as any,
+                        template: (selectedOffer as any).template || 'zapper',
+                        timeline_produzione: (selectedOffer as any).timeline_produzione || '',
+                        timeline_consegna: (selectedOffer as any).timeline_consegna || '',
+                        timeline_installazione: (selectedOffer as any).timeline_installazione || '',
+                        timeline_collaudo: (selectedOffer as any).timeline_collaudo || '',
+                        incluso_fornitura: (selectedOffer as any).incluso_fornitura || '',
+                        escluso_fornitura: (selectedOffer as any).escluso_fornitura || '',
+                        metodi_pagamento: (selectedOffer as any).metodi_pagamento || '',
+                        payment_method: (selectedOffer as any).payment_method || '',
+                        payment_agreement: (selectedOffer as any).payment_agreement || '',
+                        reverse_charge: selectedOffer.reverse_charge || false
+                      });
+                      
+                      // Carica i prodotti dell'offerta
+                      if (selectedOfferItems.length > 0) {
+                        setSelectedProducts(selectedOfferItems.map(item => ({
+                          product_id: item.product_id,
+                          product_name: item.products?.name || '',
+                          description: item.description || '',
+                          quantity: item.quantity,
+                          unit_price: item.unit_price,
+                          discount_percent: item.discount_percent || 0,
+                          vat_rate: item.vat_rate || 22,
+                          reverse_charge: item.reverse_charge || false,
+                          notes: item.notes || ''
+                        })));
+                      } else {
+                        setSelectedProducts([]);
+                      }
+                      
+                      setIsDetailsDialogOpen(false);
+                      setIsCreateDialogOpen(true);
+                    }}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Modifica
+                  </Button>
                   {selectedOffer.status === 'accettata' && (
                     <Button
                       onClick={() => {
