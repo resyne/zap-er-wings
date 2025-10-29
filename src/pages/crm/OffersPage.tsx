@@ -464,16 +464,14 @@ export default function OffersPage() {
       const printWindow = window.open(offerUrl, '_blank');
       
       if (printWindow) {
-        // Wait for the page to load, then trigger print dialog
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        };
+        // Wait for the page to fully load (5 seconds to ensure all content is rendered)
+        setTimeout(() => {
+          printWindow.print();
+        }, 5000);
         
         toast({
           title: "Stampa in corso",
-          description: "Usa 'Salva come PDF' nella finestra di stampa",
+          description: "Attendi 5 secondi per il caricamento, poi usa 'Salva come PDF' nella finestra di stampa",
         });
       } else {
         toast({
