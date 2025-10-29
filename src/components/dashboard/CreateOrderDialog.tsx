@@ -598,16 +598,34 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       let shippingOrder = null;
 
       // Crea le commesse selezionate
-      if (production.enabled) {
-        productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
+      try {
+        if (production.enabled) {
+          productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
+          console.log('Production work order created:', productionWO);
+        }
+      } catch (error: any) {
+        console.error('Error creating production work order:', error);
+        throw new Error(`Errore creazione commessa di produzione: ${error.message}`);
       }
 
-      if (service.enabled) {
-        serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO?.id);
+      try {
+        if (service.enabled) {
+          serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO?.id);
+          console.log('Service work order created:', serviceWO);
+        }
+      } catch (error: any) {
+        console.error('Error creating service work order:', error);
+        throw new Error(`Errore creazione commessa di lavoro: ${error.message}`);
       }
 
-      if (shipping.enabled) {
-        shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
+      try {
+        if (shipping.enabled) {
+          shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
+          console.log('Shipping order created:', shippingOrder);
+        }
+      } catch (error: any) {
+        console.error('Error creating shipping order:', error);
+        throw new Error(`Errore creazione commessa di spedizione: ${error.message}`);
       }
 
       // Archivia l'offerta se è stata utilizzata per creare l'ordine
