@@ -180,7 +180,8 @@ export default function PublicOfferPage() {
         .replace(/\{\{timeline_collaudo\}\}/g, offer.timeline_collaudo || '')
         .replace(/\{\{descrizione\}\}/g, offer.description || '')
         .replace(/\{\{firma_commerciale\}\}/g, 'Abbattitori Zapper')
-        .replace(/\{\{payment_agreement\}\}/g, offer.payment_agreement || '');
+        .replace(/\{\{payment_agreement\}\}/g, offer.payment_agreement || '')
+        .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
 
       setHtmlContent(htmlTemplate);
     } catch (err) {

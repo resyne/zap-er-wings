@@ -129,6 +129,7 @@ export default function OffersPage() {
     payment_method?: string;
     payment_agreement?: string;
     reverse_charge: boolean;
+    discount?: string;
   }>({
     id: undefined,
     customer_id: '',
@@ -147,7 +148,8 @@ export default function OffersPage() {
     metodi_pagamento: '',
     payment_method: '',
     payment_agreement: '',
-    reverse_charge: false
+    reverse_charge: false,
+    discount: ''
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -356,7 +358,8 @@ export default function OffersPage() {
         .replace(/\{\{metodi_pagamento\}\}/g, [(offer as any).payment_method, (offer as any).payment_agreement].filter(Boolean).join(' - '))
         .replace(/\{\{timeline_produzione\}\}/g, (offer as any).timeline_produzione || '')
         .replace(/\{\{timeline_consegna\}\}/g, (offer as any).timeline_consegna || '')
-        .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '');
+        .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '')
+        .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
 
       // Create temporary container
       const container = document.createElement('div');
@@ -608,7 +611,8 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            reverse_charge: newOffer.reverse_charge
+            reverse_charge: newOffer.reverse_charge,
+            discount: newOffer.discount || null
           })
           .eq('id', newOffer.id)
           .select()
@@ -671,7 +675,8 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            reverse_charge: newOffer.reverse_charge
+            reverse_charge: newOffer.reverse_charge,
+            discount: newOffer.discount || null
           }])
           .select()
           .single();
@@ -1496,6 +1501,15 @@ export default function OffersPage() {
                 </div>
               </div>
               
+              <div>
+                <label className="text-sm font-medium">Sconto (se applicabile)</label>
+                <Input
+                  value={newOffer.discount}
+                  onChange={(e) => setNewOffer(prev => ({ ...prev, discount: e.target.value }))}
+                  placeholder="Es: 10% di sconto per ordini anticipati"
+                />
+              </div>
+              
               {newOffer.payment_agreement === 'altro' && (
                 <div>
                   <label className="text-sm font-medium">Accordo Personalizzato</label>
@@ -1836,7 +1850,8 @@ export default function OffersPage() {
                                 metodi_pagamento: offer.metodi_pagamento || '',
                                 payment_method: offer.payment_method || '',
                                 payment_agreement: offer.payment_agreement || '',
-                                reverse_charge: offer.reverse_charge || false
+                                reverse_charge: offer.reverse_charge || false,
+                                discount: (offer as any).discount || ''
                               });
                               setSelectedProducts([]);
                               setIsCreateDialogOpen(true);
