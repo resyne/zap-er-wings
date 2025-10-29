@@ -201,17 +201,35 @@ export default function OrdersPage() {
           leads(id, company_name),
           work_orders(id, number, status, includes_installation),
           service_work_orders(id, number, status),
-          shipping_orders(id, number, status),
-          profiles:created_by(email, first_name, last_name)
+          shipping_orders(id, number, status)
         `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       
-      // Parse attachments from JSON
+      // Load creator profiles for orders that have created_by
+      const orderIds = (data || []).map(order => order.created_by).filter(Boolean);
+      let profilesMap: Record<string, any> = {};
+      
+      if (orderIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, email, first_name, last_name")
+          .in("id", orderIds);
+        
+        if (profilesData) {
+          profilesMap = profilesData.reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+      
+      // Parse attachments from JSON and add profiles
       const ordersWithAttachments = (data || []).map(order => ({
         ...order,
-        attachments: Array.isArray(order.attachments) ? order.attachments : []
+        attachments: Array.isArray(order.attachments) ? order.attachments : [],
+        profiles: order.created_by ? profilesMap[order.created_by] : null
       }));
       
       setOrders(ordersWithAttachments as unknown as Order[]);
