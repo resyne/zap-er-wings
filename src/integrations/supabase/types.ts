@@ -6045,6 +6045,47 @@ export type Database = {
           },
         ]
       }
+      work_order_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          user_id: string
+          work_order_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id: string
+          work_order_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_logs_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_orders: {
         Row: {
           accessori_ids: string[] | null

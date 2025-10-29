@@ -24,6 +24,7 @@ import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { OrderFileManager } from "@/components/orders/OrderFileManager";
 import { WorkOrderComments } from "@/components/production/WorkOrderComments";
 import { WorkOrderArticles } from "@/components/production/WorkOrderArticles";
+import { WorkOrderActivityLog } from "@/components/production/WorkOrderActivityLog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface WorkOrder {
@@ -795,6 +796,7 @@ export default function WorkOrdersPage() {
                 <TableRow>
                   <TableHead>Numero</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Assegnato a</TableHead>
                   <TableHead>Priorità</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
@@ -803,13 +805,13 @@ export default function WorkOrdersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Caricamento commesse di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Nessuna commessa di produzione trovata
                     </TableCell>
                   </TableRow>
@@ -835,6 +837,30 @@ export default function WorkOrdersPage() {
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wo.technician ? (
+                          <div>
+                            <div className="font-medium">
+                              {wo.technician.first_name} {wo.technician.last_name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {wo.technician.employee_code}
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTakeOwnership(wo.id);
+                            }}
+                          >
+                            <UserPlus className="h-3 w-3 mr-1" />
+                            Prendi in carico
+                          </Button>
                         )}
                       </TableCell>
                       <TableCell>
@@ -988,12 +1014,25 @@ export default function WorkOrdersPage() {
                                           </div>
                                         )}
                                         
-                                        {(wo.technician || wo.planned_start_date) && (
+                                        {(wo.technician || wo.planned_start_date || !wo.assigned_to) && (
                                           <div className="pt-2 border-t space-y-1">
-                                            {wo.technician && (
+                                            {wo.technician ? (
                                               <div className="text-xs text-muted-foreground">
                                                 <span className="font-medium">Tecnico:</span> {wo.technician.first_name} {wo.technician.last_name}
                                               </div>
+                                            ) : (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleTakeOwnership(wo.id);
+                                                }}
+                                                className="w-full text-xs h-7"
+                                              >
+                                                <UserPlus className="h-3 w-3 mr-1" />
+                                                Prendi in carico
+                                              </Button>
                                             )}
                                             {wo.planned_start_date && (
                                               <div className="text-xs text-muted-foreground">
@@ -1257,6 +1296,11 @@ export default function WorkOrdersPage() {
               {/* Comments Section */}
               <div className="border-t pt-4">
                 <WorkOrderComments workOrderId={selectedWO.id} />
+              </div>
+
+              {/* Activity Log */}
+              <div className="border-t pt-4">
+                <WorkOrderActivityLog workOrderId={selectedWO.id} />
               </div>
 
               {/* Actions */}

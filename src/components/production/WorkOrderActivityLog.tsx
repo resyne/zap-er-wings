@@ -44,7 +44,7 @@ export function WorkOrderActivityLog({ workOrderId }: WorkOrderActivityLogProps)
       if (logsError) throw logsError;
 
       // Load user profiles for the logs
-      const userIds = [...new Set(logsData?.map(log => log.user_id) || [])];
+      const userIds = [...new Set((logsData as any[] || []).map((log: any) => log.user_id))];
       
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
@@ -54,12 +54,12 @@ export function WorkOrderActivityLog({ workOrderId }: WorkOrderActivityLogProps)
       if (profilesError) throw profilesError;
 
       // Merge logs with profiles
-      const logsWithProfiles = logsData?.map(log => ({
+      const logsWithProfiles = (logsData as any[] || []).map((log: any) => ({
         ...log,
-        profiles: profiles?.find(p => p.id === log.user_id)
-      })) || [];
+        profiles: (profiles || []).find((p: any) => p.id === log.user_id)
+      }));
 
-      setLogs(logsWithProfiles);
+      setLogs(logsWithProfiles as ActivityLog[]);
     } catch (error: any) {
       console.error("Error loading logs:", error);
     } finally {
