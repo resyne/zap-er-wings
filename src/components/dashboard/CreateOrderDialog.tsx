@@ -1182,21 +1182,45 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             {!newOrder.offer_id && (
               <>
                 <div className="flex gap-2">
-                  <Select
-                    value={currentProductId}
-                    onValueChange={setCurrentProductId}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Seleziona prodotto dall'anagrafica" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.code} - {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1 relative" ref={productInputRef}>
+                    <Input
+                      placeholder="Cerca prodotto dall'anagrafica..."
+                      value={productSearch}
+                      onChange={(e) => {
+                        setProductSearch(e.target.value);
+                        setShowProductDropdown(true);
+                      }}
+                      onFocus={() => setShowProductDropdown(true)}
+                    />
+                    {currentProductId && (
+                      <div className="mt-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md">
+                        <p className="text-sm font-medium text-primary">
+                          ✓ Prodotto selezionato: {products.find(p => p.id === currentProductId)?.code} - {products.find(p => p.id === currentProductId)?.name}
+                        </p>
+                      </div>
+                    )}
+                    {showProductDropdown && filteredProducts.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-y-auto">
+                        {filteredProducts.map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                            onClick={() => {
+                              setCurrentProductId(product.id);
+                              setProductSearch("");
+                              setShowProductDropdown(false);
+                            }}
+                          >
+                            <span className="text-sm">{product.code} - {product.name}</span>
+                            {currentProductId === product.id && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <Button
                     type="button"
                     onClick={() => {
