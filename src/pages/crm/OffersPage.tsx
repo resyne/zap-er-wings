@@ -2567,7 +2567,41 @@ export default function OffersPage() {
                   <div className="space-y-2 mb-4">
                     {selectedOfferItems.map((item, index) => (
                       <div key={item.id} className="border rounded-lg p-3 bg-muted/30">
-...
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">
+                              {item.products?.name || 'Prodotto'}
+                              {item.products?.code && <span className="text-xs text-muted-foreground ml-2">({item.products.code})</span>}
+                            </div>
+                            {item.description && (
+                              <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
+                          <div>
+                            <span className="text-muted-foreground">Quantità:</span>
+                            <span className="ml-1 font-medium">{item.quantity}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Prezzo:</span>
+                            <span className="ml-1 font-medium">€{item.unit_price?.toFixed(2)}</span>
+                          </div>
+                          {item.discount_percent > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Sconto:</span>
+                              <span className="ml-1 font-medium">{item.discount_percent}%</span>
+                            </div>
+                          )}
+                          <div className="text-right">
+                            <span className="text-muted-foreground">Totale:</span>
+                            <span className="ml-1 font-semibold">
+                              €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
