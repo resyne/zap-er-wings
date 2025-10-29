@@ -294,8 +294,51 @@ export default function ShippingOrdersPage() {
 
       if (orderError) throw orderError;
 
-      if (items && items.length > 0) {
-        const itemsToInsert = items.map((item: ShippingOrderItem) => ({
+      let itemsToCreate = items || [];
+      let skippedItems = 0;
+
+      // Se c'è un sales_order_id e non ci sono items, recupera gli articoli dall'offerta collegata
+      if (orderData.sales_order_id && (!items || items.length === 0)) {
+        const { data: salesOrderData, error: salesOrderError } = await supabase
+          .from("sales_orders")
+          .select(`
+            offer_id,
+            offers!inner(
+              offer_items(
+                id,
+                description,
+                quantity,
+                unit_price,
+                product_id,
+                products(id, name, code, material_id, materials(id, name, code))
+              )
+            )
+          `)
+          .eq("id", orderData.sales_order_id)
+          .single();
+
+        if (!salesOrderError && salesOrderData?.offers?.offer_items) {
+          const allItems = salesOrderData.offers.offer_items;
+          
+          // Converti offer_items in shipping_order_items
+          itemsToCreate = allItems
+            .filter((item: any) => {
+              const hasMaterial = item.products?.material_id;
+              if (!hasMaterial) skippedItems++;
+              return hasMaterial;
+            })
+            .map((item: any) => ({
+              material_id: item.products.material_id,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.quantity * item.unit_price,
+              notes: `${item.products.name}${item.description ? ` - ${item.description}` : ''}`
+            }));
+        }
+      }
+
+      if (itemsToCreate && itemsToCreate.length > 0) {
+        const itemsToInsert = itemsToCreate.map((item: ShippingOrderItem) => ({
           shipping_order_id: newOrder.id,
           material_id: item.material_id,
           quantity: item.quantity,
@@ -310,12 +353,23 @@ export default function ShippingOrdersPage() {
 
         if (itemsError) throw itemsError;
       }
+
+      return { newOrder, skippedItems };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
       setIsCreateDialogOpen(false);
       setOrderItems([]);
-      toast({ title: "Ordine creato con successo" });
+      
+      let message = "Ordine creato con successo";
+      if (result?.skippedItems > 0) {
+        message += `. ${result.skippedItems} articolo/i non importato/i perché senza materiale collegato.`;
+      }
+      
+      toast({ 
+        title: message,
+        description: result?.skippedItems > 0 ? "Alcuni prodotti dell'ordine non hanno un materiale associato nel magazzino." : undefined
+      });
     },
     onError: (error) => {
       toast({ 
