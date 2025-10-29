@@ -51,6 +51,7 @@ interface Offer {
   payment_agreement?: string;
   archived?: boolean;
   unique_code?: string;
+  reverse_charge?: boolean;
 }
 
 interface Lead {
@@ -126,6 +127,7 @@ export default function OffersPage() {
     metodi_pagamento?: string;
     payment_method?: string;
     payment_agreement?: string;
+    reverse_charge: boolean;
   }>({
     id: undefined,
     customer_id: '',
@@ -143,7 +145,8 @@ export default function OffersPage() {
     escluso_fornitura: '',
     metodi_pagamento: '30% acconto - 70% alla consegna',
     payment_method: 'bonifico',
-    payment_agreement: '50% acconto - 50% a consegna'
+    payment_agreement: '50% acconto - 50% a consegna',
+    reverse_charge: false
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -579,7 +582,8 @@ export default function OffersPage() {
             escluso_fornitura: newOffer.escluso_fornitura || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
-            payment_agreement: newOffer.payment_agreement || null
+            payment_agreement: newOffer.payment_agreement || null,
+            reverse_charge: newOffer.reverse_charge
           })
           .eq('id', newOffer.id)
           .select()
@@ -641,7 +645,8 @@ export default function OffersPage() {
             escluso_fornitura: newOffer.escluso_fornitura || null,
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
-            payment_agreement: newOffer.payment_agreement || null
+            payment_agreement: newOffer.payment_agreement || null,
+            reverse_charge: newOffer.reverse_charge
           }])
           .select()
           .single();
@@ -693,7 +698,8 @@ export default function OffersPage() {
             escluso_fornitura: '',
             metodi_pagamento: '30% acconto - 70% alla consegna',
             payment_method: 'bonifico',
-            payment_agreement: '50% acconto - 50% a consegna'
+            payment_agreement: '50% acconto - 50% a consegna',
+            reverse_charge: false
           });
       setSelectedProducts([]);
       setIncludeCertificazione(true);
@@ -1795,7 +1801,17 @@ export default function OffersPage() {
                                 amount: offer.amount,
                                 valid_until: '',
                                 status: 'offerta_pronta',
-                                template: 'zapper'
+                                template: 'zapper',
+                                timeline_produzione: offer.timeline_produzione || '',
+                                timeline_consegna: offer.timeline_consegna || '',
+                                timeline_installazione: offer.timeline_installazione || '',
+                                timeline_collaudo: offer.timeline_collaudo || '',
+                                incluso_fornitura: offer.incluso_fornitura || '',
+                                escluso_fornitura: offer.escluso_fornitura || '',
+                                metodi_pagamento: offer.metodi_pagamento || '30% acconto - 70% alla consegna',
+                                payment_method: offer.payment_method || 'bonifico',
+                                payment_agreement: offer.payment_agreement || '50% acconto - 50% a consegna',
+                                reverse_charge: offer.reverse_charge || false
                               });
                               setSelectedProducts([]);
                               setIsCreateDialogOpen(true);

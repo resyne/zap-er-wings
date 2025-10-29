@@ -27,8 +27,7 @@ export default function PublicOfferPage() {
         .from('offers')
         .select(`
           *,
-          customers (*),
-          reverse_charge
+          customers (*)
         `)
         .eq('unique_code', code)
         .single();

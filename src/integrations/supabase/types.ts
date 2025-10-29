@@ -3028,6 +3028,7 @@ export type Database = {
           payment_method: string | null
           payment_terms: string | null
           priority: string | null
+          reverse_charge: boolean | null
           status: string
           template: string | null
           timeline_collaudo: string | null
@@ -3058,6 +3059,7 @@ export type Database = {
           payment_method?: string | null
           payment_terms?: string | null
           priority?: string | null
+          reverse_charge?: boolean | null
           status?: string
           template?: string | null
           timeline_collaudo?: string | null
@@ -3088,6 +3090,7 @@ export type Database = {
           payment_method?: string | null
           payment_terms?: string | null
           priority?: string | null
+          reverse_charge?: boolean | null
           status?: string
           template?: string | null
           timeline_collaudo?: string | null
