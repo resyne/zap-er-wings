@@ -122,8 +122,10 @@ export default function PublicOfferPage() {
       const totalIva = isReverseCharge ? 0 : totalImponibile * ivaRate;
       const totalLordo = totalImponibile + totalIva;
       
-      // Reverse charge note
-      const reverseChargeNote = isReverseCharge ? '<div style="font-size: 11px; color: #dc3545; font-weight: bold; margin-top: 5px;">N6.7 - Inversione contabile</div>' : '';
+      // Format IVA display with reverse charge note
+      const ivaDisplay = isReverseCharge 
+        ? '0.00</div><div style="font-size: 9px; color: #dc3545; margin-top: 3px;">N6.7 - Inversione contabile' 
+        : totalIva.toFixed(2);
 
       // Combine payment method and payment agreement
       const paymentInfo = [offer.payment_method, offer.payment_agreement]
@@ -162,9 +164,8 @@ export default function PublicOfferPage() {
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
         .replace(/\{\{escluso_fornitura\}\}/g, offer.escluso_fornitura || '')
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
-        .replace(/\{\{totale_iva\}\}/g, totalIva.toFixed(2))
+        .replace(/\{\{totale_iva\}\}/g, ivaDisplay)
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
-        .replace(/\{\{reverse_charge_note\}\}/g, reverseChargeNote)
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{tempi_consegna\}\}/g, offer.timeline_consegna || '')

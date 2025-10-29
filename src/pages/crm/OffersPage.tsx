@@ -322,9 +322,15 @@ export default function OffersPage() {
 
       // Calculate totals
       const totalImponibile = offer.amount || 0;
+      const isReverseCharge = (offer as any).reverse_charge === true;
       const ivaRate = 0.22; // 22%
-      const totalIva = totalImponibile * ivaRate;
+      const totalIva = isReverseCharge ? 0 : totalImponibile * ivaRate;
       const totalLordo = totalImponibile + totalIva;
+      
+      // Format IVA display with reverse charge note
+      const ivaDisplay = isReverseCharge 
+        ? '0.00</div><div style="font-size: 9px; color: #dc3545; margin-top: 3px;">N6.7 - Inversione contabile' 
+        : totalIva.toFixed(2);
 
       // Replace all placeholders
       htmlTemplate = htmlTemplate
@@ -339,7 +345,7 @@ export default function OffersPage() {
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
         .replace(/\{\{escluso_fornitura\}\}/g, (offer as any).escluso_fornitura || '')
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
-        .replace(/\{\{totale_iva\}\}/g, totalIva.toFixed(2))
+        .replace(/\{\{totale_iva\}\}/g, ivaDisplay)
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{tempi_consegna\}\}/g, (offer as any).timeline_consegna || '')
