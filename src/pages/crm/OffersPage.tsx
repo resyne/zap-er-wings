@@ -1544,7 +1544,13 @@ export default function OffersPage() {
                 <div>
                   <label className="text-sm font-medium">Accordi di Pagamento</label>
                   <Select 
-                    value={newOffer.payment_agreement} 
+                    value={
+                      newOffer.payment_agreement === '50% acconto - 50% a consegna' || 
+                      newOffer.payment_agreement === 'Pagamento anticipato' ||
+                      !newOffer.payment_agreement
+                        ? newOffer.payment_agreement 
+                        : 'altro'
+                    } 
                     onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_agreement: value }))}
                   >
                     <SelectTrigger>
@@ -1571,12 +1577,14 @@ export default function OffersPage() {
                 </label>
               </div>
               
-              {newOffer.payment_agreement === 'altro' && (
+              {(newOffer.payment_agreement && 
+                newOffer.payment_agreement !== '50% acconto - 50% a consegna' && 
+                newOffer.payment_agreement !== 'Pagamento anticipato') && (
                 <div>
                   <label className="text-sm font-medium">Accordo Personalizzato</label>
                   <Textarea
-                    value={newOffer.metodi_pagamento}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, metodi_pagamento: e.target.value }))}
+                    value={newOffer.payment_agreement === 'altro' ? '' : newOffer.payment_agreement}
+                    onChange={(e) => setNewOffer(prev => ({ ...prev, payment_agreement: e.target.value }))}
                     placeholder="Descrivi l'accordo di pagamento personalizzato..."
                     rows={2}
                   />
