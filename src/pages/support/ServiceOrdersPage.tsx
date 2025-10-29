@@ -682,20 +682,18 @@ export default function WorkOrdersServicePage() {
               <TableRow>
                 <TableHead>Numero</TableHead>
                 <TableHead>Titolo</TableHead>
-                <TableHead>Cliente/Contatto</TableHead>
-                <TableHead>Ordine di Vendita</TableHead>
-                <TableHead>Lead</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Tecnico</TableHead>
                 <TableHead>Priorità</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>Data Programmata</TableHead>
-                <TableHead>Azioni</TableHead>
+                <TableHead className="text-right">Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredWorkOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     Nessuna commessa di lavoro trovata
                   </TableCell>
                 </TableRow>
@@ -707,103 +705,56 @@ export default function WorkOrdersServicePage() {
                          <div className="font-mono text-sm font-medium">
                            {workOrder.number}
                          </div>
-                         {workOrder.production_work_order && (
-                           <div className="flex items-center gap-1">
-                             <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700">
-                               <Factory className="w-3 h-3 mr-1" />
-                               Da CdP
+                         {workOrder.sales_orders && (
+                           <div className="text-xs text-muted-foreground">
+                             <Badge variant="outline" className="text-xs">
+                               {workOrder.sales_orders.number}
                              </Badge>
                            </div>
                          )}
                        </div>
                      </TableCell>
                      <TableCell>
-                       <div className="space-y-1">
-                         <div className="font-medium text-sm leading-tight">
-                           {workOrder.title}
+                       <div className="font-medium text-sm leading-tight">
+                         {workOrder.title}
+                       </div>
+                     </TableCell>
+                     <TableCell>
+                       {workOrder.customers ? (
+                         <div className="text-sm">
+                           <div className="font-medium">{workOrder.customers.name}</div>
+                           <div className="text-xs text-muted-foreground">({workOrder.customers.code})</div>
                          </div>
-                         {workOrder.production_work_order && (
-                           <div className="text-xs text-muted-foreground">
-                             Correlato a: {workOrder.production_work_order.number}
-                             <Badge variant="secondary" className="ml-1 text-xs">
-                               {workOrder.production_work_order.status}
-                             </Badge>
-                           </div>
-                         )}
-                       </div>
+                       ) : (
+                         <span className="text-muted-foreground text-sm">—</span>
+                       )}
                      </TableCell>
                      <TableCell>
-                       <div className="space-y-1">
-                         {workOrder.customers ? (
-                           <div className="text-sm">
-                             <div className="font-medium">{workOrder.customers.name}</div>
-                             <div className="text-xs text-muted-foreground">({workOrder.customers.code})</div>
-                           </div>
-                         ) : (
-                           <span className="text-muted-foreground text-sm">—</span>
-                         )}
-                         {workOrder.crm_contacts && (
-                           <div className="text-xs text-muted-foreground">
-                             {workOrder.crm_contacts.first_name} {workOrder.crm_contacts.last_name}
-                             {workOrder.crm_contacts.company_name && (
-                               <div>{workOrder.crm_contacts.company_name}</div>
-                             )}
-                           </div>
-                         )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {workOrder.sales_orders ? (
-                          <Badge variant="outline">{workOrder.sales_orders.number}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {workOrder.leads ? (
-                          <Link 
-                            to={`/crm/opportunities?lead=${workOrder.lead_id}`}
-                            className="text-sm text-primary hover:underline flex items-center gap-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {workOrder.leads.company_name}
-                            <ExternalLink className="w-3 h-3" />
-                          </Link>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {workOrder.technician ? (
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">
-                              {workOrder.technician.first_name} {workOrder.technician.last_name}
-                            </div>
-                            <div className="text-xs text-muted-foreground font-mono">
-                              {workOrder.technician.employee_code}
-                            </div>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleTakeOwnership(workOrder.id)}
-                            className="gap-2"
-                          >
-                            <UserPlus className="w-4 h-4" />
-                            Prendi in carico
-                          </Button>
-                        )}
-                      </TableCell>
-                    <TableCell>
-                      <Badge variant={workOrder.priority === 'urgent' ? 'destructive' : 
-                                   workOrder.priority === 'high' ? 'default' :
-                                   workOrder.priority === 'medium' ? 'secondary' : 'outline'}>
-                        {workOrder.priority === 'urgent' ? 'Urgente' :
-                         workOrder.priority === 'high' ? 'Alta' :
-                         workOrder.priority === 'medium' ? 'Media' : 'Bassa'}
-                      </Badge>
-                    </TableCell>
+                       {workOrder.technician ? (
+                         <div className="text-sm font-medium">
+                           {workOrder.technician.first_name} {workOrder.technician.last_name}
+                         </div>
+                       ) : (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => handleTakeOwnership(workOrder.id)}
+                           className="gap-2"
+                         >
+                           <UserPlus className="w-4 h-4" />
+                           Prendi in carico
+                         </Button>
+                       )}
+                     </TableCell>
+                   <TableCell>
+                     <Badge variant={workOrder.priority === 'urgent' ? 'destructive' : 
+                                  workOrder.priority === 'high' ? 'default' :
+                                  workOrder.priority === 'medium' ? 'secondary' : 'outline'}>
+                       {workOrder.priority === 'urgent' ? 'Urgente' :
+                        workOrder.priority === 'high' ? 'Alta' :
+                        workOrder.priority === 'medium' ? 'Media' : 'Bassa'}
+                     </Badge>
+                   </TableCell>
                      <TableCell>
                        <Badge className={statusColors[workOrder.status as keyof typeof statusColors]}>
                          {statusLabels[workOrder.status as keyof typeof statusLabels]}
