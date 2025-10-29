@@ -4791,6 +4791,47 @@ export type Database = {
           },
         ]
       }
+      service_work_order_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          service_work_order_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          service_work_order_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          service_work_order_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_work_order_logs_service_work_order_id_fkey"
+            columns: ["service_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_work_orders: {
         Row: {
           actual_end_date: string | null
@@ -5002,6 +5043,47 @@ export type Database = {
           },
           {
             foreignKeyName: "shipping_order_items_shipping_order_id_fkey"
+            columns: ["shipping_order_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_order_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          shipping_order_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          shipping_order_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          shipping_order_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_order_logs_shipping_order_id_fkey"
             columns: ["shipping_order_id"]
             isOneToOne: false
             referencedRelation: "shipping_orders"
