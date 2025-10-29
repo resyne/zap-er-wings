@@ -203,7 +203,7 @@ export default function OffersPage() {
       // Load customers
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
-        .select('id, name, email, address, tax_id, code')
+        .select('id, name, email, address, tax_id, code, company_name')
         .eq('active', true);
 
       if (customersError) throw customersError;
@@ -1235,7 +1235,7 @@ export default function OffersPage() {
             <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Cliente</label>
+                <label className="text-sm font-medium">Azienda</label>
                 <div className="flex gap-2">
                   <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
                     <PopoverTrigger asChild>
@@ -1248,17 +1248,17 @@ export default function OffersPage() {
                         {newOffer.customer_id
                           ? (() => {
                               const customer = customers.find((c) => c.id === newOffer.customer_id);
-                              return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona cliente";
+                              return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona azienda";
                             })()
-                          : "Seleziona cliente"}
+                          : "Seleziona azienda"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Cerca cliente..." />
+                        <CommandInput placeholder="Cerca azienda..." />
                         <CommandList>
-                          <CommandEmpty>Nessun cliente trovato.</CommandEmpty>
+                          <CommandEmpty>Nessuna azienda trovata.</CommandEmpty>
                           <CommandGroup>
                             {customers.map((customer) => (
                               <CommandItem
