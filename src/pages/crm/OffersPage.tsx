@@ -129,7 +129,6 @@ export default function OffersPage() {
     payment_method?: string;
     payment_agreement?: string;
     reverse_charge: boolean;
-    discount?: string;
   }>({
     id: undefined,
     customer_id: '',
@@ -148,8 +147,7 @@ export default function OffersPage() {
     metodi_pagamento: '',
     payment_method: '',
     payment_agreement: '',
-    reverse_charge: false,
-    discount: ''
+    reverse_charge: false
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -611,8 +609,7 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            reverse_charge: newOffer.reverse_charge,
-            discount: newOffer.discount || null
+            reverse_charge: newOffer.reverse_charge
           })
           .eq('id', newOffer.id)
           .select()
@@ -675,8 +672,7 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            reverse_charge: newOffer.reverse_charge,
-            discount: newOffer.discount || null
+            reverse_charge: newOffer.reverse_charge
           }])
           .select()
           .single();
@@ -1870,8 +1866,7 @@ export default function OffersPage() {
                                 metodi_pagamento: offer.metodi_pagamento || '',
                                 payment_method: offer.payment_method || '',
                                 payment_agreement: offer.payment_agreement || '',
-                                reverse_charge: offer.reverse_charge || false,
-                                discount: (offer as any).discount || ''
+                                reverse_charge: offer.reverse_charge || false
                               });
                               setSelectedProducts([]);
                               setIsCreateDialogOpen(true);
