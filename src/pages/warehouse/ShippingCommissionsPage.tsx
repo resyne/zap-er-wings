@@ -297,31 +297,20 @@ export default function ShippingOrdersPage() {
       let itemsToCreate = items || [];
       let skippedItems = 0;
 
-      // Se c'è un sales_order_id e non ci sono items, recupera gli articoli dall'offerta collegata
+      // Se c'è un sales_order_id e non ci sono items, recupera gli articoli dall'ordine di vendita
       if (orderData.sales_order_id && (!items || items.length === 0)) {
-        const { data: salesOrderData, error: salesOrderError } = await supabase
-          .from("sales_orders")
+        // Prima prova a recuperare da sales_order_items (articoli inseriti manualmente)
+        const { data: orderItemsData, error: orderItemsError } = await supabase
+          .from("sales_order_items")
           .select(`
-            offer_id,
-            offers!inner(
-              offer_items(
-                id,
-                description,
-                quantity,
-                unit_price,
-                product_id,
-                products(id, name, code, material_id, materials(id, name, code))
-              )
-            )
+            *,
+            products(material_id, materials(id, name, code))
           `)
-          .eq("id", orderData.sales_order_id)
-          .single();
+          .eq("sales_order_id", orderData.sales_order_id);
 
-        if (!salesOrderError && salesOrderData?.offers?.offer_items) {
-          const allItems = salesOrderData.offers.offer_items;
-          
-          // Converti offer_items in shipping_order_items
-          itemsToCreate = allItems
+        if (!orderItemsError && orderItemsData && orderItemsData.length > 0) {
+          // Usa gli articoli direttamente dall'ordine
+          itemsToCreate = orderItemsData
             .filter((item: any) => {
               const hasMaterial = item.products?.material_id;
               if (!hasMaterial) skippedItems++;
@@ -332,8 +321,45 @@ export default function ShippingOrdersPage() {
               quantity: item.quantity,
               unit_price: item.unit_price,
               total_price: item.quantity * item.unit_price,
-              notes: `${item.products.name}${item.description ? ` - ${item.description}` : ''}`
+              notes: `${item.product_name}${item.description ? ` - ${item.description}` : ''}`
             }));
+        } else {
+          // Se non ci sono sales_order_items, prova con l'offerta collegata
+          const { data: salesOrderData, error: salesOrderError } = await supabase
+            .from("sales_orders")
+            .select(`
+              offer_id,
+              offers!inner(
+                offer_items(
+                  id,
+                  description,
+                  quantity,
+                  unit_price,
+                  product_id,
+                  products(id, name, code, material_id, materials(id, name, code))
+                )
+              )
+            `)
+            .eq("id", orderData.sales_order_id)
+            .single();
+
+          if (!salesOrderError && salesOrderData?.offers?.offer_items) {
+            const allItems = salesOrderData.offers.offer_items;
+            
+            itemsToCreate = allItems
+              .filter((item: any) => {
+                const hasMaterial = item.products?.material_id;
+                if (!hasMaterial) skippedItems++;
+                return hasMaterial;
+              })
+              .map((item: any) => ({
+                material_id: item.products.material_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_price: item.quantity * item.unit_price,
+                notes: `${item.products.name}${item.description ? ` - ${item.description}` : ''}`
+              }));
+          }
         }
       }
 

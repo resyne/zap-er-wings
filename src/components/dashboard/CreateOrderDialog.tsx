@@ -734,6 +734,30 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
 
       if (salesError) throw salesError;
 
+      // Save selected products to sales_order_items
+      if (selectedProducts.length > 0) {
+        const orderItems = selectedProducts.map(item => ({
+          sales_order_id: salesOrder.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          description: item.description || null,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          vat_rate: item.vat_rate,
+          notes: null
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('sales_order_items')
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error('Error saving order items:', itemsError);
+          // Non blocchiamo l'ordine se fallisce il salvataggio degli items
+        }
+      }
+
       // Copy photos from lead to order if lead is connected
       const effectiveLeadId = newOrder.lead_id || leadId;
       if (effectiveLeadId) {
