@@ -343,7 +343,7 @@ export default function OffersPage() {
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{tempi_consegna\}\}/g, (offer as any).timeline_consegna || '')
-        .replace(/\{\{metodi_pagamento\}\}/g, (offer as any).metodi_pagamento || (offer as any).payment_agreement || '')
+        .replace(/\{\{metodi_pagamento\}\}/g, [(offer as any).payment_method, (offer as any).payment_agreement].filter(Boolean).join(' - '))
         .replace(/\{\{timeline_produzione\}\}/g, (offer as any).timeline_produzione || '')
         .replace(/\{\{timeline_consegna\}\}/g, (offer as any).timeline_consegna || '')
         .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '');

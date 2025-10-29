@@ -125,6 +125,11 @@ export default function PublicOfferPage() {
       // Reverse charge note
       const reverseChargeNote = isReverseCharge ? '<div style="font-size: 11px; color: #dc3545; font-weight: bold; margin-top: 5px;">N6.7 - Inversione contabile</div>' : '';
 
+      // Combine payment method and payment agreement
+      const paymentInfo = [offer.payment_method, offer.payment_agreement]
+        .filter(Boolean)
+        .join(' - ');
+
       // Replace all placeholders
       htmlTemplate = htmlTemplate
         .replace(/\{\{logo\}\}/g, logoUrl)
@@ -163,7 +168,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{tempi_consegna\}\}/g, offer.timeline_consegna || '')
-        .replace(/\{\{metodi_pagamento\}\}/g, offer.metodi_pagamento || offer.payment_agreement || '')
+        .replace(/\{\{metodi_pagamento\}\}/g, paymentInfo)
         .replace(/\{\{timeline_produzione\}\}/g, offer.timeline_produzione || '')
         .replace(/\{\{timeline_consegna\}\}/g, offer.timeline_consegna || '')
         .replace(/\{\{timeline_installazione\}\}/g, offer.timeline_installazione || '')
