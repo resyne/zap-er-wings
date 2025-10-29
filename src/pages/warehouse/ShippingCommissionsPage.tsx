@@ -47,7 +47,7 @@ interface ShippingOrder {
     shipping_address?: string;
     pec?: string;
     sdi_code?: string;
-  };
+  } | null;
   work_orders?: { number: string; title: string };
   sales_orders?: { number: string };
   shipping_order_items?: ShippingOrderItem[];
@@ -805,20 +805,11 @@ export default function ShippingOrdersPage() {
                       <SelectValue placeholder="Seleziona cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <optgroup label="Aziende">
-                        {companies?.map((company) => (
-                          <SelectItem key={`company-${company.id}`} value={company.id}>
-                            {company.name} ({company.code})
-                          </SelectItem>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Contatti CRM">
-                        {crmContacts?.map((contact) => (
-                          <SelectItem key={`contact-${contact.id}`} value={contact.id}>
-                            {contact.first_name} {contact.last_name} - {contact.company_name}
-                          </SelectItem>
-                        ))}
-                      </optgroup>
+                      {customers?.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.company_name || customer.name} ({customer.code})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
