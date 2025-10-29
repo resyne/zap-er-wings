@@ -137,15 +137,23 @@ export default function WorkOrdersPage() {
 
       if (error) throw error;
 
-      // Manually join technician data
-      const workOrdersWithTechnicians = await Promise.all(
+      // Manually join assigned user data from profiles
+      const workOrdersWithAssignedUsers = await Promise.all(
         (data || []).map(async (wo) => {
           if (wo.assigned_to) {
-            const { data: techData } = await supabase
-              .from('technicians')
-              .select('id, first_name, last_name, employee_code')
+            const { data: userData } = await supabase
+              .from('profiles')
+              .select('id, first_name, last_name, email')
               .eq('id', wo.assigned_to)
               .single();
+            
+            // Map to technician format for display compatibility
+            const techData = userData ? {
+              id: userData.id,
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              employee_code: userData.email?.split('@')[0] || ''
+            } : null;
             
             return { ...wo, technician: techData };
           }
@@ -153,7 +161,7 @@ export default function WorkOrdersPage() {
         })
       );
 
-      setWorkOrders(workOrdersWithTechnicians as any);
+      setWorkOrders(workOrdersWithAssignedUsers as any);
     } catch (error: any) {
       toast({
         title: "Errore",
