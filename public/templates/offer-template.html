@@ -327,6 +327,111 @@
             }
         }
         
+        /* Mobile Responsive */
+        @media screen and (max-width: 768px) {
+            html, body {
+                width: 100%;
+                min-width: 100%;
+            }
+            
+            .container {
+                margin: 0;
+                width: 100%;
+                box-shadow: none;
+            }
+            
+            .header {
+                flex-direction: column;
+                padding: 20px;
+                text-align: center;
+            }
+            
+            .doc-info {
+                text-align: center;
+                margin-top: 20px;
+            }
+            
+            .doc-number {
+                font-size: 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .info-box {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .total-row {
+                flex-direction: column;
+                align-items: flex-end;
+            }
+            
+            .total-label, .total-value {
+                width: 100%;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+            
+            th, td {
+                padding: 8px 4px;
+            }
+            
+            .section-title {
+                font-size: 13px;
+            }
+            
+            .trustpilot-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .trust-rating {
+                font-size: 36px;
+            }
+            
+            .firma-canvas {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            body {
+                font-size: 11pt;
+            }
+            
+            .header {
+                padding: 15px;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .logo-image {
+                max-height: 70px;
+            }
+            
+            .doc-number {
+                font-size: 18px;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .total-finale {
+                font-size: 18px;
+            }
+        }
+        
         .qr-section {
             text-align: center;
             padding: 20px;

@@ -87,6 +87,89 @@
             }
         }
         
+        /* Mobile Responsive */
+        @media screen and (max-width: 768px) {
+            html, body {
+                width: 100%;
+                min-width: 100%;
+            }
+            
+            .container {
+                margin: 0;
+                width: 100%;
+                box-shadow: none;
+            }
+            
+            .header-card-body {
+                flex-direction: column;
+                padding: 15px;
+                gap: 20px;
+            }
+            
+            .header-right {
+                text-align: left;
+                min-width: 100%;
+            }
+            
+            .header-offer-number {
+                font-size: 18px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .commercial-two-columns {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .conditions-list {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            table {
+                font-size: 10px;
+            }
+            
+            th, td {
+                padding: 8px 4px;
+            }
+            
+            .section-title {
+                font-size: 13px;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            body {
+                font-size: 10pt;
+            }
+            
+            .header-card-body {
+                padding: 12px;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .header-logo {
+                max-height: 40px;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .terms-card-body, .reviews-card-body {
+                padding: 15px;
+            }
+        }
+        
         /* Header Card */
         .header-card {
             background: linear-gradient(135deg, #f8fff9 0%, #ffffff 100%);
