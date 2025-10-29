@@ -57,7 +57,7 @@ export default function PublicOfferPage() {
       // Replace placeholders with actual data
       const logoUrl = window.location.origin + '/images/logo-zapper.png';
       
-      // Build products table
+      // Build products table with improved styling
       const productsTableRows = (offerItems || []).map((item: any) => {
         const subtotal = item.quantity * item.unit_price;
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
@@ -65,26 +65,26 @@ export default function PublicOfferPage() {
         
         return `
           <tr>
-            <td>${item.products?.name || 'N/A'}</td>
-            <td>${item.description || ''}</td>
-            <td>${item.quantity}</td>
-            <td>€ ${item.unit_price.toFixed(2)}</td>
-            <td>${item.discount_percent || 0}%</td>
-            <td>€ ${total.toFixed(2)}</td>
+            <td style="padding: 8px; font-size: 11px; color: #333; border-bottom: 1px solid #e9ecef;">${item.products?.name || 'N/A'}</td>
+            <td style="padding: 8px; font-size: 11px; color: #666; border-bottom: 1px solid #e9ecef;">${item.description || '-'}</td>
+            <td style="padding: 8px; font-size: 11px; color: #333; text-align: center; border-bottom: 1px solid #e9ecef;">${item.quantity}</td>
+            <td style="padding: 8px; font-size: 11px; color: #333; text-align: right; border-bottom: 1px solid #e9ecef;">€ ${item.unit_price.toFixed(2)}</td>
+            <td style="padding: 8px; font-size: 11px; color: #333; text-align: center; border-bottom: 1px solid #e9ecef;">${item.discount_percent || 0}%</td>
+            <td style="padding: 8px; font-size: 11px; font-weight: bold; color: #38AC4F; text-align: right; border-bottom: 1px solid #e9ecef;">€ ${total.toFixed(2)}</td>
           </tr>
         `;
       }).join('');
       
       const productsTable = `
-        <table>
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
           <thead>
-            <tr>
-              <th>Prodotto</th>
-              <th>Descrizione</th>
-              <th>Quantità</th>
-              <th>Prezzo Unit.</th>
-              <th>Sconto</th>
-              <th>Totale</th>
+            <tr style="background: #f9f9f9;">
+              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: left; border-bottom: 2px solid #e9ecef;">Prodotto</th>
+              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: left; border-bottom: 2px solid #e9ecef;">Descrizione</th>
+              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: center; border-bottom: 2px solid #e9ecef;">Qtà</th>
+              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: right; border-bottom: 2px solid #e9ecef;">Prezzo Unit.</th>
+              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: center; border-bottom: 2px solid #e9ecef;">Sconto</th>
+              <th style="padding: 10px 8px; font-size: 11px; font-weight: bold; color: #666; text-align: right; border-bottom: 2px solid #e9ecef;">Totale</th>
             </tr>
           </thead>
           <tbody>
