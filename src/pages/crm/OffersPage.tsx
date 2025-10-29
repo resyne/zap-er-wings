@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, ShoppingCart, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -19,6 +19,7 @@ import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,7 @@ export default function OffersPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [offerFiles, setOfferFiles] = useState<File[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
@@ -1148,6 +1150,22 @@ export default function OffersPage() {
         </div>
         
         <div className="flex gap-2 items-center">
+          <div className="flex gap-1 border rounded-md p-1">
+            <Button
+              variant={viewMode === 'kanban' ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
           <Button
             variant={showArchived ? "default" : "outline"}
             onClick={() => setShowArchived(!showArchived)}
@@ -1904,13 +1922,14 @@ export default function OffersPage() {
         </CardContent>
       </Card>
 
-      {/* Vista Kanban - Solo Offerte Generate */}
+      {/* Vista Kanban o Lista - Solo Offerte Generate */}
       <div>
         <div className="mb-4">
           <h3 className="text-lg font-semibold">Offerte Generate</h3>
           <p className="text-sm text-muted-foreground">Gestisci le offerte in fase di elaborazione</p>
         </div>
         
+        {viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Colonna: Pronte */}
         <Card className="lg:col-span-1">
@@ -2108,6 +2127,92 @@ export default function OffersPage() {
           </CardContent>
         </Card>
       </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Numero</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Titolo</TableHead>
+                  <TableHead className="text-right">Importo</TableHead>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {offers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
+                  <TableRow key={offer.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{offer.number}</TableCell>
+                    <TableCell>{offer.customer_name}</TableCell>
+                    <TableCell className="max-w-md truncate">{offer.title}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(offer.status)}>
+                        {getStatusText(offer.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(offer.created_at).toLocaleDateString('it-IT')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDetails(offer)}
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        {offer.status === 'offerta_inviata' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleChangeStatus(offer.id, 'negoziazione')}
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {offer.status === 'negoziazione' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleChangeStatus(offer.id, 'accettata')}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleChangeStatus(offer.id, 'rifiutata')}
+                            >
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                        {offer.status === 'accettata' && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleCreateOrderFromOffer(offer)}
+                          >
+                            <ShoppingCart className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
       </div>
 
       {/* Dialog Crea Ordine */}
