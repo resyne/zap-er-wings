@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Pencil, Trash2, Archive } from "lucide-react";
 import { ShippingOrderComments } from "./ShippingOrderComments";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ShippingOrder {
   id: string;
@@ -245,40 +246,20 @@ export function ShippingOrderDetailsDialog({
           {(order.sales_orders?.sales_order_items && order.sales_orders.sales_order_items.length > 0) || 
            (order.sales_orders?.offers?.offer_items && order.sales_orders.offers.offer_items.length > 0) ? (
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli dall'Ordine di Vendita</h4>
-              <div className="border rounded-lg divide-y">
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli dell'Ordine di Vendita (solo riferimento)</h4>
+              <div className="border rounded-lg divide-y bg-muted/30">
                 {/* First show sales_order_items if present */}
                 {order.sales_orders.sales_order_items?.map((item: any, index: number) => (
-                  <div key={`order-${index}`} className="p-4 space-y-2">
+                  <div key={`order-${index}`} className="p-3">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="font-semibold text-base">{item.product_name}</p>
+                        <p className="font-medium text-sm">{item.product_name}</p>
                         {item.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-                        )}
-                        {item.notes && (
-                          <p className="text-sm text-muted-foreground mt-1 italic">Note: {item.notes}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
                         )}
                       </div>
                       <div className="text-right ml-4">
-                        <p className="text-sm text-muted-foreground">
-                          Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          €{item.unit_price.toFixed(2)} x {item.quantity}
-                        </p>
-                        {item.discount_percent > 0 && (
-                          <p className="text-sm text-muted-foreground">
-                            Sconto: {item.discount_percent}%
-                          </p>
-                        )}
-                        <p className="text-lg font-semibold text-primary mt-1">
-                          €{(() => {
-                            const subtotal = item.quantity * item.unit_price;
-                            const afterDiscount = subtotal * (1 - item.discount_percent / 100);
-                            return afterDiscount.toFixed(2);
-                          })()}
-                        </p>
+                        <p className="text-sm font-semibold">Quantità: {item.quantity}</p>
                       </div>
                     </div>
                   </div>
@@ -287,58 +268,20 @@ export function ShippingOrderDetailsDialog({
                 {/* Then show offer_items if no sales_order_items */}
                 {(!order.sales_orders.sales_order_items || order.sales_orders.sales_order_items.length === 0) &&
                  order.sales_orders.offers?.offer_items?.map((item: any, index: number) => (
-                  <div key={`offer-${index}`} className="p-4 space-y-2">
+                  <div key={`offer-${index}`} className="p-3">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="font-semibold text-base">{item.products?.name || item.description}</p>
+                        <p className="font-medium text-sm">{item.products?.name || item.description}</p>
                         {item.description && item.products?.name && (
-                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-                        )}
-                        {item.notes && (
-                          <p className="text-sm text-muted-foreground mt-1 italic">Note: {item.notes}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
                         )}
                       </div>
                       <div className="text-right ml-4">
-                        <p className="text-sm text-muted-foreground">
-                          Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          €{item.unit_price.toFixed(2)} x {item.quantity}
-                        </p>
-                        {item.discount_percent > 0 && (
-                          <p className="text-sm text-muted-foreground">
-                            Sconto: {item.discount_percent}%
-                          </p>
-                        )}
-                        <p className="text-lg font-semibold text-primary mt-1">
-                          €{(() => {
-                            const subtotal = item.quantity * item.unit_price;
-                            const afterDiscount = subtotal * (1 - item.discount_percent / 100);
-                            return afterDiscount.toFixed(2);
-                          })()}
-                        </p>
+                        <p className="text-sm font-semibold">Quantità: {item.quantity}</p>
                       </div>
                     </div>
                   </div>
                 ))}
-                
-                <div className="p-4 bg-muted">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-lg">Totale Ordine:</span>
-                    <span className="font-bold text-xl text-primary">
-                      €{(() => {
-                        const items = order.sales_orders.sales_order_items && order.sales_orders.sales_order_items.length > 0
-                          ? order.sales_orders.sales_order_items
-                          : order.sales_orders.offers?.offer_items || [];
-                        return items.reduce((sum: number, item: any) => {
-                          const subtotal = item.quantity * item.unit_price;
-                          const afterDiscount = subtotal * (1 - (item.discount_percent || 0) / 100);
-                          return sum + afterDiscount;
-                        }, 0).toFixed(2);
-                      })()}
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           ) : null}
@@ -346,41 +289,81 @@ export function ShippingOrderDetailsDialog({
           {/* Shipping Order Items */}
           {order.shipping_order_items && order.shipping_order_items.length > 0 && (
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli dell'Ordine di Spedizione</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Articoli da Prelevare dal Magazzino</h4>
               <div className="border rounded-lg divide-y">
                 {order.shipping_order_items.map((item: any, index: number) => (
-                  <div key={index} className="p-4 space-y-2">
-                    <div className="flex justify-between items-start">
+                  <div key={index} className={`p-4 space-y-2 ${item.is_picked ? 'bg-green-50' : ''}`}>
+                    <div className="flex items-start gap-3">
                       <div className="flex-1">
-                        <p className="font-semibold text-base">{item.materials?.name || "N/A"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Codice: <span className="font-mono">{item.materials?.code || "N/A"}</span>
-                        </p>
+                        <div className="flex items-start gap-2">
+                          {item.is_picked ? (
+                            <Badge className="bg-green-100 text-green-800 shrink-0">
+                              ✓ Prelevato
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="shrink-0">
+                              Da prelevare
+                            </Badge>
+                          )}
+                          <div className="flex-1">
+                            <p className="font-semibold text-base">{item.materials?.name || "N/A"}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Codice: <span className="font-mono">{item.materials?.code || "N/A"}</span>
+                            </p>
+                          </div>
+                        </div>
                         {item.notes && (
-                          <p className="text-sm text-muted-foreground mt-1 italic">
-                            Note: {item.notes}
+                          <p className="text-sm text-muted-foreground mt-2 italic">
+                            {item.notes}
+                          </p>
+                        )}
+                        {item.is_picked && item.picked_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Prelevato il {new Date(item.picked_at).toLocaleString('it-IT')}
                           </p>
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Quantità: <span className="font-semibold text-foreground">{item.quantity}</span></p>
-                        <p className="text-sm text-muted-foreground">
-                          €{typeof item.unit_price === 'number' ? item.unit_price.toFixed(2) : '0.00'} x {item.quantity}
+                        <p className="text-lg font-semibold mb-2">
+                          Quantità: {item.quantity}
                         </p>
-                        <p className="text-lg font-semibold text-primary mt-1">
-                          €{typeof item.total_price === 'number' ? item.total_price.toFixed(2) : '0.00'}
-                        </p>
+                        {!item.is_picked && (
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                const { error } = await supabase
+                                  .from('shipping_order_items')
+                                  .update({
+                                    is_picked: true,
+                                    picked_at: new Date().toISOString(),
+                                    picked_by: user?.id
+                                  })
+                                  .eq('id', item.id);
+
+                                if (error) throw error;
+                                
+                                // Reload the order details
+                                window.location.reload();
+                              } catch (error: any) {
+                                console.error('Error marking item as picked:', error);
+                              }
+                            }}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            ✓ Marca come Prelevato
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
                 <div className="p-4 bg-muted">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-lg">Totale:</span>
-                    <span className="font-bold text-xl text-primary">
-                      €{order.shipping_order_items.reduce((sum: number, item: any) => 
-                        sum + (typeof item.total_price === 'number' ? item.total_price : 0), 0
-                      ).toFixed(2)}
+                    <span className="font-semibold text-lg">Stato Prelievo:</span>
+                    <span className="font-bold text-lg">
+                      {order.shipping_order_items.filter((item: any) => item.is_picked).length} / {order.shipping_order_items.length} articoli prelevati
                     </span>
                   </div>
                 </div>

@@ -5063,8 +5063,11 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_picked: boolean | null
           material_id: string | null
           notes: string | null
+          picked_at: string | null
+          picked_by: string | null
           quantity: number
           shipping_order_id: string
           total_price: number | null
@@ -5074,8 +5077,11 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_picked?: boolean | null
           material_id?: string | null
           notes?: string | null
+          picked_at?: string | null
+          picked_by?: string | null
           quantity: number
           shipping_order_id: string
           total_price?: number | null
@@ -5085,8 +5091,11 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_picked?: boolean | null
           material_id?: string | null
           notes?: string | null
+          picked_at?: string | null
+          picked_by?: string | null
           quantity?: number
           shipping_order_id?: string
           total_price?: number | null

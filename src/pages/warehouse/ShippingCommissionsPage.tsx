@@ -183,7 +183,15 @@ export default function ShippingOrdersPage() {
             )
           ),
           shipping_order_items(
-            *,
+            id,
+            material_id,
+            quantity,
+            unit_price,
+            total_price,
+            notes,
+            is_picked,
+            picked_at,
+            picked_by,
             materials(name, code)
           ),
           assigned_user:profiles!assigned_to(first_name, last_name, email),
