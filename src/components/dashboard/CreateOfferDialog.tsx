@@ -16,9 +16,10 @@ interface CreateOfferDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  defaultStatus?: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'accettata' | 'rifiutata';
 }
 
-export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOfferDialogProps) {
+export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus = 'richiesta_offerta' }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -32,7 +33,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
     description: '',
     amount: 0,
     valid_until: '',
-    status: 'richiesta_offerta' as const,
+    status: defaultStatus,
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     payment_terms: ''
   });
@@ -163,7 +164,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess }: CreateOffer
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Nuova Richiesta di Offerta</DialogTitle>
+          <DialogTitle>{defaultStatus === 'richiesta_offerta' ? 'Nuova Richiesta di Offerta' : 'Nuova Offerta'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

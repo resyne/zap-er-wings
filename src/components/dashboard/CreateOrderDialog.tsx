@@ -1387,6 +1387,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       <CreateOfferDialog
         open={isCreateOfferDialogOpen}
         onOpenChange={setIsCreateOfferDialogOpen}
+        defaultStatus="offerta_pronta"
         onSuccess={handleOfferCreated}
       />
 
