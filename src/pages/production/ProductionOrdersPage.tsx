@@ -1380,7 +1380,10 @@ export default function WorkOrdersPage() {
                         .update({ bom_id: newBomId })
                         .eq('id', selectedWO.id);
                       if (!error) {
-                        toast({ title: "Distinta base aggiornata" });
+                        toast({ 
+                          title: "Successo",
+                          description: "Distinta base aggiornata" 
+                        });
                         fetchWorkOrders();
                         const bom = boms.find(b => b.id === value);
                         setSelectedWO({ 
@@ -1403,6 +1406,68 @@ export default function WorkOrdersPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Back Office Manager</Label>
+                  <Select 
+                    value={selectedWO.back_office_manager || "none"} 
+                    onValueChange={async (value) => {
+                      try {
+                        const newBackOfficeManager = value === "none" ? null : value;
+                        const { error } = await supabase
+                          .from('work_orders')
+                          .update({ back_office_manager: newBackOfficeManager })
+                          .eq('id', selectedWO.id);
+                        if (error) throw error;
+                        toast({ 
+                          title: "Successo",
+                          description: "Back Office Manager aggiornato" 
+                        });
+                        fetchWorkOrders();
+                        const user = users.find(u => u.id === value);
+                        setSelectedWO({ 
+                          ...selectedWO, 
+                          back_office_manager: newBackOfficeManager,
+                          back_office: user ? {
+                            id: user.id,
+                            first_name: user.first_name,
+                            last_name: user.last_name
+                          } : undefined
+                        });
+                      } catch (error: any) {
+                        console.error('Error updating back office manager:', error);
+                        toast({ 
+                          title: "Errore",
+                          description: error.message,
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Nessun back office" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessun back office</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Accessori</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedWO.accessori_ids && selectedWO.accessori_ids.length > 0 
+                      ? `${selectedWO.accessori_ids.length} accessori selezionati`
+                      : 'Nessun accessorio'
+                    }
+                  </p>
                 </div>
               </div>
 
