@@ -2645,26 +2645,25 @@ export default function OffersPage() {
 
 
               {/* Metodi di Pagamento */}
-              {((selectedOffer as any).metodi_pagamento || (selectedOffer as any).payment_method || (selectedOffer as any).payment_agreement || selectedOffer.payment_terms) && (
+              {((selectedOffer as any).payment_method || (selectedOffer as any).payment_agreement || selectedOffer.payment_terms) && (
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-semibold mb-3">Informazioni di Pagamento</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    {(selectedOffer as any).metodi_pagamento && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Metodi di Pagamento</label>
-                        <p className="text-sm mt-1">{(selectedOffer as any).metodi_pagamento}</p>
-                      </div>
-                    )}
                     {(selectedOffer as any).payment_method && (
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Metodo</label>
+                        <label className="text-sm font-medium text-muted-foreground">Metodo di Pagamento</label>
                         <p className="text-sm mt-1 capitalize">{(selectedOffer as any).payment_method}</p>
                       </div>
                     )}
                     {(selectedOffer as any).payment_agreement && (
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Accordo</label>
-                        <p className="text-sm mt-1">{(selectedOffer as any).payment_agreement}</p>
+                        <p className="text-sm mt-1">
+                          {(selectedOffer as any).payment_agreement === '50% acconto - 50% a consegna' || 
+                           (selectedOffer as any).payment_agreement === 'Pagamento anticipato'
+                            ? (selectedOffer as any).payment_agreement
+                            : `altro - ${(selectedOffer as any).payment_agreement}`}
+                        </p>
                       </div>
                     )}
                     {selectedOffer.payment_terms && (
