@@ -638,7 +638,7 @@ export default function OffersPage() {
             
             return {
               offer_id: offerData.id,
-              product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
+              product_id: item.product_id?.startsWith('manual-') ? null : item.product_id,
               description: fullDescription,
               quantity: item.quantity,
               unit_price: item.unit_price,
@@ -694,7 +694,7 @@ export default function OffersPage() {
             
             return {
               offer_id: offerData.id,
-              product_id: item.product_id.startsWith('manual-') ? null : item.product_id,
+              product_id: item.product_id?.startsWith('manual-') ? null : item.product_id,
               description: fullDescription,
               quantity: item.quantity,
               unit_price: item.unit_price,
@@ -1663,10 +1663,10 @@ export default function OffersPage() {
                 {selectedProducts.length > 0 && (
                   <div className="border rounded-lg p-3 space-y-2">
                     {selectedProducts.map((item, index) => (
-                      <div key={index} className="border rounded p-4 space-y-3 bg-muted/50">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 space-y-2">
-                            {item.product_id.startsWith('manual-') ? (
+                        <div key={index} className="border rounded p-4 space-y-3 bg-muted/50">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 space-y-2">
+                              {item.product_id?.startsWith('manual-') ? (
                               <Input
                                 value={item.product_name}
                                 onChange={(e) => {
