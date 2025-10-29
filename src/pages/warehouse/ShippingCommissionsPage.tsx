@@ -843,10 +843,41 @@ export default function ShippingOrdersPage() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2">
+                        {order.status === 'pronto' && order.shipping_order_items?.every((item: any) => item.is_picked) ? (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateDDT(order);
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            Genera DDT
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled
+                            title={
+                              order.status !== 'pronto' 
+                                ? `Stato: ${statusOptions.find(s => s.value === order.status)?.label}` 
+                                : 'Articoli non tutti prelevati'
+                            }
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            Genera DDT
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleArchive(order.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchive(order.id);
+                          }}
                           title="Archivia ordine"
                         >
                           <Archive className="w-4 h-4" />
@@ -893,6 +924,20 @@ export default function ShippingOrdersPage() {
                           <Badge variant="outline" className="text-xs">
                             {order.assigned_user.first_name} {order.assigned_user.last_name}
                           </Badge>
+                        )}
+                        {order.status === 'pronto' && order.shipping_order_items?.every((item: any) => item.is_picked) && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateDDT(order);
+                            }}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white mt-2"
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            Genera DDT
+                          </Button>
                         )}
                       </div>
                     </Card>
