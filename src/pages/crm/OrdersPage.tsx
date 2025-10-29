@@ -1505,8 +1505,20 @@ export default function OrdersPage() {
                                                <div className="text-xs font-medium text-muted-foreground mb-1">
                                                  Prodotti/Servizi:
                                                </div>
-                                               <div className="text-xs text-foreground line-clamp-3 bg-muted/30 p-2 rounded">
-                                                 {order.article}
+                                               <div className="text-xs text-foreground space-y-1">
+                                                 {order.article.split('\n')
+                                                   .filter(line => /^\d+x\s/i.test(line.trim()))
+                                                   .slice(0, 3)
+                                                   .map((line, idx) => (
+                                                     <div key={idx} className="font-medium">
+                                                       {line.trim()}
+                                                     </div>
+                                                   ))}
+                                                 {order.article.split('\n').filter(line => /^\d+x\s/i.test(line.trim())).length > 3 && (
+                                                   <div className="text-muted-foreground italic">
+                                                     +{order.article.split('\n').filter(line => /^\d+x\s/i.test(line.trim())).length - 3} altri prodotti...
+                                                   </div>
+                                                 )}
                                                </div>
                                              </div>
                                            )}
@@ -1785,10 +1797,18 @@ export default function OrdersPage() {
                       <div>{new Date(selectedOrder.delivery_date).toLocaleDateString('it-IT')}</div>
                     </div>
                   )}
-                  {selectedOrder.notes && (
+                   {selectedOrder.notes && (
                     <div className="col-span-2">
                       <Label className="text-sm text-muted-foreground">Note</Label>
                       <div className="text-sm">{selectedOrder.notes}</div>
+                    </div>
+                  )}
+                  {selectedOrder.article && selectedOrder.article.trim().length > 0 && (
+                    <div className="col-span-2">
+                      <Label className="text-sm text-muted-foreground">Prodotti/Servizi</Label>
+                      <div className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-md mt-1">
+                        {selectedOrder.article}
+                      </div>
                     </div>
                   )}
                 </CardContent>
