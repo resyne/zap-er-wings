@@ -2662,7 +2662,9 @@ export default function OffersPage() {
                           {(selectedOffer as any).payment_agreement === '50% acconto - 50% a consegna' || 
                            (selectedOffer as any).payment_agreement === 'Pagamento anticipato'
                             ? (selectedOffer as any).payment_agreement
-                            : `altro - ${(selectedOffer as any).payment_agreement}`}
+                            : (selectedOffer as any).payment_agreement === 'altro'
+                              ? 'altro'
+                              : `altro - ${(selectedOffer as any).payment_agreement}`}
                         </p>
                       </div>
                     )}
