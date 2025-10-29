@@ -27,7 +27,8 @@ export default function PublicOfferPage() {
         .from('offers')
         .select(`
           *,
-          customers (*)
+          customers (*),
+          reverse_charge
         `)
         .eq('unique_code', code)
         .single();
@@ -117,9 +118,13 @@ export default function PublicOfferPage() {
 
       // Calculate totals
       const totalImponibile = offer.amount || 0;
+      const isReverseCharge = offer.reverse_charge === true;
       const ivaRate = 0.22; // 22%
-      const totalIva = totalImponibile * ivaRate;
+      const totalIva = isReverseCharge ? 0 : totalImponibile * ivaRate;
       const totalLordo = totalImponibile + totalIva;
+      
+      // Reverse charge note
+      const reverseChargeNote = isReverseCharge ? '<div style="font-size: 11px; color: #dc3545; font-weight: bold; margin-top: 5px;">N6.7 - Inversione contabile</div>' : '';
 
       // Replace all placeholders
       htmlTemplate = htmlTemplate
@@ -155,13 +160,14 @@ export default function PublicOfferPage() {
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
         .replace(/\{\{totale_iva\}\}/g, totalIva.toFixed(2))
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
+        .replace(/\{\{reverse_charge_note\}\}/g, reverseChargeNote)
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/\{\{tempi_consegna\}\}/g, offer.timeline_consegna || '10-15 giorni lavorativi')
-        .replace(/\{\{metodi_pagamento\}\}/g, offer.metodi_pagamento || offer.payment_method || '50% anticipo, 50% alla consegna')
-        .replace(/\{\{timeline_produzione\}\}/g, offer.timeline_produzione || '7-10 gg')
-        .replace(/\{\{timeline_consegna\}\}/g, offer.timeline_consegna || '2-3 gg')
-        .replace(/\{\{timeline_installazione\}\}/g, offer.timeline_installazione || '1 gg')
+        .replace(/\{\{tempi_consegna\}\}/g, offer.timeline_consegna || '')
+        .replace(/\{\{metodi_pagamento\}\}/g, offer.metodi_pagamento || offer.payment_method || '')
+        .replace(/\{\{timeline_produzione\}\}/g, offer.timeline_produzione || '')
+        .replace(/\{\{timeline_consegna\}\}/g, offer.timeline_consegna || '')
+        .replace(/\{\{timeline_installazione\}\}/g, offer.timeline_installazione || '')
         .replace(/\{\{timeline_collaudo\}\}/g, offer.timeline_collaudo || '')
         .replace(/\{\{descrizione\}\}/g, offer.description || '')
         .replace(/\{\{firma_commerciale\}\}/g, 'Abbattitori Zapper')
