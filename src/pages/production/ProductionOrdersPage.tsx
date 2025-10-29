@@ -24,6 +24,7 @@ import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { OrderFileManager } from "@/components/orders/OrderFileManager";
 import { WorkOrderComments } from "@/components/production/WorkOrderComments";
 import { WorkOrderArticles } from "@/components/production/WorkOrderArticles";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface WorkOrder {
   id: string;
@@ -74,6 +75,7 @@ interface WorkOrder {
 }
 
 export default function WorkOrdersPage() {
+  const isMobile = useIsMobile();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
@@ -686,27 +688,29 @@ export default function WorkOrdersPage() {
       </Breadcrumb>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Commesse di Produzione (CdP)</h1>
-          <p className="text-muted-foreground">
+          <h1 className={isMobile ? "text-2xl font-bold tracking-tight" : "text-3xl font-bold tracking-tight"}>
+            Commesse di Produzione (CdP)
+          </h1>
+          <p className={isMobile ? "text-sm text-muted-foreground" : "text-muted-foreground"}>
             Pianifica e monitora le commesse di produzione durante il loro ciclo di vita. Per creare una nuova commessa, utilizza la sezione Ordini.
           </p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
+      <div className={isMobile ? "grid grid-cols-2 gap-2" : "grid grid-cols-1 md:grid-cols-10 gap-4"}>
         {Object.entries(statusCounts).map(([status, count]) => (
           <Card 
             key={status} 
             className={`cursor-pointer transition-colors ${statusFilter === status ? 'ring-2 ring-primary' : ''}`}
             onClick={() => setStatusFilter(status)}
           >
-            <CardContent className="p-4">
+            <CardContent className={isMobile ? "p-2" : "p-4"}>
               <div className="text-center">
-                <div className="text-2xl font-bold">{count}</div>
-                <div className="text-sm text-muted-foreground capitalize">
+                <div className={isMobile ? "text-lg font-bold" : "text-2xl font-bold"}>{count}</div>
+                <div className={isMobile ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground capitalize"}>
                   {status === 'all' ? 'Tutti' : 
                    status === 'active' ? 'Attivi' :
                    status === 'da_fare' ? 'Da Fare' :
@@ -727,50 +731,53 @@ export default function WorkOrdersPage() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Ricerca e Filtri</CardTitle>
+          <CardTitle className={isMobile ? "text-base" : ""}>Ricerca e Filtri</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4">
+          <div className={isMobile ? "space-y-3" : "flex items-center space-x-4"}>
             <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className={isMobile ? "absolute left-2 top-2 h-3 w-3 text-muted-foreground" : "absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"} />
               <Input
-                placeholder="Cerca commesse di produzione..."
+                placeholder={isMobile ? "Cerca..." : "Cerca commesse di produzione..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className={isMobile ? "pl-7 h-8 text-sm" : "pl-8"}
               />
             </div>
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "calendar")}>
-              <TabsList>
-                <TabsTrigger value="table">
-                  <List className="h-4 w-4 mr-2" />
-                  Tabella
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "calendar")} className={isMobile ? "w-full" : ""}>
+              <TabsList className={isMobile ? "w-full grid grid-cols-3" : ""}>
+                <TabsTrigger value="table" className={isMobile ? "text-xs py-1" : ""}>
+                  <List className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
+                  {!isMobile && "Tabella"}
                 </TabsTrigger>
-                <TabsTrigger value="kanban">
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Kanban
+                <TabsTrigger value="kanban" className={isMobile ? "text-xs py-1" : ""}>
+                  <LayoutGrid className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
+                  {!isMobile && "Kanban"}
                 </TabsTrigger>
-                <TabsTrigger value="calendar">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  Calendario
+                <TabsTrigger value="calendar" className={isMobile ? "text-xs py-1" : ""}>
+                  <CalendarIcon className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
+                  {!isMobile && "Calendario"}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button 
-              variant={showArchivedOrders ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setShowArchivedOrders(!showArchivedOrders)}
-            >
-              {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowFiltersDialog(true)}>
-              <Filter className="mr-2 h-4 w-4" />
-              Filtri
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Esporta
-            </Button>
+            <div className={isMobile ? "flex gap-2" : "flex gap-2"}>
+              <Button 
+                variant={showArchivedOrders ? "default" : "outline"} 
+                size={isMobile ? "sm" : "sm"}
+                className={isMobile ? "flex-1 text-xs h-8" : ""}
+                onClick={() => setShowArchivedOrders(!showArchivedOrders)}
+              >
+                {isMobile ? (showArchivedOrders ? "Nascondi" : "Archiviati") : (showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati")}
+              </Button>
+              <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8" : ""} onClick={() => setShowFiltersDialog(true)}>
+                <Filter className={isMobile ? "h-3 w-3" : "mr-2 h-4 w-4"} />
+                {!isMobile && "Filtri"}
+              </Button>
+              <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8" : ""} onClick={handleExport}>
+                <Download className={isMobile ? "h-3 w-3" : "mr-2 h-4 w-4"} />
+                {!isMobile && "Esporta"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1117,15 +1124,15 @@ export default function WorkOrdersPage() {
                 <p className="text-sm">{selectedWO.title}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
-                  <p className="text-sm">
+                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Cliente</Label>
+                  <p className={isMobile ? "text-sm" : "text-sm"}>
                     {selectedWO.customers ? `${selectedWO.customers.name} (${selectedWO.customers.code})` : 'Non assegnato'}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Priorità</Label>
+                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Priorità</Label>
                   <Badge variant={
                     selectedWO.priority === 'urgent' ? 'destructive' :
                     selectedWO.priority === 'high' ? 'default' :
@@ -1138,30 +1145,30 @@ export default function WorkOrdersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Lead</Label>
+                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Lead</Label>
                   {selectedWO.leads ? (
                     <Link 
                       to={`/crm/opportunities?lead=${selectedWO.lead_id}`}
-                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                      className={isMobile ? "text-sm text-primary hover:underline flex items-center gap-1" : "text-sm text-primary hover:underline flex items-center gap-1"}
                     >
                       {selectedWO.leads.company_name}
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Non collegato</p>
+                    <p className={isMobile ? "text-sm text-muted-foreground" : "text-sm text-muted-foreground"}>Non collegato</p>
                   )}
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Ordine di Vendita</Label>
-                  <p className="text-sm">
+                  <Label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Ordine di Vendita</Label>
+                  <p className={isMobile ? "text-sm" : "text-sm"}>
                     {selectedWO.sales_orders ? selectedWO.sales_orders.number : 'Non collegato'}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={isMobile ? "space-y-3" : "grid grid-cols-2 gap-4"}>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Tecnico</Label>
                   <div className="flex items-center gap-2">
@@ -1253,38 +1260,41 @@ export default function WorkOrdersPage() {
               </div>
 
               {/* Actions */}
-              <div className="border-t pt-4 flex gap-2">
+              <div className={isMobile ? "border-t pt-3 flex flex-col gap-2" : "border-t pt-4 flex gap-2"}>
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className={isMobile ? "w-full text-sm h-9" : "flex-1"}
+                  size={isMobile ? "sm" : "default"}
                   onClick={() => {
                     setShowDetailsDialog(false);
                     handleEdit(selectedWO);
                   }}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className={isMobile ? "h-3 w-3 mr-2" : "h-4 w-4 mr-2"} />
                   Modifica
                 </Button>
                 <Button
                   variant="destructive"
-                  className="flex-1"
+                  className={isMobile ? "w-full text-sm h-9" : "flex-1"}
+                  size={isMobile ? "sm" : "default"}
                   onClick={() => {
                     setShowDetailsDialog(false);
                     handleDelete(selectedWO.id);
                   }}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className={isMobile ? "h-3 w-3 mr-2" : "h-4 w-4 mr-2"} />
                   Elimina
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className={isMobile ? "w-full text-sm h-9" : "flex-1"}
+                  size={isMobile ? "sm" : "default"}
                   onClick={() => {
                     handleArchive(selectedWO.id, selectedWO.archived || false);
                     setShowDetailsDialog(false);
                   }}
                 >
-                  <Archive className="h-4 w-4 mr-2" />
+                  <Archive className={isMobile ? "h-3 w-3 mr-2" : "h-4 w-4 mr-2"} />
                   {selectedWO.archived ? 'Ripristina' : 'Archivia'}
                 </Button>
               </div>
