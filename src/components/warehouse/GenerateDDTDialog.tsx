@@ -42,7 +42,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
 
   const generateDDTNumber = async () => {
     const year = new Date().getFullYear();
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('ddts')
       .select('ddt_number')
       .like('ddt_number', `${year}/%`)
@@ -149,7 +149,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       if (pdfError) throw pdfError;
 
       // Save DDT to database
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (supabase as any)
         .from('ddts')
         .insert({
           ddt_number: ddtNumber,
