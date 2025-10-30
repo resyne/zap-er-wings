@@ -1786,29 +1786,31 @@ export default function OffersPage() {
                           </div>
                         </div>
 
-                        <div className="flex justify-end gap-4 text-sm pt-2 border-t">
-                          <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Netto</div>
-                            <div className="font-medium">
-                              €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                        {item.unit_price > 0 && (
+                          <div className="flex justify-end gap-4 text-sm pt-2 border-t">
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">Netto</div>
+                              <div className="font-medium">
+                                €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">IVA</div>
+                              <div className="font-medium">
+                                €{(item.reverse_charge ? 0 : (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100))).toFixed(2)}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">Totale</div>
+                              <div className="font-semibold">
+                                €{(
+                                  item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * 
+                                  (1 + (item.reverse_charge ? 0 : item.vat_rate / 100))
+                                ).toFixed(2)}
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-xs text-muted-foreground">IVA</div>
-                            <div className="font-medium">
-                              €{(item.reverse_charge ? 0 : (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100))).toFixed(2)}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Totale</div>
-                            <div className="font-semibold">
-                              €{(
-                                item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * 
-                                (1 + (item.reverse_charge ? 0 : item.vat_rate / 100))
-                              ).toFixed(2)}
-                            </div>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                     <div className="text-right space-y-1 pt-2 border-t">
