@@ -19,6 +19,9 @@ interface GenerateDDTDialogProps {
 export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [ddtGenerated, setDdtGenerated] = useState(false);
+  const [ddtUrl, setDdtUrl] = useState<string>("");
+  const [ddtNumber, setDdtNumber] = useState<string>("");
   
   // Form state
   const [formData, setFormData] = useState({
@@ -40,6 +43,9 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   // Update form data when order changes or dialog opens
   useEffect(() => {
     if (open && order) {
+      setDdtGenerated(false);
+      setDdtUrl("");
+      setDdtNumber("");
       setFormData({
         destinatario: order.customers?.company_name || order.customers?.name || "",
         telefono: order.customers?.phone || "",
@@ -157,16 +163,16 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       setLoading(true);
 
       // Generate DDT number
-      const ddtNumber = await generateDDTNumber();
+      const generatedNumber = await generateDDTNumber();
 
       // Compile template
-      const compiledHTML = await compileDDTTemplate(ddtNumber);
+      const compiledHTML = await compileDDTTemplate(generatedNumber);
 
       // Save DDT to database with HTML content
       const { data: ddtData, error: insertError } = await (supabase as any)
         .from('ddts')
         .insert({
-          ddt_number: ddtNumber,
+          ddt_number: generatedNumber,
           shipping_order_id: order.id,
           customer_id: order.customer_id,
           html_content: compiledHTML,
@@ -182,20 +188,16 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
 
       // Get the generated unique code
       const ddtCode = ddtData.unique_code;
-      const ddtUrl = `${window.location.origin}/ddt/${ddtCode}`;
+      const generatedUrl = `${window.location.origin}/ddt/${ddtCode}`;
 
-      // Copy URL to clipboard
-      await navigator.clipboard.writeText(ddtUrl);
+      setDdtUrl(generatedUrl);
+      setDdtNumber(generatedNumber);
+      setDdtGenerated(true);
 
       toast({
         title: "DDT generato con successo",
-        description: `DDT numero ${ddtNumber} - Link copiato negli appunti!`,
+        description: `DDT numero ${generatedNumber}`,
       });
-
-      // Open DDT in new tab
-      window.open(ddtUrl, '_blank');
-
-      onOpenChange(false);
     } catch (error) {
       console.error('Error generating DDT:', error);
       toast({
@@ -206,6 +208,30 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(ddtUrl);
+    toast({ title: "Link copiato!", description: "Il link è stato copiato negli appunti" });
+  };
+
+  const openDDT = () => {
+    window.open(ddtUrl, '_blank');
+  };
+
+  const sendToStampaPolar = () => {
+    // TODO: Implementare invio a Stampa Polar
+    toast({ title: "Funzione in arrivo", description: "Invio a Stampa Polar" });
+  };
+
+  const sendToMBE = () => {
+    // TODO: Implementare invio MBE
+    toast({ title: "Funzione in arrivo", description: "Invio MBE" });
+  };
+
+  const sendToCustomer = () => {
+    // TODO: Implementare invio al cliente
+    toast({ title: "Funzione in arrivo", description: "Invio al Cliente" });
   };
 
   if (!order) {
@@ -219,7 +245,79 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
           <DialogTitle>Genera DDT - Documento di Trasporto</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        {ddtGenerated ? (
+          // Success view with quick actions
+          <div className="space-y-6 py-4">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold">DDT Generato!</h3>
+              <p className="text-muted-foreground">Numero: {ddtNumber}</p>
+            </div>
+
+            {/* Link Section */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+              <Label className="text-sm font-medium">Link DDT</Label>
+              <div className="flex gap-2">
+                <Input value={ddtUrl} readOnly className="font-mono text-sm" />
+                <Button onClick={copyLink} variant="outline" size="sm">
+                  Copia
+                </Button>
+                <Button onClick={openDDT} variant="outline" size="sm">
+                  Apri
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Azioni Rapide</Label>
+              <div className="grid grid-cols-1 gap-2">
+                <Button 
+                  onClick={sendToStampaPolar} 
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Invia Stampa Polar
+                </Button>
+                <Button 
+                  onClick={sendToMBE} 
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  Invio MBE
+                </Button>
+                <Button 
+                  onClick={sendToCustomer} 
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Invio al Cliente
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => onOpenChange(false)}>
+                Chiudi
+              </Button>
+            </div>
+          </div>
+        ) : (
+          // Form view
+          <div className="space-y-6">
           {/* Articoli */}
           <div className="space-y-4 border-b pb-4">
             <h3 className="font-semibold">Articoli da Spedire</h3>
@@ -423,6 +521,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
             </Button>
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

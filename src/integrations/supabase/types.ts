@@ -1123,7 +1123,7 @@ export type Database = {
           ddt_number: string
           html_content: string | null
           id: string
-          pdf_data: string
+          pdf_data: string | null
           shipping_order_id: string | null
           unique_code: string | null
         }
@@ -1135,7 +1135,7 @@ export type Database = {
           ddt_number: string
           html_content?: string | null
           id?: string
-          pdf_data: string
+          pdf_data?: string | null
           shipping_order_id?: string | null
           unique_code?: string | null
         }
@@ -1147,7 +1147,7 @@ export type Database = {
           ddt_number?: string
           html_content?: string | null
           id?: string
-          pdf_data?: string
+          pdf_data?: string | null
           shipping_order_id?: string | null
           unique_code?: string | null
         }
