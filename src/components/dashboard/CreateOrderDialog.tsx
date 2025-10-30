@@ -518,6 +518,20 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     // Converti stringhe vuote in null per i campi foreign key
     const shippingResponsible = commission.responsible?.trim() !== '' ? commission.responsible : null;
     
+    // Get customer details for shipping location
+    let customerData: any = null;
+    if (newOrder.customer_id) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('city, country, province, postal_code, address, shipping_address')
+        .eq('id', newOrder.customer_id)
+        .single();
+      
+      if (!error && data) {
+        customerData = data;
+      }
+    }
+    
     const shippingData = {
       number: '',
       customer_id: newOrder.customer_id || null,
@@ -529,7 +543,12 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
       sales_order_id: orderId,
-      attachments: orderData.attachments || []
+      attachments: orderData.attachments || [],
+      shipping_address: customerData?.shipping_address || customerData?.address || null,
+      shipping_city: customerData?.city || null,
+      shipping_country: customerData?.country || null,
+      shipping_province: customerData?.province || null,
+      shipping_postal_code: customerData?.postal_code || null
     };
 
     const { data: shippingOrder, error } = await supabase

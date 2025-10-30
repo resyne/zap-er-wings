@@ -378,13 +378,31 @@ export default function OrdersPage() {
   };
 
   const createShippingOrder = async (orderId: string, orderData: any) => {
+    // Get customer details for shipping location
+    let customerData: any = null;
+    if (newOrder.customer_id) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('city, country, province, postal_code, address, shipping_address')
+        .eq('id', newOrder.customer_id)
+        .single();
+      
+      if (!error && data) {
+        customerData = data;
+      }
+    }
+    
     const shippingData = {
       number: '', // Auto-generated
       back_office_manager: newOrder.back_office_manager || null,
       status: 'da_preparare' as const,
       order_date: newOrder.order_date || new Date().toISOString().split('T')[0],
       notes: newOrder.notes,
-      shipping_address: newOrder.shipping_address || null,
+      shipping_address: customerData?.shipping_address || customerData?.address || newOrder.shipping_address || null,
+      shipping_city: customerData?.city || null,
+      shipping_country: customerData?.country || null,
+      shipping_province: customerData?.province || null,
+      shipping_postal_code: customerData?.postal_code || null,
       sales_order_id: orderId
     };
 

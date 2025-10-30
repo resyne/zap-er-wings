@@ -1065,6 +1065,8 @@ export type Database = {
           payment_terms: number | null
           pec: string | null
           phone: string | null
+          postal_code: string | null
+          province: string | null
           sdi_code: string | null
           shipping_address: string | null
           tax_id: string | null
@@ -1086,6 +1088,8 @@ export type Database = {
           payment_terms?: number | null
           pec?: string | null
           phone?: string | null
+          postal_code?: string | null
+          province?: string | null
           sdi_code?: string | null
           shipping_address?: string | null
           tax_id?: string | null
@@ -1107,6 +1111,8 @@ export type Database = {
           payment_terms?: number | null
           pec?: string | null
           phone?: string | null
+          postal_code?: string | null
+          province?: string | null
           sdi_code?: string | null
           shipping_address?: string | null
           tax_id?: string | null
@@ -5247,6 +5253,10 @@ export type Database = {
           sales_order_id: string | null
           shipped_date: string | null
           shipping_address: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_postal_code: string | null
+          shipping_province: string | null
           shipping_responsible_id: string | null
           status: string
           status_changed_at: string | null
@@ -5276,6 +5286,10 @@ export type Database = {
           sales_order_id?: string | null
           shipped_date?: string | null
           shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_postal_code?: string | null
+          shipping_province?: string | null
           shipping_responsible_id?: string | null
           status?: string
           status_changed_at?: string | null
@@ -5305,6 +5319,10 @@ export type Database = {
           sales_order_id?: string | null
           shipped_date?: string | null
           shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_postal_code?: string | null
+          shipping_province?: string | null
           shipping_responsible_id?: string | null
           status?: string
           status_changed_at?: string | null
