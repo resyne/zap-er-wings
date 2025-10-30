@@ -23,6 +23,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   const [showDetails, setShowDetails] = useState(false);
   const [ddtUrl, setDdtUrl] = useState<string>("");
   const [ddtNumber, setDdtNumber] = useState<string>("");
+  const [ddtHtmlContent, setDdtHtmlContent] = useState<string>("");
+  const [isEditing, setIsEditing] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -46,8 +48,10 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
     if (open && order) {
       setDdtGenerated(false);
       setShowDetails(false);
+      setIsEditing(false);
       setDdtUrl("");
       setDdtNumber("");
+      setDdtHtmlContent("");
       setFormData({
         destinatario: order.customers?.company_name || order.customers?.name || "",
         telefono: order.customers?.phone || "",
@@ -194,6 +198,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
 
       setDdtUrl(generatedUrl);
       setDdtNumber(generatedNumber);
+      setDdtHtmlContent(compiledHTML);
       setDdtGenerated(true);
 
       toast({
@@ -236,6 +241,12 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
     toast({ title: "Funzione in arrivo", description: "Invio al Cliente" });
   };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+    setShowDetails(false);
+    setDdtGenerated(false);
+  };
+
   if (!order) {
     return null;
   }
@@ -247,29 +258,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
           <DialogTitle>Genera DDT - Documento di Trasporto</DialogTitle>
         </DialogHeader>
 
-        {ddtGenerated && !showDetails ? (
-          // Initial success view with "Vedi DDT" button
-          <div className="space-y-6 py-8">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold">DDT Generato con Successo!</h3>
-              <p className="text-muted-foreground">Numero: {ddtNumber}</p>
-            </div>
-
-            <div className="flex justify-center gap-3 pt-4">
-              <Button onClick={() => setShowDetails(true)} className="bg-primary hover:bg-primary/90">
-                Vedi DDT
-              </Button>
-              <Button onClick={() => onOpenChange(false)} variant="outline">
-                Chiudi
-              </Button>
-            </div>
-          </div>
-        ) : ddtGenerated && showDetails ? (
+        {ddtGenerated && showDetails ? (
           // Detailed view with link and quick actions
           <div className="space-y-6 py-4">
             <div className="text-center space-y-2">
@@ -293,6 +282,16 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
                 <Button onClick={openDDT} variant="outline" size="sm">
                   Apri
                 </Button>
+              </div>
+            </div>
+
+            {/* Preview Section */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Anteprima DDT</Label>
+              <div className="border rounded-lg overflow-hidden bg-white">
+                <div className="h-[400px] overflow-y-auto p-4">
+                  <div dangerouslySetInnerHTML={{ __html: ddtHtmlContent }} />
+                </div>
               </div>
             </div>
 
@@ -333,7 +332,10 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t">
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button onClick={handleEdit} variant="outline">
+                Modifica
+              </Button>
               <Button onClick={() => onOpenChange(false)}>
                 Chiudi
               </Button>
@@ -529,20 +531,39 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
             >
               Annulla
             </Button>
-            <Button
-              onClick={handleGenerate}
-              disabled={loading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generazione in corso...
-                </>
-              ) : (
-                'Genera DDT'
-              )}
-            </Button>
+            {ddtGenerated ? (
+              <>
+                <Button
+                  onClick={handleEdit}
+                  variant="outline"
+                  disabled={loading}
+                >
+                  Modifica
+                </Button>
+                <Button
+                  onClick={() => setShowDetails(true)}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Vedi DDT
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={handleGenerate}
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generazione in corso...
+                  </>
+                ) : (
+                  'Genera DDT'
+                )}
+              </Button>
+            )}
           </div>
         </div>
         )}
