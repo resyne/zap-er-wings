@@ -252,12 +252,17 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
         setDdtNumber(generatedNumber);
         setDdtHtmlContent(compiledHTML);
         setDdtGenerated(true);
-        setShowDetails(true); // Mostra i dettagli dopo la rigenerazione
+        setShowDetails(false); // Non mostrare i dettagli, lascia che l'utente clicchi "Vedi DDT"
 
         toast({
           title: "DDT aggiornato con successo",
           description: `DDT numero ${generatedNumber}`,
         });
+
+        // Chiudi il dialog dopo un breve delay per far vedere il toast
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 500);
       } else {
         // Crea un nuovo DDT
         const { data: ddtData, error: insertError } = await (supabase as any)
@@ -285,12 +290,17 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
         setDdtHtmlContent(compiledHTML);
         setDdtId(ddtData.id);
         setDdtGenerated(true);
-        setShowDetails(true); // Mostra direttamente i dettagli dopo la generazione
+        setShowDetails(false); // Non mostrare i dettagli, lascia che l'utente clicchi "Vedi DDT"
 
         toast({
           title: "DDT generato con successo",
           description: `DDT numero ${generatedNumber}`,
         });
+
+        // Chiudi il dialog dopo un breve delay per far vedere il toast
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 500);
       }
     } catch (error) {
       console.error('Error generating DDT:', error);
