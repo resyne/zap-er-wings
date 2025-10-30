@@ -103,8 +103,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
     // Generate product rows
     const productRows = order.shipping_order_items
       ?.map((item: any) => {
-        const description = item.sales_order_item?.product?.name || 
-                          item.work_order?.bom?.name || 
+        const description = item.product_name || 
+                          item.materials?.name || 
                           'Prodotto';
         return `<tr>
           <td>${description}</td>
@@ -239,8 +239,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
               {order.shipping_order_items && order.shipping_order_items.length > 0 ? (
                 <div className="space-y-2">
                   {order.shipping_order_items.map((item: any, index: number) => {
-                    const description = item.sales_order_item?.product?.name || 
-                                      item.work_order?.bom?.name || 
+                    const description = item.product_name || 
+                                      item.materials?.name || 
                                       'Prodotto';
                     return (
                       <div key={index} className="flex justify-between items-center py-2 border-b last:border-0">
