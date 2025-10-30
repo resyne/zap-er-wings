@@ -54,10 +54,10 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
   // Update form data when order changes or dialog opens
   useEffect(() => {
     if (open && order) {
-      // Se esiste un DDT con contenuto HTML, mostra direttamente i dettagli
+      // Se esiste un DDT con contenuto HTML, marca come generato ma NON mostrare i dettagli automaticamente
       if (existingDdt && existingDdt.html_content) {
         setDdtGenerated(true);
-        setShowDetails(true);
+        setShowDetails(false); // Non mostrare automaticamente i dettagli
         setDdtUrl(`${window.location.origin}/ddt/${existingDdt.unique_code}`);
         setDdtNumber(existingDdt.ddt_number);
         setDdtHtmlContent(existingDdt.html_content);
@@ -334,6 +334,10 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
     setDdtGenerated(false); // Torna al form per modificare e rigenerare
   };
 
+  const handleViewDdt = () => {
+    setShowDetails(true);
+  };
+
   if (!order) {
     return null;
   }
@@ -432,7 +436,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
 
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button onClick={handleEdit} variant="outline">
-                Modifica
+                Modifica e Rigenera
               </Button>
               <Button onClick={() => onOpenChange(false)}>
                 Chiudi
@@ -622,14 +626,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Annulla
-            </Button>
-            {ddtGenerated && showDetails ? (
+            {showDetails ? (
               <>
                 <Button
                   onClick={handleEdit}
@@ -643,6 +640,23 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
                   disabled={loading}
                 >
                   Chiudi
+                </Button>
+              </>
+            ) : ddtGenerated ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={loading}
+                >
+                  Annulla
+                </Button>
+                <Button
+                  onClick={handleViewDdt}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Vedi DDT
                 </Button>
               </>
             ) : (
@@ -665,7 +679,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
                       Generazione in corso...
                     </>
                   ) : (
-                    existingDdt ? 'Rigenera DDT' : 'Genera DDT'
+                    ddtId ? 'Rigenera DDT' : 'Genera PDF'
                   )}
                 </Button>
               </>
