@@ -161,7 +161,7 @@
         
         /* Content */
         .content {
-            padding: 30px;
+            padding: 20px;
         }
         
         /* Complete Offer Card */
@@ -177,20 +177,20 @@
         .offer-header {
             background: linear-gradient(135deg, #38AC4F 0%, #2d8a3e 100%);
             color: white;
-            padding: 18px 25px;
+            padding: 12px 20px;
             text-align: center;
         }
         
         .offer-header h3 {
             margin: 0;
-            font-size: 22px;
+            font-size: 18px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
         
         .offer-body {
-            padding: 25px;
+            padding: 20px;
         }
         
         .offer-section {
@@ -205,37 +205,45 @@
         .header-integrated {
             display: flex;
             justify-content: space-between;
-            gap: 20px;
+            gap: 15px;
             padding: 5px 0;
+            align-items: flex-start;
         }
         
         .header-left-integrated {
+            flex: 0 0 auto;
+            min-width: 120px;
+        }
+        
+        .header-center-integrated {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         
         .header-logo-integrated {
-            max-height: 40px;
+            max-height: 35px;
             width: auto;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             display: block;
         }
         
         .header-website-integrated {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
             color: #38AC4F;
-            margin-bottom: 6px;
+            margin-bottom: 0;
         }
         
         .header-contacts-integrated {
-            font-size: 10px;
+            font-size: 9px;
             color: #333;
-            line-height: 1.5;
-            margin-bottom: 8px;
+            line-height: 1.4;
         }
         
         .header-company-integrated {
-            font-size: 8px;
+            font-size: 7px;
             color: #666;
             line-height: 1.4;
         }
@@ -246,117 +254,94 @@
         
         .header-right-integrated {
             text-align: right;
-            min-width: 200px;
+            min-width: 150px;
+            flex: 0 0 auto;
         }
         
         .header-date-integrated {
-            font-size: 11px;
+            font-size: 10px;
             color: #666;
             margin-bottom: 4px;
         }
         
         .header-user-integrated {
-            font-size: 10px;
-            color: #999;
-            margin-bottom: 12px;
-        }
-        
-        .header-client-integrated {
-            padding-top: 12px;
-            border-top: 2px solid #e9ecef;
-        }
-        
-        .header-client-label-integrated {
             font-size: 9px;
             color: #999;
-            margin-bottom: 4px;
-        }
-        
-        .header-client-name-integrated {
-            font-size: 13px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 2px;
-        }
-        
-        .header-client-address-integrated {
-            font-size: 10px;
-            color: #666;
-        }
-        
-        .header-client-piva-integrated {
-            font-size: 10px;
-            color: #666;
-            margin-top: 2px;
         }
         
         /* Oggetto nell'Header */
         .header-oggetto {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px solid #e9ecef;
-        }
-        
-        .header-oggetto-label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-bottom: 6px;
-        }
-        
-        .header-oggetto-content {
-            font-size: 12px;
-            line-height: 1.5;
-            color: #333;
-            background: #f9f9f9;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        /* Sezione Prodotti */
-        .header-products-section {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px solid #e9ecef;
-        }
-        
-        .header-products-title {
-            font-size: 12px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-bottom: 10px;
-        }
-        
-        .header-products-content {
-            background: #f9f9f9;
-            padding: 12px;
-            border-radius: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e9ecef;
         }
         
         /* Tabella Prodotti */
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
+            margin: 0;
         }
         
         .products-table th {
-            background: #38AC4F;
+            background: linear-gradient(135deg, #38AC4F 0%, #2d8a3e 100%);
             color: white;
-            padding: 10px;
+            padding: 8px 10px;
             text-align: left;
-            font-size: 11px;
+            font-size: 9px;
             font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         
         .products-table td {
-            padding: 10px;
+            padding: 8px 10px;
             border-bottom: 1px solid #e9ecef;
-            font-size: 10px;
+            font-size: 9px;
+            background: white;
+        }
+        
+        .products-table tbody tr:nth-child(even) td {
+            background: #f8f9fa;
+        }
+        
+        .products-table tbody tr:hover td {
+            background: #f0f9f2;
         }
         
         .products-table tr:last-child td {
             border-bottom: none;
+        }
+        
+        /* Sezione Prodotti Principale */
+        .products-main-section {
+            margin-top: 20px;
+            border: 2px solid #38AC4F;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(56, 172, 79, 0.1);
+        }
+        
+        .products-main-title {
+            background: linear-gradient(135deg, #f8fff9 0%, #e8f9ed 100%);
+            color: #38AC4F;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #38AC4F;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .products-icon {
+            font-size: 16px;
+        }
+        
+        .products-main-content {
+            background: white;
         }
         
         /* Sezione Trasporto */
@@ -368,44 +353,228 @@
             margin-top: 20px;
         }
         
-        .transport-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-        }
-        
-        .transport-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .transport-field {
-            background: white;
-            border: 1px solid #ddd;
+        /* Card Unificata Trasporto e Pagamento */
+        .transport-payment-unified-card {
+            margin-top: 12px;
+            border: 2px solid #38AC4F;
             border-radius: 6px;
-            padding: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(56, 172, 79, 0.1);
         }
         
-        .transport-field-full {
-            grid-column: 1 / -1;
-        }
-        
-        .transport-label {
+        .unified-card-header {
+            background: linear-gradient(135deg, #38AC4F 0%, #2d8a3e 100%);
+            color: white;
+            padding: 6px 12px;
             font-size: 10px;
             font-weight: bold;
-            color: #666;
-            margin-bottom: 6px;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         
-        .transport-value {
-            font-size: 12px;
+        .unified-card-body {
+            padding: 10px;
+            background: white;
+        }
+        
+        /* Sezione Destinatario/Destinazione nella Card */
+        .destination-info-section {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .destination-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .destination-info-box {
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .destination-info-title {
+            font-size: 8px;
+            font-weight: bold;
+            color: #38AC4F;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            letter-spacing: 0.2px;
+        }
+        
+        .destination-info-name {
+            font-size: 10px;
+            font-weight: bold;
             color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .destination-info-address {
+            font-size: 8px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 3px;
+        }
+        
+        .destination-info-piva {
+            font-size: 8px;
+            color: #666;
+        }
+        
+        .destination-info-cliente {
+            font-size: 8px;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        /* Sezione Prodotti dentro la Card */
+        .products-in-card-section {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .products-in-card-title {
+            background: #f9f9f9;
+            color: #38AC4F;
+            padding: 6px 10px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-radius: 4px 4px 0 0;
+            margin-bottom: 0;
+        }
+        
+        .unified-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .unified-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .unified-section {
+            background: #f9f9f9;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        
+        .unified-section-title {
+            font-size: 9px;
+            font-weight: bold;
+            color: #38AC4F;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.2px;
+        }
+        
+        .unified-field {
+            margin-bottom: 6px;
+        }
+        
+        .unified-field:last-child {
+            margin-bottom: 0;
+        }
+        
+        .unified-label {
+            font-size: 7px;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        
+        .unified-value {
+            font-size: 9px;
+            color: #333;
+            min-height: 16px;
+            padding: 3px;
+            background: white;
+            border-radius: 2px;
+        }
+        
+        .unified-value-amount {
+            font-size: 13px;
+            font-weight: bold;
+            color: #38AC4F;
+            padding: 4px 6px;
+            background: white;
+            border-radius: 3px;
+            border: 1px solid #38AC4F;
+        }
+        
+        .unified-checkboxes {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .unified-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 8px;
+            color: #333;
+            cursor: pointer;
+        }
+        
+        .unified-checkbox {
+            width: 11px;
+            height: 11px;
+            border: 1px solid #38AC4F;
+            border-radius: 2px;
+            display: inline-block;
+            font-size: 8px;
+            line-height: 9px;
+            text-align: center;
+        }
+        
+        .unified-mini-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        
+        /* Firme Inline */
+        .signatures-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .signature-inline-box {
+            text-align: center;
+        }
+        
+        .signature-inline-label {
+            font-size: 8px;
+            font-weight: bold;
+            color: #38AC4F;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .signature-inline-line {
+            border-bottom: 1px solid #666;
+            margin: 0 8px 4px 8px;
             min-height: 20px;
+        }
+        
+        .signature-inline-info {
+            font-size: 7px;
+            color: #666;
         }
         
         /* Destinazione */
@@ -435,147 +604,6 @@
             border-radius: 6px;
             padding: 12px;
             margin-bottom: 10px;
-        }
-        
-        /* Causale Trasporto */
-        .causale-section {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .causale-label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #666;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        
-        .causale-options {
-            display: flex;
-            gap: 30px;
-        }
-        
-        .causale-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .causale-checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #38AC4F;
-            border-radius: 3px;
-            display: inline-block;
-        }
-        
-        .causale-text {
-            font-size: 12px;
-            color: #333;
-        }
-        
-        /* Pagamento alla Consegna */
-        .payment-delivery-section {
-            background: #f9f9f9;
-            border: 2px solid #38AC4F;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        
-        .payment-delivery-label {
-            font-size: 12px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        
-        .payment-delivery-options {
-            display: flex;
-            gap: 30px;
-            margin-bottom: 15px;
-        }
-        
-        .payment-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .payment-checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #38AC4F;
-            border-radius: 3px;
-            display: inline-block;
-        }
-        
-        .payment-text {
-            font-size: 12px;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .payment-delivery-note {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 12px;
-        }
-        
-        .payment-amount-field {
-            background: white;
-            border: 2px solid #38AC4F;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .payment-amount-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-top: 8px;
-        }
-        
-        /* Firme */
-        .signatures-section {
-            margin-top: 25px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        .signature-box {
-            background: white;
-            border: 2px solid #38AC4F;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .signature-label {
-            font-size: 12px;
-            font-weight: bold;
-            color: #38AC4F;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-        }
-        
-        .signature-area {
-            border-bottom: 2px solid #333;
-            min-height: 60px;
-            margin-bottom: 10px;
-        }
-        
-        .signature-info {
-            font-size: 10px;
-            color: #666;
         }
         
         /* Footer */
@@ -648,161 +676,155 @@
                             <div class="header-left-integrated">
                                 <img src="{{logo}}" alt="Zapper Logo" class="header-logo-integrated">
                                 <div class="header-website-integrated">WWW.ABBATTITORIZAPPER.IT</div>
+                            </div>
+                            <div class="header-center-integrated">
                                 <div class="header-contacts-integrated">
-                                    info@abbattitorizapper.it<br>
-                                    081 19968436 | +39 324 8996189
+                                    info@abbattitorizapper.it | 081 19968436 | +39 324 8996189
                                 </div>
                                 <div class="header-company-integrated">
-                                    Marchio di proprietà della ditta <strong>CLIMATEL DI ELEFANTE Pasquale</strong><br>
-                                    Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia<br>
+                                    <strong>CLIMATEL DI ELEFANTE Pasquale</strong> | Via G. Ferraris n° 24 - 84018 SCAFATI (SA)<br>
                                     C.F. LFNPQL67L02I483U | P.Iva 03895390650 | Reg. imprese 330786
                                 </div>
                             </div>
                             <div class="header-right-integrated">
                                 <div class="header-date-integrated">Data: {{data_ddt}}</div>
                                 <div class="header-user-integrated">Creato da: {{utente}}</div>
-                                <div class="header-client-integrated">
-                                    <div class="header-client-label-integrated">Spett.le Cliente:</div>
-                                    <div class="header-client-name-integrated">{{cliente_nome}}</div>
-                                    <div class="header-client-address-integrated">{{cliente_indirizzo}}</div>
-                                    <div class="header-client-piva-integrated">P.IVA: {{cliente_piva}}</div>
-                                </div>
                             </div>
                         </div>
                         
-                        <!-- Destinatario e Destinazione -->
+                        <!-- Card Unica: Prodotti, Trasporto e Pagamento -->
                         <div class="header-oggetto">
-                            <div class="destination-title">Destinatario e Destinazione</div>
-                            <div class="destination-note">(Compilare solo se diversi dall'intestazione aziendale)</div>
-                            
-                            <div class="destination-field">
-                                <div class="transport-label">Destinatario</div>
-                                <div class="transport-value">{{destinatario}}</div>
-                            </div>
-                            
-                            <div class="destination-field">
-                                <div class="transport-label">Indirizzo di Destinazione</div>
-                                <div class="transport-value">{{indirizzo_destinazione}}</div>
-                            </div>
-                            
-                            <!-- Dettaglio Prodotti/Servizi -->
-                            <div class="header-products-section">
-                                <div class="header-products-title">Dettaglio Prodotti/Servizi</div>
-                                <div class="header-products-content">
-                                    <table class="products-table">
-                                        <thead>
-                                            <tr>
-                                                <th style="width: 80%">Descrizione</th>
-                                                <th style="width: 20%; text-align: center;">Q.tà</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {{righe_prodotti}}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            <!-- Pagamento alla Consegna -->
-                            <div class="payment-delivery-section">
-                                <div class="payment-delivery-label">Pagamento alla Consegna</div>
-                                <div class="payment-delivery-options">
-                                    <div class="payment-option">
-                                        <span class="payment-checkbox">{{pagamento_si}}</span>
-                                        <span class="payment-text">Sì</span>
-                                    </div>
-                                    <div class="payment-option">
-                                        <span class="payment-checkbox">{{pagamento_no}}</span>
-                                        <span class="payment-text">No</span>
-                                    </div>
-                                </div>
-                                <div class="payment-amount-field">
-                                    <div class="transport-label">Importo da Pagare alla Consegna</div>
-                                    <div class="payment-amount-value">€ {{importo_pagamento_consegna}}</div>
-                                </div>
-                                <div class="payment-delivery-note">
-                                    <div class="transport-label">Note sul pagamento</div>
-                                    <div class="transport-value" style="min-height: 30px;">{{note_pagamento}}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Sezione Trasporto -->
-                    <div class="offer-section">
-                        <div class="transport-section">
-                            <div class="transport-title">Informazioni Trasporto</div>
-                            
-                            <!-- Causale Trasporto -->
-                            <div class="causale-section">
-                                <div class="causale-label">Causale del Trasporto</div>
-                                <div class="causale-options">
-                                    <div class="causale-option">
-                                        <span class="causale-checkbox">{{causale_vendita}}</span>
-                                        <span class="causale-text">Vendita</span>
-                                    </div>
-                                    <div class="causale-option">
-                                        <span class="causale-checkbox">{{causale_garanzia}}</span>
-                                        <span class="causale-text">Sostituzione in garanzia</span>
-                                    </div>
-                                    <div class="causale-option">
-                                        <span class="causale-checkbox">{{causale_altra}}</span>
-                                        <span class="causale-text">Altra: {{causale_altra_text}}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Campi Trasporto -->
-                            <div class="transport-grid">
-                                <div class="transport-field">
-                                    <div class="transport-label">Incaricato del Trasporto</div>
-                                    <div class="transport-value">{{incaricato_trasporto}}</div>
+                            <div class="transport-payment-unified-card">
+                                <div class="unified-card-header">
+                                    Documento di Trasporto - DDT
                                 </div>
                                 
-                                <div class="transport-field">
-                                    <div class="transport-label">Numero Colli</div>
-                                    <div class="transport-value">{{numero_colli}}</div>
+                                <div class="unified-card-body">
+                                    <!-- Destinatario e Destinazione -->
+                                    <div class="destination-info-section">
+                                        <div class="destination-info-grid">
+                                            <div class="destination-info-box">
+                                                <div class="destination-info-title">Destinatario (Fatturazione)</div>
+                                                <div class="destination-info-name">{{destinatario_nome}}</div>
+                                                <div class="destination-info-address">{{destinatario_indirizzo}}</div>
+                                                <div class="destination-info-piva">P.IVA: {{destinatario_piva}}</div>
+                                            </div>
+                                            <div class="destination-info-box">
+                                                <div class="destination-info-title">Destinazione (Spedizione)</div>
+                                                <div class="destination-info-name">{{destinazione_nome}}</div>
+                                                <div class="destination-info-address">{{destinazione_indirizzo}}</div>
+                                                <div class="destination-info-cliente">Tel. Cliente: {{telefono_cliente}}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Dettaglio Prodotti/Servizi -->
+                                    <div class="products-in-card-section">
+                                        <div class="products-in-card-title">
+                                            Dettaglio Prodotti/Servizi
+                                        </div>
+                                        <table class="products-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 80%; text-align: left;">Descrizione</th>
+                                                    <th style="width: 20%; text-align: center;">Q.tà</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {{righe_prodotti}}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Griglia 2 Colonne -->
+                                    <div class="unified-grid">
+                                        <!-- Colonna Sinistra -->
+                                        <div class="unified-column">
+                                            <!-- Pagamento alla Consegna -->
+                                            <div class="unified-section">
+                                                <div class="unified-section-title">Pagamento alla Consegna</div>
+                                                <div class="unified-checkboxes">
+                                                    <label class="unified-checkbox-label">
+                                                        <span class="unified-checkbox">☐</span> Sì
+                                                    </label>
+                                                    <label class="unified-checkbox-label">
+                                                        <span class="unified-checkbox">☐</span> No
+                                                    </label>
+                                                </div>
+                                                <div class="unified-field">
+                                                    <div class="unified-label">Importo</div>
+                                                    <div class="unified-value-amount">€ {{importo_pagamento_consegna}}</div>
+                                                </div>
+                                                <div class="unified-field">
+                                                    <div class="unified-label">Note Pagamento</div>
+                                                    <div class="unified-value">{{note_pagamento}}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Causale Trasporto -->
+                                            <div class="unified-section">
+                                                <div class="unified-section-title">Causale del Trasporto</div>
+                                                <div class="unified-checkboxes">
+                                                    <label class="unified-checkbox-label">
+                                                        <span class="unified-checkbox">☐</span> Vendita
+                                                    </label>
+                                                    <label class="unified-checkbox-label">
+                                                        <span class="unified-checkbox">☐</span> Garanzia
+                                                    </label>
+                                                    <label class="unified-checkbox-label">
+                                                        <span class="unified-checkbox">☐</span> Altra: _______
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Colonna Destra -->
+                                        <div class="unified-column">
+                                            <!-- Dati Trasporto -->
+                                            <div class="unified-section">
+                                                <div class="unified-section-title">Dati Trasporto</div>
+                                                <div class="unified-field">
+                                                    <div class="unified-label">Incaricato del Trasporto</div>
+                                                    <div class="unified-value">{{incaricato_trasporto}}</div>
+                                                </div>
+                                                <div class="unified-mini-grid">
+                                                    <div class="unified-field">
+                                                        <div class="unified-label">N. Colli</div>
+                                                        <div class="unified-value">{{numero_colli}}</div>
+                                                    </div>
+                                                    <div class="unified-field">
+                                                        <div class="unified-label">Peso (kg)</div>
+                                                        <div class="unified-value">{{peso_totale}}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="unified-field">
+                                                    <div class="unified-label">Aspetto Beni</div>
+                                                    <div class="unified-value">{{aspetto_beni}}</div>
+                                                </div>
+                                                <div class="unified-field">
+                                                    <div class="unified-label">Note Trasporto</div>
+                                                    <div class="unified-value">{{note_trasporto}}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Firme Inline -->
+                                    <div class="signatures-inline">
+                                        <div class="signature-inline-box">
+                                            <div class="signature-inline-label">Firma Trasportatore</div>
+                                            <div class="signature-inline-line"></div>
+                                            <div class="signature-inline-info">Data: {{data_creazione_documento}} | Luogo: Scafati (SA)</div>
+                                        </div>
+                                        <div class="signature-inline-box">
+                                            <div class="signature-inline-label">Firma Destinatario</div>
+                                            <div class="signature-inline-line"></div>
+                                            <div class="signature-inline-info">Data: {{data_creazione_documento}} | Luogo: Scafati (SA)</div>
+                                        </div>
+                                    </div>
                                 </div>
-                                
-                                <div class="transport-field">
-                                    <div class="transport-label">Peso Totale (kg)</div>
-                                    <div class="transport-value">{{peso_totale}}</div>
-                                </div>
-                                
-                                <div class="transport-field">
-                                    <div class="transport-label">Aspetto Esteriore Beni</div>
-                                    <div class="transport-value">{{aspetto_beni}}</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Note Aggiuntive -->
-                            <div class="transport-field transport-field-full">
-                                <div class="transport-label">Note sul Trasporto</div>
-                                <div class="transport-value" style="min-height: 40px;">{{note_trasporto}}</div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Firme -->
-                    <div class="signatures-section">
-                        <div class="signature-box">
-                            <div class="signature-label">Firma del Trasportatore</div>
-                            <div class="signature-area"></div>
-                            <div class="signature-info">
-                                Data: {{data_creazione_documento}}<br>
-                                Luogo: Scafati (SA)
-                            </div>
-                        </div>
-                        
-                        <div class="signature-box">
-                            <div class="signature-label">Firma del Destinatario</div>
-                            <div class="signature-area"></div>
-                            <div class="signature-info">
-                                Data: {{data_creazione_documento}}<br>
-                                Luogo: Scafati (SA)
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
