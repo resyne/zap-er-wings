@@ -54,10 +54,10 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
   // Update form data when order changes or dialog opens
   useEffect(() => {
     if (open && order) {
-      // Se esiste un DDT con contenuto HTML, marca come generato ma NON mostrare i dettagli automaticamente
+      // Se esiste un DDT con contenuto HTML, mostra direttamente i dettagli
       if (existingDdt && existingDdt.html_content) {
         setDdtGenerated(true);
-        setShowDetails(false); // Non mostrare automaticamente i dettagli
+        setShowDetails(true); // Mostra automaticamente i dettagli quando si riapre il dialog
         setDdtUrl(`${window.location.origin}/ddt/${existingDdt.unique_code}`);
         setDdtNumber(existingDdt.ddt_number);
         setDdtHtmlContent(existingDdt.html_content);
