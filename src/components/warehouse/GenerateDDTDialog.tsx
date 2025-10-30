@@ -22,8 +22,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   
   // Form state
   const [formData, setFormData] = useState({
-    destinatario: order.customer?.company_name || "",
-    indirizzo_destinazione: order.delivery_address || order.customer?.address || "",
+    destinatario: order?.customers?.company_name || order?.customers?.name || "",
+    indirizzo_destinazione: order?.delivery_address || order?.customers?.address || "",
     causale: "vendita" as "vendita" | "garanzia" | "altra",
     causale_altra_text: "",
     incaricato_trasporto: "",
@@ -63,6 +63,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   };
 
   const compileDDTTemplate = async (ddtNumber: string) => {
+    if (!order) return '';
+    
     const currentUser = await supabase.auth.getUser();
     const userName = currentUser.data.user?.user_metadata?.full_name || 
                      currentUser.data.user?.email || "Utente";
@@ -99,9 +101,9 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       '{{logo}}': logoBase64,
       '{{data_ddt}}': format(new Date(), 'dd/MM/yyyy'),
       '{{utente}}': userName,
-      '{{cliente_nome}}': order.customer?.company_name || '',
-      '{{cliente_indirizzo}}': order.customer?.address || '',
-      '{{cliente_piva}}': order.customer?.vat_number || '',
+      '{{cliente_nome}}': order.customers?.company_name || order.customers?.name || '',
+      '{{cliente_indirizzo}}': order.customers?.address || '',
+      '{{cliente_piva}}': order.customers?.tax_id || '',
       '{{destinatario}}': formData.destinatario,
       '{{indirizzo_destinazione}}': formData.indirizzo_destinazione,
       '{{righe_prodotti}}': productRows,
@@ -195,6 +197,10 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       setLoading(false);
     }
   };
+
+  if (!order) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
