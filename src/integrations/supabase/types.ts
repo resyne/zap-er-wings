@@ -1121,9 +1121,11 @@ export type Database = {
           customer_id: string | null
           ddt_data: Json | null
           ddt_number: string
+          html_content: string | null
           id: string
           pdf_data: string
           shipping_order_id: string | null
+          unique_code: string | null
         }
         Insert: {
           created_at?: string
@@ -1131,9 +1133,11 @@ export type Database = {
           customer_id?: string | null
           ddt_data?: Json | null
           ddt_number: string
+          html_content?: string | null
           id?: string
           pdf_data: string
           shipping_order_id?: string | null
+          unique_code?: string | null
         }
         Update: {
           created_at?: string
@@ -1141,9 +1145,11 @@ export type Database = {
           customer_id?: string | null
           ddt_data?: Json | null
           ddt_number?: string
+          html_content?: string | null
           id?: string
           pdf_data?: string
           shipping_order_id?: string | null
+          unique_code?: string | null
         }
         Relationships: [
           {
@@ -6485,6 +6491,7 @@ export type Database = {
       }
       generate_cost_draft_number: { Args: never; Returns: string }
       generate_customer_code: { Args: never; Returns: string }
+      generate_ddt_code: { Args: never; Returns: string }
       generate_material_code: { Args: never; Returns: string }
       generate_offer_code: { Args: never; Returns: string }
       generate_product_code: { Args: never; Returns: string }
