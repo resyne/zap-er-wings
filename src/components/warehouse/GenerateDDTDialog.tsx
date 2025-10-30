@@ -15,9 +15,11 @@ interface GenerateDDTDialogProps {
   onOpenChange: (open: boolean) => void;
   order: any;
   existingDdt?: {
+    id?: string;
     unique_code: string;
     ddt_number: string;
     html_content: string;
+    ddt_data?: any;
   };
 }
 
@@ -30,6 +32,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
   const [ddtNumber, setDdtNumber] = useState<string>("");
   const [ddtHtmlContent, setDdtHtmlContent] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
+  const [ddtId, setDdtId] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -58,6 +61,17 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
         setDdtUrl(`${window.location.origin}/ddt/${existingDdt.unique_code}`);
         setDdtNumber(existingDdt.ddt_number);
         setDdtHtmlContent(existingDdt.html_content);
+        setDdtId(existingDdt.id || null);
+        
+        // Carica i dati DDT se esistono
+        if (existingDdt.ddt_data) {
+          setFormData({
+            ...existingDdt.ddt_data,
+            destinatario: existingDdt.ddt_data.destinatario || order.customers?.company_name || order.customers?.name || "",
+            telefono: existingDdt.ddt_data.telefono || order.customers?.phone || "",
+            indirizzo_destinazione: existingDdt.ddt_data.indirizzo_destinazione || order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
+          });
+        }
       } else {
         setDdtGenerated(false);
         setShowDetails(false);
@@ -65,23 +79,27 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
         setDdtUrl("");
         setDdtNumber("");
         setDdtHtmlContent("");
+        setDdtId(null);
       }
       
-      setFormData({
-        destinatario: order.customers?.company_name || order.customers?.name || "",
-        telefono: order.customers?.phone || "",
-        indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
-        causale: "vendita" as "vendita" | "garanzia" | "altra",
-        causale_altra_text: "",
-        incaricato_trasporto: "",
-        numero_colli: "",
-        peso_totale: "",
-        aspetto_beni: "Buono",
-        note_trasporto: order.notes || "",
-        pagamento_consegna: order.payment_on_delivery ? "si" : "no",
-        importo_pagamento_consegna: order.payment_amount?.toString() || "0.00",
-        note_pagamento: "",
-      });
+      // Imposta i valori di default se non ci sono dati DDT
+      if (!existingDdt || !existingDdt.ddt_data) {
+        setFormData({
+          destinatario: order.customers?.company_name || order.customers?.name || "",
+          telefono: order.customers?.phone || "",
+          indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
+          causale: "vendita" as "vendita" | "garanzia" | "altra",
+          causale_altra_text: "",
+          incaricato_trasporto: "",
+          numero_colli: "",
+          peso_totale: "",
+          aspetto_beni: "Buono",
+          note_trasporto: order.notes || "",
+          pagamento_consegna: order.payment_on_delivery ? "si" : "no",
+          importo_pagamento_consegna: order.payment_amount?.toString() || "0.00",
+          note_pagamento: "",
+        });
+      }
     }
   }, [open, order, existingDdt]);
 
@@ -183,43 +201,69 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
     try {
       setLoading(true);
 
-      // Generate DDT number
-      const generatedNumber = await generateDDTNumber();
+      // Se stiamo rigenerando un DDT esistente, usa il numero e l'id esistente
+      const generatedNumber = existingDdt ? existingDdt.ddt_number : await generateDDTNumber();
 
       // Compile template
       const compiledHTML = await compileDDTTemplate(generatedNumber);
 
-      // Save DDT to database with HTML content
-      const { data: ddtData, error: insertError } = await (supabase as any)
-        .from('ddts')
-        .insert({
-          ddt_number: generatedNumber,
-          shipping_order_id: order.id,
-          customer_id: order.customer_id,
-          html_content: compiledHTML,
-          ddt_data: {
-            ...formData,
-            products: order.shipping_order_items
-          }
-        })
-        .select('unique_code')
-        .single();
+      if (existingDdt && ddtId) {
+        // Aggiorna il DDT esistente
+        const { error: updateError } = await (supabase as any)
+          .from('ddts')
+          .update({
+            html_content: compiledHTML,
+            ddt_data: {
+              ...formData,
+              products: order.shipping_order_items
+            }
+          })
+          .eq('id', ddtId);
 
-      if (insertError) throw insertError;
+        if (updateError) throw updateError;
 
-      // Get the generated unique code
-      const ddtCode = ddtData.unique_code;
-      const generatedUrl = `${window.location.origin}/ddt/${ddtCode}`;
+        setDdtUrl(`${window.location.origin}/ddt/${existingDdt.unique_code}`);
+        setDdtNumber(generatedNumber);
+        setDdtHtmlContent(compiledHTML);
+        setDdtGenerated(true);
 
-      setDdtUrl(generatedUrl);
-      setDdtNumber(generatedNumber);
-      setDdtHtmlContent(compiledHTML);
-      setDdtGenerated(true);
+        toast({
+          title: "DDT aggiornato con successo",
+          description: `DDT numero ${generatedNumber}`,
+        });
+      } else {
+        // Crea un nuovo DDT
+        const { data: ddtData, error: insertError } = await (supabase as any)
+          .from('ddts')
+          .insert({
+            ddt_number: generatedNumber,
+            shipping_order_id: order.id,
+            customer_id: order.customer_id,
+            html_content: compiledHTML,
+            ddt_data: {
+              ...formData,
+              products: order.shipping_order_items
+            }
+          })
+          .select('unique_code, id')
+          .single();
 
-      toast({
-        title: "DDT generato con successo",
-        description: `DDT numero ${generatedNumber}`,
-      });
+        if (insertError) throw insertError;
+
+        const ddtCode = ddtData.unique_code;
+        const generatedUrl = `${window.location.origin}/ddt/${ddtCode}`;
+
+        setDdtUrl(generatedUrl);
+        setDdtNumber(generatedNumber);
+        setDdtHtmlContent(compiledHTML);
+        setDdtId(ddtData.id);
+        setDdtGenerated(true);
+
+        toast({
+          title: "DDT generato con successo",
+          description: `DDT numero ${generatedNumber}`,
+        });
+      }
     } catch (error) {
       console.error('Error generating DDT:', error);
       toast({
@@ -557,14 +601,14 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
             >
               Annulla
             </Button>
-            {ddtGenerated ? (
+              {ddtGenerated ? (
               <>
                 <Button
                   onClick={handleEdit}
                   variant="outline"
                   disabled={loading}
                 >
-                  Modifica
+                  Modifica e Rigenera
                 </Button>
                 <Button
                   onClick={() => setShowDetails(true)}
@@ -586,7 +630,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
                     Generazione in corso...
                   </>
                 ) : (
-                  'Genera DDT'
+                  existingDdt ? 'Rigenera DDT' : 'Genera DDT'
                 )}
               </Button>
             )}

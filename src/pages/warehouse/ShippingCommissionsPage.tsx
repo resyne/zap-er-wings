@@ -283,7 +283,7 @@ export default function ShippingOrdersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ddts")
-        .select("shipping_order_id, unique_code, ddt_number, html_content");
+        .select("id, shipping_order_id, unique_code, ddt_number, html_content, ddt_data");
 
       if (error) throw error;
       return data;
