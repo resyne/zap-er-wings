@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, FileText, MapPin, Archive, Trash2, UserPlus } from "lucide-react";
 import { ShippingOrderDetailsDialog } from "@/components/warehouse/ShippingOrderDetailsDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
+import { GenerateDDTDialog } from "@/components/warehouse/GenerateDDTDialog";
 
 interface ShippingOrder {
   id: string;
@@ -148,6 +149,8 @@ export default function ShippingOrdersPage() {
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [orderItems, setOrderItems] = useState<ShippingOrderItem[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [ddtDialogOpen, setDdtDialogOpen] = useState(false);
+  const [ddtOrder, setDdtOrder] = useState<ShippingOrder | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { executeWithUndo } = useUndoableAction();
@@ -508,16 +511,10 @@ export default function ShippingOrdersPage() {
     },
   });
 
-  const generateDDTMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      // This would typically call an edge function to generate the PDF
-      // For now, we'll just show a success message
-      toast({ 
-        title: "DDT generato", 
-        description: "Il documento di trasporto è stato generato con successo" 
-      });
-    },
-  });
+  const handleGenerateDDT = (order: ShippingOrder) => {
+    setDdtOrder(order);
+    setDdtDialogOpen(true);
+  };
 
   const handleCreateOrder = (formData: FormData) => {
     const data = {
@@ -711,9 +708,6 @@ export default function ShippingOrdersPage() {
     );
   };
 
-  const handleGenerateDDT = (order: ShippingOrder) => {
-    generateDDTMutation.mutate(order.id);
-  };
 
   const getCustomerDisplayName = (order: ShippingOrder) => {
     if (order.customers) {
@@ -1202,6 +1196,12 @@ export default function ShippingOrdersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <GenerateDDTDialog
+        open={ddtDialogOpen}
+        onOpenChange={setDdtDialogOpen}
+        order={ddtOrder}
+      />
     </div>
   );
 }

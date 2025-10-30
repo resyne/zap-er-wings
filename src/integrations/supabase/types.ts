@@ -1114,6 +1114,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ddts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          ddt_data: Json | null
+          ddt_number: string
+          id: string
+          pdf_data: string
+          shipping_order_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          ddt_data?: Json | null
+          ddt_number: string
+          id?: string
+          pdf_data: string
+          shipping_order_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          ddt_data?: Json | null
+          ddt_number?: string
+          id?: string
+          pdf_data?: string
+          shipping_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddts_shipping_order_id_fkey"
+            columns: ["shipping_order_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_automation_logs: {
         Row: {
           automation_id: string
