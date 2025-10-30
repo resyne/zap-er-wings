@@ -54,8 +54,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
   // Update form data when order changes or dialog opens
   useEffect(() => {
     if (open && order) {
-      // Se esiste un DDT, mostra direttamente i dettagli
-      if (existingDdt) {
+      // Se esiste un DDT con contenuto HTML, mostra direttamente i dettagli
+      if (existingDdt && existingDdt.html_content) {
         setDdtGenerated(true);
         setShowDetails(true);
         setDdtUrl(`${window.location.origin}/ddt/${existingDdt.unique_code}`);
@@ -71,34 +71,60 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
             telefono: existingDdt.ddt_data.telefono || order.customers?.phone || "",
             indirizzo_destinazione: existingDdt.ddt_data.indirizzo_destinazione || order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
           });
+        } else {
+          // Valori di default se non ci sono dati DDT salvati
+          setFormData({
+            destinatario: order.customers?.company_name || order.customers?.name || "",
+            telefono: order.customers?.phone || "",
+            indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
+            causale: "vendita" as "vendita" | "garanzia" | "altra",
+            causale_altra_text: "",
+            incaricato_trasporto: "",
+            numero_colli: "",
+            peso_totale: "",
+            aspetto_beni: "Buono",
+            note_trasporto: order.notes || "",
+            pagamento_consegna: order.payment_on_delivery ? "si" : "no",
+            importo_pagamento_consegna: order.payment_amount?.toString() || "0.00",
+            note_pagamento: "",
+          });
         }
       } else {
+        // Nessun DDT esistente o DDT senza contenuto - mostra il form per generare/rigenerare
         setDdtGenerated(false);
         setShowDetails(false);
         setIsEditing(false);
         setDdtUrl("");
         setDdtNumber("");
         setDdtHtmlContent("");
-        setDdtId(null);
-      }
-      
-      // Imposta i valori di default se non ci sono dati DDT
-      if (!existingDdt || !existingDdt.ddt_data) {
-        setFormData({
-          destinatario: order.customers?.company_name || order.customers?.name || "",
-          telefono: order.customers?.phone || "",
-          indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
-          causale: "vendita" as "vendita" | "garanzia" | "altra",
-          causale_altra_text: "",
-          incaricato_trasporto: "",
-          numero_colli: "",
-          peso_totale: "",
-          aspetto_beni: "Buono",
-          note_trasporto: order.notes || "",
-          pagamento_consegna: order.payment_on_delivery ? "si" : "no",
-          importo_pagamento_consegna: order.payment_amount?.toString() || "0.00",
-          note_pagamento: "",
-        });
+        setDdtId(existingDdt?.id || null);
+        
+        // Carica i dati se esiste un DDT da rigenerare
+        if (existingDdt?.ddt_data) {
+          setFormData({
+            ...existingDdt.ddt_data,
+            destinatario: existingDdt.ddt_data.destinatario || order.customers?.company_name || order.customers?.name || "",
+            telefono: existingDdt.ddt_data.telefono || order.customers?.phone || "",
+            indirizzo_destinazione: existingDdt.ddt_data.indirizzo_destinazione || order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
+          });
+        } else {
+          // Valori di default per nuovo DDT
+          setFormData({
+            destinatario: order.customers?.company_name || order.customers?.name || "",
+            telefono: order.customers?.phone || "",
+            indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
+            causale: "vendita" as "vendita" | "garanzia" | "altra",
+            causale_altra_text: "",
+            incaricato_trasporto: "",
+            numero_colli: "",
+            peso_totale: "",
+            aspetto_beni: "Buono",
+            note_trasporto: order.notes || "",
+            pagamento_consegna: order.payment_on_delivery ? "si" : "no",
+            importo_pagamento_consegna: order.payment_amount?.toString() || "0.00",
+            note_pagamento: "",
+          });
+        }
       }
     }
   }, [open, order, existingDdt]);
@@ -226,6 +252,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
         setDdtNumber(generatedNumber);
         setDdtHtmlContent(compiledHTML);
         setDdtGenerated(true);
+        setShowDetails(true); // Mostra i dettagli dopo la rigenerazione
 
         toast({
           title: "DDT aggiornato con successo",
@@ -258,6 +285,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
         setDdtHtmlContent(compiledHTML);
         setDdtId(ddtData.id);
         setDdtGenerated(true);
+        setShowDetails(true); // Mostra direttamente i dettagli dopo la generazione
 
         toast({
           title: "DDT generato con successo",
@@ -303,7 +331,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
   const handleEdit = () => {
     setIsEditing(true);
     setShowDetails(false);
-    setDdtGenerated(false);
+    setDdtGenerated(false); // Torna al form per modificare e rigenerare
   };
 
   if (!order) {
@@ -601,7 +629,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
             >
               Annulla
             </Button>
-              {ddtGenerated ? (
+            {ddtGenerated && showDetails ? (
               <>
                 <Button
                   onClick={handleEdit}
@@ -611,28 +639,36 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
                   Modifica e Rigenera
                 </Button>
                 <Button
-                  onClick={() => setShowDetails(true)}
+                  onClick={() => onOpenChange(false)}
                   disabled={loading}
-                  className="bg-green-600 hover:bg-green-700"
                 >
-                  Vedi DDT
+                  Chiudi
                 </Button>
               </>
             ) : (
-              <Button
-                onClick={handleGenerate}
-                disabled={loading}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generazione in corso...
-                  </>
-                ) : (
-                  existingDdt ? 'Rigenera DDT' : 'Genera DDT'
-                )}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={loading}
+                >
+                  Annulla
+                </Button>
+                <Button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generazione in corso...
+                    </>
+                  ) : (
+                    existingDdt ? 'Rigenera DDT' : 'Genera DDT'
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </div>
