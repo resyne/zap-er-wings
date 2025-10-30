@@ -65,7 +65,7 @@ import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import ServiceOrdersPage from "./pages/support/ServiceOrdersPage";
 import TicketsPage from "./pages/support/TicketsPage";
-import WorkCostCalculatorPage from "./pages/support/WorkCostCalculatorPage";
+import CostEstimatorPage from "./pages/crm/CostEstimatorPage";
 import MaterialsPage from "./pages/warehouse/MaterialsPage";
 import ShippingCommissionsPage from "./pages/warehouse/ShippingCommissionsPage";
 import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
@@ -161,8 +161,8 @@ const App = () => (
                 <Route path="support" element={<SupportPage />} />
                 <Route path="support/service-reports" element={<ServiceReportsPage />} />
                 <Route path="support/work-orders" element={<ServiceOrdersPage />} />
-                <Route path="support/work-cost-calculator" element={<WorkCostCalculatorPage />} />
                 <Route path="support/tickets" element={<TicketsPage />} />
+                <Route path="crm/cost-estimator" element={<CostEstimatorPage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />
                 <Route path="marketing/content-creation" element={<ContentCreationPage />} />
                 <Route path="marketing/brandkit" element={<BrandkitPage />} />

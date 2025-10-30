@@ -92,6 +92,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Lead", url: "/crm/leads", icon: Users },
       { title: "Lead KPI", url: "/crm/leads/kpi", icon: TrendingUp },
       { title: "Clienti", url: "/crm/customers", icon: Building2 },
+      { title: "Preventivatore Costi", url: "/crm/cost-estimator", icon: DollarSign },
       { title: "Offerte", url: "/crm/offers", icon: FileText },
     ]
   },

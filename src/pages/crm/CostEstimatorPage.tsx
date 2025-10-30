@@ -80,7 +80,7 @@ interface DraftItem {
   updated_at?: string;
 }
 
-export default function WorkCostCalculatorPage() {
+export default function CostEstimatorPage() {
   const [costDrafts, setCostDrafts] = useState<CostDraft[]>([]);
   const [currentDraft, setCurrentDraft] = useState<CostDraft | null>(null);
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
@@ -650,9 +650,9 @@ export default function WorkCostCalculatorPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Calcolatore Costi Commessa</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Preventivatore Costi</h1>
         <p className="text-muted-foreground">
-          Crea e gestisci bozze costi per i clienti includendo materiali e tecnici
+          Crea e gestisci preventivi di costo per i clienti includendo materiali e tecnici
         </p>
       </div>
 
