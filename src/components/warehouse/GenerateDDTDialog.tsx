@@ -23,6 +23,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   // Form state
   const [formData, setFormData] = useState({
     destinatario: "",
+    telefono: "",
     indirizzo_destinazione: "",
     causale: "vendita" as "vendita" | "garanzia" | "altra",
     causale_altra_text: "",
@@ -41,6 +42,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
     if (open && order) {
       setFormData({
         destinatario: order.customers?.company_name || order.customers?.name || "",
+        telefono: order.customers?.phone || "",
         indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
         causale: "vendita" as "vendita" | "garanzia" | "altra",
         causale_altra_text: "",
@@ -230,6 +232,30 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Articoli */}
+          <div className="space-y-4 border-b pb-4">
+            <h3 className="font-semibold">Articoli da Spedire</h3>
+            <div className="bg-muted/50 rounded-lg p-4">
+              {order.shipping_order_items && order.shipping_order_items.length > 0 ? (
+                <div className="space-y-2">
+                  {order.shipping_order_items.map((item: any, index: number) => {
+                    const description = item.sales_order_item?.product?.name || 
+                                      item.work_order?.bom?.name || 
+                                      'Prodotto';
+                    return (
+                      <div key={index} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm">{description}</span>
+                        <span className="text-sm font-medium">Qtà: {item.quantity}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nessun articolo trovato</p>
+              )}
+            </div>
+          </div>
+
           {/* Destinatario */}
           <div className="space-y-4 border-b pb-4">
             <h3 className="font-semibold">Destinatario e Destinazione</h3>
@@ -240,6 +266,15 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
                 value={formData.destinatario}
                 onChange={(e) => handleInputChange('destinatario', e.target.value)}
                 placeholder="Nome destinatario"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="telefono">Telefono</Label>
+              <Input
+                id="telefono"
+                value={formData.telefono}
+                onChange={(e) => handleInputChange('telefono', e.target.value)}
+                placeholder="Numero di telefono"
               />
             </div>
             <div className="space-y-2">
