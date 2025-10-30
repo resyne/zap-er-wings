@@ -305,7 +305,18 @@ export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: Ge
               <Label className="text-sm font-medium">Anteprima DDT</Label>
               <div className="border rounded-lg overflow-hidden bg-white">
                 <div className="h-[400px] overflow-y-auto p-4">
-                  <div dangerouslySetInnerHTML={{ __html: ddtHtmlContent }} />
+                  {ddtHtmlContent ? (
+                    <iframe
+                      srcDoc={ddtHtmlContent}
+                      className="w-full h-full border-0"
+                      title="Anteprima DDT"
+                      sandbox="allow-same-origin"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Caricamento anteprima...
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
