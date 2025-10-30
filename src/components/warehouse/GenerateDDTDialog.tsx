@@ -162,15 +162,47 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       // Compile template
       const compiledHTML = await compileDDTTemplate(ddtNumber);
 
-      // Call edge function to generate PDF
-      const { data: pdfData, error: pdfError } = await supabase.functions.invoke(
-        'generate-pdf-from-html',
-        {
-          body: { html: compiledHTML }
-        }
-      );
+      // Create an iframe to render the HTML and convert to PDF
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '210mm';
+      iframe.style.height = '297mm';
+      iframe.style.left = '-9999px';
+      document.body.appendChild(iframe);
 
-      if (pdfError) throw pdfError;
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error('Could not access iframe document');
+
+      iframeDoc.open();
+      iframeDoc.write(compiledHTML);
+      iframeDoc.close();
+
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Generate PDF using html2canvas and jsPDF
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+
+      const canvas = await html2canvas(iframeDoc.body, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      // Remove iframe
+      document.body.removeChild(iframe);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      // Get PDF as base64
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
       // Save DDT to database
       const { error: insertError } = await (supabase as any)
@@ -179,7 +211,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
           ddt_number: ddtNumber,
           shipping_order_id: order.id,
           customer_id: order.customer_id,
-          pdf_data: pdfData.pdf,
+          pdf_data: pdfBase64,
           ddt_data: {
             ...formData,
             products: order.shipping_order_items
@@ -189,18 +221,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       if (insertError) throw insertError;
 
       // Download PDF
-      const blob = new Blob(
-        [Uint8Array.from(atob(pdfData.pdf), c => c.charCodeAt(0))],
-        { type: 'application/pdf' }
-      );
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `DDT_${ddtNumber.replace('/', '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      pdf.save(`DDT_${ddtNumber.replace('/', '_')}.pdf`);
 
       toast({
         title: "DDT generato con successo",
