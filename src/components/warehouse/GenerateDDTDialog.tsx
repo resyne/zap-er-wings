@@ -14,9 +14,14 @@ interface GenerateDDTDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: any;
+  existingDdt?: {
+    unique_code: string;
+    ddt_number: string;
+    html_content: string;
+  };
 }
 
-export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDialogProps) {
+export function GenerateDDTDialog({ open, onOpenChange, order, existingDdt }: GenerateDDTDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [ddtGenerated, setDdtGenerated] = useState(false);
@@ -46,12 +51,22 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   // Update form data when order changes or dialog opens
   useEffect(() => {
     if (open && order) {
-      setDdtGenerated(false);
-      setShowDetails(false);
-      setIsEditing(false);
-      setDdtUrl("");
-      setDdtNumber("");
-      setDdtHtmlContent("");
+      // Se esiste un DDT, mostra direttamente i dettagli
+      if (existingDdt) {
+        setDdtGenerated(true);
+        setShowDetails(true);
+        setDdtUrl(`${window.location.origin}/ddt/${existingDdt.unique_code}`);
+        setDdtNumber(existingDdt.ddt_number);
+        setDdtHtmlContent(existingDdt.html_content);
+      } else {
+        setDdtGenerated(false);
+        setShowDetails(false);
+        setIsEditing(false);
+        setDdtUrl("");
+        setDdtNumber("");
+        setDdtHtmlContent("");
+      }
+      
       setFormData({
         destinatario: order.customers?.company_name || order.customers?.name || "",
         telefono: order.customers?.phone || "",
@@ -68,7 +83,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
         note_pagamento: "",
       });
     }
-  }, [open, order]);
+  }, [open, order, existingDdt]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

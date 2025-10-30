@@ -277,6 +277,24 @@ export default function ShippingOrdersPage() {
     },
   });
 
+  // Query per ottenere i DDT esistenti
+  const { data: existingDdts } = useQuery({
+    queryKey: ["ddts-by-shipping-order"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ddts")
+        .select("shipping_order_id, unique_code, ddt_number, html_content");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Helper function per verificare se esiste un DDT per un ordine
+  const getDdtForOrder = (shippingOrderId: string) => {
+    return existingDdts?.find(ddt => ddt.shipping_order_id === shippingOrderId);
+  };
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updateData: any = { status };
@@ -511,7 +529,7 @@ export default function ShippingOrdersPage() {
     },
   });
 
-  const handleGenerateDDT = (order: ShippingOrder) => {
+  const handleGenerateDDT = (order: ShippingOrder, existingDdt?: any) => {
     setDdtOrder(order);
     setDdtDialogOpen(true);
   };
@@ -837,34 +855,59 @@ export default function ShippingOrdersPage() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2">
-                        {order.status === 'pronto' && order.shipping_order_items?.every((item: any) => item.is_picked) ? (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGenerateDDT(order);
-                            }}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <FileText className="w-4 h-4 mr-1" />
-                            Genera DDT
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled
-                            title={
-                              order.status !== 'pronto' 
-                                ? `Stato: ${statusOptions.find(s => s.value === order.status)?.label}` 
-                                : 'Articoli non tutti prelevati'
-                            }
-                          >
-                            <FileText className="w-4 h-4 mr-1" />
-                            Genera DDT
-                          </Button>
-                        )}
+                        {(() => {
+                          const existingDdt = getDdtForOrder(order.id);
+                          
+                          if (existingDdt) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGenerateDDT(order, existingDdt);
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Vedi DDT
+                              </Button>
+                            );
+                          }
+                          
+                          if (order.status === 'pronto' && order.shipping_order_items?.every((item: any) => item.is_picked)) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGenerateDDT(order);
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Genera DDT
+                              </Button>
+                            );
+                          }
+                          
+                          return (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled
+                              title={
+                                order.status !== 'pronto' 
+                                  ? `Stato: ${statusOptions.find(s => s.value === order.status)?.label}` 
+                                  : 'Articoli non tutti prelevati'
+                              }
+                            >
+                              <FileText className="w-4 h-4 mr-1" />
+                              Genera DDT
+                            </Button>
+                          );
+                        })()}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -919,20 +962,45 @@ export default function ShippingOrdersPage() {
                             {order.assigned_user.first_name} {order.assigned_user.last_name}
                           </Badge>
                         )}
-                        {order.status === 'pronto' && order.shipping_order_items?.every((item: any) => item.is_picked) && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGenerateDDT(order);
-                            }}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white mt-2"
-                          >
-                            <FileText className="w-4 h-4 mr-1" />
-                            Genera DDT
-                          </Button>
-                        )}
+                        {(() => {
+                          const existingDdt = getDdtForOrder(order.id);
+                          
+                          if (existingDdt) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGenerateDDT(order, existingDdt);
+                                }}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Vedi DDT
+                              </Button>
+                            );
+                          }
+                          
+                          if (order.status === 'pronto' && order.shipping_order_items?.every((item: any) => item.is_picked)) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGenerateDDT(order);
+                                }}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white mt-2"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Genera DDT
+                              </Button>
+                            );
+                          }
+                          
+                          return null;
+                        })()}
                       </div>
                     </Card>
                   ))}
@@ -1199,8 +1267,15 @@ export default function ShippingOrdersPage() {
 
       <GenerateDDTDialog
         open={ddtDialogOpen}
-        onOpenChange={setDdtDialogOpen}
+        onOpenChange={(open) => {
+          setDdtDialogOpen(open);
+          if (!open) {
+            // Refresh DDTs when dialog closes
+            queryClient.invalidateQueries({ queryKey: ["ddts-by-shipping-order"] });
+          }
+        }}
         order={ddtOrder}
+        existingDdt={ddtOrder ? getDdtForOrder(ddtOrder.id) : undefined}
       />
     </div>
   );
