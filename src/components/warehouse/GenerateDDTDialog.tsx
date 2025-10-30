@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -22,8 +22,8 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   
   // Form state
   const [formData, setFormData] = useState({
-    destinatario: order?.customers?.company_name || order?.customers?.name || "",
-    indirizzo_destinazione: order?.delivery_address || order?.customers?.address || "",
+    destinatario: "",
+    indirizzo_destinazione: "",
     causale: "vendita" as "vendita" | "garanzia" | "altra",
     causale_altra_text: "",
     incaricato_trasporto: "",
@@ -35,6 +35,26 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
     importo_pagamento_consegna: "0.00",
     note_pagamento: "",
   });
+
+  // Update form data when order changes or dialog opens
+  useEffect(() => {
+    if (open && order) {
+      setFormData({
+        destinatario: order.customers?.company_name || order.customers?.name || "",
+        indirizzo_destinazione: order.shipping_address || order.customers?.shipping_address || order.customers?.address || "",
+        causale: "vendita" as "vendita" | "garanzia" | "altra",
+        causale_altra_text: "",
+        incaricato_trasporto: "",
+        numero_colli: "",
+        peso_totale: "",
+        aspetto_beni: "Buono",
+        note_trasporto: order.notes || "",
+        pagamento_consegna: order.payment_on_delivery ? "si" : "no",
+        importo_pagamento_consegna: order.payment_amount?.toString() || "0.00",
+        note_pagamento: "",
+      });
+    }
+  }, [open, order]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
