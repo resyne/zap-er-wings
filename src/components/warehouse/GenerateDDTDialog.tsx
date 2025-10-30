@@ -162,71 +162,38 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
       // Compile template
       const compiledHTML = await compileDDTTemplate(ddtNumber);
 
-      // Create an iframe to render the HTML and convert to PDF
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.width = '210mm';
-      iframe.style.height = '297mm';
-      iframe.style.left = '-9999px';
-      document.body.appendChild(iframe);
-
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) throw new Error('Could not access iframe document');
-
-      iframeDoc.open();
-      iframeDoc.write(compiledHTML);
-      iframeDoc.close();
-
-      // Wait for content to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Generate PDF using html2canvas and jsPDF
-      const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
-
-      const canvas = await html2canvas(iframeDoc.body, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-
-      // Remove iframe
-      document.body.removeChild(iframe);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
-      // Get PDF as base64
-      const pdfBase64 = pdf.output('datauristring').split(',')[1];
-
-      // Save DDT to database
-      const { error: insertError } = await (supabase as any)
+      // Save DDT to database with HTML content
+      const { data: ddtData, error: insertError } = await (supabase as any)
         .from('ddts')
         .insert({
           ddt_number: ddtNumber,
           shipping_order_id: order.id,
           customer_id: order.customer_id,
-          pdf_data: pdfBase64,
+          html_content: compiledHTML,
           ddt_data: {
             ...formData,
             products: order.shipping_order_items
           }
-        });
+        })
+        .select('unique_code')
+        .single();
 
       if (insertError) throw insertError;
 
-      // Download PDF
-      pdf.save(`DDT_${ddtNumber.replace('/', '_')}.pdf`);
+      // Get the generated unique code
+      const ddtCode = ddtData.unique_code;
+      const ddtUrl = `${window.location.origin}/ddt/${ddtCode}`;
+
+      // Copy URL to clipboard
+      await navigator.clipboard.writeText(ddtUrl);
 
       toast({
         title: "DDT generato con successo",
-        description: `DDT numero ${ddtNumber} creato e scaricato`,
+        description: `DDT numero ${ddtNumber} - Link copiato negli appunti!`,
       });
+
+      // Open DDT in new tab
+      window.open(ddtUrl, '_blank');
 
       onOpenChange(false);
     } catch (error) {
