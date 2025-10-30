@@ -20,6 +20,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [ddtGenerated, setDdtGenerated] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [ddtUrl, setDdtUrl] = useState<string>("");
   const [ddtNumber, setDdtNumber] = useState<string>("");
   
@@ -44,6 +45,7 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
   useEffect(() => {
     if (open && order) {
       setDdtGenerated(false);
+      setShowDetails(false);
       setDdtUrl("");
       setDdtNumber("");
       setFormData({
@@ -245,8 +247,30 @@ export function GenerateDDTDialog({ open, onOpenChange, order }: GenerateDDTDial
           <DialogTitle>Genera DDT - Documento di Trasporto</DialogTitle>
         </DialogHeader>
 
-        {ddtGenerated ? (
-          // Success view with quick actions
+        {ddtGenerated && !showDetails ? (
+          // Initial success view with "Vedi DDT" button
+          <div className="space-y-6 py-8">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold">DDT Generato con Successo!</h3>
+              <p className="text-muted-foreground">Numero: {ddtNumber}</p>
+            </div>
+
+            <div className="flex justify-center gap-3 pt-4">
+              <Button onClick={() => setShowDetails(true)} className="bg-primary hover:bg-primary/90">
+                Vedi DDT
+              </Button>
+              <Button onClick={() => onOpenChange(false)} variant="outline">
+                Chiudi
+              </Button>
+            </div>
+          </div>
+        ) : ddtGenerated && showDetails ? (
+          // Detailed view with link and quick actions
           <div className="space-y-6 py-4">
             <div className="text-center space-y-2">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
