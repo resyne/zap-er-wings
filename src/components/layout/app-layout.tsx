@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
+import FloatingAIChat from "@/components/ai/FloatingAIChat";
 
 export function AppLayout() {
   const [user, setUser] = useState<User | null>(null);
@@ -102,6 +103,7 @@ export function AppLayout() {
       </div>
       
       <Toaster />
+      <FloatingAIChat />
     </SidebarProvider>
   );
 }
