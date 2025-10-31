@@ -65,6 +65,8 @@ interface ActivityLog {
   status: string;
   notes: string;
   createdAt: string;
+  isAI?: boolean;
+  aiActionType?: string;
 }
 
 interface UserActivityStats {
@@ -94,7 +96,18 @@ const activityTypeLabels: Record<string, string> = {
   'meeting': 'Incontro',
   'demo': 'Demo',
   'follow_up': 'Follow-up',
-  'other': 'Altro'
+  'other': 'Altro',
+  'ai_action': 'Azione AI'
+};
+
+const aiActionLabels: Record<string, string> = {
+  'get_leads': 'Consultazione Lead',
+  'create_lead': 'Creazione Lead',
+  'update_lead': 'Aggiornamento Lead',
+  'get_customers': 'Consultazione Clienti',
+  'create_customer': 'Creazione Cliente',
+  'get_offers': 'Consultazione Offerte',
+  'get_cost_drafts': 'Consultazione Preventivi'
 };
 
 const activityStatusLabels: Record<string, string> = {
@@ -189,6 +202,14 @@ export default function LeadKpiPage() {
         .order('created_at', { ascending: false });
 
       if (activitiesError) throw activitiesError;
+
+      // Fetch AI activity logs
+      const { data: aiLogs, error: aiLogsError } = await supabase
+        .from('ai_activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (aiLogsError) throw aiLogsError;
 
       const now = new Date();
       const thirtyDaysAgo = subDays(now, 30);
@@ -365,10 +386,47 @@ export default function LeadKpiPage() {
           status: activity.status || 'scheduled',
           notes: activity.notes || '',
           createdAt: activity.created_at,
+          isAI: false,
         };
       });
 
-      setActivityLogs(activityLogsData);
+      // Process AI activity logs and add them
+      const aiActivityLogsData: ActivityLog[] = (aiLogs || [])
+        .filter(log => log.entity_type === 'lead' || log.action_type.includes('lead'))
+        .map(log => {
+          const userProfile = profiles?.find(p => p.id === log.user_id);
+          const userName = userProfile 
+            ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'Utente'
+            : 'Utente';
+          
+          let leadName = 'Lead';
+          if (log.entity_id && log.entity_type === 'lead') {
+            const lead = leads?.find(l => l.id === log.entity_id);
+            leadName = lead?.company_name || 'Lead';
+          }
+
+          return {
+            id: log.id,
+            leadId: log.entity_id || '',
+            leadName,
+            activityType: 'ai_action',
+            activityDate: log.created_at,
+            assignedTo: log.user_id || '',
+            assignedToName: userName,
+            status: log.success ? 'completed' : 'cancelled',
+            notes: log.action_description || log.request_summary,
+            createdAt: log.created_at,
+            isAI: true,
+            aiActionType: log.action_type,
+          };
+        });
+
+      // Combine and sort all activity logs
+      const combinedLogs = [...activityLogsData, ...aiActivityLogsData].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      setActivityLogs(combinedLogs);
 
       // Calculate user activity stats
       const userStatsMap = new Map<string, UserActivityStats>();
@@ -639,11 +697,21 @@ export default function LeadKpiPage() {
                       </TableCell>
                       <TableCell className="font-medium">{log.leadName}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {activityTypeLabels[log.activityType] || log.activityType}
+                        <Badge variant="outline" className={log.isAI ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' : ''}>
+                          {log.isAI && log.aiActionType 
+                            ? aiActionLabels[log.aiActionType] || log.aiActionType
+                            : activityTypeLabels[log.activityType] || log.activityType}
                         </Badge>
                       </TableCell>
-                      <TableCell>{log.assignedToName}</TableCell>
+                      <TableCell>
+                        {log.isAI ? (
+                          <span className="flex items-center gap-1">
+                            {log.assignedToName} <span className="text-xs text-muted-foreground">→ JESSY</span>
+                          </span>
+                        ) : (
+                          log.assignedToName
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge 
                           variant={
