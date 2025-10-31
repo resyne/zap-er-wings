@@ -133,7 +133,7 @@ export default function FloatingAIChat() {
                 <Bot className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Assistente AI CRM</h2>
+                <h2 className="text-lg font-semibold">JESSY - Back office AI</h2>
                 <p className="text-xs text-muted-foreground">
                   Gestisci Lead, Clienti, Preventivi e Offerte
                 </p>

@@ -201,6 +201,215 @@ const tools = [
   }
 ];
 
+function getActionDescription(functionName: string, args: any): string {
+  switch (functionName) {
+    case "get_leads":
+      return `Consultazione lead${args.search ? ` - Ricerca: ${args.search}` : ''}${args.status ? ` - Status: ${args.status}` : ''}`;
+    case "create_lead":
+      return `Creato nuovo lead: ${args.company_name}`;
+    case "update_lead":
+      return `Aggiornato lead${args.company_name ? `: ${args.company_name}` : ''}`;
+    case "get_customers":
+      return `Consultazione clienti${args.search ? ` - Ricerca: ${args.search}` : ''}`;
+    case "create_customer":
+      return `Creato nuovo cliente: ${args.name}`;
+    case "get_offers":
+      return `Consultazione offerte${args.search ? ` - Ricerca: ${args.search}` : ''}`;
+    case "get_cost_drafts":
+      return `Consultazione preventivi${args.search ? ` - Ricerca: ${args.search}` : ''}`;
+    default:
+      return functionName;
+  }
+}
+  {
+    type: "function",
+    function: {
+      name: "get_leads",
+      description: "Recupera la lista dei lead dal CRM. Puoi filtrare per status, pipeline, o cercare per nome azienda/contatto.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { 
+            type: "string",
+            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
+            description: "Filtra per stato del lead" 
+          },
+          pipeline: { 
+            type: "string",
+            description: "Filtra per pipeline (es: ZAPPER, VESUVIANO)" 
+          },
+          search: { 
+            type: "string",
+            description: "Cerca per nome azienda o contatto" 
+          },
+          limit: { 
+            type: "number",
+            description: "Numero massimo di risultati (default: 20)" 
+          }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_lead",
+      description: "Crea un nuovo lead nel CRM",
+      parameters: {
+        type: "object",
+        properties: {
+          company_name: { type: "string", description: "Nome azienda" },
+          contact_name: { type: "string", description: "Nome contatto" },
+          email: { type: "string", description: "Email" },
+          phone: { type: "string", description: "Telefono" },
+          status: { 
+            type: "string",
+            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
+            description: "Stato del lead" 
+          },
+          pipeline: { type: "string", description: "Pipeline (es: ZAPPER, VESUVIANO)" },
+          value: { type: "number", description: "Valore stimato" },
+          notes: { type: "string", description: "Note" }
+        },
+        required: ["company_name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_lead",
+      description: "Aggiorna un lead esistente",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_id: { type: "string", description: "ID del lead da aggiornare" },
+          company_name: { type: "string", description: "Nome azienda" },
+          contact_name: { type: "string", description: "Nome contatto" },
+          email: { type: "string", description: "Email" },
+          phone: { type: "string", description: "Telefono" },
+          status: { 
+            type: "string",
+            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
+            description: "Stato del lead" 
+          },
+          pipeline: { type: "string", description: "Pipeline" },
+          value: { type: "number", description: "Valore stimato" },
+          notes: { type: "string", description: "Note" }
+        },
+        required: ["lead_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_customers",
+      description: "Recupera la lista dei clienti. Puoi filtrare per stato attivo o cercare per nome.",
+      parameters: {
+        type: "object",
+        properties: {
+          active: { 
+            type: "boolean",
+            description: "Filtra per clienti attivi" 
+          },
+          search: { 
+            type: "string",
+            description: "Cerca per nome cliente o azienda" 
+          },
+          limit: { 
+            type: "number",
+            description: "Numero massimo di risultati (default: 20)" 
+          }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_customer",
+      description: "Crea un nuovo cliente",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nome cliente" },
+          company_name: { type: "string", description: "Ragione sociale" },
+          email: { type: "string", description: "Email" },
+          phone: { type: "string", description: "Telefono" },
+          tax_id: { type: "string", description: "Partita IVA" },
+          address: { type: "string", description: "Indirizzo" },
+          city: { type: "string", description: "Città" },
+          postal_code: { type: "string", description: "CAP" },
+          province: { type: "string", description: "Provincia" },
+          country: { type: "string", description: "Paese" },
+          pec: { type: "string", description: "PEC" },
+          sdi_code: { type: "string", description: "Codice SDI" }
+        },
+        required: ["name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_offers",
+      description: "Recupera la lista delle offerte. Puoi filtrare per status o cliente.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { 
+            type: "string",
+            enum: ["draft", "sent", "accepted", "rejected", "expired"],
+            description: "Filtra per stato offerta" 
+          },
+          customer_id: { 
+            type: "string",
+            description: "ID del cliente" 
+          },
+          search: { 
+            type: "string",
+            description: "Cerca per titolo offerta" 
+          },
+          limit: { 
+            type: "number",
+            description: "Numero massimo di risultati (default: 20)" 
+          }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_cost_drafts",
+      description: "Recupera i preventivi costi (bozze). Puoi filtrare per status o cliente.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { 
+            type: "string",
+            enum: ["draft", "approved", "rejected"],
+            description: "Filtra per stato bozza" 
+          },
+          customer_id: { 
+            type: "string",
+            description: "ID del cliente" 
+          },
+          search: { 
+            type: "string",
+            description: "Cerca per nome cliente o descrizione" 
+          },
+          limit: { 
+            type: "number",
+            description: "Numero massimo di risultati (default: 20)" 
+          }
+        }
+      }
+    }
+  }
+];
+
 async function executeToolCall(toolName: string, args: any, supabase: any) {
   console.log(`Executing tool: ${toolName}`, args);
   
@@ -221,7 +430,12 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
         
         const { data, error } = await query;
         if (error) throw error;
-        return { success: true, data, count: data.length };
+        return { 
+          success: true, 
+          data, 
+          count: data.length,
+          entity_type: 'lead'
+        };
       }
       
       case "create_lead": {
@@ -232,7 +446,13 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
           .single();
         
         if (error) throw error;
-        return { success: true, data, message: "Lead creato con successo" };
+        return { 
+          success: true, 
+          data, 
+          message: "Lead creato con successo",
+          entity_type: 'lead',
+          entity_id: data.id
+        };
       }
       
       case "update_lead": {
@@ -245,7 +465,13 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
           .single();
         
         if (error) throw error;
-        return { success: true, data, message: "Lead aggiornato con successo" };
+        return { 
+          success: true, 
+          data, 
+          message: "Lead aggiornato con successo",
+          entity_type: 'lead',
+          entity_id: data.id
+        };
       }
       
       case "get_customers": {
@@ -262,7 +488,12 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
         
         const { data, error } = await query;
         if (error) throw error;
-        return { success: true, data, count: data.length };
+        return { 
+          success: true, 
+          data, 
+          count: data.length,
+          entity_type: 'customer'
+        };
       }
       
       case "create_customer": {
@@ -273,7 +504,13 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
           .single();
         
         if (error) throw error;
-        return { success: true, data, message: "Cliente creato con successo" };
+        return { 
+          success: true, 
+          data, 
+          message: "Cliente creato con successo",
+          entity_type: 'customer',
+          entity_id: data.id
+        };
       }
       
       case "get_offers": {
@@ -291,7 +528,12 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
         
         const { data, error } = await query;
         if (error) throw error;
-        return { success: true, data, count: data.length };
+        return { 
+          success: true, 
+          data, 
+          count: data.length,
+          entity_type: 'offer'
+        };
       }
       
       case "get_cost_drafts": {
@@ -309,7 +551,12 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
         
         const { data, error } = await query;
         if (error) throw error;
-        return { success: true, data, count: data.length };
+        return { 
+          success: true, 
+          data, 
+          count: data.length,
+          entity_type: 'cost_draft'
+        };
       }
       
       default:
@@ -333,12 +580,25 @@ serve(async (req) => {
       throw new Error('Messages array is required');
     }
 
+    // Get user from auth header
+    const authHeader = req.headers.get('authorization');
+    let userId = null;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: { user } } = await supabaseAuth.auth.getUser(token);
+      userId = user?.id;
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Estrai la richiesta dell'utente
+    const userRequest = messages[messages.length - 1]?.content || 'Richiesta non specificata';
 
     // System prompt
     const systemMessage = {
       role: "system",
-      content: `Sei un assistente AI per il CRM di un'azienda. Hai accesso ai dati di:
+      content: `Sei JESSY, l'assistente AI del back office di ZAPPER. Hai accesso ai dati di:
 - Lead: potenziali clienti nel funnel di vendita
 - Clienti: clienti acquisiti con anagrafica completa
 - Preventivi: bozze di costo per servizi/prodotti
@@ -354,6 +614,7 @@ Quando mostri dati, presentali in modo chiaro e strutturato. Se ci sono molti ri
     let continueLoop = true;
     let iterations = 0;
     const maxIterations = 10;
+    const activityLogs = [];
 
     while (continueLoop && iterations < maxIterations) {
       iterations++;
@@ -395,6 +656,19 @@ Quando mostri dati, presentali in modo chiaro e strutturato. Se ci sono molti ri
           
           const result = await executeToolCall(functionName, functionArgs, supabase);
           
+          // Log attività
+          activityLogs.push({
+            action_type: functionName,
+            action_description: getActionDescription(functionName, functionArgs),
+            entity_type: result.entity_type || null,
+            entity_id: result.entity_id || null,
+            request_summary: userRequest,
+            response_summary: result.message || (result.success ? `${functionName} completato: ${result.count || 1} elemento/i` : 'Operazione fallita'),
+            success: result.success,
+            error_message: result.error || null,
+            metadata: { args: functionArgs, result: result }
+          });
+          
           conversationMessages.push({
             role: "tool",
             tool_call_id: toolCall.id,
@@ -406,12 +680,23 @@ Quando mostri dati, presentali in modo chiaro e strutturato. Se ci sono molti ri
       }
     }
 
+    // Salva tutti i log delle attività
+    if (activityLogs.length > 0) {
+      for (const log of activityLogs) {
+        await supabase.from('ai_activity_logs').insert({
+          user_id: userId,
+          ...log
+        });
+      }
+    }
+
     const finalMessage = conversationMessages[conversationMessages.length - 1];
 
     return new Response(
       JSON.stringify({ 
         message: finalMessage.content,
-        iterations: iterations
+        iterations: iterations,
+        activities: activityLogs.length
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

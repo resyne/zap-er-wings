@@ -12,6 +12,7 @@ import { format, subDays, differenceInDays, differenceInHours, startOfDay, start
 import { it } from "date-fns/locale";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
+import JessyActivityLog from "@/components/crm/JessyActivityLog";
 
 interface LeadKPI {
   totalLeads: number;
@@ -507,6 +508,7 @@ export default function LeadKpiPage() {
           <TabsTrigger value="overview">Panoramica</TabsTrigger>
           <TabsTrigger value="sales">Performance Sales</TabsTrigger>
           <TabsTrigger value="activities">Log Attività</TabsTrigger>
+          <TabsTrigger value="jessy">JESSY AI</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
 
@@ -728,6 +730,10 @@ export default function LeadKpiPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="jessy" className="space-y-4">
+          <JessyActivityLog />
         </TabsContent>
 
         <TabsContent value="timeline" className="space-y-4">

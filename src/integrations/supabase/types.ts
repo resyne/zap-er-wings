@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_activity_logs: {
+        Row: {
+          action_description: string
+          action_type: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          request_summary: string
+          response_summary: string | null
+          success: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          action_description: string
+          action_type: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          request_summary: string
+          response_summary?: string | null
+          success?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          action_description?: string
+          action_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          request_summary?: string
+          response_summary?: string | null
+          success?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
