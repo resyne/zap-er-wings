@@ -22,7 +22,7 @@ const tools = [
         properties: {
           status: { 
             type: "string",
-            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
+            enum: ["new", "qualified", "negotiation", "won", "lost"],
             description: "Filtra per stato del lead" 
           },
           pipeline: { 
@@ -55,7 +55,7 @@ const tools = [
           phone: { type: "string", description: "Telefono" },
           status: { 
             type: "string",
-            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
+            enum: ["new", "qualified", "negotiation", "won", "lost"],
             description: "Stato del lead" 
           },
           pipeline: { type: "string", description: "Pipeline (es: ZAPPER, VESUVIANO)" },
@@ -81,7 +81,7 @@ const tools = [
           phone: { type: "string", description: "Telefono" },
           status: { 
             type: "string",
-            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
+            enum: ["new", "qualified", "negotiation", "won", "lost"],
             description: "Stato del lead" 
           },
           pipeline: { type: "string", description: "Pipeline" },
@@ -221,194 +221,7 @@ function getActionDescription(functionName: string, args: any): string {
       return functionName;
   }
 }
-  {
-    type: "function",
-    function: {
-      name: "get_leads",
-      description: "Recupera la lista dei lead dal CRM. Puoi filtrare per status, pipeline, o cercare per nome azienda/contatto.",
-      parameters: {
-        type: "object",
-        properties: {
-          status: { 
-            type: "string",
-            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
-            description: "Filtra per stato del lead" 
-          },
-          pipeline: { 
-            type: "string",
-            description: "Filtra per pipeline (es: ZAPPER, VESUVIANO)" 
-          },
-          search: { 
-            type: "string",
-            description: "Cerca per nome azienda o contatto" 
-          },
-          limit: { 
-            type: "number",
-            description: "Numero massimo di risultati (default: 20)" 
-          }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_lead",
-      description: "Crea un nuovo lead nel CRM",
-      parameters: {
-        type: "object",
-        properties: {
-          company_name: { type: "string", description: "Nome azienda" },
-          contact_name: { type: "string", description: "Nome contatto" },
-          email: { type: "string", description: "Email" },
-          phone: { type: "string", description: "Telefono" },
-          status: { 
-            type: "string",
-            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
-            description: "Stato del lead" 
-          },
-          pipeline: { type: "string", description: "Pipeline (es: ZAPPER, VESUVIANO)" },
-          value: { type: "number", description: "Valore stimato" },
-          notes: { type: "string", description: "Note" }
-        },
-        required: ["company_name"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_lead",
-      description: "Aggiorna un lead esistente",
-      parameters: {
-        type: "object",
-        properties: {
-          lead_id: { type: "string", description: "ID del lead da aggiornare" },
-          company_name: { type: "string", description: "Nome azienda" },
-          contact_name: { type: "string", description: "Nome contatto" },
-          email: { type: "string", description: "Email" },
-          phone: { type: "string", description: "Telefono" },
-          status: { 
-            type: "string",
-            enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"],
-            description: "Stato del lead" 
-          },
-          pipeline: { type: "string", description: "Pipeline" },
-          value: { type: "number", description: "Valore stimato" },
-          notes: { type: "string", description: "Note" }
-        },
-        required: ["lead_id"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_customers",
-      description: "Recupera la lista dei clienti. Puoi filtrare per stato attivo o cercare per nome.",
-      parameters: {
-        type: "object",
-        properties: {
-          active: { 
-            type: "boolean",
-            description: "Filtra per clienti attivi" 
-          },
-          search: { 
-            type: "string",
-            description: "Cerca per nome cliente o azienda" 
-          },
-          limit: { 
-            type: "number",
-            description: "Numero massimo di risultati (default: 20)" 
-          }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_customer",
-      description: "Crea un nuovo cliente",
-      parameters: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Nome cliente" },
-          company_name: { type: "string", description: "Ragione sociale" },
-          email: { type: "string", description: "Email" },
-          phone: { type: "string", description: "Telefono" },
-          tax_id: { type: "string", description: "Partita IVA" },
-          address: { type: "string", description: "Indirizzo" },
-          city: { type: "string", description: "Città" },
-          postal_code: { type: "string", description: "CAP" },
-          province: { type: "string", description: "Provincia" },
-          country: { type: "string", description: "Paese" },
-          pec: { type: "string", description: "PEC" },
-          sdi_code: { type: "string", description: "Codice SDI" }
-        },
-        required: ["name"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_offers",
-      description: "Recupera la lista delle offerte. Puoi filtrare per status o cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          status: { 
-            type: "string",
-            enum: ["draft", "sent", "accepted", "rejected", "expired"],
-            description: "Filtra per stato offerta" 
-          },
-          customer_id: { 
-            type: "string",
-            description: "ID del cliente" 
-          },
-          search: { 
-            type: "string",
-            description: "Cerca per titolo offerta" 
-          },
-          limit: { 
-            type: "number",
-            description: "Numero massimo di risultati (default: 20)" 
-          }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_cost_drafts",
-      description: "Recupera i preventivi costi (bozze). Puoi filtrare per status o cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          status: { 
-            type: "string",
-            enum: ["draft", "approved", "rejected"],
-            description: "Filtra per stato bozza" 
-          },
-          customer_id: { 
-            type: "string",
-            description: "ID del cliente" 
-          },
-          search: { 
-            type: "string",
-            description: "Cerca per nome cliente o descrizione" 
-          },
-          limit: { 
-            type: "number",
-            description: "Numero massimo di risultati (default: 20)" 
-          }
-        }
-      }
-    }
-  }
-];
+
 
 async function executeToolCall(toolName: string, args: any, supabase: any) {
   console.log(`Executing tool: ${toolName}`, args);
@@ -682,11 +495,17 @@ Quando mostri dati, presentali in modo chiaro e strutturato. Se ci sono molti ri
 
     // Salva tutti i log delle attività
     if (activityLogs.length > 0) {
+      console.log(`Salvando ${activityLogs.length} log di attività per user_id: ${userId}`);
       for (const log of activityLogs) {
-        await supabase.from('ai_activity_logs').insert({
+        const { error: logError } = await supabase.from('ai_activity_logs').insert({
           user_id: userId,
           ...log
         });
+        if (logError) {
+          console.error('Errore nel salvare log attività:', logError);
+        } else {
+          console.log(`Log salvato con successo: ${log.action_type}`);
+        }
       }
     }
 

@@ -16,6 +16,12 @@ interface ActivityLog {
   response_summary: string | null;
   success: boolean;
   error_message: string | null;
+  user_id: string | null;
+  user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }
 
 export default function JessyActivityLog() {
@@ -48,6 +54,8 @@ export default function JessyActivityLog() {
 
   const loadActivities = async () => {
     try {
+      // Per ora carichiamo solo i log senza join
+      // TODO: aggiungere foreign key per permettere il join con profiles
       const { data, error } = await supabase
         .from('ai_activity_logs')
         .select('*')
@@ -55,7 +63,28 @@ export default function JessyActivityLog() {
         .limit(20);
 
       if (error) throw error;
-      setActivities(data || []);
+      
+      // Carica i dati degli utenti separatamente
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(log => log.user_id).filter(Boolean))];
+        if (userIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, email')
+            .in('id', userIds);
+          
+          // Combina i dati
+          const activitiesWithUsers = data.map(log => ({
+            ...log,
+            user: usersData?.find(u => u.id === log.user_id)
+          }));
+          setActivities(activitiesWithUsers);
+        } else {
+          setActivities(data);
+        }
+      } else {
+        setActivities([]);
+      }
     } catch (error) {
       console.error('Error loading activities:', error);
     } finally {
@@ -118,17 +147,29 @@ export default function JessyActivityLog() {
                   className="border rounded-lg p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1">
                       {activity.success ? (
                         <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                       ) : (
                         <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
                       )}
-                      <span className="font-medium text-sm">
-                        {getActionLabel(activity.action_type)}
-                      </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {activity.user && (
+                            <span className="text-xs font-medium text-primary">
+                              {activity.user.first_name} {activity.user.last_name}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">→</span>
+                          <span className="text-xs font-medium text-purple-600">JESSY</span>
+                          <span className="text-xs text-muted-foreground">→</span>
+                          <span className="font-medium text-sm">
+                            {getActionLabel(activity.action_type)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs flex-shrink-0">
                       {formatDistanceToNow(new Date(activity.created_at), {
                         addSuffix: true,
                         locale: it
@@ -136,18 +177,24 @@ export default function JessyActivityLog() {
                     </Badge>
                   </div>
                   
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <p className="text-sm text-muted-foreground mb-1 ml-6">
                     <span className="font-medium">Richiesta:</span> {activity.request_summary}
                   </p>
                   
+                  {activity.action_description && (
+                    <p className="text-sm text-muted-foreground mb-1 ml-6">
+                      <span className="font-medium">Azione:</span> {activity.action_description}
+                    </p>
+                  )}
+                  
                   {activity.response_summary && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground ml-6">
                       <span className="font-medium">Risultato:</span> {activity.response_summary}
                     </p>
                   )}
 
                   {activity.error_message && (
-                    <p className="text-sm text-red-500 mt-1">
+                    <p className="text-sm text-red-500 mt-1 ml-6">
                       <span className="font-medium">Errore:</span> {activity.error_message}
                     </p>
                   )}
