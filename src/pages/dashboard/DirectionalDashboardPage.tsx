@@ -134,7 +134,7 @@ export function DirectionalDashboardPage() {
           inProgress: ticketsData?.filter(t => t.status === "in_progress").length || 0,
         },
         newLeads: leadsData?.filter(l => l.status === "new").length || 0,
-        negotiationLeads: leadsData?.filter(l => ["qualified", "proposal"].includes(l.status)).length || 0,
+        negotiationLeads: leadsData?.filter(l => ["qualified", "negotiation"].includes(l.status)).length || 0,
       });
 
       setTasks(tasksData || []);

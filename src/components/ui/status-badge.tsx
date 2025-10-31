@@ -47,9 +47,7 @@ const statusColors = {
   billable: "bg-primary text-primary-foreground",
   
   // Lead statuses
-  contacted: "bg-info text-info-foreground",
   qualified: "bg-primary text-primary-foreground",
-  proposal: "bg-primary text-primary-foreground",
   negotiation: "bg-info text-info-foreground",
   won: "bg-success text-success-foreground",
   lost: "bg-destructive text-destructive-foreground",
