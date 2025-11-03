@@ -252,9 +252,15 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
       }
       
       case "create_lead": {
+        // Assegna pipeline di default "ZAPPER" se non specificata
+        const leadData = {
+          ...args,
+          pipeline: args.pipeline || "ZAPPER"
+        };
+        
         const { data, error } = await supabase
           .from('leads')
-          .insert([args])
+          .insert([leadData])
           .select()
           .single();
         
