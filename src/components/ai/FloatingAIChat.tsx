@@ -49,13 +49,19 @@ export default function FloatingAIChat() {
     setMessages(prev => [...prev, workingMessage]);
 
     try {
+      // Get the current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.functions.invoke('crm-ai-assistant', {
         body: { 
           messages: [...messages, userMessage].filter(m => m.role !== "system").map(m => ({
             role: m.role,
             content: m.content
           }))
-        }
+        },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : {}
       });
 
       if (error) throw error;

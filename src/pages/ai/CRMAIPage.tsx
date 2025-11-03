@@ -38,13 +38,19 @@ export default function CRMAIPage() {
     setIsLoading(true);
 
     try {
+      // Get the current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.functions.invoke('crm-ai-assistant', {
         body: { 
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content
           }))
-        }
+        },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : {}
       });
 
       if (error) throw error;
