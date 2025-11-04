@@ -46,10 +46,10 @@ interface TaskCardProps {
 }
 
 const priorityColors = {
-  low: 'bg-success/10 text-success-foreground border-success/20',
-  medium: 'bg-warning/10 text-warning-foreground border-warning/20',
-  high: 'bg-destructive/10 text-destructive-foreground border-destructive/20',
-  urgent: 'bg-destructive/20 text-destructive-foreground border-destructive/30'
+  low: 'bg-green-50 text-green-700 border-green-300',
+  medium: 'bg-yellow-50 text-yellow-700 border-yellow-300',
+  high: 'bg-orange-50 text-orange-700 border-orange-300',
+  urgent: 'bg-red-50 text-red-700 border-red-300'
 };
 
 const priorityLabels = {
@@ -136,7 +136,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
               {task.is_recurring && (
                 <RotateCcw className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
               )}
-              <h4 className="font-semibold text-sm leading-tight line-clamp-2">
+              <h4 className="font-semibold text-sm leading-tight line-clamp-2 text-gray-900 dark:text-gray-100">
                 {task.title}
               </h4>
             </div>
@@ -200,7 +200,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p className="text-xs line-clamp-2 mt-1">
+            <p className="text-xs line-clamp-2 mt-1 text-gray-700 dark:text-gray-300">
               {task.description}
             </p>
           )}
@@ -216,7 +216,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-1 text-xs">
+              <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
                 <Clock className="h-3 w-3" />
                 {task.estimated_hours}h
               </div>
@@ -224,14 +224,14 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
 
           {task.is_recurring && (
-            <div className="flex items-center gap-1 text-xs text-blue-600">
+            <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-400 font-medium">
               <RotateCcw className="h-3 w-3" />
               Task ricorrente settimanale
             </div>
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-1 text-xs">
+            <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
               <CalendarDays className="h-3 w-3" />
               {format(new Date(task.due_date), 'dd MMM', { locale: it })}
             </div>
@@ -258,7 +258,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
-              <span className="text-xs truncate font-medium">
+              <span className="text-xs truncate font-medium text-gray-700 dark:text-gray-300">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>
