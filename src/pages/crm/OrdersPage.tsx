@@ -101,7 +101,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [orderFilter, setOrderFilter] = useState<"all" | "work" | "installation" | "shipping">("all");
-  const [viewMode, setViewMode] = useState<"table" | "kanban">("kanban");
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
