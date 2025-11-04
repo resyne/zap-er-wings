@@ -113,18 +113,18 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
   return (
     <>
       <Card 
-        className={`cursor-pointer hover:shadow-lg transition-all bg-white border-2 ${
+        className={`cursor-pointer hover:shadow-md transition-all bg-white border ${
           task.is_recurring ? 'border-l-4 border-l-blue-600' : 'border-gray-200'
         }`}
         onClick={() => !task.is_recurring && setIsDetailsDialogOpen(true)}
       >
-        <CardHeader className="p-4 pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-start gap-2 flex-1 min-w-0">
+        <CardHeader className="p-2 pb-1">
+          <div className="flex items-start justify-between gap-1">
+            <div className="flex items-start gap-1 flex-1 min-w-0">
               {task.is_recurring && (
-                <RotateCcw className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <RotateCcw className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
               )}
-              <h4 className="font-bold text-lg text-gray-900 leading-tight line-clamp-2">
+              <h4 className="font-semibold text-sm text-gray-900 leading-tight line-clamp-2">
                 {task.title}
               </h4>
             </div>
@@ -134,10 +134,10 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="h-8 w-8 p-0"
+                    className="h-6 w-6 p-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                    <MoreHorizontal className="h-3 w-3 text-gray-600" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -188,52 +188,52 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p className="text-base text-gray-600 line-clamp-2 mt-2">
+            <p className="text-xs text-gray-600 line-clamp-1 mt-1">
               {task.description}
             </p>
           )}
         </CardHeader>
         
-        <CardContent className="px-4 pb-4 pt-2 space-y-3">
+        <CardContent className="px-2 pb-2 pt-1 space-y-1.5">
           <div className="flex items-center justify-between">
             <Badge 
               variant="outline" 
-              className={`text-base font-bold border-2 ${priorityStyles[task.priority]}`}
+              className={`text-xs font-medium border ${priorityStyles[task.priority]} py-0`}
             >
               {priorityLabels[task.priority]}
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-2 text-base text-gray-700 font-bold">
-                <Clock className="h-5 w-5" />
+              <div className="flex items-center gap-1 text-xs text-gray-700 font-medium">
+                <Clock className="h-3 w-3" />
                 <span>{task.estimated_hours}h</span>
               </div>
             )}
           </div>
 
           {task.is_recurring && (
-            <div className="flex items-center gap-2 text-base font-bold text-blue-600">
-              <RotateCcw className="h-5 w-5" />
-              <span>Task ricorrente settimanale</span>
+            <div className="flex items-center gap-1 text-xs font-medium text-blue-600">
+              <RotateCcw className="h-3 w-3" />
+              <span>Ricorrente</span>
             </div>
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-2 text-base text-gray-700 font-bold">
-              <CalendarDays className="h-5 w-5" />
+            <div className="flex items-center gap-1 text-xs text-gray-700 font-medium">
+              <CalendarDays className="h-3 w-3" />
               <span>{format(new Date(task.due_date), 'dd MMM', { locale: it })}</span>
             </div>
           )}
 
           {task.tags && task.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1">
               {task.tags.slice(0, 2).map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-base px-3 py-1 font-bold bg-gray-200 text-gray-800">
+                <Badge key={index} variant="secondary" className="text-xs px-1.5 py-0 font-medium bg-gray-200 text-gray-800">
                   {tag}
                 </Badge>
               ))}
               {task.tags.length > 2 && (
-                <Badge variant="secondary" className="text-base px-3 py-1 font-bold bg-gray-200 text-gray-800">
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 font-medium bg-gray-200 text-gray-800">
                   +{task.tags.length - 2}
                 </Badge>
               )}
@@ -241,12 +241,12 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           )}
 
           {assignedUser && (
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
+            <div className="flex items-center gap-1">
+              <Avatar className="h-5 w-5">
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
-                <AvatarFallback className="text-base font-bold bg-gray-300 text-gray-800">{userInitials}</AvatarFallback>
+                <AvatarFallback className="text-xs font-medium bg-gray-300 text-gray-800">{userInitials}</AvatarFallback>
               </Avatar>
-              <span className="text-base font-bold text-gray-900 truncate">
+              <span className="text-xs font-medium text-gray-900 truncate">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>

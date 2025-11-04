@@ -177,12 +177,12 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         {Object.keys(statusConfig).map((status) => (
-          <div key={status} className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-48 w-full" />
+          <div key={status} className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
           </div>
         ))}
       </div>
@@ -192,19 +192,19 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {(Object.keys(statusConfig) as Array<keyof typeof statusConfig>).map((status) => {
             const config = statusConfig[status];
             const statusTasks = getTasksByStatus(status);
 
             return (
               <div key={status} className="flex flex-col">
-                <div className={`p-4 rounded-t-lg border-2 ${config.borderColor} ${config.bgColor}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className={`font-bold text-xl ${config.textColor}`}>
+                <div className={`p-2 rounded-t-lg border ${config.borderColor} ${config.bgColor}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className={`font-semibold text-sm ${config.textColor}`}>
                       {config.title}
                     </h3>
-                    <span className={`text-lg font-bold ${config.textColor} bg-white px-3 py-1 rounded-full`}>
+                    <span className={`text-xs font-semibold ${config.textColor} bg-white px-2 py-0.5 rounded-full`}>
                       {statusTasks.length}
                     </span>
                   </div>
@@ -212,10 +212,10 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`w-full ${config.textColor} hover:bg-white/50 font-bold`}
+                      className={`w-full ${config.textColor} hover:bg-white/50 font-medium text-xs h-7`}
                       onClick={() => setIsCreateDialogOpen(true)}
                     >
-                      <Plus className="h-5 w-5 mr-2" />
+                      <Plus className="h-3 w-3 mr-1" />
                       Nuova Task
                     </Button>
                   )}
@@ -226,11 +226,11 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex-1 p-4 border-2 border-t-0 rounded-b-lg ${config.borderColor} ${config.bgColor} min-h-[600px] transition-colors ${
+                      className={`flex-1 p-2 border border-t-0 rounded-b-lg ${config.borderColor} ${config.bgColor} min-h-[400px] transition-colors ${
                         snapshot.isDraggingOver ? 'bg-opacity-80' : ''
                       }`}
                     >
-                      <div className="space-y-4">
+                      <div className="space-y-2">
                         {statusTasks.map((task, index) => (
                           <Draggable
                             key={task.id}
