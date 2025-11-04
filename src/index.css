@@ -128,7 +128,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-size: 12px; /* Ridotto del 25% da 16px */
+    font-size: 14px;
   }
 }
 

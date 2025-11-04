@@ -127,9 +127,10 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
   return (
     <>
       <Card 
-        className={`cursor-pointer hover:shadow-md transition-shadow bg-card border ${
+        className={`cursor-pointer hover:shadow-md transition-shadow border ${
           task.is_recurring ? 'border-l-4 border-l-blue-500' : ''
         }`}
+        style={{ backgroundColor: '#ffffff', color: '#000000' }}
         onClick={() => !task.is_recurring && setIsDetailsDialogOpen(true)}
       >
         <CardHeader className="p-4 pb-3">
