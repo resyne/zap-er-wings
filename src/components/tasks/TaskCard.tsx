@@ -136,7 +136,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
               {task.is_recurring && (
                 <RotateCcw className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
               )}
-              <h4 className="font-medium text-sm leading-tight line-clamp-2">
+              <h4 className="font-semibold text-sm leading-tight line-clamp-2 text-foreground">
                 {task.title}
               </h4>
             </div>
@@ -200,7 +200,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p className="text-xs text-foreground/70 line-clamp-2 mt-1">
+            <p className="text-xs text-foreground/90 line-clamp-2 mt-1">
               {task.description}
             </p>
           )}
@@ -216,7 +216,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-1 text-xs text-foreground/70">
+              <div className="flex items-center gap-1 text-xs text-foreground/90">
                 <Clock className="h-3 w-3" />
                 {task.estimated_hours}h
               </div>
@@ -231,7 +231,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-1 text-xs text-foreground/70">
+            <div className="flex items-center gap-1 text-xs text-foreground/90">
               <CalendarDays className="h-3 w-3" />
               {format(new Date(task.due_date), 'dd MMM', { locale: it })}
             </div>
@@ -258,7 +258,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
-              <span className="text-xs text-foreground/80 truncate">
+              <span className="text-xs text-foreground/90 truncate font-medium">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>
