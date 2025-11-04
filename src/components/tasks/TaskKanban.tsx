@@ -1,34 +1,19 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Calendar, Clock, User, MoreHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { it } from "date-fns/locale";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { TaskCard } from "./TaskCard";
 import { CreateTaskDialog } from "./CreateTaskDialog";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Database } from "@/integrations/supabase/types";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: string;
-  assigned_to?: string;
-  created_by?: string;
-  start_date?: string;
-  due_date?: string;
-  completed_at?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  tags?: string[];
-  created_at: string;
-  updated_at: string;
+type TaskRow = Database['public']['Tables']['tasks']['Row'];
+type TaskStatus = Database['public']['Enums']['task_status'];
+type TaskCategory = Database['public']['Enums']['task_category'];
+
+interface Task extends TaskRow {
   is_recurring?: boolean;
   recurring_day?: number;
   profiles?: {
@@ -39,78 +24,71 @@ interface Task {
 }
 
 interface TaskKanbanProps {
-  category: string;
+  category: TaskCategory;
   archived?: boolean;
 }
 
 const statusConfig = {
-  todo: {
-    title: 'Da fare',
-    color: 'bg-gray-100',
-    textColor: 'text-gray-700',
-    borderColor: 'border-gray-200'
+  todo: { 
+    title: 'Da fare', 
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    textColor: 'text-blue-900'
   },
-  in_progress: {
-    title: 'In corso',
-    color: 'bg-blue-100',
-    textColor: 'text-blue-700',
-    borderColor: 'border-blue-200'
+  in_progress: { 
+    title: 'In corso', 
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200',
+    textColor: 'text-yellow-900'
   },
-  review: {
-    title: 'In revisione',
-    color: 'bg-yellow-100',
-    textColor: 'text-yellow-700',
-    borderColor: 'border-yellow-200'
+  review: { 
+    title: 'In revisione', 
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-200',
+    textColor: 'text-orange-900'
   },
-  completed: {
-    title: 'Completato',
-    color: 'bg-green-100',
-    textColor: 'text-green-700',
-    borderColor: 'border-green-200'
+  completed: { 
+    title: 'Completato', 
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    textColor: 'text-green-900'
   },
-  cancelled: {
-    title: 'Annullato',
-    color: 'bg-red-100',
-    textColor: 'text-red-700',
-    borderColor: 'border-red-200'
+  cancelled: { 
+    title: 'Annullato', 
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    textColor: 'text-red-900'
   }
 };
 
 export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [recurringTasks, setRecurringTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [createDialogStatus, setCreateDialogStatus] = useState<'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled'>('todo');
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('Category or archived changed to:', category, archived);
-    setTasks([]);
-    setLoading(true);
     fetchTasks();
   }, [category, archived]);
 
   const fetchTasks = async () => {
     try {
-      console.log('Fetching tasks for category:', category, 'archived:', archived);
+      setLoading(true);
       
-      // Fetch only regular tasks - exclude template tasks and recurring tasks
+      // Fetch regular tasks
       const { data: regularTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
-        .eq('category', category as any)
+        .eq('category', category)
         .eq('archived', archived)
-        .eq('is_template', false) // Exclude template tasks
+        .eq('is_template', false)
         .is('parent_task_id', null)
         .order('created_at', { ascending: false });
 
       if (tasksError) throw tasksError;
-
-      console.log('Fetched tasks:', regularTasks);
       
       // Get unique user IDs from tasks
-      const userIds = [...new Set(regularTasks?.filter(t => t.assigned_to).map(t => t.assigned_to))];
+      const userIds = [...new Set(regularTasks?.filter(t => t.assigned_to).map(t => t.assigned_to))] as string[];
       
       // Fetch profiles for assigned users
       let profilesMap: Record<string, any> = {};
@@ -131,11 +109,10 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
       // Merge profiles with tasks
       const tasksWithProfiles = regularTasks?.map(task => ({
         ...task,
-        profiles: task.assigned_to ? profilesMap[task.assigned_to] : null
+        profiles: task.assigned_to ? profilesMap[task.assigned_to] : undefined
       }));
-      
-      setTasks((tasksWithProfiles || []) as Task[]);
-      setRecurringTasks([]);
+
+      setTasks(tasksWithProfiles || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast({
@@ -148,149 +125,150 @@ export function TaskKanban({ category, archived = false }: TaskKanbanProps) {
     }
   };
 
-  const handleDragEnd = async (result: any) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
     
     if (source.droppableId === destination.droppableId) return;
 
-    const newStatus = destination.droppableId as Task['status'];
+    const newStatus = destination.droppableId as TaskStatus;
     
     try {
-      const updateData: any = { 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      if (newStatus === 'completed') {
-        updateData.completed_at = new Date().toISOString();
-      }
-
       const { error } = await supabase
         .from('tasks')
-        .update(updateData)
+        .update({ 
+          status: newStatus,
+          completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+        })
         .eq('id', draggableId);
 
       if (error) throw error;
 
-      // Update local state
-      setTasks(prev => prev.map(task => 
-        task.id === draggableId 
-          ? { ...task, status: newStatus, ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}) }
-          : task
-      ));
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === draggableId
+            ? { 
+                ...task, 
+                status: newStatus,
+                completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+              }
+            : task
+        )
+      );
 
       toast({
         title: "Task aggiornato",
-        description: `Task spostato in "${statusConfig[newStatus].title}"`,
+        description: "Lo stato del task è stato modificato",
       });
     } catch (error) {
       console.error('Error updating task:', error);
       toast({
         title: "Errore",
-        description: "Impossibile aggiornare il task",
+        description: "Impossibile aggiornare lo stato del task",
         variant: "destructive",
       });
     }
   };
 
-  const handleTaskAdded = () => {
-    fetchTasks();
-    setIsCreateDialogOpen(false);
-  };
-
-  const handleTaskUpdated = () => {
-    fetchTasks();
-  };
-
-  const getTasksByStatus = (status: Task['status']) => {
+  const getTasksByStatus = (status: TaskStatus) => {
     return tasks.filter(task => task.status === status);
   };
 
   if (loading) {
     return (
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {Object.keys(statusConfig).map((status) => (
-          <Card key={status} className="min-h-[400px]">
-            <CardHeader>
-              <div className="h-4 bg-muted rounded animate-pulse" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-muted rounded animate-pulse" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div key={status} className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-5 gap-4">
-          {Object.entries(statusConfig).map(([status, config]) => {
-            const statusTasks = getTasksByStatus(status as Task['status']);
-            
+    <>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          {(Object.keys(statusConfig) as Array<keyof typeof statusConfig>).map((status) => {
+            const config = statusConfig[status];
+            const statusTasks = getTasksByStatus(status);
+
             return (
-              <Card key={status} className={`${config.borderColor}`}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm">
-                    <span className={config.textColor}>{config.title}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {statusTasks.length}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => {
-                          setCreateDialogStatus(status as Task['status']);
-                          setIsCreateDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Droppable droppableId={status}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`space-y-3 min-h-[300px] rounded-lg p-2 transition-colors ${
-                          snapshot.isDraggingOver ? config.color : `${config.color} opacity-30`
-                        }`}
-                      >
+              <div key={status} className="flex flex-col">
+                <div className={`p-4 rounded-t-lg border-2 ${config.borderColor} ${config.bgColor}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className={`font-bold text-xl ${config.textColor}`}>
+                      {config.title}
+                    </h3>
+                    <span className={`text-lg font-bold ${config.textColor} bg-white px-3 py-1 rounded-full`}>
+                      {statusTasks.length}
+                    </span>
+                  </div>
+                  {status === 'todo' && !archived && category && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`w-full ${config.textColor} hover:bg-white/50 font-bold`}
+                      onClick={() => setIsCreateDialogOpen(true)}
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Nuova Task
+                    </Button>
+                  )}
+                </div>
+
+                <Droppable droppableId={status}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`flex-1 p-4 border-2 border-t-0 rounded-b-lg ${config.borderColor} ${config.bgColor} min-h-[600px] transition-colors ${
+                        snapshot.isDraggingOver ? 'bg-opacity-80' : ''
+                      }`}
+                    >
+                      <div className="space-y-4">
                         {statusTasks.map((task, index) => (
-                          <Draggable key={task.id} draggableId={task.id} index={index}>
+                          <Draggable
+                            key={task.id}
+                            draggableId={task.id}
+                            index={index}
+                            isDragDisabled={task.is_recurring || archived}
+                          >
                             {(provided, snapshot) => (
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`${snapshot.isDragging ? 'rotate-2' : ''}`}
+                                className={snapshot.isDragging ? 'opacity-80' : ''}
                               >
-                                <TaskCard task={task} onUpdate={handleTaskUpdated} />
+                                <TaskCard task={task} onUpdate={fetchTasks} />
                               </div>
                             )}
                           </Draggable>
                         ))}
                         {provided.placeholder}
                       </div>
-                    )}
-                  </Droppable>
-                </CardContent>
-              </Card>
+                    </div>
+                  )}
+                </Droppable>
+              </div>
             );
           })}
         </div>
       </DragDropContext>
-    );
-  }
+
+      {category && (
+        <CreateTaskDialog
+          open={isCreateDialogOpen}
+          onOpenChange={setIsCreateDialogOpen}
+          onTaskAdded={fetchTasks}
+          defaultCategory={category}
+        />
+      )}
+    </>
+  );
+}

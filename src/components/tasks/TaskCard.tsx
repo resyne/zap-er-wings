@@ -12,27 +12,15 @@ import { EditTaskDialog } from "./EditTaskDialog";
 import { TaskDetailsDialog } from "./TaskDetailsDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { Database } from "@/integrations/supabase/types";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'completed' | 'review' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: string;
-  assigned_to?: string;
-  created_by?: string;
-  start_date?: string;
-  due_date?: string;
-  completed_at?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  tags?: string[];
-  created_at: string;
-  updated_at: string;
+type TaskRow = Database['public']['Tables']['tasks']['Row'];
+type TaskStatus = Database['public']['Enums']['task_status'];
+type TaskPriority = Database['public']['Enums']['task_priority'];
+
+interface Task extends TaskRow {
   is_recurring?: boolean;
   recurring_day?: number;
-  archived?: boolean;
   profiles?: {
     first_name?: string;
     last_name?: string;
@@ -46,10 +34,10 @@ interface TaskCardProps {
 }
 
 const priorityStyles = {
-  low: { bg: '#dcfce7', text: '#15803d', border: '#86efac' },
-  medium: { bg: '#fef3c7', text: '#a16207', border: '#fcd34d' },
-  high: { bg: '#fed7aa', text: '#c2410c', border: '#fdba74' },
-  urgent: { bg: '#fecaca', text: '#b91c1c', border: '#fca5a5' }
+  low: 'bg-green-100 text-green-800 border-green-300',
+  medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  high: 'bg-orange-100 text-orange-800 border-orange-300',
+  urgent: 'bg-red-100 text-red-800 border-red-300'
 };
 
 const priorityLabels = {
@@ -122,27 +110,21 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
     ? `${assignedUser.first_name?.[0] || ''}${assignedUser.last_name?.[0] || ''}`.toUpperCase()
     : 'U';
 
-  const priorityStyle = priorityStyles[task.priority];
-
   return (
     <>
       <Card 
-        className={`cursor-pointer hover:shadow-md transition-shadow border ${
-          task.is_recurring ? 'border-l-4 border-l-blue-500' : ''
+        className={`cursor-pointer hover:shadow-lg transition-all bg-white border-2 ${
+          task.is_recurring ? 'border-l-4 border-l-blue-600' : 'border-gray-200'
         }`}
-        style={{ backgroundColor: '#ffffff', color: '#000000' }}
         onClick={() => !task.is_recurring && setIsDetailsDialogOpen(true)}
       >
-        <CardHeader className="p-4 pb-3">
+        <CardHeader className="p-4 pb-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2 flex-1 min-w-0">
               {task.is_recurring && (
-                <RotateCcw className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <RotateCcw className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
               )}
-              <h4 
-                className="font-bold text-base leading-tight line-clamp-2" 
-                style={{ color: '#1f2937' }}
-              >
+              <h4 className="font-bold text-lg text-gray-900 leading-tight line-clamp-2">
                 {task.title}
               </h4>
             </div>
@@ -152,10 +134,10 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="h-6 w-6 p-0"
+                    className="h-8 w-8 p-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MoreHorizontal className="h-3 w-3" />
+                    <MoreHorizontal className="h-4 w-4 text-gray-600" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -195,7 +177,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                       e.stopPropagation();
                       setIsDeleteDialogOpen(true);
                     }}
-                    className="text-destructive"
+                    className="text-red-600"
                   >
                     <Trash className="h-4 w-4 mr-2" />
                     Elimina
@@ -206,60 +188,52 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p 
-              className="text-sm line-clamp-2 mt-2" 
-              style={{ color: '#4b5563' }}
-            >
+            <p className="text-base text-gray-600 line-clamp-2 mt-2">
               {task.description}
             </p>
           )}
         </CardHeader>
         
-        <CardContent className="px-4 pb-4 pt-0 space-y-3">
+        <CardContent className="px-4 pb-4 pt-2 space-y-3">
           <div className="flex items-center justify-between">
             <Badge 
               variant="outline" 
-              className="text-sm font-semibold border"
-              style={{ 
-                backgroundColor: priorityStyle.bg,
-                color: priorityStyle.text,
-                borderColor: priorityStyle.border
-              }}
+              className={`text-base font-bold border-2 ${priorityStyles[task.priority]}`}
             >
               {priorityLabels[task.priority]}
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-1.5 text-sm" style={{ color: '#6b7280' }}>
-                <Clock className="h-4 w-4" />
-                <span className="font-semibold">{task.estimated_hours}h</span>
+              <div className="flex items-center gap-2 text-base text-gray-700 font-bold">
+                <Clock className="h-5 w-5" />
+                <span>{task.estimated_hours}h</span>
               </div>
             )}
           </div>
 
           {task.is_recurring && (
-            <div className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-              <RotateCcw className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-base font-bold text-blue-600">
+              <RotateCcw className="h-5 w-5" />
               <span>Task ricorrente settimanale</span>
             </div>
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#6b7280' }}>
-              <CalendarDays className="h-4 w-4" />
-              <span className="font-medium">{format(new Date(task.due_date), 'dd MMM', { locale: it })}</span>
+            <div className="flex items-center gap-2 text-base text-gray-700 font-bold">
+              <CalendarDays className="h-5 w-5" />
+              <span>{format(new Date(task.due_date), 'dd MMM', { locale: it })}</span>
             </div>
           )}
 
           {task.tags && task.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {task.tags.slice(0, 2).map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-sm px-2 py-0.5 font-medium">
+                <Badge key={index} variant="secondary" className="text-base px-3 py-1 font-bold bg-gray-200 text-gray-800">
                   {tag}
                 </Badge>
               ))}
               {task.tags.length > 2 && (
-                <Badge variant="secondary" className="text-sm px-2 py-0.5 font-medium">
+                <Badge variant="secondary" className="text-base px-3 py-1 font-bold bg-gray-200 text-gray-800">
                   +{task.tags.length - 2}
                 </Badge>
               )}
@@ -268,14 +242,11 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
 
           {assignedUser && (
             <div className="flex items-center gap-2">
-              <Avatar className="h-7 w-7">
+              <Avatar className="h-8 w-8">
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
-                <AvatarFallback className="text-sm font-semibold">{userInitials}</AvatarFallback>
+                <AvatarFallback className="text-base font-bold bg-gray-300 text-gray-800">{userInitials}</AvatarFallback>
               </Avatar>
-              <span 
-                className="text-sm font-semibold truncate"
-                style={{ color: '#374151' }}
-              >
+              <span className="text-base font-bold text-gray-900 truncate">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>
@@ -309,7 +280,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annulla</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <AlertDialogAction onClick={handleDelete} className="bg-red-600 text-white hover:bg-red-700">
                   Elimina
                 </AlertDialogAction>
               </AlertDialogFooter>

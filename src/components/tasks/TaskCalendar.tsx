@@ -10,24 +10,13 @@ import { format, startOfMonth, endOfMonth, isSameDay, addMonths, subMonths } fro
 import { it } from "date-fns/locale";
 import { TaskCard } from "./TaskCard";
 import { CreateTaskDialog } from "./CreateTaskDialog";
+import { Database } from "@/integrations/supabase/types";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: string;
-  assigned_to?: string;
-  created_by?: string;
-  start_date?: string;
-  due_date?: string;
-  completed_at?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  tags?: string[];
-  created_at: string;
-  updated_at: string;
+type TaskRow = Database['public']['Tables']['tasks']['Row'];
+
+interface Task extends TaskRow {
+  is_recurring?: boolean;
+  recurring_day?: number;
   profiles?: {
     first_name?: string;
     last_name?: string;
