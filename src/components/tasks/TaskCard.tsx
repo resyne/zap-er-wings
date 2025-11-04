@@ -46,10 +46,10 @@ interface TaskCardProps {
 }
 
 const priorityColors = {
-  low: 'bg-green-100 text-green-800 border-green-200',
-  medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  high: 'bg-red-100 text-red-800 border-red-200',
-  urgent: 'bg-red-200 text-red-900 border-red-300'
+  low: 'bg-success/10 text-success-foreground border-success/20',
+  medium: 'bg-warning/10 text-warning-foreground border-warning/20',
+  high: 'bg-destructive/10 text-destructive-foreground border-destructive/20',
+  urgent: 'bg-destructive/20 text-destructive-foreground border-destructive/30'
 };
 
 const priorityLabels = {
@@ -136,7 +136,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
               {task.is_recurring && (
                 <RotateCcw className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
               )}
-              <h4 className="font-semibold text-sm leading-tight line-clamp-2 text-foreground">
+              <h4 className="font-semibold text-sm leading-tight line-clamp-2">
                 {task.title}
               </h4>
             </div>
@@ -200,7 +200,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p className="text-xs text-foreground/90 line-clamp-2 mt-1">
+            <p className="text-xs line-clamp-2 mt-1">
               {task.description}
             </p>
           )}
@@ -216,7 +216,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-1 text-xs text-foreground/90">
+              <div className="flex items-center gap-1 text-xs">
                 <Clock className="h-3 w-3" />
                 {task.estimated_hours}h
               </div>
@@ -231,7 +231,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-1 text-xs text-foreground/90">
+            <div className="flex items-center gap-1 text-xs">
               <CalendarDays className="h-3 w-3" />
               {format(new Date(task.due_date), 'dd MMM', { locale: it })}
             </div>
@@ -258,7 +258,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
-              <span className="text-xs text-foreground/90 truncate font-medium">
+              <span className="text-xs truncate font-medium">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>
