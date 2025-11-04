@@ -46,10 +46,10 @@ interface TaskCardProps {
 }
 
 const priorityColors = {
-  low: 'bg-green-50 text-green-800 border-green-300',
-  medium: 'bg-yellow-50 text-yellow-800 border-yellow-300',
-  high: 'bg-orange-50 text-orange-800 border-orange-300',
-  urgent: 'bg-red-50 text-red-800 border-red-300'
+  low: 'bg-success/20 text-success border-success/30',
+  medium: 'bg-warning/20 text-warning border-warning/30',
+  high: 'bg-destructive/20 text-destructive border-destructive/30',
+  urgent: 'bg-destructive/30 text-destructive border-destructive/40'
 };
 
 const priorityLabels = {
@@ -130,13 +130,13 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
         }`}
         onClick={() => !task.is_recurring && setIsDetailsDialogOpen(true)}
       >
-        <CardHeader className="p-3 pb-2">
+        <CardHeader className="p-4 pb-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2 flex-1 min-w-0">
               {task.is_recurring && (
-                <RotateCcw className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <RotateCcw className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
               )}
-              <h4 className="!font-bold !text-sm leading-tight line-clamp-2 !text-black dark:!text-white">
+              <h4 className="font-semibold text-base leading-tight line-clamp-2 text-card-foreground">
                 {task.title}
               </h4>
             </div>
@@ -200,52 +200,52 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p className="!text-xs line-clamp-2 mt-1.5 !text-gray-800 dark:!text-gray-200">
+            <p className="text-sm line-clamp-2 mt-2 text-card-foreground/80">
               {task.description}
             </p>
           )}
         </CardHeader>
         
-        <CardContent className="px-3 pb-3 pt-0 space-y-2.5">
+        <CardContent className="px-4 pb-4 pt-0 space-y-3">
           <div className="flex items-center justify-between">
             <Badge 
               variant="outline" 
-              className={`!text-xs !font-semibold ${priorityColors[task.priority]}`}
+              className={`text-sm font-medium ${priorityColors[task.priority]}`}
             >
               {priorityLabels[task.priority]}
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-1 !text-xs !text-gray-700 dark:!text-gray-300">
-                <Clock className="h-3 w-3" />
-                {task.estimated_hours}h
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span className="font-medium">{task.estimated_hours}h</span>
               </div>
             )}
           </div>
 
           {task.is_recurring && (
-            <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-400 font-medium">
-              <RotateCcw className="h-3 w-3" />
-              Task ricorrente settimanale
+            <div className="flex items-center gap-1.5 text-sm text-primary font-medium">
+              <RotateCcw className="h-4 w-4" />
+              <span>Task ricorrente settimanale</span>
             </div>
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-1 !text-xs !text-gray-700 dark:!text-gray-300">
-              <CalendarDays className="h-3 w-3" />
-              {format(new Date(task.due_date), 'dd MMM', { locale: it })}
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <CalendarDays className="h-4 w-4" />
+              <span>{format(new Date(task.due_date), 'dd MMM', { locale: it })}</span>
             </div>
           )}
 
           {task.tags && task.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {task.tags.slice(0, 2).map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-xs px-1 py-0">
+                <Badge key={index} variant="secondary" className="text-sm px-2 py-0.5">
                   {tag}
                 </Badge>
               ))}
               {task.tags.length > 2 && (
-                <Badge variant="secondary" className="text-xs px-1 py-0">
+                <Badge variant="secondary" className="text-sm px-2 py-0.5">
                   +{task.tags.length - 2}
                 </Badge>
               )}
@@ -254,11 +254,11 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
 
           {assignedUser && (
             <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
+              <Avatar className="h-7 w-7">
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
-                <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
+                <AvatarFallback className="text-sm">{userInitials}</AvatarFallback>
               </Avatar>
-              <span className="!text-xs truncate !font-semibold !text-gray-800 dark:!text-gray-200">
+              <span className="text-sm font-medium text-card-foreground truncate">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>
