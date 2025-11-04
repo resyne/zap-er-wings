@@ -54,6 +54,9 @@ interface Offer {
   archived?: boolean;
   unique_code?: string;
   reverse_charge?: boolean;
+  approved?: boolean;
+  approved_by?: string;
+  approved_by_name?: string;
 }
 
 interface Lead {
@@ -1066,6 +1069,37 @@ export default function OffersPage() {
     }
   };
 
+  const handleApproveOffer = async (offerId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .update({ 
+          approved: true,
+          approved_by: user.id,
+          approved_by_name: user.user_metadata?.full_name || user.email || 'Utente'
+        } as any)
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta Approvata",
+        description: "L'offerta è stata approvata con successo",
+      });
+
+      loadData();
+    } catch (error) {
+      console.error('Error approving offer:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'approvazione dell'offerta",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteOffer = async (offerId: string) => {
     try {
       const { error } = await supabase
@@ -2035,18 +2069,61 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className="w-full h-7 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {offer.status === 'offerta_pronta' && !offer.approved ? (
+                        <>
+                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                            <SelectTrigger className="w-full h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                              <SelectItem value="accettata">Accettata</SelectItem>
+                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full text-xs h-7"
+                            onClick={() => handleApproveOffer(offer.id)}
+                          >
+                            Approvata
+                          </Button>
+                        </>
+                      ) : offer.approved && offer.status === 'offerta_pronta' ? (
+                        <>
+                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                            <SelectTrigger className="w-full h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                              <SelectItem value="accettata">Accettata</SelectItem>
+                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-xs text-muted-foreground text-center">
+                            Approvato da {offer.approved_by_name}
+                          </span>
+                        </>
+                      ) : (
+                        <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                          <SelectTrigger className="w-full h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                            <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                            <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                            <SelectItem value="accettata">Accettata</SelectItem>
+                            <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                       <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
                         <Eye className="w-3 h-3 mr-1" />
                         Dettagli
@@ -2278,6 +2355,11 @@ export default function OffersPage() {
                           <SelectItem value="rifiutata">Rifiutata</SelectItem>
                         </SelectContent>
                       </Select>
+                      {offer.status === 'offerta_pronta' && offer.approved && (
+                        <span className="text-xs text-muted-foreground text-center">
+                          Approvato da {offer.approved_by_name}
+                        </span>
+                      )}
                       <div className="flex gap-1 pt-1">
                         <Button
                           size="sm"
@@ -2288,6 +2370,16 @@ export default function OffersPage() {
                           <Eye className="w-3 h-3 mr-1" />
                           Dettagli
                         </Button>
+                        {offer.status === 'offerta_pronta' && !offer.approved && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleApproveOffer(offer.id)}
+                            className="h-7 text-xs flex-1"
+                          >
+                            Approvata
+                          </Button>
+                        )}
                         {offer.status === 'accettata' && (
                           <Button
                             size="sm"
@@ -2327,18 +2419,61 @@ export default function OffersPage() {
                       € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className="w-[140px] h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {offer.status === 'offerta_pronta' && !offer.approved ? (
+                        <div className="flex items-center gap-2">
+                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                            <SelectTrigger className="w-[100px] h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                              <SelectItem value="accettata">Accettata</SelectItem>
+                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleApproveOffer(offer.id)}
+                            className="h-8 text-xs"
+                          >
+                            Approvata
+                          </Button>
+                        </div>
+                      ) : offer.approved && offer.status === 'offerta_pronta' ? (
+                        <div className="flex flex-col gap-1">
+                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                            <SelectTrigger className="w-[140px] h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                              <SelectItem value="accettata">Accettata</SelectItem>
+                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-xs text-muted-foreground">
+                            Approvato da {offer.approved_by_name}
+                          </span>
+                        </div>
+                      ) : (
+                        <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
+                          <SelectTrigger className="w-[140px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                            <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                            <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                            <SelectItem value="accettata">Accettata</SelectItem>
+                            <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell>
                       {new Date(offer.created_at).toLocaleDateString('it-IT')}
