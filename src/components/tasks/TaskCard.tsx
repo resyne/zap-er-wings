@@ -200,7 +200,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           </div>
           
           {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+            <p className="text-xs text-foreground/70 line-clamp-2 mt-1">
               {task.description}
             </p>
           )}
@@ -216,7 +216,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
             </Badge>
             
             {task.estimated_hours && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1 text-xs text-foreground/70">
                 <Clock className="h-3 w-3" />
                 {task.estimated_hours}h
               </div>
@@ -231,7 +231,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
           )}
 
           {!task.is_recurring && task.due_date && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 text-xs text-foreground/70">
               <CalendarDays className="h-3 w-3" />
               {format(new Date(task.due_date), 'dd MMM', { locale: it })}
             </div>
@@ -258,7 +258,7 @@ export function TaskCard({ task, onUpdate }: TaskCardProps) {
                 <AvatarImage src={`https://avatar.vercel.sh/${assignedUser.email}`} />
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
-              <span className="text-xs text-muted-foreground truncate">
+              <span className="text-xs text-foreground/80 truncate">
                 {assignedUser.first_name} {assignedUser.last_name}
               </span>
             </div>
