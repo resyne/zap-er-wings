@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.process-call-records-emails]
 verify_jwt = false
 
+[functions.sync-call-records-imap]
+verify_jwt = false
+
 [functions.crm-ai-assistant]
 verify_jwt = false
 

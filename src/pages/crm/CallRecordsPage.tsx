@@ -5,10 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw } from "lucide-react";
+import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw, Settings, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
+import { ImapConfigDialog } from "@/components/crm/ImapConfigDialog";
 
 interface CallRecord {
   id: string;
@@ -26,6 +27,21 @@ interface CallRecord {
 export default function CallRecordsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showImapDialog, setShowImapDialog] = useState(false);
+
+  const { data: imapConfigs, refetch: refetchConfigs } = useQuery({
+    queryKey: ['imap-configs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('imap_config')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: callRecords, isLoading, refetch } = useQuery({
     queryKey: ['call-records'],
@@ -97,6 +113,30 @@ export default function CallRecordsPage() {
     }
   };
 
+  const handleSyncImap = async () => {
+    if (!imapConfigs || imapConfigs.length === 0) {
+      toast.error("Configura prima IMAP per sincronizzare le email");
+      setShowImapDialog(true);
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-call-records-imap');
+      
+      if (error) throw error;
+      
+      toast.success(`Sincronizzate ${data.emails_processed} email, ${data.new_call_records} nuove registrazioni`);
+      
+      refetch();
+    } catch (error) {
+      console.error('Error syncing IMAP:', error);
+      toast.error("Errore nella sincronizzazione IMAP");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const filteredRecords = callRecords?.filter(record =>
     record.caller_number.includes(searchTerm) ||
     record.called_number.includes(searchTerm) ||
@@ -105,79 +145,77 @@ export default function CallRecordsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <ImapConfigDialog 
+        open={showImapDialog} 
+        onOpenChange={setShowImapDialog}
+        onSuccess={() => refetchConfigs()}
+      />
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold mb-2">Registrazioni Chiamate</h1>
           <p className="text-muted-foreground">
-            Le chiamate vengono estratte automaticamente dalle email del centralino
+            Sincronizza automaticamente le registrazioni via IMAP
           </p>
         </div>
-        <Button onClick={handleProcessEmails} disabled={isProcessing}>
-          {isProcessing ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Elaborazione...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Sincronizza Email
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowImapDialog(true)}>
+            <Settings className="mr-2 h-4 w-4" />
+            Configura IMAP
+          </Button>
+          <Button onClick={handleSyncImap} disabled={isProcessing}>
+            {isProcessing ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Sincronizzazione...
+              </>
+            ) : (
+              <>
+                <Mail className="mr-2 h-4 w-4" />
+                Sincronizza IMAP
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            Configurazione Email
-          </CardTitle>
-          <CardDescription>
-            Il centralino deve inviare le email con i dati delle chiamate a questo indirizzo
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium mb-2">Indirizzo Email:</p>
-              <div className="flex gap-2">
-                <Input
-                  value="inbound-call-records@rucjkoleodtwrbftwgsm.supabase.co"
-                  readOnly
-                  className="font-mono text-sm"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText("inbound-call-records@rucjkoleodtwrbftwgsm.supabase.co");
-                    toast.success("Email copiato negli appunti");
-                  }}
-                >
-                  Copia
-                </Button>
+      {imapConfigs && imapConfigs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configurazione Attiva
+            </CardTitle>
+            <CardDescription>
+              Server IMAP configurato per la sincronizzazione automatica
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Nome:</span>
+                <span className="text-sm text-muted-foreground">{imapConfigs[0].name}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Server:</span>
+                <span className="text-sm text-muted-foreground font-mono">{imapConfigs[0].host}:{imapConfigs[0].port}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Cartella:</span>
+                <span className="text-sm text-muted-foreground">{imapConfigs[0].folder}</span>
+              </div>
+              {imapConfigs[0].last_sync_at && (
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Ultima sincronizzazione:</span>
+                  <span className="text-sm text-muted-foreground">
+                    {format(new Date(imapConfigs[0].last_sync_at), 'dd/MM/yyyy HH:mm', { locale: it })}
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p className="font-medium">Formato email richiesto:</p>
-              <p>Il centralino deve inviare email con i seguenti dati nel corpo:</p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Numero Chiamante: [numero]</li>
-                <li>Numero Chiamato: [numero]</li>
-                <li>Servizio: [tipo servizio, es. Chiamate_OUT]</li>
-                <li>Data: [formato DD-MM-YYYY]</li>
-                <li>Ora: [formato HH-MM-SS]</li>
-                <li>Durata: [secondi] Secondi</li>
-                <li>ID Univoco Chiamata: [id]</li>
-                <li>Allegato MP3 (opzionale): registrazione audio</li>
-              </ul>
-              <p className="mt-4 font-medium text-primary">
-                ⚡ Le chiamate vengono elaborate automaticamente all'arrivo delle email!
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
         <Card>
           <CardHeader>

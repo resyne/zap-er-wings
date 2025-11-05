@@ -2104,6 +2104,86 @@ export type Database = {
           },
         ]
       }
+      imap_config: {
+        Row: {
+          created_at: string | null
+          folder: string | null
+          host: string
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          name: string
+          password_encrypted: string
+          port: number
+          search_criteria: string | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          folder?: string | null
+          host: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          name: string
+          password_encrypted: string
+          port?: number
+          search_criteria?: string | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          folder?: string | null
+          host?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          name?: string
+          password_encrypted?: string
+          port?: number
+          search_criteria?: string | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      imap_sync_state: {
+        Row: {
+          config_id: string | null
+          created_at: string | null
+          emails_processed: number | null
+          id: string
+          last_sync_at: string | null
+          last_uid: number | null
+        }
+        Insert: {
+          config_id?: string | null
+          created_at?: string | null
+          emails_processed?: number | null
+          id?: string
+          last_sync_at?: string | null
+          last_uid?: number | null
+        }
+        Update: {
+          config_id?: string | null
+          created_at?: string | null
+          emails_processed?: number | null
+          id?: string
+          last_sync_at?: string | null
+          last_uid?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imap_sync_state_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: true
+            referencedRelation: "imap_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           active: boolean | null
