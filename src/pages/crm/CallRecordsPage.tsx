@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing } from "lucide-react";
+import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -25,8 +25,9 @@ interface CallRecord {
 
 export default function CallRecordsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const { data: callRecords, isLoading } = useQuery({
+  const { data: callRecords, isLoading, refetch } = useQuery({
     queryKey: ['call-records'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -78,70 +79,86 @@ export default function CallRecordsPage() {
     }
   };
 
+  const handleProcessEmails = async () => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-call-records-emails');
+      
+      if (error) throw error;
+      
+      toast.success(`Processate ${data.processed} chiamate dalle email. Ignorate: ${data.skipped}, Errori: ${data.errors}`);
+      
+      refetch();
+    } catch (error) {
+      console.error('Error processing emails:', error);
+      toast.error("Errore nel processare le email");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const filteredRecords = callRecords?.filter(record =>
     record.caller_number.includes(searchTerm) ||
     record.called_number.includes(searchTerm) ||
     record.unique_call_id.includes(searchTerm)
   );
 
-  const webhookUrl = `https://rucjkoleodtwrbftwgsm.supabase.co/functions/v1/pbx-webhook`;
-
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
+      <div className="flex justify-between items-center">
+        <div>
           <h1 className="text-3xl font-bold mb-2">Registrazioni Chiamate</h1>
           <p className="text-muted-foreground">
-            Gestisci e visualizza tutte le registrazioni delle chiamate del centralino
+            Le chiamate vengono estratte automaticamente dalle email del centralino
           </p>
         </div>
+        <Button onClick={handleProcessEmails} disabled={isProcessing}>
+          {isProcessing ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Elaborazione...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sincronizza Email
+            </>
+          )}
+        </Button>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              Endpoint Webhook
-            </CardTitle>
-            <CardDescription>
-              Configura il tuo centralino per inviare i dati a questo endpoint
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium mb-2">URL Endpoint:</p>
-                <div className="flex gap-2">
-                  <Input
-                    value={webhookUrl}
-                    readOnly
-                    className="font-mono text-sm"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(webhookUrl);
-                      toast.success("URL copiato negli appunti");
-                    }}
-                  >
-                    Copia
-                  </Button>
-                </div>
-              </div>
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p className="font-medium">Formato richiesto (multipart/form-data o JSON):</p>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>caller_number: Numero chiamante</li>
-                  <li>called_number: Numero chiamato</li>
-                  <li>service: Tipo di servizio (es. Chiamate_OUT)</li>
-                  <li>call_date: Data (formato: DD-MM-YYYY o YYYY-MM-DD)</li>
-                  <li>call_time: Ora (formato: HH-MM-SS o HH:MM:SS)</li>
-                  <li>duration: Durata in secondi</li>
-                  <li>unique_call_id: ID univoco della chiamata</li>
-                  <li>recording: File MP3 (opzionale, come form-data)</li>
-                </ul>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Configurazione Email
+          </CardTitle>
+          <CardDescription>
+            Il centralino deve inviare le email con i dati delle chiamate a questo sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p className="font-medium">Formato email richiesto:</p>
+              <p>L'email deve contenere nel corpo i seguenti dati:</p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Numero Chiamante: [numero]</li>
+                <li>Numero Chiamato: [numero]</li>
+                <li>Servizio: [tipo servizio, es. Chiamate_OUT]</li>
+                <li>Data: [formato DD-MM-YYYY]</li>
+                <li>Ora: [formato HH-MM-SS]</li>
+                <li>Durata: [secondi] Secondi</li>
+                <li>ID Univoco Chiamata: [id]</li>
+                <li>Allegato MP3 (opzionale): registrazione audio</li>
+              </ul>
+              <p className="mt-4 font-medium">
+                Clicca su "Sincronizza Email" per processare le nuove email e importare le chiamate.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
         <Card>
           <CardHeader>
