@@ -88,7 +88,9 @@ Deno.serve(async (req) => {
 
       // Search for unread emails (or all emails if first sync)
       const searchCriteria = config.search_criteria || 'UNSEEN';
+      console.log(`Search criteria: ${searchCriteria}`);
       const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
+      console.log(`Search response: ${searchResponse}`);
       const messageIds = extractMessageIds(searchResponse);
 
       console.log(`Found ${messageIds.length} messages to process`);
