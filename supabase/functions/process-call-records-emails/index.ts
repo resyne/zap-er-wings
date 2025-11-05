@@ -8,10 +8,10 @@ const corsHeaders = {
 interface EmailData {
   id: string;
   subject: string;
-  body_text: string;
-  body_html: string;
-  from_email: string;
-  received_at: string;
+  body: string;
+  html_body: string;
+  from_address: string;
+  email_date: string;
   attachments?: any[];
 }
 
@@ -86,9 +86,9 @@ Deno.serve(async (req) => {
         console.log('Processing email:', {
           id: email.id,
           subject: email.subject?.substring(0, 100),
-          from: email.from_email,
-          hasBodyText: !!email.body_text,
-          hasBodyHtml: !!email.body_html
+          from: email.from_address,
+          hasBody: !!email.body,
+          hasHtmlBody: !!email.html_body
         });
         
         // Check if email contains call record data
@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
 });
 
 function extractCallRecordData(email: EmailData): CallRecordData | null {
-  const text = email.body_text || email.body_html || '';
+  const text = email.body || email.html_body || '';
   
   // Try to extract call data from email body
   // Looking for patterns like:
