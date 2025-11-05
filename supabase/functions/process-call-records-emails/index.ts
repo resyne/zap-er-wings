@@ -82,10 +82,20 @@ Deno.serve(async (req) => {
 
     for (const email of emails || []) {
       try {
+        // Log email details for debugging
+        console.log('Processing email:', {
+          id: email.id,
+          subject: email.subject?.substring(0, 100),
+          from: email.from_email,
+          hasBodyText: !!email.body_text,
+          hasBodyHtml: !!email.body_html
+        });
+        
         // Check if email contains call record data
         const callData = extractCallRecordData(email);
         
         if (!callData) {
+          console.log('Email does not contain call record data, skipping');
           skippedCount++;
           continue;
         }
