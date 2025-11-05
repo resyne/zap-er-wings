@@ -134,14 +134,33 @@ export default function CallRecordsPage() {
             Configurazione Email
           </CardTitle>
           <CardDescription>
-            Il centralino deve inviare le email con i dati delle chiamate a questo sistema
+            Il centralino deve inviare le email con i dati delle chiamate a questo indirizzo
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Indirizzo Email:</p>
+              <div className="flex gap-2">
+                <Input
+                  value="inbound-call-records@rucjkoleodtwrbftwgsm.supabase.co"
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText("inbound-call-records@rucjkoleodtwrbftwgsm.supabase.co");
+                    toast.success("Email copiato negli appunti");
+                  }}
+                >
+                  Copia
+                </Button>
+              </div>
+            </div>
             <div className="text-sm text-muted-foreground space-y-2">
               <p className="font-medium">Formato email richiesto:</p>
-              <p>L'email deve contenere nel corpo i seguenti dati:</p>
+              <p>Il centralino deve inviare email con i seguenti dati nel corpo:</p>
               <ul className="list-disc list-inside space-y-1 ml-4">
                 <li>Numero Chiamante: [numero]</li>
                 <li>Numero Chiamato: [numero]</li>
@@ -152,8 +171,8 @@ export default function CallRecordsPage() {
                 <li>ID Univoco Chiamata: [id]</li>
                 <li>Allegato MP3 (opzionale): registrazione audio</li>
               </ul>
-              <p className="mt-4 font-medium">
-                Clicca su "Sincronizza Email" per processare le nuove email e importare le chiamate.
+              <p className="mt-4 font-medium text-primary">
+                ⚡ Le chiamate vengono elaborate automaticamente all'arrivo delle email!
               </p>
             </div>
           </div>
