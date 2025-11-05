@@ -1,5 +1,8 @@
 project_id = "rucjkoleodtwrbftwgsm"
 
+[functions.inbound-call-records]
+verify_jwt = false
+
 [functions.crm-ai-assistant]
 verify_jwt = false
 
