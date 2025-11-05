@@ -95,10 +95,18 @@ Deno.serve(async (req) => {
 
       console.log(`Found ${messageIds.length} messages to process`);
 
+      // Limit to 50 messages per sync to avoid timeout
+      const MAX_MESSAGES_PER_SYNC = 50;
+      const messagesToProcess = messageIds.slice(0, MAX_MESSAGES_PER_SYNC);
+      
+      if (messageIds.length > MAX_MESSAGES_PER_SYNC) {
+        console.log(`Processing only first ${MAX_MESSAGES_PER_SYNC} messages to avoid timeout`);
+      }
+
       let processedCount = 0;
       let newCallRecords = 0;
 
-      for (const msgId of messageIds) {
+      for (const msgId of messagesToProcess) {
         try {
           // Fetch email content
           const emailResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
@@ -174,6 +182,7 @@ Deno.serve(async (req) => {
           success: true,
           emails_processed: processedCount,
           new_call_records: newCallRecords,
+          total_found: messageIds.length,
           config_name: config.name
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

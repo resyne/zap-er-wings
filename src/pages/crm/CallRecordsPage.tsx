@@ -126,7 +126,11 @@ export default function CallRecordsPage() {
       
       if (error) throw error;
       
-      toast.success(`Sincronizzate ${data.emails_processed} email, ${data.new_call_records} nuove registrazioni`);
+      const message = data.total_found > data.emails_processed
+        ? `Processate ${data.emails_processed} di ${data.total_found} email (${data.new_call_records} nuove). Clicca di nuovo per processare le rimanenti.`
+        : `Sincronizzate ${data.emails_processed} email, ${data.new_call_records} nuove registrazioni`;
+      
+      toast.success(message);
       
       refetch();
     } catch (error) {
