@@ -38,22 +38,43 @@ Deno.serve(async (req) => {
 
     console.log('Starting to process call records from emails...');
 
-    // Fetch unprocessed emails from the last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const { data: emails, error: emailsError } = await supabase
+    // Cerca email nella tabella 'emails' se esiste, altrimenti nella tabella 'mail_messages'
+    let emails = [];
+    
+    // Prima prova con la tabella emails
+    const { data: emailsData, error: emailsError } = await supabase
       .from('emails')
       .select('*')
-      .gte('received_at', sevenDaysAgo.toISOString())
-      .order('received_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-    if (emailsError) {
-      console.error('Error fetching emails:', emailsError);
-      throw emailsError;
+    if (!emailsError && emailsData) {
+      emails = emailsData;
+      console.log(`Found ${emails.length} emails in 'emails' table`);
+    } else {
+      // Se fallisce, prova con mail_messages
+      const { data: mailMessages, error: mailError } = await supabase
+        .from('mail_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (!mailError && mailMessages) {
+        // Adatta il formato di mail_messages a quello di emails
+        emails = mailMessages.map((msg: any) => ({
+          id: msg.id,
+          subject: msg.subject,
+          body_text: msg.body_text,
+          body_html: msg.body_html,
+          from_email: msg.from_address,
+          received_at: msg.created_at,
+          attachments: msg.attachments
+        }));
+        console.log(`Found ${emails.length} emails in 'mail_messages' table`);
+      } else {
+        console.log('No emails found in any table');
+      }
     }
-
-    console.log(`Found ${emails?.length || 0} emails to process`);
 
     let processedCount = 0;
     let skippedCount = 0;

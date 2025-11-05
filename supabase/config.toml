@@ -3,6 +3,9 @@ project_id = "rucjkoleodtwrbftwgsm"
 [functions.inbound-call-records]
 verify_jwt = false
 
+[functions.process-call-records-emails]
+verify_jwt = false
+
 [functions.crm-ai-assistant]
 verify_jwt = false
 
