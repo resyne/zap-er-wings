@@ -12,6 +12,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { DirectionalDashboardPage } from "./pages/dashboard/DirectionalDashboardPage";
 import PeoplePage from "./pages/hr/PeoplePage";
+import CallRecordsPage from "./pages/crm/CallRecordsPage";
 import TechniciansPage from "./pages/hr/TechniciansPage";
 import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
 import NotFound from "./pages/NotFound";
@@ -123,6 +124,7 @@ const App = () => (
                 <Route path="marketing/email-marketing" element={<EmailMarketingPage />} />
                 <Route path="crm/customers" element={<CustomersPage />} />
                 <Route path="crm/offers" element={<OffersPage />} />
+                <Route path="crm/call-records" element={<CallRecordsPage />} />
                 <Route path="mfg/products" element={<ProductCatalogPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
                 <Route path="warehouse/shipping-orders" element={<ShippingCommissionsPage />} />

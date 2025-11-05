@@ -37,7 +37,8 @@ import {
   UtensilsCrossed,
   Ticket,
   Palette,
-  CheckSquare
+  CheckSquare,
+  Phone
 } from "lucide-react";
 
 import {
@@ -94,6 +95,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Clienti", url: "/crm/customers", icon: Building2 },
       { title: "Preventivatore Costi", url: "/crm/cost-estimator", icon: DollarSign },
       { title: "Offerte", url: "/crm/offers", icon: FileText },
+      { title: "Call Records", url: "/crm/call-records", icon: Phone },
     ]
   },
   {

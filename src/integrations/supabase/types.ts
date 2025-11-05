@@ -378,6 +378,48 @@ export type Database = {
         }
         Relationships: []
       }
+      call_records: {
+        Row: {
+          call_date: string
+          call_time: string
+          called_number: string
+          caller_number: string
+          created_at: string | null
+          duration_seconds: number
+          id: string
+          recording_url: string | null
+          service: string
+          unique_call_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          call_date: string
+          call_time: string
+          called_number: string
+          caller_number: string
+          created_at?: string | null
+          duration_seconds: number
+          id?: string
+          recording_url?: string | null
+          service: string
+          unique_call_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          call_date?: string
+          call_time?: string
+          called_number?: string
+          caller_number?: string
+          created_at?: string | null
+          duration_seconds?: number
+          id?: string
+          recording_url?: string | null
+          service?: string
+          unique_call_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       chart_of_accounts: {
         Row: {
           account_type: string
