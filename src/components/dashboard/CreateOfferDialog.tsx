@@ -19,9 +19,14 @@ interface CreateOfferDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   defaultStatus?: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'accettata' | 'rifiutata';
+  leadData?: {
+    leadId?: string;
+    customerName?: string;
+    amount?: number;
+  };
 }
 
-export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus = 'richiesta_offerta' }: CreateOfferDialogProps) {
+export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus = 'richiesta_offerta', leadData }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -67,8 +72,16 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     if (open) {
       loadCustomers();
       loadProducts();
+      // Precompila i dati dal lead se forniti
+      if (leadData) {
+        setNewOffer(prev => ({
+          ...prev,
+          title: leadData.customerName ? `Offerta per ${leadData.customerName}` : prev.title,
+          amount: leadData.amount || prev.amount,
+        }));
+      }
     }
-  }, [open]);
+  }, [open, leadData]);
 
   const loadCustomers = async () => {
     const { data } = await supabase
@@ -151,7 +164,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           escluso_fornitura: newOffer.escluso_fornitura || null,
           payment_method: newOffer.payment_method || null,
           payment_agreement: newOffer.payment_agreement || null,
-          reverse_charge: newOffer.reverse_charge
+          reverse_charge: newOffer.reverse_charge,
+          lead_id: leadData?.leadId || null
         }])
         .select('id, unique_code')
         .single();

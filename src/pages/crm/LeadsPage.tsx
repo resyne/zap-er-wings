@@ -19,6 +19,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CreateOfferDialog } from "@/components/dashboard/CreateOfferDialog";
 
 
 interface Lead {
@@ -97,14 +98,7 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
-  const [currentLeadForOffer, setCurrentLeadForOffer] = useState<Lead | null>(null);
-  const [newOffer, setNewOffer] = useState({
-    title: "",
-    customer_name: "",
-    amount: "",
-    status: "richiesta_offerta",
-    description: "",
-  });
+  const [leadForOffer, setLeadForOffer] = useState<Lead | null>(null);
   const [newLead, setNewLead] = useState({
     company_name: "",
     contact_name: "",
@@ -692,62 +686,8 @@ export default function LeadsPage() {
   };
 
   const handleCreateOfferForLead = async (lead: Lead) => {
-    setCurrentLeadForOffer(lead);
-    setNewOffer({
-      title: `Offerta per ${lead.company_name}`,
-      customer_name: lead.company_name,
-      amount: lead.value?.toString() || "",
-      status: "richiesta_offerta",
-      description: "",
-    });
+    setLeadForOffer(lead);
     setIsOfferDialogOpen(true);
-  };
-
-  const handleSubmitOffer = async () => {
-    if (!currentLeadForOffer) return;
-
-    try {
-      // Generate a temporary offer number
-      const timestamp = Date.now();
-      const offerNumber = `OFF-${timestamp}`;
-
-      const offerData = {
-        number: offerNumber,
-        title: newOffer.title,
-        customer_name: newOffer.customer_name,
-        amount: newOffer.amount ? parseFloat(newOffer.amount) : 0,
-        status: newOffer.status,
-        description: newOffer.description,
-        lead_id: currentLeadForOffer.id,
-      };
-
-      const { error } = await supabase
-        .from("offers")
-        .insert([offerData]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Offerta creata",
-        description: "L'offerta è stata creata. Puoi aggiungerne un'altra per lo stesso lead.",
-      });
-
-      // Mantiene il dialog aperto e il lead selezionato per permettere di creare più offerte
-      setNewOffer({
-        title: `Offerta per ${currentLeadForOffer.company_name}`,
-        customer_name: currentLeadForOffer.company_name,
-        amount: currentLeadForOffer.value?.toString() || "",
-        status: "richiesta_offerta",
-        description: "",
-      });
-      await loadOffers();
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: "Impossibile creare l'offerta: " + error.message,
-        variant: "destructive",
-      });
-    }
   };
 
   const handleLinkOfferToLead = async (leadId: string, offerId: string) => {
@@ -2313,78 +2253,21 @@ export default function LeadsPage() {
       </Dialog>
 
       {/* Dialog per creare una nuova offerta */}
-      <Dialog open={isOfferDialogOpen} onOpenChange={setIsOfferDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Crea Nuova Offerta per {currentLeadForOffer?.company_name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="offer_title">Titolo Offerta *</Label>
-              <Input
-                id="offer_title"
-                value={newOffer.title}
-                onChange={(e) => setNewOffer({...newOffer, title: e.target.value})}
-                placeholder="Offerta per..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="offer_customer">Cliente</Label>
-              <Input
-                id="offer_customer"
-                value={newOffer.customer_name}
-                onChange={(e) => setNewOffer({...newOffer, customer_name: e.target.value})}
-                placeholder="Nome cliente"
-              />
-            </div>
-            <div>
-              <Label htmlFor="offer_amount">Importo (€)</Label>
-              <Input
-                id="offer_amount"
-                type="number"
-                value={newOffer.amount}
-                onChange={(e) => setNewOffer({...newOffer, amount: e.target.value})}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <Label htmlFor="offer_status">Stato</Label>
-              <Select value={newOffer.status} onValueChange={(value) => setNewOffer({...newOffer, status: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona stato" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="richiesta_offerta">Richiesta Offerta</SelectItem>
-                  <SelectItem value="offerta_pronta">Offerta Pronta</SelectItem>
-                  <SelectItem value="offerta_inviata">Offerta Inviata</SelectItem>
-                  <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                  <SelectItem value="accettata">Accettata</SelectItem>
-                  <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                  <SelectItem value="scaduta">Scaduta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="offer_description">Descrizione</Label>
-              <Textarea
-                id="offer_description"
-                value={newOffer.description}
-                onChange={(e) => setNewOffer({...newOffer, description: e.target.value})}
-                placeholder="Descrizione dell'offerta..."
-                rows={4}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsOfferDialogOpen(false)}>
-              Annulla
-            </Button>
-            <Button onClick={handleSubmitOffer}>
-              Crea Offerta
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateOfferDialog
+        open={isOfferDialogOpen}
+        onOpenChange={setIsOfferDialogOpen}
+        onSuccess={() => {
+          loadOffers();
+          setIsOfferDialogOpen(false);
+        }}
+        defaultStatus="richiesta_offerta"
+        leadData={leadForOffer ? {
+          leadId: leadForOffer.id,
+          customerName: leadForOffer.company_name,
+          amount: leadForOffer.value
+        } : undefined}
+      />
+
 
     </div>
   );
