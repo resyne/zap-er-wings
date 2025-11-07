@@ -117,8 +117,13 @@ export default function PublicOfferPage() {
         </div>
       `).join('') : '<div class="includes-item"><span class="includes-text">Nessun elemento specificato</span></div>';
 
-      // Calculate totals
-      const totalImponibile = offer.amount || 0;
+      // Calculate totals from offer items
+      const totalImponibile = (offerItems || []).reduce((sum: number, item: any) => {
+        const subtotal = item.quantity * item.unit_price;
+        const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
+        return sum + (subtotal - discount);
+      }, 0);
+      
       const isReverseCharge = offer.reverse_charge === true;
       const ivaRate = 0.22; // 22%
       const totalIva = isReverseCharge ? 0 : totalImponibile * ivaRate;
