@@ -20,6 +20,7 @@ import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateOfferDialog } from "@/components/dashboard/CreateOfferDialog";
+import { cn } from "@/lib/utils";
 
 
 interface Lead {
@@ -1344,24 +1345,38 @@ export default function LeadsPage() {
                           <Card
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`cursor-pointer transition-shadow hover:shadow-md ${
-                              snapshot.isDragging ? 'shadow-lg' : ''
-                            }`}
+                            className={cn(
+                              "cursor-pointer transition-all",
+                              snapshot.isDragging && "shadow-lg scale-105",
+                              isMobile && "touch-manipulation"
+                            )}
                             onClick={() => {
                               setSelectedLead(lead);
                               setIsDetailsDialogOpen(true);
                             }}
                           >
-                             <CardContent className={`${isMobile ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
+                             <CardContent className={cn(
+                               "space-y-2",
+                               isMobile ? "p-3" : "p-4"
+                             )}>
                                 {/* Header con titolo e azioni */}
-                                <div className="flex items-start justify-between">
+                                <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">
-                                    <div className={`flex items-center gap-2 ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
-                                      <Building2 className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-primary flex-shrink-0`} />
-                                      <h4 className={`font-semibold ${isMobile ? 'text-xs' : 'text-sm'} truncate`}>{lead.company_name}</h4>
+                                    <div className={cn("flex items-center gap-2", isMobile ? "mb-0.5" : "mb-1")}>
+                                      <Building2 className={cn(
+                                        "text-primary flex-shrink-0",
+                                        isMobile ? "h-3 w-3" : "h-4 w-4"
+                                      )} />
+                                      <h4 className={cn(
+                                        "font-semibold truncate",
+                                        isMobile ? "text-xs" : "text-sm"
+                                      )}>{lead.company_name}</h4>
                                     </div>
                                     {lead.contact_name && (
-                                      <p className={`${isMobile ? 'text-[10px] ml-5' : 'text-xs ml-6'} text-muted-foreground truncate`}>{lead.contact_name}</p>
+                                      <p className={cn(
+                                        "text-muted-foreground truncate",
+                                        isMobile ? "text-[10px] ml-5" : "text-xs ml-6"
+                                      )}>{lead.contact_name}</p>
                                     )}
                                   </div>
                                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -1372,9 +1387,12 @@ export default function LeadsPage() {
                                         e.stopPropagation();
                                         handleEditLead(lead);
                                       }}
-                                      className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} p-0 hover:bg-muted`}
+                                      className={cn(
+                                        "p-0 hover:bg-muted",
+                                        isMobile ? "h-6 w-6" : "h-7 w-7"
+                                      )}
                                     >
-                                      <Edit className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
+                                      <Edit className={cn(isMobile ? "h-3 w-3" : "h-3.5 w-3.5")} />
                                     </Button>
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
@@ -1382,9 +1400,12 @@ export default function LeadsPage() {
                                           variant="ghost"
                                           size="sm"
                                           onClick={(e) => e.stopPropagation()}
-                                          className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} p-0 text-destructive hover:text-destructive hover:bg-destructive/10`}
+                                          className={cn(
+                                            "p-0 text-destructive hover:text-destructive hover:bg-destructive/10",
+                                            isMobile ? "h-6 w-6" : "h-7 w-7"
+                                          )}
                                         >
-                                          <Trash2 className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
+                                          <Trash2 className={cn(isMobile ? "h-3 w-3" : "h-3.5 w-3.5")} />
                                         </Button>
                                       </AlertDialogTrigger>
                                      <AlertDialogContent>
@@ -1713,18 +1734,21 @@ export default function LeadsPage() {
 
       {/* Lead Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className={`${isMobile ? 'max-w-[95vw] p-4' : 'max-w-4xl'} max-h-[90vh] overflow-y-auto`}>
+        <DialogContent className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          isMobile ? "max-w-[95vw] p-4" : "max-w-4xl"
+        )}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              {selectedLead?.company_name}
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="truncate">{selectedLead?.company_name}</span>
             </DialogTitle>
           </DialogHeader>
           
           {selectedLead && (
             <div className="space-y-6">
               {/* Contact Info */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Contatto</label>
                   <p className="text-sm">{selectedLead.contact_name || '-'}</p>
@@ -1738,8 +1762,8 @@ export default function LeadsPage() {
                   <p className="text-sm flex items-center gap-2">
                     {selectedLead.email ? (
                       <>
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        {selectedLead.email}
+                        <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{selectedLead.email}</span>
                       </>
                     ) : '-'}
                   </p>
@@ -1749,8 +1773,8 @@ export default function LeadsPage() {
                   <p className="text-sm flex items-center gap-2">
                     {selectedLead.phone ? (
                       <>
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        {selectedLead.phone}
+                        <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{selectedLead.phone}</span>
                       </>
                     ) : '-'}
                   </p>
@@ -1911,7 +1935,10 @@ export default function LeadsPage() {
               </div>
 
               {/* Actions */}
-              <div className="border-t pt-4 flex gap-2">
+              <div className={cn(
+                "border-t pt-4 flex gap-2",
+                isMobile && "flex-col"
+              )}>
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -1937,12 +1964,13 @@ export default function LeadsPage() {
                 {selectedLead.status === "negotiation" && (
                   <>
                     <Button
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => {
                         handleWinLead(selectedLead);
                         setIsDetailsDialogOpen(false);
                       }}
                     >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
                       Vinto
                     </Button>
                     <Button
@@ -1953,6 +1981,7 @@ export default function LeadsPage() {
                         setIsDetailsDialogOpen(false);
                       }}
                     >
+                      <XCircle className="h-4 w-4 mr-2" />
                       Perso
                     </Button>
                   </>
