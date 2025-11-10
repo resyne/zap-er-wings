@@ -2275,6 +2275,41 @@ export type Database = {
           },
         ]
       }
+      invoice_reminders: {
+        Row: {
+          created_at: string
+          customer_invoice_id: string
+          id: string
+          notes: string | null
+          reminder_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_invoice_id: string
+          id?: string
+          notes?: string | null
+          reminder_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_invoice_id?: string
+          id?: string
+          notes?: string | null
+          reminder_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_reminders_customer_invoice_id_fkey"
+            columns: ["customer_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "customer_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           active: boolean | null

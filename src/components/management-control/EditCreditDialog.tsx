@@ -6,11 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Plus, Mail, MessageSquare, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 
 interface EditCreditDialogProps {
   open: boolean;
@@ -24,6 +28,10 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
   const [customers, setCustomers] = useState<any[]>([]);
   const [customersOpen, setCustomersOpen] = useState(false);
   const [showCreateCustomerDialog, setShowCreateCustomerDialog] = useState(false);
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [newReminderType, setNewReminderType] = useState<'email' | 'whatsapp'>('email');
+  const [newReminderNotes, setNewReminderNotes] = useState('');
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     invoice_number: "",
     customer_id: "",
@@ -40,6 +48,7 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
     if (open && invoiceId) {
       loadInvoiceData();
       loadCustomers();
+      loadReminders();
     }
   }, [open, invoiceId]);
 
@@ -73,6 +82,57 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
     } catch (error: any) {
       console.error('Error loading invoice:', error);
       toast.error('Errore nel caricamento del credito');
+    }
+  };
+
+  const loadReminders = async () => {
+    if (!invoiceId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("invoice_reminders")
+        .select(`
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq("customer_invoice_id", invoiceId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setReminders(data || []);
+    } catch (error: any) {
+      console.error("Error loading reminders:", error);
+    }
+  };
+
+  const handleAddReminder = async () => {
+    if (!invoiceId || !user) {
+      toast.error("Impossibile aggiungere il sollecito");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("invoice_reminders")
+        .insert({
+          customer_invoice_id: invoiceId,
+          reminder_type: newReminderType,
+          user_id: user.id,
+          notes: newReminderNotes || null,
+        });
+
+      if (error) throw error;
+
+      toast.success("Sollecito registrato con successo");
+      setNewReminderNotes("");
+      loadReminders();
+    } catch (error: any) {
+      console.error("Error adding reminder:", error);
+      toast.error("Errore durante la registrazione del sollecito");
     }
   };
 
@@ -342,6 +402,90 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
               </div>
             </div>
           )}
+
+          {/* Sezione Solleciti */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-lg font-medium">Solleciti</h3>
+            
+            {/* Aggiungi nuovo sollecito */}
+            <div className="space-y-2 bg-muted/50 p-4 rounded-lg">
+              <Label>Registra nuovo sollecito</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={newReminderType}
+                  onValueChange={(value: 'email' | 'whatsapp') => setNewReminderType(value)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        <span>Email</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="whatsapp">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        <span>WhatsApp</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Input
+                  placeholder="Note (opzionale)"
+                  value={newReminderNotes}
+                  onChange={(e) => setNewReminderNotes(e.target.value)}
+                />
+                
+                <Button type="button" onClick={handleAddReminder}>
+                  Registra
+                </Button>
+              </div>
+            </div>
+
+            {/* Lista solleciti esistenti */}
+            {reminders.length > 0 && (
+              <div className="space-y-2">
+                <Label>Storico solleciti ({reminders.length})</Label>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {reminders.map((reminder) => (
+                    <div
+                      key={reminder.id}
+                      className="flex items-start justify-between p-3 bg-muted/30 rounded-lg"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          {reminder.reminder_type === 'email' ? (
+                            <Mail className="h-4 w-4 text-blue-500" />
+                          ) : (
+                            <MessageSquare className="h-4 w-4 text-green-500" />
+                          )}
+                          <Badge variant="outline">
+                            {reminder.reminder_type === 'email' ? 'Email' : 'WhatsApp'}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            da {reminder.profiles?.first_name} {reminder.profiles?.last_name}
+                          </span>
+                        </div>
+                        {reminder.notes && (
+                          <p className="text-sm text-muted-foreground ml-6">
+                            {reminder.notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(reminder.created_at), "dd MMM yyyy HH:mm", { locale: it })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
