@@ -723,27 +723,36 @@ export default function WorkOrdersPage() {
       }
       
       // Carica e mostra articoli
+      if (yPosition > 240) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFont("helvetica", "bold");
+      doc.text("Articoli:", 14, yPosition);
+      yPosition += 5;
+      
       try {
-        const { data: articles } = await (supabase as any)
+        const { data: articles, error: articlesError } = await (supabase as any)
           .from('work_order_articles')
           .select('*, materials(name, code)')
           .eq('work_order_id', wo.id)
           .order('created_at');
         
-        if (articles && articles.length > 0) {
-          if (yPosition > 240) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          doc.setFont("helvetica", "bold");
-          doc.text("Articoli:", 14, yPosition);
+        if (articlesError) {
+          console.error('Error fetching articles:', articlesError);
+          doc.setFont("helvetica", "italic");
+          doc.text("Errore nel caricamento degli articoli", 14, yPosition);
           yPosition += 5;
-          
+        } else if (!articles || articles.length === 0) {
+          doc.setFont("helvetica", "italic");
+          doc.text("Nessun articolo presente", 14, yPosition);
+          yPosition += 8;
+        } else {
           const articleData = articles.map((a: any) => [
-            a.materials?.code || "-",
+            a.materials?.code || a.article_code || "-",
             a.materials?.name || a.article_name || "-",
-            a.quantity.toString(),
+            a.quantity?.toString() || "0",
             a.serial_number || "-",
             a.notes || "-"
           ]);
@@ -767,6 +776,9 @@ export default function WorkOrdersPage() {
         }
       } catch (error) {
         console.error('Error fetching articles:', error);
+        doc.setFont("helvetica", "italic");
+        doc.text("Errore nel caricamento degli articoli", 14, yPosition);
+        yPosition += 5;
       }
       
       // Carica e mostra commenti
