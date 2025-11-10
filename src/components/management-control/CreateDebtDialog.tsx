@@ -24,6 +24,7 @@ export function CreateDebtDialog({ open, onOpenChange, onSuccess }: CreateDebtDi
     due_date: "",
     amount: "",
     tax_amount: "",
+    vat_rate: "22" as string, // 22% o 0% (reverse)
     category: "",
     status: "pending" as string,
   });
@@ -85,13 +86,28 @@ export function CreateDebtDialog({ open, onOpenChange, onSuccess }: CreateDebtDi
       due_date: "",
       amount: "",
       tax_amount: "",
+      vat_rate: "22",
       category: "",
       status: "pending",
     });
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Calcola automaticamente l'IVA quando cambia l'imponibile o l'aliquota
+      if (field === 'amount' || field === 'vat_rate') {
+        const amount = parseFloat(field === 'amount' ? value : updated.amount);
+        const vatRate = parseFloat(field === 'vat_rate' ? value : updated.vat_rate);
+        
+        if (!isNaN(amount) && !isNaN(vatRate)) {
+          updated.tax_amount = ((amount * vatRate) / 100).toFixed(2);
+        }
+      }
+      
+      return updated;
+    });
   };
 
   return (
@@ -173,7 +189,7 @@ export function CreateDebtDialog({ open, onOpenChange, onSuccess }: CreateDebtDi
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Importo (€) *</Label>
+              <Label htmlFor="amount">Imponibile (€) *</Label>
               <Input
                 id="amount"
                 type="number"
@@ -186,15 +202,16 @@ export function CreateDebtDialog({ open, onOpenChange, onSuccess }: CreateDebtDi
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tax_amount">IVA (€)</Label>
-              <Input
-                id="tax_amount"
-                type="number"
-                step="0.01"
-                value={formData.tax_amount}
-                onChange={(e) => handleChange("tax_amount", e.target.value)}
-                placeholder="0.00"
-              />
+              <Label htmlFor="vat_rate">Aliquota IVA *</Label>
+              <Select value={formData.vat_rate} onValueChange={(value) => handleChange("vat_rate", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="22">IVA 22%</SelectItem>
+                  <SelectItem value="0">IVA 0% (Reverse Charge)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -212,14 +229,14 @@ export function CreateDebtDialog({ open, onOpenChange, onSuccess }: CreateDebtDi
             </Select>
           </div>
 
-          {formData.amount && formData.tax_amount && (
+          {formData.amount && (
             <div className="pt-4 border-t">
               <div className="flex justify-between text-sm">
                 <span>Imponibile:</span>
                 <span>€ {parseFloat(formData.amount).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>IVA:</span>
+                <span>IVA ({formData.vat_rate}%):</span>
                 <span>€ {parseFloat(formData.tax_amount || "0").toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg mt-2">
