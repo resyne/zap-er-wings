@@ -1063,6 +1063,97 @@ export type Database = {
           },
         ]
       }
+      customer_invoice_advances: {
+        Row: {
+          advance_date: string
+          amount: number
+          created_at: string | null
+          customer_invoice_id: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          advance_date: string
+          amount: number
+          created_at?: string | null
+          customer_invoice_id: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          advance_date?: string
+          amount?: number
+          created_at?: string | null
+          customer_invoice_id?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_invoice_advances_customer_invoice_id_fkey"
+            columns: ["customer_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "customer_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_invoice_checks: {
+        Row: {
+          amount: number
+          bank: string | null
+          check_date: string
+          check_number: string
+          created_at: string | null
+          customer_invoice_id: string
+          due_date: string
+          id: string
+          notes: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          bank?: string | null
+          check_date: string
+          check_number: string
+          created_at?: string | null
+          customer_invoice_id: string
+          due_date: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          bank?: string | null
+          check_date?: string
+          check_number?: string
+          created_at?: string | null
+          customer_invoice_id?: string
+          due_date?: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_invoice_checks_customer_invoice_id_fkey"
+            columns: ["customer_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "customer_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_invoices: {
         Row: {
           aging_days: number | null
@@ -5648,6 +5739,97 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      supplier_invoice_advances: {
+        Row: {
+          advance_date: string
+          amount: number
+          created_at: string | null
+          id: string
+          notes: string | null
+          payment_method: string | null
+          supplier_invoice_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          advance_date: string
+          amount: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          supplier_invoice_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          advance_date?: string
+          amount?: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          supplier_invoice_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoice_advances_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_invoice_checks: {
+        Row: {
+          amount: number
+          bank: string | null
+          check_date: string
+          check_number: string
+          created_at: string | null
+          due_date: string
+          id: string
+          notes: string | null
+          status: string | null
+          supplier_invoice_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          bank?: string | null
+          check_date: string
+          check_number: string
+          created_at?: string | null
+          due_date: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          supplier_invoice_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          bank?: string | null
+          check_date?: string
+          check_number?: string
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          supplier_invoice_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoice_checks_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplier_invoices: {
         Row: {

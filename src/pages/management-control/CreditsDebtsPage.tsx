@@ -12,6 +12,7 @@ import { formatAmount } from "@/lib/formatAmount";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { CreateCreditDialog } from "@/components/management-control/CreateCreditDialog";
 import { CreateDebtDialog } from "@/components/management-control/CreateDebtDialog";
+import { InvoiceDetailsDialog } from "@/components/management-control/InvoiceDetailsDialog";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -22,7 +23,8 @@ import {
   Search,
   Download,
   RefreshCw,
-  Plus
+  Plus,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -68,6 +70,12 @@ const CreditsDebtsPage = () => {
   const [agingFilter, setAgingFilter] = useState<string>("all");
   const [showCreateCreditDialog, setShowCreateCreditDialog] = useState(false);
   const [showCreateDebtDialog, setShowCreateDebtDialog] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<{
+    id: string;
+    type: 'customer' | 'supplier';
+    number: string;
+    amount: number;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -507,16 +515,17 @@ const CreditsDebtsPage = () => {
                         <TableHead className="text-right">Importo</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead className="text-right">Ritardo</TableHead>
+                        <TableHead className="w-[100px]">Azioni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center">Caricamento...</TableCell>
+                          <TableCell colSpan={8} className="text-center">Caricamento...</TableCell>
                         </TableRow>
                       ) : filterInvoices(customerInvoices, 'customer').length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center text-muted-foreground">
                             Nessun credito trovato
                           </TableCell>
                         </TableRow>
@@ -537,6 +546,21 @@ const CreditsDebtsPage = () => {
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedInvoice({
+                                  id: invoice.id,
+                                  type: 'customer',
+                                  number: invoice.invoice_number,
+                                  amount: invoice.total_amount
+                                })}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Dettagli
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -609,16 +633,17 @@ const CreditsDebtsPage = () => {
                         <TableHead className="text-right">Importo</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead className="text-right">Ritardo</TableHead>
+                        <TableHead className="w-[100px]">Azioni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center">Caricamento...</TableCell>
+                          <TableCell colSpan={9} className="text-center">Caricamento...</TableCell>
                         </TableRow>
                       ) : filterInvoices(supplierInvoices, 'supplier').length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center text-muted-foreground">
                             Nessun debito trovato
                           </TableCell>
                         </TableRow>
@@ -644,6 +669,21 @@ const CreditsDebtsPage = () => {
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedInvoice({
+                                  id: invoice.id,
+                                  type: 'supplier',
+                                  number: invoice.invoice_number,
+                                  amount: invoice.total_amount
+                                })}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Dettagli
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -856,6 +896,16 @@ const CreditsDebtsPage = () => {
         onOpenChange={setShowCreateDebtDialog}
         onSuccess={loadData}
       />
+      {selectedInvoice && (
+        <InvoiceDetailsDialog
+          open={!!selectedInvoice}
+          onOpenChange={(open) => !open && setSelectedInvoice(null)}
+          invoiceId={selectedInvoice.id}
+          invoiceType={selectedInvoice.type}
+          invoiceNumber={selectedInvoice.number}
+          totalAmount={selectedInvoice.amount}
+        />
+      )}
     </div>
   );
 };
