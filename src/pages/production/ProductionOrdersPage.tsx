@@ -858,6 +858,141 @@ export default function WorkOrdersPage() {
         console.error('Error fetching activities:', error);
       }
       
+      // Carica e mostra esecuzioni/fasi di lavoro
+      try {
+        const { data: executions } = await (supabase as any)
+          .from('executions')
+          .select('*, profiles(first_name, last_name)')
+          .eq('work_order_id', wo.id)
+          .order('start_time', { ascending: true });
+        
+        if (executions && executions.length > 0) {
+          if (yPosition > 250) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Fasi di Lavoro (Esecuzioni):", 14, yPosition);
+          yPosition += 5;
+          
+          const executionData = executions.map((e: any) => {
+            const duration = e.end_time 
+              ? `${Math.round((new Date(e.end_time).getTime() - new Date(e.start_time).getTime()) / 60000)} min`
+              : "In corso";
+            
+            return [
+              e.step_name || "-",
+              e.profiles ? `${e.profiles.first_name} ${e.profiles.last_name}` : "-",
+              format(new Date(e.start_time), "dd/MM HH:mm", { locale: it }),
+              e.end_time ? format(new Date(e.end_time), "dd/MM HH:mm", { locale: it }) : "In corso",
+              duration,
+              e.notes || "-"
+            ];
+          });
+          
+          autoTable(doc, {
+            head: [["Fase", "Operatore", "Inizio", "Fine", "Durata", "Note"]],
+            body: executionData,
+            startY: yPosition,
+            styles: { fontSize: 7, cellPadding: 1.5 },
+            headStyles: { fillColor: [59, 130, 246] },
+            columnStyles: {
+              0: { cellWidth: 35 },
+              1: { cellWidth: 25 },
+              2: { cellWidth: 22 },
+              3: { cellWidth: 22 },
+              4: { cellWidth: 18 },
+              5: { cellWidth: 58 }
+            }
+          });
+          
+          yPosition = (doc as any).lastAutoTable.finalY + 5;
+        }
+      } catch (error) {
+        console.error('Error fetching executions:', error);
+      }
+      
+      // Carica e mostra log delle modifiche
+      try {
+        const { data: logs } = await (supabase as any)
+          .from('work_order_logs')
+          .select('*, profiles(first_name, last_name)')
+          .eq('work_order_id', wo.id)
+          .order('created_at', { ascending: false })
+          .limit(15);
+        
+        if (logs && logs.length > 0) {
+          if (yPosition > 240) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Storico Modifiche:", 14, yPosition);
+          yPosition += 5;
+          
+          const logData = logs.map((l: any) => {
+            let details = l.action;
+            if (l.details?.changes) {
+              const changes = l.details.changes;
+              if (changes.status) {
+                details += `: ${changes.status.old} → ${changes.status.new}`;
+              }
+              if (changes.assigned_to) {
+                details += `: riassegnato`;
+              }
+              if (changes.priority) {
+                details += `: priorità ${changes.priority.old} → ${changes.priority.new}`;
+              }
+            }
+            
+            return [
+              format(new Date(l.created_at), "dd/MM HH:mm", { locale: it }),
+              l.profiles ? `${l.profiles.first_name} ${l.profiles.last_name}` : "Sistema",
+              details
+            ];
+          });
+          
+          autoTable(doc, {
+            head: [["Data", "Utente", "Modifica"]],
+            body: logData,
+            startY: yPosition,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [59, 130, 246] },
+            columnStyles: {
+              0: { cellWidth: 30 },
+              1: { cellWidth: 35 },
+              2: { cellWidth: 115 }
+            }
+          });
+          
+          yPosition = (doc as any).lastAutoTable.finalY + 5;
+        }
+      } catch (error) {
+        console.error('Error fetching logs:', error);
+      }
+      
+      // Carica e mostra file allegati
+      if (wo.attachments && wo.attachments.length > 0) {
+        if (yPosition > 260) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("File Allegati:", 14, yPosition);
+        yPosition += 5;
+        doc.setFont("helvetica", "normal");
+        
+        wo.attachments.forEach((file: any) => {
+          const fileName = file.name || file.file_path?.split('/').pop() || "File";
+          doc.text(`• ${fileName}`, 14, yPosition);
+          yPosition += 5;
+        });
+        yPosition += 3;
+      }
+      
       // Carica e mostra service work orders collegati
       try {
         const { data: serviceOrders } = await supabase
