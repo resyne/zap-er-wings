@@ -173,6 +173,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Movimenti", url: "/management-control/movements", icon: FileText },
       { title: "Commesse", url: "/management-control/projects", icon: Target },
       { title: "Budget & Forecast", url: "/management-control/budget", icon: BarChart3 },
+      { title: "Crediti e Debiti", url: "/management-control/credits-debts", icon: DollarSign },
     ]
   },
   {
