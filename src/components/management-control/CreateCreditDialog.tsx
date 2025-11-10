@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 
 interface CreateCreditDialogProps {
   open: boolean;
@@ -16,6 +20,9 @@ interface CreateCreditDialogProps {
 
 export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCreditDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customersOpen, setCustomersOpen] = useState(false);
+  const [showCreateCustomerDialog, setShowCreateCustomerDialog] = useState(false);
   const [formData, setFormData] = useState({
     invoice_number: "",
     customer_id: "",
@@ -28,10 +35,54 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
     status: "pending" as string,
   });
 
+  useEffect(() => {
+    if (open) {
+      loadCustomers();
+    }
+  }, [open]);
+
+  const loadCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, company_name, code')
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      console.error('Error loading customers:', error);
+      toast.error('Errore nel caricamento dei clienti');
+    }
+  };
+
+  const handleCustomerSelect = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      setFormData(prev => ({
+        ...prev,
+        customer_id: customerId,
+        customer_name: customer.company_name || customer.name
+      }));
+    }
+    setCustomersOpen(false);
+  };
+
+  const handleCustomerCreated = (customerId?: string) => {
+    loadCustomers();
+    if (customerId) {
+      // Aspetta che i clienti siano ricaricati prima di selezionare
+      setTimeout(() => {
+        handleCustomerSelect(customerId);
+      }, 500);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.invoice_number || !formData.customer_name || !formData.invoice_date || !formData.due_date || !formData.amount) {
+    if (!formData.invoice_number || !formData.customer_id || !formData.invoice_date || !formData.due_date || !formData.amount) {
       toast.error("Compila tutti i campi obbligatori");
       return;
     }
@@ -51,6 +102,7 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
         .from('customer_invoices')
         .insert({
           invoice_number: formData.invoice_number,
+          customer_id: formData.customer_id,
           customer_name: formData.customer_name,
           invoice_date: formData.invoice_date,
           due_date: formData.due_date,
@@ -87,6 +139,7 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
       vat_rate: "22",
       status: "pending",
     });
+    setCustomersOpen(false);
   };
 
   const handleChange = (field: string, value: string) => {
@@ -131,14 +184,62 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customer_name">Cliente *</Label>
-              <Input
-                id="customer_name"
-                value={formData.customer_name}
-                onChange={(e) => handleChange("customer_name", e.target.value)}
-                placeholder="Nome cliente"
-                required
-              />
+              <Label>Cliente *</Label>
+              <div className="flex gap-2">
+                <Popover open={customersOpen} onOpenChange={setCustomersOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={customersOpen}
+                      className="flex-1 justify-between"
+                    >
+                      {formData.customer_id
+                        ? customers.find((customer) => customer.id === formData.customer_id)?.name ||
+                          customers.find((customer) => customer.id === formData.customer_id)?.company_name
+                        : "Seleziona cliente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Cerca cliente..." />
+                      <CommandEmpty>Nessun cliente trovato.</CommandEmpty>
+                      <CommandGroup>
+                        {customers.map((customer) => (
+                          <CommandItem
+                            key={customer.id}
+                            value={`${customer.name} ${customer.company_name || ''} ${customer.code}`}
+                            onSelect={() => handleCustomerSelect(customer.id)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.customer_id === customer.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div>
+                              <div className="font-medium">{customer.company_name || customer.name}</div>
+                              {customer.company_name && (
+                                <div className="text-sm text-muted-foreground">{customer.name}</div>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowCreateCustomerDialog(true)}
+                  title="Crea nuovo cliente"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -236,6 +337,13 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Dialog per creare nuovo cliente */}
+      <CreateCustomerDialog
+        open={showCreateCustomerDialog}
+        onOpenChange={setShowCreateCustomerDialog}
+        onCustomerCreated={handleCustomerCreated}
+      />
     </Dialog>
   );
 }
