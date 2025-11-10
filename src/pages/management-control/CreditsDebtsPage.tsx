@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { toast } from "sonner";
 import { formatAmount } from "@/lib/formatAmount";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
@@ -637,6 +637,20 @@ const CreditsDebtsPage = () => {
                         ))
                       )}
                     </TableBody>
+                    {!loading && filterInvoices(customerInvoices, 'customer').length > 0 && (
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell colSpan={4} className="font-bold">Totale</TableCell>
+                          <TableCell className="text-right font-bold text-lg">
+                            {formatAmount(
+                              filterInvoices(customerInvoices, 'customer').reduce((sum, inv) => sum + Number(inv.total_amount), 0),
+                              hideAmounts
+                            )}
+                          </TableCell>
+                          <TableCell colSpan={3}></TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )}
                   </Table>
                 </div>
               </div>
@@ -780,6 +794,20 @@ const CreditsDebtsPage = () => {
                         ))
                       )}
                     </TableBody>
+                    {!loading && filterInvoices(supplierInvoices, 'supplier').length > 0 && (
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell colSpan={5} className="font-bold">Totale</TableCell>
+                          <TableCell className="text-right font-bold text-lg">
+                            {formatAmount(
+                              filterInvoices(supplierInvoices, 'supplier').reduce((sum, inv) => sum + Number(inv.total_amount), 0),
+                              hideAmounts
+                            )}
+                          </TableCell>
+                          <TableCell colSpan={3}></TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )}
                   </Table>
                 </div>
               </div>
