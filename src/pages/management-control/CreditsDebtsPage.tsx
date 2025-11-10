@@ -12,6 +12,8 @@ import { formatAmount } from "@/lib/formatAmount";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { CreateCreditDialog } from "@/components/management-control/CreateCreditDialog";
 import { CreateDebtDialog } from "@/components/management-control/CreateDebtDialog";
+import { EditCreditDialog } from "@/components/management-control/EditCreditDialog";
+import { EditDebtDialog } from "@/components/management-control/EditDebtDialog";
 import { InvoiceDetailsDialog } from "@/components/management-control/InvoiceDetailsDialog";
 import { 
   TrendingUp, 
@@ -25,7 +27,8 @@ import {
   RefreshCw,
   Plus,
   Eye,
-  Trash2
+  Trash2,
+  Pencil
 } from "lucide-react";
 import {
   AlertDialog,
@@ -81,6 +84,9 @@ const CreditsDebtsPage = () => {
   const [agingFilter, setAgingFilter] = useState<string>("all");
   const [showCreateCreditDialog, setShowCreateCreditDialog] = useState(false);
   const [showCreateDebtDialog, setShowCreateDebtDialog] = useState(false);
+  const [showEditCreditDialog, setShowEditCreditDialog] = useState(false);
+  const [showEditDebtDialog, setShowEditDebtDialog] = useState(false);
+  const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<{
     id: string;
     type: 'customer' | 'supplier';
@@ -597,6 +603,17 @@ const CreditsDebtsPage = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  onClick={() => {
+                                    setEditInvoiceId(invoice.id);
+                                    setShowEditCreditDialog(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  Modifica
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => setSelectedInvoice({
                                     id: invoice.id,
                                     type: 'customer',
@@ -726,6 +743,17 @@ const CreditsDebtsPage = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditInvoiceId(invoice.id);
+                                    setShowEditDebtDialog(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  Modifica
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -959,6 +987,22 @@ const CreditsDebtsPage = () => {
         onOpenChange={setShowCreateDebtDialog}
         onSuccess={loadData}
       />
+      {editInvoiceId && (
+        <EditCreditDialog
+          open={showEditCreditDialog}
+          onOpenChange={setShowEditCreditDialog}
+          onSuccess={loadData}
+          invoiceId={editInvoiceId}
+        />
+      )}
+      {editInvoiceId && (
+        <EditDebtDialog
+          open={showEditDebtDialog}
+          onOpenChange={setShowEditDebtDialog}
+          onSuccess={loadData}
+          invoiceId={editInvoiceId}
+        />
+      )}
       {selectedInvoice && (
         <InvoiceDetailsDialog
           open={!!selectedInvoice}
