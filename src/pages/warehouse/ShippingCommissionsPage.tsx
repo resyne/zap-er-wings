@@ -697,7 +697,7 @@ export default function ShippingOrdersPage() {
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     const doc = new jsPDF();
     
     // Titolo
@@ -711,31 +711,241 @@ export default function ShippingOrdersPage() {
     // Filtra ordini
     const ordersToExport = shippingOrders || [];
     
-    // Prepara i dati per la tabella
-    const tableData = ordersToExport.map(order => [
-      order.number,
-      getCustomerDisplayName(order),
-      order.shipping_address || "-",
-      statusOptions.find(s => s.value === order.status)?.label || order.status,
-      order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy", { locale: it }) : "-",
-      order.shipped_date ? format(new Date(order.shipped_date), "dd/MM/yyyy", { locale: it }) : "-",
-      order.payment_on_delivery ? "Sì" : "No",
-      order.payment_amount ? `€ ${order.payment_amount.toFixed(2)}` : "-"
-    ]);
+    let yPosition = 35;
     
-    // Genera la tabella
-    autoTable(doc, {
-      head: [["Numero", "Cliente", "Indirizzo", "Stato", "Data Ordine", "Data Spedizione", "Pagamento alla consegna", "Importo"]],
-      body: tableData,
-      startY: 35,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-      columnStyles: {
-        0: { cellWidth: 20 },
-        2: { cellWidth: 30 }
+    // Per ogni commessa, crea un esploso dettagliato
+    for (let i = 0; i < ordersToExport.length; i++) {
+      const order = ordersToExport[i];
+      
+      // Aggiungi una nuova pagina se non è la prima commessa
+      if (i > 0) {
+        doc.addPage();
+        yPosition = 20;
       }
-    });
+      
+      // Titolo commessa
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Commessa Spedizione ${order.number}`, 14, yPosition);
+      yPosition += 8;
+      
+      // Informazioni base
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      
+      const basicInfo = [
+        ["Cliente", getCustomerDisplayName(order)],
+        ["Stato", statusOptions.find(s => s.value === order.status)?.label || order.status],
+        ["Indirizzo Spedizione", order.shipping_address || order.customers?.shipping_address || order.customers?.address || "-"],
+        ["Data Ordine", order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy", { locale: it }) : "-"],
+        ["Data Preparazione", order.preparation_date ? format(new Date(order.preparation_date), "dd/MM/yyyy HH:mm", { locale: it }) : "-"],
+        ["Data Pronto", order.ready_date ? format(new Date(order.ready_date), "dd/MM/yyyy HH:mm", { locale: it }) : "-"],
+        ["Data Spedizione", order.shipped_date ? format(new Date(order.shipped_date), "dd/MM/yyyy HH:mm", { locale: it }) : "-"],
+        ["Data Consegna", order.delivered_date ? format(new Date(order.delivered_date), "dd/MM/yyyy HH:mm", { locale: it }) : "-"],
+        ["Pagamento alla Consegna", order.payment_on_delivery ? "Sì" : "No"],
+        ["Importo Pagamento", order.payment_amount ? `€ ${order.payment_amount.toFixed(2)}` : "-"],
+        ["Assegnato A", order.assigned_user ? `${order.assigned_user.first_name || ""} ${order.assigned_user.last_name || ""}`.trim() : "-"],
+      ];
+      
+      autoTable(doc, {
+        body: basicInfo,
+        startY: yPosition,
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 50 },
+          1: { cellWidth: 130 }
+        }
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 5;
+      
+      // Dettagli cliente
+      if (order.customers) {
+        const customer = order.customers;
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Dettagli Cliente:", 14, yPosition);
+        yPosition += 5;
+        
+        const customerInfo = [
+          ["Ragione Sociale", customer.company_name || customer.name],
+          ["Codice Cliente", customer.code],
+          ["Indirizzo", customer.address || "-"],
+          ["Città", customer.city || "-"],
+          ["Paese", customer.country || "-"],
+          ["Partita IVA", customer.tax_id || "-"],
+          ["Email", customer.email || "-"],
+          ["Telefono", customer.phone || "-"],
+          ["PEC", customer.pec || "-"],
+          ["Codice SDI", customer.sdi_code || "-"],
+        ];
+        
+        autoTable(doc, {
+          body: customerInfo,
+          startY: yPosition,
+          theme: 'plain',
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 40 },
+            1: { cellWidth: 140 }
+          }
+        });
+        
+        yPosition = (doc as any).lastAutoTable.finalY + 5;
+      }
+      
+      // Articoli della spedizione
+      if (order.shipping_order_items && order.shipping_order_items.length > 0) {
+        if (yPosition > 230) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Articoli:", 14, yPosition);
+        yPosition += 5;
+        
+        const itemsData = order.shipping_order_items.map((item: any) => {
+          const totalPrice = item.quantity * item.unit_price;
+          return [
+            item.materials?.code || "-",
+            item.product_name || item.materials?.name || "-",
+            item.quantity.toString(),
+            `€ ${item.unit_price.toFixed(2)}`,
+            `€ ${totalPrice.toFixed(2)}`,
+            item.is_picked ? "Sì" : "No",
+            item.notes || "-"
+          ];
+        });
+        
+        const totalAmount = order.shipping_order_items.reduce(
+          (sum: number, item: any) => sum + (item.quantity * item.unit_price), 
+          0
+        );
+        
+        autoTable(doc, {
+          head: [["Codice", "Articolo", "Qta", "Prezzo Unit.", "Totale", "Prelevato", "Note"]],
+          body: itemsData,
+          foot: [["", "", "", "TOTALE:", `€ ${totalAmount.toFixed(2)}`, "", ""]],
+          startY: yPosition,
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [59, 130, 246] },
+          footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 15 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 20 },
+            6: { cellWidth: 25 }
+          }
+        });
+        
+        yPosition = (doc as any).lastAutoTable.finalY + 5;
+      }
+      
+      // Note
+      if (order.notes) {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text("Note:", 14, yPosition);
+        yPosition += 5;
+        doc.setFont("helvetica", "normal");
+        const noteLines = doc.splitTextToSize(order.notes, 180);
+        doc.text(noteLines, 14, yPosition);
+        yPosition += noteLines.length * 5 + 5;
+      }
+      
+      // Carica e mostra commenti
+      try {
+        const { data: comments } = await supabase
+          .from('shipping_order_comments')
+          .select('*, profiles(first_name, last_name)')
+          .eq('shipping_order_id', order.id)
+          .order('created_at', { ascending: true });
+        
+        if (comments && comments.length > 0) {
+          if (yPosition > 250) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Commenti:", 14, yPosition);
+          yPosition += 5;
+          
+          const commentData = comments.map((c: any) => [
+            format(new Date(c.created_at), "dd/MM/yyyy HH:mm", { locale: it }),
+            c.profiles ? `${c.profiles.first_name} ${c.profiles.last_name}` : "Utente",
+            c.comment
+          ]);
+          
+          autoTable(doc, {
+            head: [["Data", "Utente", "Commento"]],
+            body: commentData,
+            startY: yPosition,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [59, 130, 246] },
+            columnStyles: {
+              0: { cellWidth: 30 },
+              1: { cellWidth: 35 },
+              2: { cellWidth: 115 }
+            }
+          });
+          
+          yPosition = (doc as any).lastAutoTable.finalY + 5;
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      }
+      
+      // Collegamenti
+      const links: string[] = [];
+      if (order.work_orders) {
+        links.push(`Commessa Produzione: ${order.work_orders.number} - ${order.work_orders.title}`);
+      }
+      if (order.sales_orders) {
+        links.push(`Ordine Vendita: ${order.sales_orders.number}`);
+      }
+      
+      if (links.length > 0) {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text("Collegamenti:", 14, yPosition);
+        yPosition += 5;
+        doc.setFont("helvetica", "normal");
+        links.forEach(link => {
+          doc.text(`• ${link}`, 14, yPosition);
+          yPosition += 5;
+        });
+      }
+      
+      // Verifica se esiste un DDT
+      const ddt = getDdtForOrder(order.id);
+      if (ddt) {
+        if (yPosition > 275) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text("DDT:", 14, yPosition);
+        yPosition += 5;
+        doc.setFont("helvetica", "normal");
+        doc.text(`• Numero DDT: ${ddt.ddt_number || ddt.unique_code}`, 14, yPosition);
+      }
+    }
     
     // Salva il PDF
     doc.save(`report-commesse-spedizione-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);

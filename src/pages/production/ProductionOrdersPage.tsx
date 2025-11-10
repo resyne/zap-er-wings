@@ -595,7 +595,7 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     const doc = new jsPDF();
     
     // Titolo
@@ -609,35 +609,310 @@ export default function WorkOrdersPage() {
     // Filtra ordini in base allo stato selezionato
     const ordersToExport = filteredWorkOrders;
     
-    // Prepara i dati per la tabella
-    const tableData = ordersToExport.map(wo => [
-      wo.number,
-      wo.title,
-      wo.customers?.name || "-",
-      wo.technician ? `${wo.technician.first_name} ${wo.technician.last_name}` : "-",
-      wo.status === "da_fare" ? "Da Fare" :
-      wo.status === "in_lavorazione" ? "In Lavorazione" :
-      wo.status === "in_test" ? "In Test" :
-      wo.status === "pronto" ? "Pronto" :
-      wo.status === "completato" ? "Completato" :
-      wo.status === "standby" ? "Standby" : "Bloccato",
-      wo.priority === "high" ? "Alta" : wo.priority === "medium" ? "Media" : "Bassa",
-      wo.boms?.name || "-",
-      wo.planned_start_date ? format(new Date(wo.planned_start_date), "dd/MM/yyyy", { locale: it }) : "-"
-    ]);
+    let yPosition = 35;
     
-    // Genera la tabella
-    autoTable(doc, {
-      head: [["Numero", "Titolo", "Cliente", "Assegnato A", "Stato", "Priorità", "BOM", "Inizio Pianificato"]],
-      body: tableData,
-      startY: 35,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-      columnStyles: {
-        1: { cellWidth: 40 }
+    // Per ogni commessa, crea un esploso dettagliato
+    for (let i = 0; i < ordersToExport.length; i++) {
+      const wo = ordersToExport[i];
+      
+      // Aggiungi una nuova pagina se non è la prima commessa
+      if (i > 0) {
+        doc.addPage();
+        yPosition = 20;
       }
-    });
+      
+      // Titolo commessa
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Commessa ${wo.number}: ${wo.title}`, 14, yPosition);
+      yPosition += 8;
+      
+      // Informazioni base
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      
+      const statusLabel = wo.status === "da_fare" ? "Da Fare" :
+        wo.status === "in_lavorazione" ? "In Lavorazione" :
+        wo.status === "in_test" ? "In Test" :
+        wo.status === "pronto" ? "Pronto" :
+        wo.status === "completato" ? "Completato" :
+        wo.status === "standby" ? "Standby" : "Bloccato";
+      
+      const basicInfo = [
+        ["Cliente", wo.customers?.name || "-"],
+        ["Stato", statusLabel],
+        ["Priorità", wo.priority === "high" ? "Alta" : wo.priority === "medium" ? "Media" : "Bassa"],
+        ["Assegnato A", wo.technician ? `${wo.technician.first_name} ${wo.technician.last_name}` : "-"],
+        ["BOM", wo.boms ? `${wo.boms.name} v${wo.boms.version}` : "-"],
+        ["Inizio Pianificato", wo.planned_start_date ? format(new Date(wo.planned_start_date), "dd/MM/yyyy HH:mm", { locale: it }) : "-"],
+        ["Fine Pianificata", wo.planned_end_date ? format(new Date(wo.planned_end_date), "dd/MM/yyyy HH:mm", { locale: it }) : "-"],
+      ];
+      
+      autoTable(doc, {
+        body: basicInfo,
+        startY: yPosition,
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 50 },
+          1: { cellWidth: 130 }
+        }
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 5;
+      
+      // Note
+      if (wo.notes) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Note:", 14, yPosition);
+        yPosition += 5;
+        doc.setFont("helvetica", "normal");
+        const noteLines = doc.splitTextToSize(wo.notes, 180);
+        doc.text(noteLines, 14, yPosition);
+        yPosition += noteLines.length * 5 + 5;
+      }
+      
+      // Carica e mostra composizione BOM
+      if (wo.bom_id) {
+        try {
+          const { data: bomItems } = await supabase
+            .from('bom_inclusions')
+            .select(`
+              quantity,
+              included_bom:included_bom_id(name, version, level)
+            `)
+            .eq('parent_bom_id', wo.bom_id)
+            .order('included_bom_id');
+          
+          if (bomItems && bomItems.length > 0) {
+            if (yPosition > 250) {
+              doc.addPage();
+              yPosition = 20;
+            }
+            
+            doc.setFont("helvetica", "bold");
+            doc.text("Composizione BOM:", 14, yPosition);
+            yPosition += 5;
+            
+            const bomData = bomItems.map((item: any) => [
+              item.included_bom?.name || "-",
+              item.included_bom?.version || "-",
+              `Livello ${item.included_bom?.level || "-"}`,
+              item.quantity.toString()
+            ]);
+            
+            autoTable(doc, {
+              head: [["Componente", "Versione", "Livello", "Quantità"]],
+              body: bomData,
+              startY: yPosition,
+              styles: { fontSize: 8, cellPadding: 2 },
+              headStyles: { fillColor: [59, 130, 246] },
+              columnStyles: {
+                0: { cellWidth: 70 },
+                1: { cellWidth: 30 },
+                2: { cellWidth: 30 },
+                3: { cellWidth: 30 }
+              }
+            });
+            
+            yPosition = (doc as any).lastAutoTable.finalY + 5;
+          }
+        } catch (error) {
+          console.error('Error fetching BOM items:', error);
+        }
+      }
+      
+      // Carica e mostra articoli
+      try {
+        const { data: articles } = await (supabase as any)
+          .from('work_order_articles')
+          .select('*, materials(name, code)')
+          .eq('work_order_id', wo.id)
+          .order('created_at');
+        
+        if (articles && articles.length > 0) {
+          if (yPosition > 240) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Articoli:", 14, yPosition);
+          yPosition += 5;
+          
+          const articleData = articles.map((a: any) => [
+            a.materials?.code || "-",
+            a.materials?.name || a.article_name || "-",
+            a.quantity.toString(),
+            a.serial_number || "-",
+            a.notes || "-"
+          ]);
+          
+          autoTable(doc, {
+            head: [["Codice", "Nome", "Quantità", "Seriale", "Note"]],
+            body: articleData,
+            startY: yPosition,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [59, 130, 246] },
+            columnStyles: {
+              0: { cellWidth: 25 },
+              1: { cellWidth: 50 },
+              2: { cellWidth: 20 },
+              3: { cellWidth: 30 },
+              4: { cellWidth: 55 }
+            }
+          });
+          
+          yPosition = (doc as any).lastAutoTable.finalY + 5;
+        }
+      } catch (error) {
+        console.error('Error fetching articles:', error);
+      }
+      
+      // Carica e mostra commenti
+      try {
+        const { data: comments } = await supabase
+          .from('work_order_comments')
+          .select('*, profiles(first_name, last_name)')
+          .eq('work_order_id', wo.id)
+          .order('created_at', { ascending: true });
+        
+        if (comments && comments.length > 0) {
+          if (yPosition > 250) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Commenti:", 14, yPosition);
+          yPosition += 5;
+          
+          const commentData = comments.map((c: any) => [
+            format(new Date(c.created_at), "dd/MM/yyyy HH:mm", { locale: it }),
+            c.profiles ? `${c.profiles.first_name} ${c.profiles.last_name}` : "Utente",
+            c.comment
+          ]);
+          
+          autoTable(doc, {
+            head: [["Data", "Utente", "Commento"]],
+            body: commentData,
+            startY: yPosition,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [59, 130, 246] },
+            columnStyles: {
+              0: { cellWidth: 30 },
+              1: { cellWidth: 35 },
+              2: { cellWidth: 115 }
+            }
+          });
+          
+          yPosition = (doc as any).lastAutoTable.finalY + 5;
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      }
+      
+      // Carica e mostra attività
+      try {
+        const { data: activities } = await (supabase as any)
+          .from('work_order_activities')
+          .select('*, profiles(first_name, last_name)')
+          .eq('work_order_id', wo.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (activities && activities.length > 0) {
+          if (yPosition > 250) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Attività Recenti:", 14, yPosition);
+          yPosition += 5;
+          
+          const activityData = activities.map((a: any) => [
+            format(new Date(a.created_at), "dd/MM/yyyy HH:mm", { locale: it }),
+            a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : "Sistema",
+            a.activity_type,
+            a.description || "-"
+          ]);
+          
+          autoTable(doc, {
+            head: [["Data", "Utente", "Tipo", "Descrizione"]],
+            body: activityData,
+            startY: yPosition,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [59, 130, 246] },
+            columnStyles: {
+              0: { cellWidth: 30 },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 30 },
+              3: { cellWidth: 90 }
+            }
+          });
+          
+          yPosition = (doc as any).lastAutoTable.finalY + 5;
+        }
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+      }
+      
+      // Carica e mostra service work orders collegati
+      try {
+        const { data: serviceOrders } = await supabase
+          .from('service_work_orders')
+          .select('number, title, status')
+          .eq('production_work_order_id', wo.id);
+        
+        if (serviceOrders && serviceOrders.length > 0) {
+          if (yPosition > 260) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("Commesse di Lavoro Collegate:", 14, yPosition);
+          yPosition += 5;
+          doc.setFont("helvetica", "normal");
+          
+          serviceOrders.forEach((so: any) => {
+            doc.text(`• ${so.number}: ${so.title} (${so.status})`, 14, yPosition);
+            yPosition += 5;
+          });
+          yPosition += 3;
+        }
+      } catch (error) {
+        console.error('Error fetching service orders:', error);
+      }
+      
+      // Collegamenti
+      const links: string[] = [];
+      if (wo.sales_orders) {
+        links.push(`Ordine Vendita: ${wo.sales_orders.number}`);
+      }
+      if (wo.leads) {
+        links.push(`Lead: ${wo.leads.company_name}`);
+      }
+      if (wo.offers) {
+        links.push(`Offerta: ${wo.offers.number}`);
+      }
+      
+      if (links.length > 0) {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text("Collegamenti:", 14, yPosition);
+        yPosition += 5;
+        doc.setFont("helvetica", "normal");
+        links.forEach(link => {
+          doc.text(`• ${link}`, 14, yPosition);
+          yPosition += 5;
+        });
+      }
+    }
     
     // Salva il PDF
     doc.save(`report-commesse-produzione-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);
