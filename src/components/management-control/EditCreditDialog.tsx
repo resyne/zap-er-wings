@@ -42,6 +42,7 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
     tax_amount: "",
     vat_rate: "22" as string,
     status: "pending" as string,
+    notes: "",
   });
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
           tax_amount: data.tax_amount?.toString() || "",
           vat_rate: vatRate,
           status: data.status || "pending",
+          notes: data.notes || "",
         });
       }
     } catch (error: any) {
@@ -204,6 +206,7 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
           total_amount: totalAmount,
           status: agingDays > 0 ? 'overdue' : formData.status,
           aging_days: agingDays > 0 ? agingDays : null,
+          notes: formData.notes || null,
         })
         .eq('id', invoiceId);
 
@@ -384,6 +387,17 @@ export function EditCreditDialog({ open, onOpenChange, onSuccess, invoiceId }: E
                 <SelectItem value="paid">Pagato</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Note</Label>
+            <textarea
+              id="notes"
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={formData.notes}
+              onChange={(e) => handleChange("notes", e.target.value)}
+              placeholder="Inserisci note aggiuntive..."
+            />
           </div>
 
           {formData.amount && (

@@ -33,6 +33,7 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
     tax_amount: "",
     vat_rate: "22" as string, // 22% o 0% (reverse)
     status: "pending" as string,
+    notes: "",
   });
 
   useEffect(() => {
@@ -111,6 +112,7 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
           total_amount: totalAmount,
           status: agingDays > 0 ? 'overdue' : formData.status,
           aging_days: agingDays > 0 ? agingDays : null,
+          notes: formData.notes || null,
         });
 
       if (error) throw error;
@@ -138,6 +140,7 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
       tax_amount: "",
       vat_rate: "22",
       status: "pending",
+      notes: "",
     });
     setCustomersOpen(false);
   };
@@ -307,6 +310,17 @@ export function CreateCreditDialog({ open, onOpenChange, onSuccess }: CreateCred
                 <SelectItem value="paid">Pagato</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Note</Label>
+            <textarea
+              id="notes"
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={formData.notes}
+              onChange={(e) => handleChange("notes", e.target.value)}
+              placeholder="Inserisci note aggiuntive..."
+            />
           </div>
 
           {formData.amount && (

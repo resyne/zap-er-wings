@@ -1165,6 +1165,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_number: string
+          notes: string | null
           payment_date: string | null
           profit_center_id: string | null
           project_id: string | null
@@ -1183,6 +1184,7 @@ export type Database = {
           id?: string
           invoice_date: string
           invoice_number: string
+          notes?: string | null
           payment_date?: string | null
           profit_center_id?: string | null
           project_id?: string | null
@@ -1201,6 +1203,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number?: string
+          notes?: string | null
           payment_date?: string | null
           profit_center_id?: string | null
           project_id?: string | null
