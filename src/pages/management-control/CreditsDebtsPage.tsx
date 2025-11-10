@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { formatAmount } from "@/lib/formatAmount";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
+import { CreateCreditDialog } from "@/components/management-control/CreateCreditDialog";
+import { CreateDebtDialog } from "@/components/management-control/CreateDebtDialog";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -19,7 +21,8 @@ import {
   FileText,
   Search,
   Download,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -63,6 +66,8 @@ const CreditsDebtsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [agingFilter, setAgingFilter] = useState<string>("all");
+  const [showCreateCreditDialog, setShowCreateCreditDialog] = useState(false);
+  const [showCreateDebtDialog, setShowCreateDebtDialog] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -446,9 +451,15 @@ const CreditsDebtsPage = () => {
         {/* Crediti Clienti */}
         <TabsContent value="credits" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Crediti Clienti</CardTitle>
-              <CardDescription>Gestione fatture clienti e incassi</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Crediti Clienti</CardTitle>
+                <CardDescription>Gestione fatture clienti e incassi</CardDescription>
+              </div>
+              <Button onClick={() => setShowCreateCreditDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuovo Credito
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -541,9 +552,15 @@ const CreditsDebtsPage = () => {
         {/* Debiti Fornitori */}
         <TabsContent value="debts" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Debiti Fornitori</CardTitle>
-              <CardDescription>Gestione fatture fornitori e pagamenti</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Debiti Fornitori</CardTitle>
+                <CardDescription>Gestione fatture fornitori e pagamenti</CardDescription>
+              </div>
+              <Button onClick={() => setShowCreateDebtDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuovo Debito
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -827,6 +844,18 @@ const CreditsDebtsPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <CreateCreditDialog 
+        open={showCreateCreditDialog} 
+        onOpenChange={setShowCreateCreditDialog}
+        onSuccess={loadData}
+      />
+      <CreateDebtDialog 
+        open={showCreateDebtDialog} 
+        onOpenChange={setShowCreateDebtDialog}
+        onSuccess={loadData}
+      />
     </div>
   );
 };
