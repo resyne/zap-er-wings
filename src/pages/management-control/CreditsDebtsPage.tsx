@@ -24,8 +24,19 @@ import {
   Download,
   RefreshCw,
   Plus,
-  Eye
+  Eye,
+  Trash2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -75,6 +86,12 @@ const CreditsDebtsPage = () => {
     type: 'customer' | 'supplier';
     number: string;
     amount: number;
+  } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<{
+    id: string;
+    type: 'customer' | 'supplier';
+    number: string;
   } | null>(null);
 
   useEffect(() => {
@@ -227,6 +244,34 @@ const CreditsDebtsPage = () => {
 
   const exportToExcel = () => {
     toast.info("Funzionalità di esportazione in sviluppo");
+  };
+
+  const handleDeleteClick = (id: string, type: 'customer' | 'supplier', number: string) => {
+    setInvoiceToDelete({ id, type, number });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!invoiceToDelete) return;
+
+    try {
+      const table = invoiceToDelete.type === 'customer' ? 'customer_invoices' : 'supplier_invoices';
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', invoiceToDelete.id);
+
+      if (error) throw error;
+
+      toast.success(`${invoiceToDelete.type === 'customer' ? 'Credito' : 'Debito'} eliminato con successo`);
+      loadData();
+    } catch (error: any) {
+      console.error('Error deleting invoice:', error);
+      toast.error('Errore durante l\'eliminazione');
+    } finally {
+      setDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+    }
   };
 
   return (
@@ -548,19 +593,28 @@ const CreditsDebtsPage = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedInvoice({
-                                  id: invoice.id,
-                                  type: 'customer',
-                                  number: invoice.invoice_number,
-                                  amount: invoice.total_amount
-                                })}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Dettagli
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedInvoice({
+                                    id: invoice.id,
+                                    type: 'customer',
+                                    number: invoice.invoice_number,
+                                    amount: invoice.total_amount
+                                  })}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Dettagli
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(invoice.id, 'customer', invoice.invoice_number)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -671,19 +725,28 @@ const CreditsDebtsPage = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedInvoice({
-                                  id: invoice.id,
-                                  type: 'supplier',
-                                  number: invoice.invoice_number,
-                                  amount: invoice.total_amount
-                                })}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Dettagli
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedInvoice({
+                                    id: invoice.id,
+                                    type: 'supplier',
+                                    number: invoice.invoice_number,
+                                    amount: invoice.total_amount
+                                  })}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Dettagli
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(invoice.id, 'supplier', invoice.invoice_number)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -906,6 +969,26 @@ const CreditsDebtsPage = () => {
           totalAmount={selectedInvoice.amount}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare {invoiceToDelete?.type === 'customer' ? 'il credito' : 'il debito'} con numero fattura <strong>{invoiceToDelete?.number}</strong>?
+              <br />
+              Questa azione non può essere annullata e eliminerà anche tutti gli acconti e assegni associati.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
