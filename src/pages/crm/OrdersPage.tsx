@@ -1273,7 +1273,7 @@ export default function OrdersPage() {
                   <TableCell>
                     {order.leads ? (
                       <Link 
-                        to={`/crm/opportunities?lead=${order.lead_id}`}
+                        to={`/crm/leads?lead=${order.lead_id}`}
                         className="text-primary hover:underline flex items-center gap-1"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -1504,13 +1504,13 @@ export default function OrdersPage() {
                                              </span>
                                            </div>
                                            
-                                           {/* Lead collegato */}
-                                           {order.leads && (
-                                             <div className="space-y-1.5">
-                                               <div className="flex items-center gap-2 text-xs">
-                                                 <span className="text-muted-foreground">Lead:</span>
-                                                 <Link 
-                                                   to={`/crm/opportunities?lead=${order.lead_id}`}
+                                            {/* Lead collegato */}
+                                            {order.leads && (
+                                              <div className="space-y-1.5">
+                                                <div className="flex items-center gap-2 text-xs">
+                                                  <span className="text-muted-foreground">Lead:</span>
+                                                  <Link 
+                                                    to={`/crm/leads?lead=${order.lead_id}`}
                                                    className="text-primary hover:underline font-medium"
                                                    onClick={(e) => e.stopPropagation()}
                                                  >
