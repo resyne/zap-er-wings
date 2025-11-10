@@ -11,7 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Link } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
@@ -482,6 +484,51 @@ export default function WorkOrdersServicePage() {
     }
   };
 
+  const handleDownloadReport = () => {
+    const doc = new jsPDF();
+    
+    // Titolo
+    doc.setFontSize(18);
+    doc.text("Report Commesse di Lavoro", 14, 20);
+    
+    // Data e ora
+    doc.setFontSize(10);
+    doc.text(`Generato il: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: it })}`, 14, 28);
+    
+    // Filtra ordini in base allo stato selezionato
+    const ordersToExport = filteredWorkOrders;
+    
+    // Prepara i dati per la tabella
+    const tableData = ordersToExport.map(wo => [
+      wo.number,
+      wo.title,
+      wo.customers?.name || "-",
+      wo.technician ? `${wo.technician.first_name} ${wo.technician.last_name}` : "-",
+      statusLabels[wo.status as keyof typeof statusLabels] || wo.status,
+      wo.priority === "high" ? "Alta" : wo.priority === "medium" ? "Media" : "Bassa",
+      wo.scheduled_date ? format(new Date(wo.scheduled_date), "dd/MM/yyyy", { locale: it }) : "-",
+      wo.location || "-"
+    ]);
+    
+    // Genera la tabella
+    autoTable(doc, {
+      head: [["Numero", "Titolo", "Cliente", "Tecnico", "Stato", "Priorità", "Data Programmata", "Luogo"]],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+    
+    // Salva il PDF
+    doc.save(`report-commesse-lavoro-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);
+    
+    toast({
+      title: "Report scaricato",
+      description: "Il report PDF è stato generato con successo",
+    });
+  };
+
   const handleScheduleInstallation = async (date: Date) => {
     if (!workOrderToSchedule) return;
 
@@ -695,6 +742,15 @@ export default function WorkOrdersServicePage() {
           onClick={() => setShowArchivedOrders(!showArchivedOrders)}
         >
           {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleDownloadReport}
+          className="gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Scarica Report PDF
         </Button>
       </div>
 

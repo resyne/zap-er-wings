@@ -12,10 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, MapPin, Archive, Trash2, UserPlus } from "lucide-react";
+import { Plus, FileText, MapPin, Archive, Trash2, UserPlus, Download } from "lucide-react";
 import { ShippingOrderDetailsDialog } from "@/components/warehouse/ShippingOrderDetailsDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { GenerateDDTDialog } from "@/components/warehouse/GenerateDDTDialog";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface ShippingOrder {
   id: string;
@@ -693,6 +697,55 @@ export default function ShippingOrdersPage() {
     }
   };
 
+  const handleDownloadReport = () => {
+    const doc = new jsPDF();
+    
+    // Titolo
+    doc.setFontSize(18);
+    doc.text("Report Commesse di Spedizione", 14, 20);
+    
+    // Data e ora
+    doc.setFontSize(10);
+    doc.text(`Generato il: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: it })}`, 14, 28);
+    
+    // Filtra ordini
+    const ordersToExport = shippingOrders || [];
+    
+    // Prepara i dati per la tabella
+    const tableData = ordersToExport.map(order => [
+      order.number,
+      getCustomerDisplayName(order),
+      order.shipping_address || "-",
+      statusOptions.find(s => s.value === order.status)?.label || order.status,
+      order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy", { locale: it }) : "-",
+      order.shipped_date ? format(new Date(order.shipped_date), "dd/MM/yyyy", { locale: it }) : "-",
+      order.payment_on_delivery ? "Sì" : "No",
+      order.payment_amount ? `€ ${order.payment_amount.toFixed(2)}` : "-"
+    ]);
+    
+    // Genera la tabella
+    autoTable(doc, {
+      head: [["Numero", "Cliente", "Indirizzo", "Stato", "Data Ordine", "Data Spedizione", "Pagamento alla consegna", "Importo"]],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        2: { cellWidth: 30 }
+      }
+    });
+    
+    // Salva il PDF
+    doc.save(`report-commesse-spedizione-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);
+    
+    toast({
+      title: "Report scaricato",
+      description: "Il report PDF è stato generato con successo",
+    });
+  };
+
   const handleArchive = async (orderId: string) => {
     const order = shippingOrders?.find(o => o.id === orderId);
     if (!order) return;
@@ -775,6 +828,15 @@ export default function ShippingOrdersPage() {
             onClick={() => setShowArchivedOrders(!showArchivedOrders)}
           >
             {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleDownloadReport}
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Report PDF
           </Button>
         </div>
       </div>

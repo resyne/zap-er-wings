@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -591,6 +595,59 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleDownloadReport = () => {
+    const doc = new jsPDF();
+    
+    // Titolo
+    doc.setFontSize(18);
+    doc.text("Report Commesse di Produzione", 14, 20);
+    
+    // Data e ora
+    doc.setFontSize(10);
+    doc.text(`Generato il: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: it })}`, 14, 28);
+    
+    // Filtra ordini in base allo stato selezionato
+    const ordersToExport = filteredWorkOrders;
+    
+    // Prepara i dati per la tabella
+    const tableData = ordersToExport.map(wo => [
+      wo.number,
+      wo.title,
+      wo.customers?.name || "-",
+      wo.technician ? `${wo.technician.first_name} ${wo.technician.last_name}` : "-",
+      wo.status === "da_fare" ? "Da Fare" :
+      wo.status === "in_lavorazione" ? "In Lavorazione" :
+      wo.status === "in_test" ? "In Test" :
+      wo.status === "pronto" ? "Pronto" :
+      wo.status === "completato" ? "Completato" :
+      wo.status === "standby" ? "Standby" : "Bloccato",
+      wo.priority === "high" ? "Alta" : wo.priority === "medium" ? "Media" : "Bassa",
+      wo.boms?.name || "-",
+      wo.planned_start_date ? format(new Date(wo.planned_start_date), "dd/MM/yyyy", { locale: it }) : "-"
+    ]);
+    
+    // Genera la tabella
+    autoTable(doc, {
+      head: [["Numero", "Titolo", "Cliente", "Assegnato A", "Stato", "Priorità", "BOM", "Inizio Pianificato"]],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        1: { cellWidth: 40 }
+      }
+    });
+    
+    // Salva il PDF
+    doc.save(`report-commesse-produzione-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);
+    
+    toast({
+      title: "Report scaricato",
+      description: "Il report PDF è stato generato con successo",
+    });
+  };
+
   const normalizeStatus = (status: string): string => {
     // Non normalizziamo più - usiamo gli stati come sono nel DB
     return status;
@@ -791,6 +848,10 @@ export default function WorkOrdersPage() {
               <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8" : ""} onClick={handleExport}>
                 <Download className={isMobile ? "h-3 w-3" : "mr-2 h-4 w-4"} />
                 {!isMobile && "Esporta"}
+              </Button>
+              <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8 gap-1" : "gap-2"} onClick={handleDownloadReport}>
+                <FileDown className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+                {!isMobile && "Report PDF"}
               </Button>
             </div>
           </div>
