@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 
 export default function ProductCatalogPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -195,7 +197,7 @@ export default function ProductCatalogPage() {
                               variant="link"
                               size="sm"
                               className="h-auto p-0 text-left text-primary hover:underline font-mono"
-                              onClick={() => window.open(`https://erp.abbattitorizapper.it/warehouse/materials?search=${product.materials.code}`, '_blank')}
+                              onClick={() => navigate(`/warehouse/materials?search=${product.materials.code}`)}
                             >
                               {product.materials.code} - {product.materials.name}
                             </Button>
