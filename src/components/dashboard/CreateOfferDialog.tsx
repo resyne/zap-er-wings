@@ -51,7 +51,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     unit_price: number;
     discount_percent: number;
     vat_rate: number;
-    reverse_charge: boolean;
     notes?: string;
   }>>([]);
   
@@ -72,7 +71,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     escluso_fornitura: '',
     payment_method: '',
     payment_agreement: '',
-    reverse_charge: false
+    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue'
   });
 
   useEffect(() => {
@@ -239,7 +238,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           escluso_fornitura: newOffer.escluso_fornitura || null,
           payment_method: newOffer.payment_method || null,
           payment_agreement: newOffer.payment_agreement || null,
-          reverse_charge: newOffer.reverse_charge,
+          vat_regime: newOffer.vat_regime,
           lead_id: leadData?.leadId || null
         }])
         .select('id, unique_code')
@@ -315,7 +314,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       escluso_fornitura: '',
       payment_method: '',
       payment_agreement: '',
-      reverse_charge: false
+      vat_regime: 'standard'
     });
     setSelectedProducts([]);
     setIncludeCertificazione(true);
@@ -608,15 +607,27 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="offer-reverse-charge"
-            checked={newOffer.reverse_charge}
-            onCheckedChange={(checked) => setNewOffer({ ...newOffer, reverse_charge: checked === true })}
-          />
-          <label htmlFor="offer-reverse-charge" className="text-sm cursor-pointer">
-            Reverse Charge (IVA a 0% - Inversione contabile)
-          </label>
+        <div>
+          <Label htmlFor="vat-regime">Regime IVA</Label>
+          <Select 
+            value={newOffer.vat_regime} 
+            onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => 
+              setNewOffer({ ...newOffer, vat_regime: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona regime IVA" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="standard">Regime Standard (IVA 22%)</SelectItem>
+              <SelectItem value="reverse_charge">Reverse Charge - N.6.7 (IVA 0%)</SelectItem>
+              <SelectItem value="intra_ue">Cessione Intra UE - N.3.2 (IVA 0%)</SelectItem>
+              <SelectItem value="extra_ue">Cessione Extra UE - N.3.1 (IVA 0%)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Seleziona il regime IVA applicabile all'offerta
+          </p>
         </div>
 
         <div>
@@ -646,7 +657,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                   unit_price: 0,
                   discount_percent: 0,
                   vat_rate: 22,
-                  reverse_charge: false,
                   notes: ''
                 }]);
               }}
@@ -717,7 +727,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                       unit_price: currentProductPrice,
                       discount_percent: 0,
                       vat_rate: 22,
-                      reverse_charge: false,
                       notes: selectedGlobalPriceListId 
                         ? `Listino: ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code}`
                         : ''

@@ -164,7 +164,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         // Load offer financial and payment data
         const { data: offerData, error: offerError } = await supabase
           .from('offers')
-          .select('amount, payment_method, payment_agreement, reverse_charge, customer_id')
+          .select('amount, payment_method, payment_agreement, vat_regime, customer_id')
           .eq('id', newOrder.offer_id)
           .single();
 
@@ -181,7 +181,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
             quantity: item.quantity || 1,
             unit_price: item.unit_price || 0,
             discount_percent: item.discount_percent || 0,
-            vat_rate: offerData?.reverse_charge ? 0 : 22
+            vat_rate: (offerData?.vat_regime && offerData.vat_regime !== 'standard') ? 0 : 22
           }));
           setSelectedProducts(products);
           

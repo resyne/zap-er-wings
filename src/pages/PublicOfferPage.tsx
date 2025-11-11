@@ -183,18 +183,34 @@ export default function PublicOfferPage() {
         return sum + (subtotal - discount);
       }, 0);
       
-      const isReverseCharge = offer.reverse_charge === true;
+      const vatRegime = (offer as any).vat_regime || 'standard';
       const ivaRate = 0.22; // 22%
-      const totalIva = isReverseCharge ? 0 : totalImponibile * ivaRate;
+      const isZeroVat = vatRegime !== 'standard';
+      const totalIva = isZeroVat ? 0 : totalImponibile * ivaRate;
       const totalLordo = totalImponibile + totalIva;
       
-      // Format IVA display with reverse charge note
-      const ivaDisplay = isReverseCharge 
-        ? '0.00</div><div style="font-size: 9px; color: #dc3545; margin-top: 3px;">N6.7 - Inversione contabile' 
-        : totalIva.toFixed(2);
+      // Format IVA display with regime note
+      let ivaDisplay = totalIva.toFixed(2);
+      let vatNote = '';
+      
+      if (vatRegime === 'reverse_charge') {
+        ivaDisplay = '0.00';
+        vatNote = 'N.6.7 - Inversione contabile';
+      } else if (vatRegime === 'intra_ue') {
+        ivaDisplay = '0.00';
+        vatNote = 'N.3.2 - Cessione Intra UE';
+      } else if (vatRegime === 'extra_ue') {
+        ivaDisplay = '0.00';
+        vatNote = 'N.3.1 - Cessione Extra UE';
+      }
+      
+      // Combine IVA display with note if present
+      const ivaDisplayWithNote = vatNote 
+        ? `${ivaDisplay}</div><div style="font-size: 9px; color: #dc3545; margin-top: 3px;">${vatNote}`
+        : ivaDisplay;
       
       // Format IVA percentage display
-      const ivaPercentDisplay = isReverseCharge ? '0%' : '22%';
+      const ivaPercentDisplay = isZeroVat ? '0%' : '22%';
 
       // Combine payment method and payment agreement
       const paymentInfo = [offer.payment_method, offer.payment_agreement]
@@ -233,7 +249,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
         .replace(/\{\{escluso_fornitura\}\}/g, translatedEsclusoFornitura || '')
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
-        .replace(/\{\{totale_iva\}\}/g, ivaDisplay)
+        .replace(/\{\{totale_iva\}\}/g, ivaDisplayWithNote)
         .replace(/\{\{iva_percent\}\}/g, ivaPercentDisplay)
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')

@@ -3444,7 +3444,6 @@ export type Database = {
           payment_method: string | null
           payment_terms: string | null
           priority: string | null
-          reverse_charge: boolean | null
           status: string
           template: string | null
           timeline_collaudo: string | null
@@ -3455,6 +3454,7 @@ export type Database = {
           unique_code: string | null
           updated_at: string
           valid_until: string | null
+          vat_regime: string | null
         }
         Insert: {
           amount?: number
@@ -3476,7 +3476,6 @@ export type Database = {
           payment_method?: string | null
           payment_terms?: string | null
           priority?: string | null
-          reverse_charge?: boolean | null
           status?: string
           template?: string | null
           timeline_collaudo?: string | null
@@ -3487,6 +3486,7 @@ export type Database = {
           unique_code?: string | null
           updated_at?: string
           valid_until?: string | null
+          vat_regime?: string | null
         }
         Update: {
           amount?: number
@@ -3508,7 +3508,6 @@ export type Database = {
           payment_method?: string | null
           payment_terms?: string | null
           priority?: string | null
-          reverse_charge?: boolean | null
           status?: string
           template?: string | null
           timeline_collaudo?: string | null
@@ -3519,6 +3518,7 @@ export type Database = {
           unique_code?: string | null
           updated_at?: string
           valid_until?: string | null
+          vat_regime?: string | null
         }
         Relationships: [
           {
