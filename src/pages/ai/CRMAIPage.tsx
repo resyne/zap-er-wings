@@ -153,7 +153,7 @@ export default function CRMAIPage() {
                 <ul className="text-sm mt-2 space-y-1">
                   <li>"Mostrami tutti i lead attivi"</li>
                   <li>"Crea un nuovo lead per l'azienda XYZ"</li>
-                  <li>"Quali clienti abbiamo nella pipeline ZAPPER?"</li>
+                  <li>"Quali clienti abbiamo nella pipeline Zapper?"</li>
                   <li>"Mostrami le offerte inviate questa settimana"</li>
                 </ul>
               </div>

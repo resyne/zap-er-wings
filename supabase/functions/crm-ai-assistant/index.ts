@@ -58,7 +58,7 @@ const tools = [
             enum: ["new", "qualified", "negotiation", "won", "lost"],
             description: "Stato del lead" 
           },
-          pipeline: { type: "string", description: "Pipeline (es: ZAPPER, VESUVIANO)" },
+          pipeline: { type: "string", description: "Pipeline (es: Zapper, Vesuviano, Zapper Pro, Resyne)" },
           value: { type: "number", description: "Valore stimato" },
           notes: { type: "string", description: "Note" }
         },
@@ -253,10 +253,13 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
       
       case "create_lead": {
         // Normalizza il nome della pipeline: prima lettera maiuscola, resto minuscolo
-        let normalizedPipeline = args.pipeline || "ZAPPER";
+        let normalizedPipeline = args.pipeline || "Zapper";
         if (normalizedPipeline) {
-          normalizedPipeline = normalizedPipeline.charAt(0).toUpperCase() + 
-                              normalizedPipeline.slice(1).toLowerCase();
+          // Normalizza: "ZAPPER" -> "Zapper", "vesuviano" -> "Vesuviano", etc.
+          normalizedPipeline = normalizedPipeline
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
         }
         
         const leadData = {

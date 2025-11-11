@@ -67,7 +67,7 @@ interface Offer {
 }
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
-const pipelines = ["ZAPPER", "Vesuviano", "ZAPPER Pro", "RESYNE"];
+const pipelines = ["Zapper", "Vesuviano", "Zapper Pro", "Resyne"];
 const countries = ["Italia", "Francia", "Germania"];
 // Tutte le colonne per la Kanban
 const kanbanStatuses = [
@@ -91,7 +91,7 @@ export default function LeadsPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPipeline, setSelectedPipeline] = useState<string>("ZAPPER");
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("Zapper");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -108,7 +108,7 @@ export default function LeadsPage() {
     value: "",
     source: "",
     status: "new",
-    pipeline: "ZAPPER",
+    pipeline: "Zapper",
     country: "Italia",
     notes: "",
     next_activity_type: "",
@@ -141,7 +141,7 @@ export default function LeadsPage() {
       const lead = leads.find(l => l.id === leadId);
       if (lead) {
         // Imposta la pipeline corretta
-        setSelectedPipeline(lead.pipeline || "ZAPPER");
+        setSelectedPipeline(lead.pipeline || "Zapper");
         // Apri il dialog del lead
         setSelectedLead(lead);
         setIsDetailsDialogOpen(true);
@@ -207,7 +207,7 @@ export default function LeadsPage() {
 
       // Prepare custom fields based on pipeline
       const custom_fields: any = {};
-      if (newLead.pipeline === "ZAPPER") {
+      if (newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") {
         custom_fields.tipo_attivita = newLead.tipo_attivita;
         custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria;
         custom_fields.luogo = newLead.luogo;
@@ -408,7 +408,7 @@ export default function LeadsPage() {
 
       // Prepare custom fields based on pipeline
       const custom_fields: any = {};
-      if (newLead.pipeline === "ZAPPER") {
+      if (newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") {
         custom_fields.tipo_attivita = newLead.tipo_attivita;
         custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria;
         custom_fields.luogo = newLead.luogo;
@@ -963,7 +963,7 @@ export default function LeadsPage() {
                 </div>
 
                 {/* Custom fields based on pipeline */}
-                {newLead.pipeline === "ZAPPER" && (
+                {(newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") && (
                   <div className="col-span-2 border-t pt-4">
                     <h4 className="font-medium mb-3">Informazioni ZAPPER</h4>
                     <div className="grid grid-cols-2 gap-4">
@@ -2134,7 +2134,7 @@ export default function LeadsPage() {
             </div>
 
             {/* Custom fields based on pipeline - EDIT MODE */}
-            {newLead.pipeline === "ZAPPER" && (
+            {(newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") && (
               <div className="col-span-2 border-t pt-4">
                 <h4 className="font-medium mb-3">Informazioni ZAPPER</h4>
                 <div className="grid grid-cols-2 gap-4">
