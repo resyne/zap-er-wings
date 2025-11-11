@@ -63,6 +63,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     valid_until: '',
     status: defaultStatus,
     template: 'zapper' as 'zapper' | 'vesuviano' | 'zapperpro',
+    language: 'it' as 'it' | 'en' | 'fr',
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
@@ -229,6 +230,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           valid_until: newOffer.valid_until || null,
           status: newOffer.status,
           template: newOffer.template,
+          language: newOffer.language,
           timeline_produzione: newOffer.timeline_produzione || null,
           timeline_consegna: newOffer.timeline_consegna || null,
           timeline_installazione: newOffer.timeline_installazione || null,
@@ -304,6 +306,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       valid_until: '',
       status: defaultStatus,
       template: 'zapper',
+      language: 'it',
       timeline_produzione: '',
       timeline_consegna: '',
       timeline_installazione: '',
@@ -424,23 +427,47 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           />
         </div>
 
-        <div>
-          <Label htmlFor="template">Template Offerta</Label>
-          <Select 
-            value={newOffer.template} 
-            onValueChange={(value: 'zapper' | 'vesuviano' | 'zapperpro') => 
-              setNewOffer({ ...newOffer, template: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona template" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="zapper">ZAPPER - Renewed Air</SelectItem>
-              <SelectItem value="vesuviano">Vesuviano - Tradizione e Qualità</SelectItem>
-              <SelectItem value="zapperpro">ZAPPER PRO - Professional Solutions</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+          <div>
+            <Label htmlFor="template">Template Offerta</Label>
+            <Select 
+              value={newOffer.template} 
+              onValueChange={(value: 'zapper' | 'vesuviano' | 'zapperpro') => 
+                setNewOffer({ ...newOffer, template: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona template" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="zapper">ZAPPER - Renewed Air</SelectItem>
+                <SelectItem value="vesuviano">Vesuviano - Tradizione e Qualità</SelectItem>
+                <SelectItem value="zapperpro">ZAPPER PRO - Professional Solutions</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="language">Lingua Offerta</Label>
+            <Select 
+              value={newOffer.language} 
+              onValueChange={(value: 'it' | 'en' | 'fr') => 
+                setNewOffer({ ...newOffer, language: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona lingua" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="it">🇮🇹 Italiano</SelectItem>
+                <SelectItem value="en">🇬🇧 Inglese</SelectItem>
+                <SelectItem value="fr">🇫🇷 Francese</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Il contenuto verrà tradotto automaticamente
+            </p>
+          </div>
         </div>
 
         <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>

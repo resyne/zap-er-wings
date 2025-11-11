@@ -14,6 +14,22 @@ export default function PublicOfferPage() {
     loadAndGenerateOffer();
   }, [code]);
 
+  const translateText = async (text: string, language: string): Promise<string> => {
+    if (!text || language === 'it') return text;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('translate-offer', {
+        body: { text, targetLanguage: language }
+      });
+      
+      if (error) throw error;
+      return data?.translatedText || text;
+    } catch (err) {
+      console.error('Translation error:', err);
+      return text; // Fallback to original text if translation fails
+    }
+  };
+
   const loadAndGenerateOffer = async () => {
     if (!code) {
       setError("Codice offerta non valido");
@@ -40,6 +56,9 @@ export default function PublicOfferPage() {
         return;
       }
 
+      // Get the language of the offer (default to Italian)
+      const offerLanguage = offer.language || 'it';
+
       // Load offer items with product names
       const { data: offerItems } = await supabase
         .from('offer_items')
@@ -48,6 +67,39 @@ export default function PublicOfferPage() {
           products (name)
         `)
         .eq('offer_id', offer.id);
+
+      // Translate content if needed
+      let translatedTitle = offer.title;
+      let translatedDescription = offer.description;
+      let translatedInclusoFornitura = offer.incluso_fornitura;
+      let translatedEsclusoFornitura = offer.escluso_fornitura;
+      let translatedTimelineProduzione = offer.timeline_produzione;
+      let translatedTimelineConsegna = offer.timeline_consegna;
+      let translatedTimelineInstallazione = offer.timeline_installazione;
+      let translatedTimelineCollaudo = offer.timeline_collaudo;
+      
+      if (offerLanguage !== 'it') {
+        // Translate main content fields
+        [
+          translatedTitle,
+          translatedDescription,
+          translatedInclusoFornitura,
+          translatedEsclusoFornitura,
+          translatedTimelineProduzione,
+          translatedTimelineConsegna,
+          translatedTimelineInstallazione,
+          translatedTimelineCollaudo
+        ] = await Promise.all([
+          translateText(offer.title || '', offerLanguage),
+          translateText(offer.description || '', offerLanguage),
+          translateText(offer.incluso_fornitura || '', offerLanguage),
+          translateText(offer.escluso_fornitura || '', offerLanguage),
+          translateText(offer.timeline_produzione || '', offerLanguage),
+          translateText(offer.timeline_consegna || '', offerLanguage),
+          translateText(offer.timeline_installazione || '', offerLanguage),
+          translateText(offer.timeline_collaudo || '', offerLanguage)
+        ]);
+      }
 
       // Load HTML template
       const template = offer.template || 'zapper';
@@ -58,7 +110,7 @@ export default function PublicOfferPage() {
       const logoUrl = window.location.origin + '/images/logo-zapper.png';
       
       // Build products table with improved styling
-      const productsTableRows = (offerItems || []).map((item: any) => {
+      const productsTableRows = await Promise.all((offerItems || []).map(async (item: any) => {
         const subtotal = item.quantity * item.unit_price;
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
         const total = subtotal - discount;
@@ -76,6 +128,11 @@ export default function PublicOfferPage() {
           productDescription = lines.slice(1).join('\n');
         }
         
+        // Translate product description if needed
+        if (offerLanguage !== 'it' && productDescription) {
+          productDescription = await translateText(productDescription, offerLanguage);
+        }
+        
         return `
           <tr>
             <td style="padding: 8px; font-size: 11px; color: #333; border-bottom: 1px solid #e9ecef;">${productName}</td>
@@ -86,7 +143,9 @@ export default function PublicOfferPage() {
             <td style="padding: 8px; font-size: 11px; font-weight: bold; color: #38AC4F; text-align: right; border-bottom: 1px solid #e9ecef;">€ ${total.toFixed(2)}</td>
           </tr>
         `;
-      }).join('');
+      }));
+      
+      const productsTableRowsHtml = productsTableRows.join('');
       
       const productsTable = `
         <div class="table-wrapper">
@@ -102,14 +161,14 @@ export default function PublicOfferPage() {
               </tr>
             </thead>
             <tbody>
-              ${productsTableRows}
+              ${productsTableRowsHtml}
             </tbody>
           </table>
         </div>
       `;
 
       // Build includes grid
-      const inclusoArray = (offer.incluso_fornitura || '').split('\n').filter((line: string) => line.trim());
+      const inclusoArray = (translatedInclusoFornitura || '').split('\n').filter((line: string) => line.trim());
       const inclusoGrid = inclusoArray.length > 0 ? inclusoArray.map((item: string) => `
         <div class="includes-item">
           <span class="includes-icon">✓</span>
@@ -169,23 +228,23 @@ export default function PublicOfferPage() {
         .replace(/\{\{cliente_telefono\}\}/g, offer.customers?.phone || '')
         .replace(/\{\{cliente\.azienda\}\}/g, offer.customers?.company_name || '')
         .replace(/\{\{cliente_azienda\}\}/g, offer.customers?.company_name || '')
-        .replace(/\{\{oggetto_offerta\}\}/g, offer.title || '')
+        .replace(/\{\{oggetto_offerta\}\}/g, translatedTitle || '')
         .replace(/\{\{tabella_prodotti\}\}/g, productsTable)
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
-        .replace(/\{\{escluso_fornitura\}\}/g, offer.escluso_fornitura || '')
+        .replace(/\{\{escluso_fornitura\}\}/g, translatedEsclusoFornitura || '')
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
         .replace(/\{\{totale_iva\}\}/g, ivaDisplay)
         .replace(/\{\{iva_percent\}\}/g, ivaPercentDisplay)
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/\{\{tempi_consegna\}\}/g, offer.timeline_consegna || '')
+        .replace(/\{\{tempi_consegna\}\}/g, translatedTimelineConsegna || '')
         .replace(/\{\{metodi_pagamento\}\}/g, paymentInfo)
-        .replace(/\{\{timeline_produzione\}\}/g, offer.timeline_produzione || '')
-        .replace(/\{\{timeline_consegna\}\}/g, offer.timeline_consegna || '')
-        .replace(/\{\{timeline_installazione\}\}/g, offer.timeline_installazione || '')
-        .replace(/\{\{timeline_collaudo\}\}/g, offer.timeline_collaudo || '')
-        .replace(/\{\{descrizione\}\}/g, offer.description || '')
+        .replace(/\{\{timeline_produzione\}\}/g, translatedTimelineProduzione || '')
+        .replace(/\{\{timeline_consegna\}\}/g, translatedTimelineConsegna || '')
+        .replace(/\{\{timeline_installazione\}\}/g, translatedTimelineInstallazione || '')
+        .replace(/\{\{timeline_collaudo\}\}/g, translatedTimelineCollaudo || '')
+        .replace(/\{\{descrizione\}\}/g, translatedDescription || '')
         .replace(/\{\{firma_commerciale\}\}/g, 'Abbattitori Zapper')
         .replace(/\{\{payment_agreement\}\}/g, offer.payment_agreement || '')
         .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
