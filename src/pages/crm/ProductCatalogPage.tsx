@@ -30,7 +30,7 @@ export default function ProductCatalogPage() {
         .from("products")
         .select(`
           *,
-          materials(code, name),
+          materials(code, name, cost),
           boms(name, code:name)
         `)
         .eq("is_active", true)
@@ -186,19 +186,29 @@ export default function ProductCatalogPage() {
                       </p>
                     )}
 
-                    {product.base_price && (
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <span className="text-sm font-medium">Prezzo base:</span>
-                        <span className="text-lg font-bold">
-                          € {Number(product.base_price).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
+                    <div className="space-y-2 pt-2 border-t">
+                      {product.materials?.cost && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Costo:</span>
+                          <span className="text-sm font-medium">
+                            € {Number(product.materials.cost).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      {product.base_price && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Prezzo base:</span>
+                          <span className="text-lg font-bold">
+                            € {Number(product.base_price).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     {(product.materials || product.boms) && (
                       <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                         {product.materials && (
-                          <div>Materiale: {product.materials.name}</div>
+                          <div>Materiale: {product.materials.code} - {product.materials.name}</div>
                         )}
                         {product.boms && (
                           <div>BOM: {product.boms.name}</div>
