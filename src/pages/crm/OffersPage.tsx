@@ -1859,7 +1859,7 @@ export default function OffersPage() {
                           </Button>
                         </div>
                         
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="text-xs text-muted-foreground">Quantità</label>
                             <Input
@@ -1905,23 +1905,6 @@ export default function OffersPage() {
                               min="0"
                               max="100"
                               step="0.01"
-                              className="text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">IVA %</label>
-                            <Input
-                              type="number"
-                              value={item.vat_rate}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].vat_rate = parseFloat(e.target.value) || 0;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="IVA"
-                              min="0"
-                              max="100"
-                              disabled={newOffer.vat_regime !== 'standard'}
                               className="text-sm"
                             />
                           </div>
