@@ -139,6 +139,20 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
 
       if (error) throw error;
 
+      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("status")
+        .eq("id", leadId)
+        .single();
+
+      if (leadData?.status === "new") {
+        await supabase
+          .from("leads")
+          .update({ status: "qualified" })
+          .eq("id", leadId);
+      }
+
       toast({
         title: "Commento aggiunto",
         description: "Il commento è stato aggiunto con successo",

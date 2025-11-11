@@ -200,6 +200,20 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
 
       if (error) throw error;
 
+      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("status")
+        .eq("id", leadId)
+        .single();
+
+      if (leadData?.status === "new") {
+        await supabase
+          .from("leads")
+          .update({ status: "qualified" })
+          .eq("id", leadId);
+      }
+
       toast({
         title: "Commento aggiunto",
         description: "Il commento è stato aggiunto con successo",
@@ -297,6 +311,20 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
         .insert([activityData]);
 
       if (error) throw error;
+
+      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("status")
+        .eq("id", leadId)
+        .single();
+
+      if (leadData?.status === "new") {
+        await supabase
+          .from("leads")
+          .update({ status: "qualified" })
+          .eq("id", leadId);
+      }
 
       // Aggiungi l'attività al calendario personale e aziendale se assegnata
       if (newActivity.assigned_to) {
@@ -414,6 +442,20 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
         .eq("id", activityToComplete.id);
 
       if (updateError) throw updateError;
+
+      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("status")
+        .eq("id", leadId)
+        .single();
+
+      if (leadData?.status === "new") {
+        await supabase
+          .from("leads")
+          .update({ status: "qualified" })
+          .eq("id", leadId);
+      }
 
       // Crea la prossima attività
       const { error: insertError } = await supabase
