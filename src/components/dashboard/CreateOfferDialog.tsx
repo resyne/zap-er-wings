@@ -34,8 +34,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [priceLists, setPriceLists] = useState<any[]>([]);
-  const [productPriceLists, setProductPriceLists] = useState<any[]>([]);
-  const [currentPriceListId, setCurrentPriceListId] = useState<string>('');
+  const [selectedGlobalPriceListId, setSelectedGlobalPriceListId] = useState<string>('');
   const [currentProductPrice, setCurrentProductPrice] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
@@ -78,7 +77,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   useEffect(() => {
     if (open) {
       loadCustomers();
-      loadProducts();
       loadPriceLists();
       // Precompila i dati dal lead se forniti
       if (leadData) {
@@ -91,6 +89,12 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     }
   }, [open, leadData]);
 
+  useEffect(() => {
+    if (open) {
+      loadProducts(selectedGlobalPriceListId);
+    }
+  }, [open, selectedGlobalPriceListId]);
+
   const loadCustomers = async () => {
     const { data } = await supabase
       .from('customers')
@@ -101,14 +105,40 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setCustomers(data || []);
   };
 
-  const loadProducts = async () => {
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, code, base_price, description')
-      .eq('is_active', true)
-      .order('name');
-    
-    setProducts(data || []);
+  const loadProducts = async (priceListId?: string) => {
+    if (priceListId) {
+      // Se c'è un listino selezionato, carica solo i prodotti di quel listino
+      const { data } = await supabase
+        .from('product_price_lists' as any)
+        .select(`
+          price,
+          products:product_id (
+            id,
+            name,
+            code,
+            base_price,
+            description
+          )
+        `)
+        .eq('price_list_id', priceListId);
+      
+      if (data) {
+        const productsWithPrice = (data as any[]).map((item: any) => ({
+          ...item.products,
+          price_from_list: item.price
+        }));
+        setProducts(productsWithPrice || []);
+      }
+    } else {
+      // Altrimenti carica tutti i prodotti
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, code, base_price, description')
+        .eq('is_active', true)
+        .order('name');
+      
+      setProducts(data || []);
+    }
   };
 
   const loadPriceLists = async () => {
@@ -121,67 +151,28 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setPriceLists(data || []);
   };
 
-  const loadProductPriceLists = async (productId: string) => {
-    const { data } = await supabase
-      .from('product_price_lists' as any)
-      .select(`
-        price,
-        price_lists:price_list_id (
-          id,
-          name,
-          code
-        )
-      `)
-      .eq('product_id', productId);
-    
-    if (data) {
-      const listsWithPrices = (data as any[]).map((item: any) => ({
-        id: item.price_lists.id,
-        name: item.price_lists.name,
-        code: item.price_lists.code,
-        price: item.price
-      }));
-      setProductPriceLists(listsWithPrices);
-      
-      // Se ci sono listini, resetta la selezione
-      if (listsWithPrices.length > 0) {
-        setCurrentPriceListId('');
-        setCurrentProductPrice(0);
-      }
-    }
-  };
-
   const handleProductChange = async (productId: string) => {
     setCurrentProductId(productId);
-    setCurrentPriceListId('');
     setCurrentProductPrice(0);
-    setProductPriceLists([]);
     
     if (productId) {
-      await loadProductPriceLists(productId);
-      
-      // Se il prodotto non ha listini, usa il prezzo base
       const product = products.find(p => p.id === productId);
       if (product) {
-        const { data } = await supabase
-          .from('product_price_lists' as any)
-          .select('id')
-          .eq('product_id', productId)
-          .limit(1);
-        
-        if (!data || data.length === 0) {
+        // Se c'è un listino globale selezionato, usa il prezzo da lì
+        if (selectedGlobalPriceListId && product.price_from_list) {
+          setCurrentProductPrice(product.price_from_list);
+        } else {
+          // Altrimenti usa il prezzo base
           setCurrentProductPrice(product.base_price || 0);
         }
       }
     }
   };
 
-  const handlePriceListChange = (priceListId: string) => {
-    setCurrentPriceListId(priceListId);
-    const selectedList = productPriceLists.find(pl => pl.id === priceListId);
-    if (selectedList) {
-      setCurrentProductPrice(selectedList.price);
-    }
+  const handleGlobalPriceListChange = (priceListId: string) => {
+    setSelectedGlobalPriceListId(priceListId);
+    setCurrentProductId('');
+    setCurrentProductPrice(0);
   };
 
   const handleCreateOffer = async () => {
@@ -329,8 +320,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setInclusoCustom('');
     setEsclusoCaricoPredisposizione(false);
     setCurrentProductId('');
-    setCurrentPriceListId('');
-    setProductPriceLists([]);
+    setSelectedGlobalPriceListId('');
     setCurrentProductPrice(0);
   };
 
@@ -388,6 +378,29 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               </Command>
             </PopoverContent>
           </Popover>
+        </div>
+
+        <div>
+          <Label htmlFor="priceList">Listino di Riferimento (opzionale)</Label>
+          <Select
+            value={selectedGlobalPriceListId}
+            onValueChange={handleGlobalPriceListChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Nessun listino - Mostra tutti i prodotti" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Nessun listino - Mostra tutti i prodotti</SelectItem>
+              {priceLists.map((priceList) => (
+                <SelectItem key={priceList.id} value={priceList.id}>
+                  {priceList.code} - {priceList.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Selezionando un listino verranno mostrati solo i prodotti presenti in quel listino
+          </p>
         </div>
 
         <div>
@@ -616,45 +629,27 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
             </Button>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <Label>Seleziona Prodotto</Label>
-              <Select
-                value={currentProductId}
-                onValueChange={handleProductChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona prodotto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.code} - {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {currentProductId && productPriceLists.length > 0 && (
-              <div>
-                <Label>Listino Prezzo *</Label>
-                <Select
-                  value={currentPriceListId}
-                  onValueChange={handlePriceListChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona listino" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {productPriceLists.map((priceList) => (
-                      <SelectItem key={priceList.id} value={priceList.id}>
-                        {priceList.code} - {priceList.name} - €{priceList.price?.toFixed(2)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div>
+            <Label>Seleziona Prodotto</Label>
+            <Select
+              value={currentProductId}
+              onValueChange={handleProductChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona prodotto" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.code} - {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedGlobalPriceListId && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Prodotti filtrati dal listino selezionato
+              </p>
             )}
           </div>
 
@@ -669,21 +664,14 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                     <div>
                       <span className="font-medium">{product.code} - {product.name}</span>
                       <div className="text-muted-foreground">
-                        {productPriceLists.length > 0 ? (
-                          currentPriceListId ? (
-                            <>
-                              Prezzo: <span className="font-semibold text-foreground">€{currentProductPrice.toFixed(2)}</span>
-                              <span className="text-xs ml-2">(da listino {productPriceLists.find(pl => pl.id === currentPriceListId)?.code})</span>
-                            </>
+                        Prezzo: <span className="font-semibold text-foreground">€{currentProductPrice.toFixed(2)}</span>
+                        <span className="text-xs ml-2">
+                          {selectedGlobalPriceListId ? (
+                            `(da listino ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code})`
                           ) : (
-                            <span className="text-amber-600">⚠️ Seleziona un listino per questo prodotto</span>
-                          )
-                        ) : (
-                          <>
-                            Prezzo: <span className="font-semibold text-foreground">€{currentProductPrice.toFixed(2)}</span>
-                            <span className="text-xs ml-2">(prezzo base)</span>
-                          </>
-                        )}
+                            '(prezzo base)'
+                          )}
+                        </span>
                       </div>
                     </div>
                   );
@@ -694,16 +682,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                 onClick={() => {
                   const product = products.find(p => p.id === currentProductId);
                   if (product) {
-                    // Se ci sono listini, il prezzo deve essere selezionato
-                    if (productPriceLists.length > 0 && !currentPriceListId) {
-                      toast({
-                        title: "Attenzione",
-                        description: "Seleziona un listino per questo prodotto",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    
                     setSelectedProducts([...selectedProducts, {
                       product_id: product.id,
                       product_name: product.name,
@@ -713,17 +691,15 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                       discount_percent: 0,
                       vat_rate: 22,
                       reverse_charge: false,
-                      notes: productPriceLists.length > 0 && currentPriceListId 
-                        ? `Listino: ${productPriceLists.find(pl => pl.id === currentPriceListId)?.code}`
+                      notes: selectedGlobalPriceListId 
+                        ? `Listino: ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code}`
                         : ''
                     }]);
                     setCurrentProductId('');
-                    setCurrentPriceListId('');
-                    setProductPriceLists([]);
                     setCurrentProductPrice(0);
                   }
                 }}
-                disabled={!currentProductId || (productPriceLists.length > 0 && !currentPriceListId)}
+                disabled={!currentProductId}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Aggiungi
