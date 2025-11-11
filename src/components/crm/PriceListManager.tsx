@@ -4,12 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Eye, Trash2 } from "lucide-react";
 import { CreatePriceListDialog } from "./CreatePriceListDialog";
+import { ViewPriceListDialog } from "./ViewPriceListDialog";
 import { toast } from "sonner";
 
 export function PriceListManager() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedPriceListId, setSelectedPriceListId] = useState<string | null>(null);
 
   const { data: priceLists, isLoading, refetch } = useQuery({
     queryKey: ["price-lists"],
@@ -142,6 +145,17 @@ export function PriceListManager() {
 
                 <div className="flex gap-2 pt-3">
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedPriceListId(priceList.id);
+                      setViewDialogOpen(true);
+                    }}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Visualizza
+                  </Button>
+                  <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDelete(priceList.id)}
@@ -166,6 +180,14 @@ export function PriceListManager() {
         onOpenChange={setCreateDialogOpen}
         onSuccess={refetch}
       />
+
+      {selectedPriceListId && (
+        <ViewPriceListDialog
+          open={viewDialogOpen}
+          onOpenChange={setViewDialogOpen}
+          priceListId={selectedPriceListId}
+        />
+      )}
     </div>
   );
 }
