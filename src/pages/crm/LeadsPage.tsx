@@ -134,6 +134,33 @@ export default function LeadsPage() {
     loadOffers();
   }, []);
 
+  // Realtime subscription per nuovi lead
+  useEffect(() => {
+    const channel = supabase
+      .channel('leads-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('Nuovo lead ricevuto:', payload.new);
+          setLeads((prevLeads) => [payload.new as Lead, ...prevLeads]);
+          toast({
+            title: "Nuovo lead",
+            description: `Nuovo lead aggiunto: ${(payload.new as Lead).company_name}`,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
+
   // Gestione parametro URL per aprire un lead specifico
   useEffect(() => {
     const leadId = searchParams.get('lead');
