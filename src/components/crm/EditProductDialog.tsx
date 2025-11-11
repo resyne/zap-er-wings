@@ -126,6 +126,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="machinery">Macchinario</SelectItem>
+                  <SelectItem value="oven">Forno</SelectItem>
                   <SelectItem value="component">Componente</SelectItem>
                   <SelectItem value="spare_part">Ricambio</SelectItem>
                   <SelectItem value="service">Servizio</SelectItem>
