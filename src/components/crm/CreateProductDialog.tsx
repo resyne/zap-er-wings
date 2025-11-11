@@ -32,7 +32,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("materials")
-        .select("id, code, name")
+        .select("id, code, name, cost")
         .order("name");
       if (error) throw error;
       return data;
@@ -176,43 +176,63 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="material_id">Materiale Collegato (opzionale)</Label>
-              <Select
-                value={formData.material_id || undefined}
-                onValueChange={(value) => setFormData({ ...formData, material_id: value })}
-              >
-                <SelectTrigger id="material_id">
-                  <SelectValue placeholder="Nessuno selezionato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {materials?.map((material) => (
-                    <SelectItem key={material.id} value={material.id}>
-                      {material.code} - {material.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold">Riferimento Prezzo</Label>
+              <p className="text-xs text-muted-foreground">
+                Collega il prodotto ad un materiale OPPURE ad una BOM per definire il prezzo di riferimento
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="bom_id">BOM Livello 0 (opzionale)</Label>
-              <Select
-                value={formData.bom_id || undefined}
-                onValueChange={(value) => setFormData({ ...formData, bom_id: value })}
-              >
-                <SelectTrigger id="bom_id">
-                  <SelectValue placeholder="Nessuno selezionato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {boms?.map((bom) => (
-                    <SelectItem key={bom.id} value={bom.id}>
-                      {bom.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="material_id">Materiale Magazzino</Label>
+                <Select
+                  value={formData.material_id || undefined}
+                  onValueChange={(value) => setFormData({ ...formData, material_id: value, bom_id: "" })}
+                >
+                  <SelectTrigger id="material_id">
+                    <SelectValue placeholder="Seleziona materiale" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {materials?.map((material) => (
+                      <SelectItem key={material.id} value={material.id}>
+                        {material.code} - {material.name}
+                        {material.cost && ` (€ ${Number(material.cost).toFixed(2)})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.material_id && materials && (
+                  <p className="text-xs text-muted-foreground">
+                    Prezzo da anagrafica materiale
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bom_id">BOM Livello 0</Label>
+                <Select
+                  value={formData.bom_id || undefined}
+                  onValueChange={(value) => setFormData({ ...formData, bom_id: value, material_id: "" })}
+                >
+                  <SelectTrigger id="bom_id">
+                    <SelectValue placeholder="Seleziona BOM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boms?.map((bom) => (
+                      <SelectItem key={bom.id} value={bom.id}>
+                        {bom.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.bom_id && (
+                  <p className="text-xs text-muted-foreground">
+                    Prezzo calcolato dalla distinta base
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
