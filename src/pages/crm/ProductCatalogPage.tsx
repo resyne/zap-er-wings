@@ -191,15 +191,17 @@ export default function ProductCatalogPage() {
                     {(product.materials || product.boms) && (
                       <div className="space-y-2 pt-2 border-t">
                         {product.materials && (
-                          <div className="flex items-start gap-2 text-sm">
+                          <div className="flex items-start gap-2 text-sm min-w-0">
                             <span className="text-muted-foreground shrink-0">Materiale:</span>
                             <Button
                               variant="link"
                               size="sm"
-                              className="h-auto p-0 text-left text-primary hover:underline font-mono"
+                              className="h-auto p-0 text-left text-primary hover:underline font-mono truncate min-w-0"
                               onClick={() => navigate(`/warehouse/materials?search=${product.materials.code}`)}
                             >
-                              {product.materials.code} - {product.materials.name}
+                              <span className="truncate">
+                                {product.materials.code} - {product.materials.name}
+                              </span>
                             </Button>
                           </div>
                         )}
