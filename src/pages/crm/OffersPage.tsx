@@ -87,6 +87,8 @@ export default function OffersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [priceLists, setPriceLists] = useState<any[]>([]);
+  const [selectedGlobalPriceListId, setSelectedGlobalPriceListId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
@@ -170,7 +172,7 @@ export default function OffersPage() {
 
   useEffect(() => {
     loadData();
-  }, [showArchived]);
+  }, [showArchived, selectedGlobalPriceListId]);
 
   useEffect(() => {
     if (!loading && offers.length > 0) {
@@ -226,17 +228,52 @@ export default function OffersPage() {
       if (leadsError) throw leadsError;
 
       // Load products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('id, name, code, base_price, description')
-        .order('name');
+      let productsDataToLoad = null;
+      if (selectedGlobalPriceListId) {
+        // Se c'è un listino selezionato, carica solo i prodotti di quel listino
+        const { data: priceListProductsData } = await supabase
+          .from('product_price_lists' as any)
+          .select(`
+            price,
+            products:product_id (
+              id,
+              name,
+              code,
+              base_price,
+              description
+            )
+          `)
+          .eq('price_list_id', selectedGlobalPriceListId);
+        
+        if (priceListProductsData) {
+          productsDataToLoad = (priceListProductsData as any[]).map((item: any) => ({
+            ...item.products,
+            price_from_list: item.price
+          }));
+        }
+      } else {
+        // Altrimenti carica tutti i prodotti
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id, name, code, base_price, description')
+          .order('name');
 
-      if (productsError) throw productsError;
+        if (productsError) throw productsError;
+        productsDataToLoad = productsData;
+      }
+
+      // Load price lists
+      const { data: priceListsData } = await supabase
+        .from('price_lists')
+        .select('id, name, code')
+        .eq('is_active', true)
+        .order('name');
 
       setOffers(transformedOffers);
       setCustomers(customersData || []);
       setLeads(leadsData || []);
-      setProducts(productsData || []);
+      setProducts(productsDataToLoad || []);
+      setPriceLists(priceListsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -740,6 +777,7 @@ export default function OffersPage() {
       setIncludeCertificazione(true);
       setIncludeGaranzia(true);
       setInclusoCustom('');
+      setSelectedGlobalPriceListId('');
       setIsCreateDialogOpen(false);
       
       toast({
@@ -1415,6 +1453,32 @@ export default function OffersPage() {
                   </Button>
                 </div>
               </div>
+
+              <div>
+                <label className="text-sm font-medium">Listino di Riferimento (opzionale)</label>
+                <Select
+                  value={selectedGlobalPriceListId}
+                  onValueChange={(value) => {
+                    setSelectedGlobalPriceListId(value);
+                    setCurrentProductId('');
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Nessun listino - Mostra tutti i prodotti" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessun listino - Mostra tutti i prodotti</SelectItem>
+                    {priceLists.map((priceList) => (
+                      <SelectItem key={priceList.id} value={priceList.id}>
+                        {priceList.code} - {priceList.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Selezionando un listino verranno mostrati solo i prodotti presenti in quel listino
+                </p>
+              </div>
               
               <div>
                 <label className="text-sm font-medium">Titolo Offerta</label>
@@ -1662,7 +1726,10 @@ export default function OffersPage() {
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.code} - {product.name} - €{product.base_price?.toFixed(2) || '0.00'}
+                          {product.code} - {product.name} - €{(product.price_from_list || product.base_price)?.toFixed(2) || '0.00'}
+                          {selectedGlobalPriceListId && product.price_from_list && (
+                            <span className="text-xs text-muted-foreground ml-1">(da listino)</span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1672,16 +1739,24 @@ export default function OffersPage() {
                     onClick={() => {
                       const product = products.find(p => p.id === currentProductId);
                       if (product) {
+                        const priceToUse = selectedGlobalPriceListId && product.price_from_list 
+                          ? product.price_from_list 
+                          : product.base_price || 0;
+                        
+                        const notes = selectedGlobalPriceListId 
+                          ? `Listino: ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code}`
+                          : '';
+                        
                         setSelectedProducts([...selectedProducts, {
                           product_id: product.id,
                           product_name: product.name,
                           description: product.description || '',
                           quantity: 1,
-                          unit_price: product.base_price || 0,
+                          unit_price: priceToUse,
                           discount_percent: 0,
                           vat_rate: 22,
                           reverse_charge: false,
-                          notes: ''
+                          notes: notes
                         }]);
                         setCurrentProductId('');
                       }
@@ -1880,6 +1955,7 @@ export default function OffersPage() {
               <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" onClick={() => {
                   setIsCreateDialogOpen(false);
+                  setSelectedGlobalPriceListId('');
                 }}>
                   Annulla
                 </Button>
