@@ -186,32 +186,25 @@ export default function ProductCatalogPage() {
                       </p>
                     )}
 
-                    <div className="space-y-2 pt-2 border-t">
-                      {product.materials?.cost && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Costo:</span>
-                          <span className="text-sm font-medium">
-                            € {Number(product.materials.cost).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                      {product.base_price && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Prezzo base:</span>
-                          <span className="text-lg font-bold">
-                            € {Number(product.base_price).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
                     {(product.materials || product.boms) && (
-                      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                      <div className="flex flex-col gap-2 pt-2 border-t text-sm">
                         {product.materials && (
-                          <div>Materiale: {product.materials.code} - {product.materials.name}</div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Materiale collegato:</span>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0"
+                              onClick={() => window.open(`/warehouse/materials?search=${product.materials.code}`, '_blank')}
+                            >
+                              {product.materials.code} - {product.materials.name}
+                            </Button>
+                          </div>
                         )}
                         {product.boms && (
-                          <div>BOM: {product.boms.name}</div>
+                          <div className="text-muted-foreground">
+                            BOM: {product.boms.name}
+                          </div>
                         )}
                       </div>
                     )}

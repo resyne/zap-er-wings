@@ -27,8 +27,6 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     name: "",
     description: "",
     product_type: "component",
-    base_price: "",
-    cost_price: "",
     unit_of_measure: "pz",
     material_id: "",
     bom_id: "",
@@ -39,7 +37,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("materials")
-        .select("id, code, name, cost")
+        .select("id, code, name")
         .order("name");
       if (error) throw error;
       return data;
@@ -59,62 +57,22 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     },
   });
 
-  // Calcola il costo della BOM quando viene selezionata
-  const calculateBomCost = async (bomId: string) => {
-    try {
-      // Ottieni tutte le inclusioni della BOM di livello 0
-      const { data: inclusions, error: inclusionsError } = await supabase
-        .from("bom_inclusions")
-        .select(`
-          quantity,
-          included_bom_id,
-          boms!bom_inclusions_included_bom_id_fkey(
-            level,
-            material_id,
-            materials(cost)
-          )
-        `)
-        .eq("parent_bom_id", bomId);
-
-      if (inclusionsError) throw inclusionsError;
-
-      let totalCost = 0;
-
-      for (const inclusion of inclusions || []) {
-        const bom = inclusion.boms;
-        if (bom && bom.level === 2 && bom.material_id && bom.materials) {
-          const materialCost = bom.materials.cost || 0;
-          totalCost += materialCost * inclusion.quantity;
-        }
-      }
-
-      return totalCost;
-    } catch (error) {
-      console.error("Error calculating BOM cost:", error);
-      return 0;
-    }
-  };
-
   // Gestisce la selezione del materiale
   const handleMaterialSelect = (materialId: string) => {
-    const material = materials?.find((m) => m.id === materialId);
     setFormData({
       ...formData,
       material_id: materialId,
       bom_id: "",
-      cost_price: material?.cost ? String(material.cost) : formData.cost_price,
     });
     setMaterialOpen(false);
   };
 
   // Gestisce la selezione della BOM
   const handleBomSelect = async (bomId: string) => {
-    const cost = await calculateBomCost(bomId);
     setFormData({
       ...formData,
       bom_id: bomId,
       material_id: "",
-      cost_price: cost > 0 ? String(cost.toFixed(2)) : formData.cost_price,
     });
     setBomOpen(false);
   };
@@ -130,7 +88,6 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
           name: formData.name,
           description: formData.description || null,
           product_type: formData.product_type,
-          base_price: formData.base_price ? parseFloat(formData.base_price) : null,
           unit_of_measure: formData.unit_of_measure,
           material_id: formData.material_id || null,
           bom_id: formData.bom_id || null,
@@ -147,8 +104,6 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
         name: "",
         description: "",
         product_type: "component",
-        base_price: "",
-        cost_price: "",
         unit_of_measure: "pz",
         material_id: "",
         bom_id: "",
@@ -220,43 +175,14 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cost_price">Costo (€)</Label>
-              <Input
-                id="cost_price"
-                type="number"
-                step="0.01"
-                value={formData.cost_price}
-                readOnly
-                className="bg-muted/50"
-                placeholder="0.00"
-              />
-              <p className="text-xs text-muted-foreground">Calcolato da materiale/BOM</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="base_price">Prezzo Base (€)</Label>
-              <Input
-                id="base_price"
-                type="number"
-                step="0.01"
-                value={formData.base_price}
-                onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
-                placeholder="0.00"
-              />
-              <p className="text-xs text-muted-foreground">Prezzo di listino</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="unit_of_measure">Unità di Misura</Label>
-              <Input
-                id="unit_of_measure"
-                value={formData.unit_of_measure}
-                onChange={(e) => setFormData({ ...formData, unit_of_measure: e.target.value })}
-                placeholder="pz"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="unit_of_measure">Unità di Misura</Label>
+            <Input
+              id="unit_of_measure"
+              value={formData.unit_of_measure}
+              onChange={(e) => setFormData({ ...formData, unit_of_measure: e.target.value })}
+              placeholder="pz"
+            />
           </div>
 
           <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
@@ -302,14 +228,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
                                   formData.material_id === material.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <div className="flex flex-col">
-                                <span>{material.code} - {material.name}</span>
-                                {material.cost && (
-                                  <span className="text-xs text-muted-foreground">
-                                    € {Number(material.cost).toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
+                              <span>{material.code} - {material.name}</span>
                             </CommandItem>
                           ))}
                         </CommandGroup>
