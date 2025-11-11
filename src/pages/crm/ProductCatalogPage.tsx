@@ -53,7 +53,6 @@ export default function ProductCatalogPage() {
   const productTypes = [
     { value: "all", label: "Tutti" },
     { value: "machinery", label: "Macchinari" },
-    { value: "oven", label: "Forni" },
     { value: "component", label: "Componenti" },
     { value: "spare_part", label: "Ricambi" },
     { value: "service", label: "Servizi" },
@@ -61,7 +60,6 @@ export default function ProductCatalogPage() {
 
   const typeColors: Record<string, string> = {
     machinery: "bg-blue-500",
-    oven: "bg-orange-500",
     component: "bg-green-500",
     spare_part: "bg-yellow-500",
     service: "bg-purple-500",
@@ -69,7 +67,6 @@ export default function ProductCatalogPage() {
 
   const typeLabels: Record<string, string> = {
     machinery: "Macchinario",
-    oven: "Forno",
     component: "Componente",
     spare_part: "Ricambio",
     service: "Servizio",
