@@ -25,18 +25,16 @@
         }
         
         .header {
-            background: #8B4513;
+            background: #6E4B3A;
             padding: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
-        .logo {
-            color: white;
-            font-size: 48px;
-            font-weight: bold;
-            font-style: italic;
+        .logo img {
+            max-width: 250px;
+            height: auto;
         }
         
         .tagline {
@@ -71,17 +69,17 @@
         .section-title {
             font-size: 14px;
             font-weight: bold;
-            color: #8B4513;
+            color: #6E4B3A;
             text-transform: uppercase;
             margin-bottom: 10px;
-            border-bottom: 2px solid #8B4513;
+            border-bottom: 2px solid #6E4B3A;
             padding-bottom: 5px;
         }
         
         .client-info {
             background: #f9f9f9;
             padding: 20px;
-            border-left: 4px solid #8B4513;
+            border-left: 4px solid #6E4B3A;
         }
         
         .client-name {
@@ -111,7 +109,7 @@
         }
         
         th {
-            background: #8B4513;
+            background: #6E4B3A;
             color: white;
             padding: 12px;
             text-align: left;
@@ -146,8 +144,8 @@
         
         .total-finale {
             font-size: 20px;
-            color: #8B4513;
-            border-top: 2px solid #8B4513;
+            color: #6E4B3A;
+            border-top: 2px solid #6E4B3A;
             padding-top: 10px;
             margin-top: 10px;
         }
@@ -162,12 +160,12 @@
         .info-item {
             background: #f9f9f9;
             padding: 15px;
-            border-left: 3px solid #8B4513;
+            border-left: 3px solid #6A7F4D;
         }
         
         .info-label {
             font-weight: bold;
-            color: #8B4513;
+            color: #6A7F4D;
             font-size: 12px;
             text-transform: uppercase;
             margin-bottom: 5px;
@@ -188,11 +186,16 @@
         }
         
         .footer {
-            background: #8B4513;
+            background: #6E4B3A;
             color: white;
             padding: 20px;
             text-align: center;
             font-size: 12px;
+        }
+        
+        .footer-contact {
+            margin-top: 10px;
+            font-size: 11px;
         }
         
         /* Mobile Responsive */
@@ -206,6 +209,10 @@
                 flex-direction: column;
                 padding: 20px;
                 text-align: center;
+            }
+            
+            .logo img {
+                max-width: 200px;
             }
             
             .doc-info {
@@ -262,8 +269,8 @@
                 padding: 15px;
             }
             
-            .logo {
-                font-size: 36px;
+            .logo img {
+                max-width: 180px;
             }
             
             .content {
@@ -291,9 +298,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <div>
-                <div class="logo">VESUVIANO</div>
-                <div class="tagline">TRADIZIONE E QUALITÀ</div>
+            <div class="logo">
+                <img src="/images/logo-vesuviano.png" alt="Vesuviano - Forni Vulcanici Selezionati">
             </div>
             <div class="doc-info">
                 <div class="doc-number">OFFERTA N. {{numero_offerta}}</div>
@@ -353,7 +359,10 @@
         </div>
         
         <div class="footer">
-            VESUVIANO - TRADIZIONE E QUALITÀ | WWW.VESUVIANO.IT
+            <div>VESUVIANO - FORNI VULCANICI SELEZIONATI</div>
+            <div class="footer-contact">
+                www.vesuvianoforni.com | info@vesuvianoforni.com | Tel. +39 350 928 6941
+            </div>
         </div>
     </div>
 </body>
