@@ -1,9 +1,80 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Function to call Lovable AI for lead interpretation
+async function interpretLeadWithAI(leadData: any) {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    console.error('LOVABLE_API_KEY not configured');
+    return null;
+  }
+
+  try {
+    const prompt = `Analizza questo lead proveniente da Facebook e fornisci una classificazione intelligente:
+
+Dati ricevuti:
+- Nome completo: ${leadData.fullName || 'N/A'}
+- Email: ${leadData.email || 'N/A'}
+- Telefono: ${leadData.phone || 'N/A'}
+- Campagna: ${leadData.campaign || 'N/A'}
+- Fonte: ${leadData.source || 'Facebook'}
+
+Estrai e fornisci:
+1. company_name: Nome dell'azienda (se identificabile dal nome o email, altrimenti usa il nome completo)
+2. contact_name: Nome del contatto
+3. pipeline: "VESUVIANO" se la campagna contiene "Vesuviano", altrimenti "ZAPPER"
+4. estimated_value: Stima il valore potenziale in euro (basato sulla tipologia di prodotto)
+5. notes: Breve nota contestualizzata sulla provenienza del lead e campagna
+
+Rispondi in formato JSON puro senza markdown.`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'Sei un assistente AI esperto nella qualificazione di lead commerciali. Rispondi sempre con JSON valido senza markdown.' },
+          { role: 'user', content: prompt }
+        ],
+        response_format: { type: "json_object" }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices[0].message.content;
+    
+    // Parse AI response (remove markdown if present)
+    let parsed;
+    try {
+      const cleaned = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      console.error('Error parsing AI response:', aiResponse);
+      return null;
+    }
+
+    console.log('AI interpretation:', parsed);
+    return parsed;
+  } catch (error) {
+    console.error('Error calling AI:', error);
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -23,35 +94,35 @@ serve(async (req) => {
       
       console.log('Received Zapier webhook:', body)
 
-      // Extract lead data from Zapier payload
-      // Zapier might send data in different formats, so we'll handle common patterns
-      const leadData = {
-        company_name: body.company_name || body.company || body.business_name || body.organization || 'Azienda sconosciuta',
-        contact_name: body.contact_name || body.name || body.full_name || (body.first_name && body.last_name ? `${body.first_name} ${body.last_name}` : body.first_name) || null,
-        email: body.email || body.email_address || null,
-        phone: body.phone || body.phone_number || body.mobile || null,
-        value: body.value || body.deal_value || body.amount || body.budget || null,
-        source: 'zapier',
-        status: 'new',
-        notes: body.notes || body.message || body.description || body.comments || null,
+      // Extract raw data from Facebook Lead Ads via Zapier
+      const rawData = {
+        fullName: body['Full Name'] || body.full_name || body.name || null,
+        email: (body['Email '] || body.email || body.email_address || '').trim(),
+        phone: body.Telefono || body.telefono || body.phone || body.phone_number || null,
+        campaign: body.Campagna || body.campagna || body.campaign || null,
+        source: body.Fonte || body.fonte || body.source || 'facebook',
       }
 
-      // Validate required fields
-      if (!leadData.company_name) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Campo obbligatorio mancante: company_name',
-            received_data: body 
-          }),
-          { 
-            status: 400, 
-            headers: { 
-              ...corsHeaders, 
-              'Content-Type': 'application/json' 
-            } 
-          }
-        )
+      console.log('Extracted raw data:', rawData)
+
+      // Call AI to interpret and enrich the lead data
+      const aiInterpretation = await interpretLeadWithAI(rawData)
+      
+      // Prepare lead data with AI enrichment
+      const leadData: any = {
+        company_name: aiInterpretation?.company_name || rawData.fullName || 'Lead Facebook',
+        contact_name: aiInterpretation?.contact_name || rawData.fullName || null,
+        email: rawData.email || null,
+        phone: rawData.phone || null,
+        value: aiInterpretation?.estimated_value || null,
+        source: 'facebook',
+        status: 'nuovo', // Stato "nuovo" per far apparire il badge giallo
+        pipeline: aiInterpretation?.pipeline || (rawData.campaign?.toLowerCase().includes('vesuviano') ? 'VESUVIANO' : 'ZAPPER'),
+        notes: aiInterpretation?.notes || `Lead da campagna Facebook: ${rawData.campaign || 'N/A'}`,
+        country: 'Italia',
       }
+
+      console.log('Final lead data:', leadData)
 
       // Convert value to number if it's a string
       if (leadData.value && typeof leadData.value === 'string') {
