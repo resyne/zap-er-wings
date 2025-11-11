@@ -171,6 +171,71 @@
             margin-bottom: 5px;
         }
         
+        .payment-section {
+            background: #f9f9f9;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #6E4B3A;
+            border-radius: 6px;
+        }
+        
+        .payment-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #6E4B3A;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        
+        .payment-methods {
+            margin-bottom: 20px;
+        }
+        
+        .payment-subtitle {
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .payment-content {
+            font-size: 12px;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+        }
+        
+        .banking-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        .banking-details {
+            font-size: 12px;
+            line-height: 1.8;
+            color: #333;
+        }
+        
+        .banking-details strong {
+            color: #6E4B3A;
+        }
+        
+        .brand-note {
+            background: #fffdf0;
+            border-left: 3px solid #6E4B3A;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        
+        .brand-note-content {
+            font-size: 11px;
+            line-height: 1.6;
+            color: #666;
+            font-style: italic;
+        }
+        
         .firma {
             margin-top: 50px;
             text-align: right;
@@ -349,6 +414,33 @@
                 <div class="info-item">
                     <div class="info-label">Tempi di Consegna</div>
                     <div>{{tempi_consegna}}</div>
+                </div>
+            </div>
+            
+            <!-- Sezione Pagamenti -->
+            <div class="payment-section">
+                <div class="payment-title">Condizioni di Pagamento</div>
+                
+                <div class="payment-methods">
+                    <div class="payment-subtitle">Metodi di Pagamento</div>
+                    <div class="payment-content">{{metodi_pagamento}}</div>
+                </div>
+                
+                <div class="banking-info">
+                    <div class="payment-subtitle">Coordinate Bancarie</div>
+                    <div class="banking-details">
+                        Intestatario: <strong>CLIMATEL DI ELEFANTE PASQUALE</strong><br>
+                        Banca: <strong>INTESA SANPAOLO</strong><br>
+                        IBAN: <strong>IT82 S030 6976 4511 0000 0003 441</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Nota sul Marchio -->
+            <div class="brand-note">
+                <div class="brand-note-content">
+                    Il Marchio di prodotti Vesuviano Forni ® è di proprietà della ditta CLIMATEL di ELEFANTE PASQUALE, 
+                    via galileo ferraris 24 Scafati (SA) 84018 - Italy - P.IVA 03895390650
                 </div>
             </div>
             
