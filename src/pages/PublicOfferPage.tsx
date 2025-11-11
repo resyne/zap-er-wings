@@ -57,7 +57,7 @@ export default function PublicOfferPage() {
       }
 
       // Get the language of the offer (default to Italian)
-      const offerLanguage = offer.language || 'it';
+      const offerLanguage = (offer as any).language || 'it';
 
       // Load offer items with product names
       const { data: offerItems } = await supabase

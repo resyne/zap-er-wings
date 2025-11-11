@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.generate-pdf-from-html]
 verify_jwt = false
+
+[functions.translate-offer]
+verify_jwt = false

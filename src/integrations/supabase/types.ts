@@ -3436,6 +3436,7 @@ export type Database = {
           escluso_fornitura: string | null
           id: string
           incluso_fornitura: string | null
+          language: string | null
           lead_id: string | null
           metodi_pagamento: string | null
           number: string
@@ -3467,6 +3468,7 @@ export type Database = {
           escluso_fornitura?: string | null
           id?: string
           incluso_fornitura?: string | null
+          language?: string | null
           lead_id?: string | null
           metodi_pagamento?: string | null
           number: string
@@ -3498,6 +3500,7 @@ export type Database = {
           escluso_fornitura?: string | null
           id?: string
           incluso_fornitura?: string | null
+          language?: string | null
           lead_id?: string | null
           metodi_pagamento?: string | null
           number?: string
