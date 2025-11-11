@@ -131,6 +131,7 @@ export default function OffersPage() {
     valid_until: string;
     status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
     template: 'zapper' | 'vesuviano' | 'zapperpro';
+    language?: 'it' | 'en' | 'fr';
     timeline_produzione?: string;
     timeline_consegna?: string;
     timeline_installazione?: string;
@@ -150,6 +151,7 @@ export default function OffersPage() {
     valid_until: '',
     status: 'offerta_pronta',
     template: 'zapper',
+    language: 'it',
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
@@ -655,6 +657,7 @@ export default function OffersPage() {
             valid_until: newOffer.valid_until || null,
             status: 'offerta_pronta',
             template: newOffer.template,
+            language: newOffer.language || 'it',
             timeline_produzione: newOffer.timeline_produzione || null,
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
@@ -718,6 +721,7 @@ export default function OffersPage() {
             valid_until: newOffer.valid_until || null,
             status: newOffer.status,
             template: newOffer.template,
+            language: newOffer.language || 'it',
             timeline_produzione: newOffer.timeline_produzione || null,
             timeline_consegna: newOffer.timeline_consegna || null,
             timeline_installazione: newOffer.timeline_installazione || null,
@@ -771,6 +775,7 @@ export default function OffersPage() {
             valid_until: '',
             status: 'offerta_pronta',
             template: 'zapper',
+            language: 'it',
             timeline_produzione: '',
             timeline_consegna: '',
             timeline_installazione: '',
@@ -1527,6 +1532,28 @@ export default function OffersPage() {
                 </Select>
               </div>
               
+              <div>
+                <label className="text-sm font-medium">Lingua Offerta</label>
+                <Select 
+                  value={newOffer.language || 'it'} 
+                  onValueChange={(value: 'it' | 'en' | 'fr') => 
+                    setNewOffer(prev => ({ ...prev, language: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona lingua" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="it">🇮🇹 Italiano</SelectItem>
+                    <SelectItem value="en">🇬🇧 Inglese</SelectItem>
+                    <SelectItem value="fr">🇫🇷 Francese</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Il contenuto verrà tradotto automaticamente
+                </p>
+              </div>
+              
               {/* Timeline Operativa */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -2048,6 +2075,7 @@ export default function OffersPage() {
                                 valid_until: '',
                                 status: 'offerta_pronta',
                                 template: 'zapper',
+                                language: (offer as any).language || 'it',
                                 timeline_produzione: offer.timeline_produzione || '',
                                 timeline_consegna: offer.timeline_consegna || '',
                                 timeline_installazione: offer.timeline_installazione || '',
@@ -2971,6 +2999,7 @@ export default function OffersPage() {
                         valid_until: selectedOffer.valid_until || '',
                         status: selectedOffer.status as any,
                         template: (selectedOffer as any).template || 'zapper',
+                        language: (selectedOffer as any).language || 'it',
                         timeline_produzione: (selectedOffer as any).timeline_produzione || '',
                         timeline_consegna: (selectedOffer as any).timeline_consegna || '',
                         timeline_installazione: (selectedOffer as any).timeline_installazione || '',
