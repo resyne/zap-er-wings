@@ -1371,7 +1371,7 @@ export default function LeadsPage() {
                                         "font-semibold truncate",
                                         isMobile ? "text-xs" : "text-sm"
                                       )}>{lead.company_name}</h4>
-                                      {lead.status === "nuovo" && (
+                                      {lead.status === "new" && (
                                         <Badge 
                                           className={cn(
                                             "bg-yellow-500 text-yellow-950 border-yellow-600 animate-pulse font-semibold",

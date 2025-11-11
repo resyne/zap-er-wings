@@ -116,7 +116,7 @@ serve(async (req) => {
         phone: rawData.phone || null,
         value: aiInterpretation?.estimated_value || null,
         source: 'facebook',
-        status: 'nuovo', // Stato "nuovo" per far apparire il badge giallo
+        status: 'new', // Status "new" per far apparire il badge giallo
         pipeline: aiInterpretation?.pipeline || (rawData.campaign?.toLowerCase().includes('vesuviano') ? 'VESUVIANO' : 'ZAPPER'),
         notes: aiInterpretation?.notes || `Lead da campagna Facebook: ${rawData.campaign || 'N/A'}`,
         country: 'Italia',
