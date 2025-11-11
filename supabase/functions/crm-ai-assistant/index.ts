@@ -252,10 +252,16 @@ async function executeToolCall(toolName: string, args: any, supabase: any) {
       }
       
       case "create_lead": {
-        // Assegna pipeline di default "ZAPPER" se non specificata
+        // Normalizza il nome della pipeline: prima lettera maiuscola, resto minuscolo
+        let normalizedPipeline = args.pipeline || "ZAPPER";
+        if (normalizedPipeline) {
+          normalizedPipeline = normalizedPipeline.charAt(0).toUpperCase() + 
+                              normalizedPipeline.slice(1).toLowerCase();
+        }
+        
         const leadData = {
           ...args,
-          pipeline: args.pipeline || "ZAPPER"
+          pipeline: normalizedPipeline
         };
         
         const { data, error } = await supabase
