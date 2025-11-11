@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface EditProductDialogProps {
@@ -18,6 +22,8 @@ interface EditProductDialogProps {
 
 export function EditProductDialog({ open, onOpenChange, product, onSuccess }: EditProductDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const [bomOpen, setBomOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -191,23 +197,57 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="material_id">Materiale Magazzino</Label>
-                <Select
-                  value={formData.material_id || undefined}
-                  onValueChange={(value) => setFormData({ ...formData, material_id: value, bom_id: "" })}
-                >
-                  <SelectTrigger id="material_id">
-                    <SelectValue placeholder="Seleziona materiale" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {materials?.map((material) => (
-                      <SelectItem key={material.id} value={material.id}>
-                        {material.code} - {material.name}
-                        {material.cost && ` (€ ${Number(material.cost).toFixed(2)})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Materiale Magazzino</Label>
+                <Popover open={materialOpen} onOpenChange={setMaterialOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={materialOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.material_id
+                        ? materials?.find((m) => m.id === formData.material_id)?.name
+                        : "Seleziona materiale"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Cerca materiale..." />
+                      <CommandList>
+                        <CommandEmpty>Nessun materiale trovato.</CommandEmpty>
+                        <CommandGroup>
+                          {materials?.map((material) => (
+                            <CommandItem
+                              key={material.id}
+                              value={`${material.code} ${material.name}`}
+                              onSelect={() => {
+                                setFormData({ ...formData, material_id: material.id, bom_id: "" });
+                                setMaterialOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.material_id === material.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{material.code} - {material.name}</span>
+                                {material.cost && (
+                                  <span className="text-xs text-muted-foreground">
+                                    € {Number(material.cost).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 {formData.material_id && materials && (
                   <p className="text-xs text-muted-foreground">
                     Prezzo da anagrafica materiale
@@ -216,22 +256,50 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bom_id">BOM Livello 0</Label>
-                <Select
-                  value={formData.bom_id || undefined}
-                  onValueChange={(value) => setFormData({ ...formData, bom_id: value, material_id: "" })}
-                >
-                  <SelectTrigger id="bom_id">
-                    <SelectValue placeholder="Seleziona BOM" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {boms?.map((bom) => (
-                      <SelectItem key={bom.id} value={bom.id}>
-                        {bom.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>BOM Livello 0</Label>
+                <Popover open={bomOpen} onOpenChange={setBomOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={bomOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.bom_id
+                        ? boms?.find((b) => b.id === formData.bom_id)?.name
+                        : "Seleziona BOM"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Cerca BOM..." />
+                      <CommandList>
+                        <CommandEmpty>Nessuna BOM trovata.</CommandEmpty>
+                        <CommandGroup>
+                          {boms?.map((bom) => (
+                            <CommandItem
+                              key={bom.id}
+                              value={bom.name}
+                              onSelect={() => {
+                                setFormData({ ...formData, bom_id: bom.id, material_id: "" });
+                                setBomOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.bom_id === bom.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {bom.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 {formData.bom_id && (
                   <p className="text-xs text-muted-foreground">
                     Prezzo calcolato dalla distinta base
