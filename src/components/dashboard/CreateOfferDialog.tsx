@@ -106,7 +106,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   };
 
   const loadProducts = async (priceListId?: string) => {
-    if (priceListId) {
+    if (priceListId && priceListId !== 'none') {
       // Se c'è un listino selezionato, carica solo i prodotti di quel listino
       const { data } = await supabase
         .from('product_price_lists' as any)
@@ -170,7 +170,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   };
 
   const handleGlobalPriceListChange = (priceListId: string) => {
-    setSelectedGlobalPriceListId(priceListId);
+    setSelectedGlobalPriceListId(priceListId === 'none' ? '' : priceListId);
     setCurrentProductId('');
     setCurrentProductPrice(0);
   };
@@ -383,14 +383,14 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
         <div>
           <Label htmlFor="priceList">Listino di Riferimento (opzionale)</Label>
           <Select
-            value={selectedGlobalPriceListId}
+            value={selectedGlobalPriceListId || 'none'}
             onValueChange={handleGlobalPriceListChange}
           >
             <SelectTrigger>
               <SelectValue placeholder="Nessun listino - Mostra tutti i prodotti" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Nessun listino - Mostra tutti i prodotti</SelectItem>
+              <SelectItem value="none">Nessun listino - Mostra tutti i prodotti</SelectItem>
               {priceLists.map((priceList) => (
                 <SelectItem key={priceList.id} value={priceList.id}>
                   {priceList.code} - {priceList.name}

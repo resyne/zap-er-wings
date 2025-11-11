@@ -229,7 +229,7 @@ export default function OffersPage() {
 
       // Load products
       let productsDataToLoad = null;
-      if (selectedGlobalPriceListId) {
+      if (selectedGlobalPriceListId && selectedGlobalPriceListId !== 'none') {
         // Se c'è un listino selezionato, carica solo i prodotti di quel listino
         const { data: priceListProductsData } = await supabase
           .from('product_price_lists' as any)
@@ -1457,9 +1457,9 @@ export default function OffersPage() {
               <div>
                 <label className="text-sm font-medium">Listino di Riferimento (opzionale)</label>
                 <Select
-                  value={selectedGlobalPriceListId}
+                  value={selectedGlobalPriceListId || 'none'}
                   onValueChange={(value) => {
-                    setSelectedGlobalPriceListId(value);
+                    setSelectedGlobalPriceListId(value === 'none' ? '' : value);
                     setCurrentProductId('');
                   }}
                 >
@@ -1467,7 +1467,7 @@ export default function OffersPage() {
                     <SelectValue placeholder="Nessun listino - Mostra tutti i prodotti" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessun listino - Mostra tutti i prodotti</SelectItem>
+                    <SelectItem value="none">Nessun listino - Mostra tutti i prodotti</SelectItem>
                     {priceLists.map((priceList) => (
                       <SelectItem key={priceList.id} value={priceList.id}>
                         {priceList.code} - {priceList.name}
