@@ -28,7 +28,7 @@ Dati ricevuti:
 Estrai e fornisci:
 1. company_name: Nome dell'azienda (se identificabile dal nome o email, altrimenti usa il nome completo)
 2. contact_name: Nome del contatto
-3. pipeline: "VESUVIANO" se la campagna contiene "Vesuviano", altrimenti "ZAPPER"
+3. pipeline: "Vesuviano" se la campagna contiene "Vesuviano", altrimenti "ZAPPER"
 4. estimated_value: Stima il valore potenziale in euro (basato sulla tipologia di prodotto)
 5. notes: Breve nota contestualizzata sulla provenienza del lead e campagna
 
@@ -117,7 +117,7 @@ serve(async (req) => {
         value: aiInterpretation?.estimated_value || null,
         source: 'facebook',
         status: 'new', // Status "new" per far apparire il badge giallo
-        pipeline: aiInterpretation?.pipeline || (rawData.campaign?.toLowerCase().includes('vesuviano') ? 'VESUVIANO' : 'ZAPPER'),
+        pipeline: aiInterpretation?.pipeline || (rawData.campaign?.toLowerCase().includes('vesuviano') ? 'Vesuviano' : 'ZAPPER'),
         notes: aiInterpretation?.notes || `Lead da campagna Facebook: ${rawData.campaign || 'N/A'}`,
         country: 'Italia',
       }
