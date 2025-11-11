@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +75,7 @@ const materialTypeBadgeVariants = {
 } as const;
 
 export default function MaterialsPage() {
+  const [searchParams] = useSearchParams();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -83,6 +85,14 @@ export default function MaterialsPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { hideAmounts } = useHideAmounts();
+
+  // Leggi il parametro search dall'URL e imposta il searchTerm
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl) {
+      setSearchTerm(searchFromUrl);
+    }
+  }, [searchParams]);
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
