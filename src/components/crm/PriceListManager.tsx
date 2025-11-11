@@ -25,6 +25,7 @@ export function PriceListManager() {
   });
 
   const typeLabels: Record<string, string> = {
+    generic: "Generico",
     country: "Paese",
     region: "Regione",
     customer_category: "Categoria Cliente",
@@ -33,11 +34,18 @@ export function PriceListManager() {
   };
 
   const typeColors: Record<string, string> = {
+    generic: "bg-slate-500",
     country: "bg-blue-500",
     region: "bg-green-500",
     customer_category: "bg-purple-500",
     reseller: "bg-orange-500",
     custom: "bg-gray-500",
+  };
+
+  const tierLabels: Record<string, string> = {
+    T: "Top",
+    M: "Medium",
+    L: "Low",
   };
 
   const handleDelete = async (id: string) => {
@@ -65,7 +73,7 @@ export function PriceListManager() {
         <div>
           <h2 className="text-2xl font-bold">Gestione Listini</h2>
           <p className="text-muted-foreground">
-            Crea e gestisci i listini prezzi per paese, regione o categoria cliente
+            Crea e gestisci i listini prezzi con moltiplicatori per clienti e partner
           </p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)}>
@@ -90,9 +98,16 @@ export function PriceListManager() {
                       {priceList.code}
                     </CardDescription>
                   </div>
-                  <Badge className={typeColors[priceList.list_type]}>
-                    {typeLabels[priceList.list_type]}
-                  </Badge>
+                  <div className="flex gap-2">
+                    <Badge className={typeColors[priceList.list_type]}>
+                      {typeLabels[priceList.list_type]}
+                    </Badge>
+                    {priceList.target_type && (
+                      <Badge variant="outline">
+                        {priceList.target_type === 'cliente' ? 'Cliente' : 'Partner'} {priceList.tier && `- ${tierLabels[priceList.tier]}`}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -103,19 +118,15 @@ export function PriceListManager() {
                 )}
 
                 <div className="space-y-1 text-sm">
+                  {priceList.default_multiplier && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Moltiplicatore:</span> 
+                      <Badge variant="secondary">x{Number(priceList.default_multiplier).toFixed(2)}</Badge>
+                    </div>
+                  )}
                   {priceList.country && (
                     <div>
                       <span className="font-medium">Paese:</span> {priceList.country}
-                    </div>
-                  )}
-                  {priceList.region && (
-                    <div>
-                      <span className="font-medium">Regione:</span> {priceList.region}
-                    </div>
-                  )}
-                  {priceList.customer_category && (
-                    <div>
-                      <span className="font-medium">Categoria:</span> {priceList.customer_category}
                     </div>
                   )}
                 </div>

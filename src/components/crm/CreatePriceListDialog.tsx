@@ -23,21 +23,34 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
     code: "",
     name: "",
     description: "",
-    list_type: "country",
+    list_type: "generic",
     country: "",
-    region: "",
-    customer_category: "",
+    target_type: "cliente",
+    tier: "M",
+    default_multiplier: "1.5",
     valid_from: "",
     valid_to: "",
   });
-  const [items, setItems] = useState<Array<{ product_id: string; price: string; discount: string }>>([]);
+  const [items, setItems] = useState<Array<{ 
+    product_id: string; 
+    cost: number;
+    price: string; 
+    discount: string;
+    notes: string;
+  }>>([]);
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, base_price")
+        .select(`
+          id, 
+          code, 
+          name, 
+          base_price,
+          materials(cost)
+        `)
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
@@ -46,16 +59,28 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
   });
 
   const addItem = () => {
-    setItems([...items, { product_id: "", price: "", discount: "" }]);
+    setItems([...items, { product_id: "", cost: 0, price: "", discount: "", notes: "" }]);
   };
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: string, value: string) => {
+  const updateItem = (index: number, field: string, value: string | number) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Se cambia il prodotto, aggiorna automaticamente il costo e calcola il prezzo
+    if (field === "product_id" && value) {
+      const product = products?.find(p => p.id === value);
+      const cost = product?.materials?.cost || 0;
+      const multiplier = parseFloat(formData.default_multiplier) || 1;
+      const calculatedPrice = cost * multiplier;
+      
+      newItems[index].cost = cost;
+      newItems[index].price = calculatedPrice.toFixed(2);
+    }
+    
     setItems(newItems);
   };
 
@@ -74,8 +99,9 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
             description: formData.description || null,
             list_type: formData.list_type,
             country: formData.country || null,
-            region: formData.region || null,
-            customer_category: formData.customer_category || null,
+            target_type: formData.target_type,
+            tier: formData.tier,
+            default_multiplier: parseFloat(formData.default_multiplier),
             valid_from: formData.valid_from || null,
             valid_to: formData.valid_to || null,
           },
@@ -93,7 +119,9 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
             price_list_id: priceList.id,
             product_id: item.product_id,
             price: parseFloat(item.price),
+            cost_price: item.cost,
             discount_percentage: item.discount ? parseFloat(item.discount) : 0,
+            notes: item.notes || null,
           }));
 
         if (itemsToInsert.length > 0) {
@@ -114,10 +142,11 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
         code: "",
         name: "",
         description: "",
-        list_type: "country",
+        list_type: "generic",
         country: "",
-        region: "",
-        customer_category: "",
+        target_type: "cliente",
+        tier: "M",
+        default_multiplier: "1.5",
         valid_from: "",
         valid_to: "",
       });
@@ -141,20 +170,20 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Codice *</Label>
               <Input
                 id="code"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="es. LIST-FR-2024"
+                placeholder="es. LIST-IT-CLI-M"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="list_type">Tipo *</Label>
+              <Label htmlFor="list_type">Ambito *</Label>
               <Select
                 value={formData.list_type}
                 onValueChange={(value) => setFormData({ ...formData, list_type: value })}
@@ -163,13 +192,23 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="generic">Generico</SelectItem>
                   <SelectItem value="country">Paese</SelectItem>
-                  <SelectItem value="region">Regione</SelectItem>
-                  <SelectItem value="customer_category">Categoria Cliente</SelectItem>
-                  <SelectItem value="reseller">Rivenditore</SelectItem>
-                  <SelectItem value="custom">Personalizzato</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="default_multiplier">Moltiplicatore Default *</Label>
+              <Input
+                id="default_multiplier"
+                type="number"
+                step="0.01"
+                value={formData.default_multiplier}
+                onChange={(e) => setFormData({ ...formData, default_multiplier: e.target.value })}
+                placeholder="1.5"
+                required
+              />
             </div>
           </div>
 
@@ -196,34 +235,50 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
           </div>
 
           <div className="grid grid-cols-3 gap-4">
+            {formData.list_type === "country" && (
+              <div className="space-y-2">
+                <Label htmlFor="country">Paese *</Label>
+                <Input
+                  id="country"
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  placeholder="es. Italia, Francia"
+                  required
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="country">Paese</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                placeholder="es. Francia"
-              />
+              <Label htmlFor="target_type">Target *</Label>
+              <Select
+                value={formData.target_type}
+                onValueChange={(value) => setFormData({ ...formData, target_type: value })}
+              >
+                <SelectTrigger id="target_type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cliente">Cliente</SelectItem>
+                  <SelectItem value="partner">Partner</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="region">Regione</Label>
-              <Input
-                id="region"
-                value={formData.region}
-                onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                placeholder="es. Sud, Centro, Nord"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="customer_category">Categoria Cliente</Label>
-              <Input
-                id="customer_category"
-                value={formData.customer_category}
-                onChange={(e) => setFormData({ ...formData, customer_category: e.target.value })}
-                placeholder="es. Rivenditore A"
-              />
+              <Label htmlFor="tier">Categoria *</Label>
+              <Select
+                value={formData.tier}
+                onValueChange={(value) => setFormData({ ...formData, tier: value })}
+              >
+                <SelectTrigger id="tier">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="T">Top (T)</SelectItem>
+                  <SelectItem value="M">Medium (M)</SelectItem>
+                  <SelectItem value="L">Low (L)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -258,67 +313,96 @@ export function CreatePriceListDialog({ open, onOpenChange, onSuccess }: CreateP
             </div>
 
             {items.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Prodotto</TableHead>
-                    <TableHead>Prezzo (€)</TableHead>
-                    <TableHead>Sconto (%)</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <Select
-                          value={item.product_id}
-                          onValueChange={(value) => updateItem(index, "product_id", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleziona..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products?.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.code} - {product.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.price}
-                          onChange={(e) => updateItem(index, "price", e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.discount}
-                          onChange={(e) => updateItem(index, "discount", e.target.value)}
-                          placeholder="0"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Prodotto</TableHead>
+                      <TableHead>Costo (€)</TableHead>
+                      <TableHead>Molt.</TableHead>
+                      <TableHead>Prezzo (€)</TableHead>
+                      <TableHead>Sconto (%)</TableHead>
+                      <TableHead>Note Sconto Max</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item, index) => {
+                      const multiplier = parseFloat(formData.default_multiplier) || 1;
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="min-w-[200px]">
+                            <Select
+                              value={item.product_id}
+                              onValueChange={(value) => updateItem(index, "product_id", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products?.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.code} - {product.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.cost || ""}
+                              readOnly
+                              className="bg-muted"
+                              placeholder="0.00"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-medium">x{multiplier.toFixed(2)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) => updateItem(index, "price", e.target.value)}
+                              placeholder="0.00"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.discount}
+                              onChange={(e) => updateItem(index, "discount", e.target.value)}
+                              placeholder="0"
+                              className="w-20"
+                            />
+                          </TableCell>
+                          <TableCell className="min-w-[200px]">
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => updateItem(index, "notes", e.target.value)}
+                              placeholder="es. max 10%"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeItem(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </div>
 

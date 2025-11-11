@@ -3886,6 +3886,7 @@ export type Database = {
       }
       price_list_items: {
         Row: {
+          cost_price: number | null
           created_at: string
           discount_percentage: number | null
           id: string
@@ -3897,6 +3898,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cost_price?: number | null
           created_at?: string
           discount_percentage?: number | null
           id?: string
@@ -3908,6 +3910,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cost_price?: number | null
           created_at?: string
           discount_percentage?: number | null
           id?: string
@@ -3941,6 +3944,7 @@ export type Database = {
           country: string | null
           created_at: string
           customer_category: string | null
+          default_multiplier: number | null
           description: string | null
           id: string
           is_active: boolean | null
@@ -3948,6 +3952,8 @@ export type Database = {
           name: string
           priority: number | null
           region: string | null
+          target_type: string | null
+          tier: string | null
           updated_at: string
           valid_from: string | null
           valid_to: string | null
@@ -3957,6 +3963,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           customer_category?: string | null
+          default_multiplier?: number | null
           description?: string | null
           id?: string
           is_active?: boolean | null
@@ -3964,6 +3971,8 @@ export type Database = {
           name: string
           priority?: number | null
           region?: string | null
+          target_type?: string | null
+          tier?: string | null
           updated_at?: string
           valid_from?: string | null
           valid_to?: string | null
@@ -3973,6 +3982,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           customer_category?: string | null
+          default_multiplier?: number | null
           description?: string | null
           id?: string
           is_active?: boolean | null
@@ -3980,6 +3990,8 @@ export type Database = {
           name?: string
           priority?: number | null
           region?: string | null
+          target_type?: string | null
+          tier?: string | null
           updated_at?: string
           valid_from?: string | null
           valid_to?: string | null
