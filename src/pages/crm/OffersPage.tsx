@@ -235,7 +235,7 @@ export default function OffersPage() {
         // Se c'è un listino selezionato, carica solo i prodotti di quel listino
         console.log('🔍 Fetching products from price list:', selectedGlobalPriceListId);
         const { data: priceListProductsData, error: priceListError } = await supabase
-          .from('product_price_lists' as any)
+          .from('price_list_items')
           .select(`
             price,
             products:product_id (
@@ -263,6 +263,7 @@ export default function OffersPage() {
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('id, name, code, base_price, description')
+          .eq('is_active', true)
           .order('name');
 
         if (productsError) throw productsError;

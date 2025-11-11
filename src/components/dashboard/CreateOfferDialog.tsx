@@ -109,7 +109,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     if (priceListId && priceListId !== 'none') {
       // Se c'è un listino selezionato, carica solo i prodotti di quel listino
       const { data } = await supabase
-        .from('product_price_lists' as any)
+        .from('price_list_items')
         .select(`
           price,
           products:product_id (
