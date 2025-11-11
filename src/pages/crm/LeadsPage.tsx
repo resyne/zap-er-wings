@@ -1359,7 +1359,7 @@ export default function LeadsPage() {
                                "space-y-2",
                                isMobile ? "p-3" : "p-4"
                              )}>
-                                {/* Header con titolo e azioni */}
+                                 {/* Header con titolo e azioni */}
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">
                                     <div className={cn("flex items-center gap-2", isMobile ? "mb-0.5" : "mb-1")}>
@@ -1371,6 +1371,16 @@ export default function LeadsPage() {
                                         "font-semibold truncate",
                                         isMobile ? "text-xs" : "text-sm"
                                       )}>{lead.company_name}</h4>
+                                      {lead.status === "nuovo" && (
+                                        <Badge 
+                                          className={cn(
+                                            "bg-yellow-500 text-yellow-950 border-yellow-600 animate-pulse font-semibold",
+                                            isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
+                                          )}
+                                        >
+                                          NUOVO
+                                        </Badge>
+                                      )}
                                     </div>
                                     {lead.contact_name && (
                                       <p className={cn(
