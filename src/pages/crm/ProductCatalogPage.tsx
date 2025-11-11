@@ -166,20 +166,20 @@ export default function ProductCatalogPage() {
             ) : products && products.length > 0 ? (
               products.map((product) => (
                 <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{product.name}</CardTitle>
-                        <CardDescription className="mt-1">
-                          Codice: {product.code}
-                        </CardDescription>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg mb-1 truncate">{product.name}</CardTitle>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="font-mono">{product.code}</span>
+                          <Badge variant="secondary" className={typeColors[product.product_type]}>
+                            {typeLabels[product.product_type]}
+                          </Badge>
+                        </div>
                       </div>
-                      <Badge className={typeColors[product.product_type]}>
-                        {typeLabels[product.product_type]}
-                      </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-4">
                     {product.description && (
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {product.description}
@@ -187,51 +187,43 @@ export default function ProductCatalogPage() {
                     )}
 
                     {(product.materials || product.boms) && (
-                      <div className="flex flex-col gap-2 pt-2 border-t text-sm">
+                      <div className="space-y-2 pt-2 border-t">
                         {product.materials && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Materiale collegato:</span>
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-muted-foreground shrink-0">Materiale:</span>
                             <Button
                               variant="link"
                               size="sm"
-                              className="h-auto p-0"
-                              onClick={() => window.open(`/warehouse/materials?search=${product.materials.code}`, '_blank')}
+                              className="h-auto p-0 text-left text-primary hover:underline font-mono"
+                              onClick={() => window.open(`https://erp.abbattitorizapper.it/warehouse/materials?search=${product.materials.code}`, '_blank')}
                             >
                               {product.materials.code} - {product.materials.name}
                             </Button>
                           </div>
                         )}
                         {product.boms && (
-                          <div className="text-muted-foreground">
-                            BOM: {product.boms.name}
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-muted-foreground shrink-0">BOM:</span>
+                            <span className="font-medium">{product.boms.name}</span>
                           </div>
                         )}
                       </div>
                     )}
 
-                    <div className="flex gap-2 pt-3">
+                    <div className="flex gap-2 pt-2 border-t">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => {
                           setSelectedProduct(product);
                           setEditDialogOpen(true);
                         }}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Modifica
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         className="flex-1"
                         onClick={() => {
@@ -239,8 +231,19 @@ export default function ProductCatalogPage() {
                           setPriceListDialogOpen(true);
                         }}
                       >
-                        <ListChecks className="mr-2 h-4 w-4" />
+                        <ListChecks className="h-4 w-4 mr-1" />
                         Listini
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>
