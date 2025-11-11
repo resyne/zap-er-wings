@@ -482,7 +482,7 @@ export function EditPriceListDialog({
               </Button>
             </div>
 
-            {items.length > 0 && (
+            {items.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -572,6 +572,10 @@ export function EditPriceListDialog({
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Nessun prodotto nel listino. Clicca su "Aggiungi Prodotto" per iniziare.
               </div>
             )}
           </div>
