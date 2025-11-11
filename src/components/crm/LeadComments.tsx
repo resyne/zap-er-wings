@@ -140,17 +140,22 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
       if (error) throw error;
 
       // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
-      const { data: leadData } = await supabase
-        .from("leads")
-        .select("status")
-        .eq("id", leadId)
-        .single();
-
-      if (leadData?.status === "new") {
-        await supabase
+      try {
+        const { data: leadData } = await supabase
           .from("leads")
-          .update({ status: "qualified" })
-          .eq("id", leadId);
+          .select("status")
+          .eq("id", leadId)
+          .single();
+
+        if (leadData?.status === "new") {
+          await supabase
+            .from("leads")
+            .update({ status: "qualified" })
+            .eq("id", leadId);
+        }
+      } catch (statusError) {
+        console.error("Error updating lead status:", statusError);
+        // Non bloccare l'inserimento del commento se l'aggiornamento dello status fallisce
       }
 
       toast({
