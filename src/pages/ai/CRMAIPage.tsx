@@ -16,8 +16,50 @@ export default function CRMAIPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Carica la cronologia della conversazione attiva
+  useEffect(() => {
+    const loadConversationHistory = async () => {
+      try {
+        // Ottieni l'ultima conversazione dell'utente
+        const { data: conversations, error: convError } = await supabase
+          .from('ai_conversations')
+          .select('id')
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (convError) throw convError;
+
+        if (conversations && conversations.length > 0) {
+          const lastConvId = conversations[0].id;
+          setConversationId(lastConvId);
+
+          // Carica i messaggi di questa conversazione
+          const { data: loadedMessages, error: msgError } = await supabase
+            .from('ai_messages')
+            .select('role, content')
+            .eq('conversation_id', lastConvId)
+            .order('created_at', { ascending: true });
+
+          if (msgError) throw msgError;
+
+          if (loadedMessages && loadedMessages.length > 0) {
+            setMessages(loadedMessages as Message[]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading conversation history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadConversationHistory();
+  }, []);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -46,7 +88,8 @@ export default function CRMAIPage() {
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content
-          }))
+          })),
+          conversationId: conversationId
         },
         headers: session?.access_token ? {
           Authorization: `Bearer ${session.access_token}`
@@ -54,6 +97,11 @@ export default function CRMAIPage() {
       });
 
       if (error) throw error;
+
+      // Aggiorna il conversationId se è stato creato uno nuovo
+      if (data.conversationId && !conversationId) {
+        setConversationId(data.conversationId);
+      }
 
       const assistantMessage: Message = {
         role: "assistant",
@@ -93,7 +141,11 @@ export default function CRMAIPage() {
       <Card className="h-[calc(100%-8rem)] flex flex-col">
         <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
-            {messages.length === 0 && (
+            {isLoadingHistory ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-12">
                 <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium mb-2">Benvenuto nell'Assistente AI CRM</p>
@@ -105,7 +157,7 @@ export default function CRMAIPage() {
                   <li>"Mostrami le offerte inviate questa settimana"</li>
                 </ul>
               </div>
-            )}
+            ) : null}
             
             {messages.map((message, index) => (
               <div

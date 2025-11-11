@@ -399,7 +399,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, conversationId } = await req.json();
     
     if (!messages || !Array.isArray(messages)) {
       throw new Error('Messages array is required');
@@ -415,7 +415,39 @@ serve(async (req) => {
       userId = user?.id;
     }
 
+    if (!userId) {
+      throw new Error('User authentication required');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Se non c'è un conversationId, creiamo una nuova conversazione
+    let currentConversationId = conversationId;
+    if (!currentConversationId) {
+      const userMessage = messages[messages.length - 1];
+      const title = userMessage.content.substring(0, 50) + (userMessage.content.length > 50 ? '...' : '');
+      
+      const { data: newConversation, error: convError } = await supabase
+        .from('ai_conversations')
+        .insert([{ user_id: userId, title }])
+        .select()
+        .single();
+      
+      if (convError) throw convError;
+      currentConversationId = newConversation.id;
+    }
+
+    // Salva il messaggio dell'utente (solo l'ultimo, gli altri sono già salvati)
+    const lastUserMessage = messages[messages.length - 1];
+    if (lastUserMessage.role === 'user') {
+      await supabase
+        .from('ai_messages')
+        .insert([{
+          conversation_id: currentConversationId,
+          role: lastUserMessage.role,
+          content: lastUserMessage.content
+        }]);
+    }
 
     // Estrai la richiesta dell'utente
     const userRequest = messages[messages.length - 1]?.content || 'Richiesta non specificata';
@@ -522,10 +554,22 @@ Quando mostri dati, presentali in modo chiaro e strutturato. Se ci sono molti ri
     }
 
     const finalMessage = conversationMessages[conversationMessages.length - 1];
+    
+    // Salva la risposta dell'assistente nel database
+    if (finalMessage.role === 'assistant' && currentConversationId) {
+      await supabase
+        .from('ai_messages')
+        .insert([{
+          conversation_id: currentConversationId,
+          role: 'assistant',
+          content: finalMessage.content
+        }]);
+    }
 
     return new Response(
       JSON.stringify({ 
         message: finalMessage.content,
+        conversationId: currentConversationId,
         iterations: iterations,
         activities: activityLogs.length
       }),
