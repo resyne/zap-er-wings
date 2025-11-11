@@ -43,6 +43,7 @@ interface Lead {
   next_activity_assigned_to?: string;
   created_at: string;
   updated_at: string;
+  created_by?: string;
   custom_fields?: {
     // ZAPPER fields
     tipo_attivita?: string;
@@ -182,7 +183,7 @@ export default function LeadsPage() {
     try {
       const { data, error } = await supabase
         .from("leads")
-        .select("*")
+        .select("*, created_by")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -1466,22 +1467,49 @@ export default function LeadsPage() {
                                  </div>
                                </div>
 
-                                {/* Informazioni di contatto */}
-                                <div className={`${isMobile ? 'space-y-1 border-t pt-1.5' : 'space-y-2 border-t pt-2'}`}>
-                                  {lead.email && (
-                                    <div className="flex items-center gap-2">
-                                      <Mail className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
-                                      <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground truncate`}>{lead.email}</span>
-                                    </div>
-                                  )}
-                                  
-                                  {lead.phone && (
-                                    <div className="flex items-center gap-2">
-                                      <Phone className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
-                                      <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>{lead.phone}</span>
-                                    </div>
-                                  )}
-                                </div>
+                                 {/* Informazioni di contatto */}
+                                 <div className={`${isMobile ? 'space-y-1 border-t pt-1.5' : 'space-y-2 border-t pt-2'}`}>
+                                   {lead.email && (
+                                     <div className="flex items-center gap-2">
+                                       <Mail className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
+                                       <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground truncate`}>{lead.email}</span>
+                                     </div>
+                                   )}
+                                   
+                                   {lead.phone && (
+                                     <div className="flex items-center gap-2">
+                                       <Phone className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
+                                       <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>{lead.phone}</span>
+                                     </div>
+                                   )}
+                                   
+                                   {/* Data e utente creazione */}
+                                   <div className="flex items-center gap-2">
+                                     <Clock className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
+                                     <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>
+                                       {new Date(lead.created_at).toLocaleString('it-IT', {
+                                         day: '2-digit',
+                                         month: '2-digit',
+                                         year: 'numeric',
+                                         hour: '2-digit',
+                                         minute: '2-digit'
+                                       })}
+                                     </span>
+                                   </div>
+                                   
+                                   <div className="flex items-center gap-2">
+                                     <User className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
+                                     <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground truncate`}>
+                                       {lead.created_by ? 
+                                         (() => {
+                                           const creator = users.find(u => u.id === lead.created_by);
+                                           return creator ? `${creator.first_name} ${creator.last_name}` : 'Utente sconosciuto';
+                                         })()
+                                         : (lead.source === 'zapier' ? 'Zapier automation' : 'Sistema')
+                                       }
+                                     </span>
+                                   </div>
+                                 </div>
                                  
                                   {/* Prossima attività */}
                                   {(lead.next_activity_type || lead.next_activity_date) && (() => {
