@@ -33,6 +33,9 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const isMobile = useIsMobile();
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [priceLists, setPriceLists] = useState<any[]>([]);
+  const [selectedPriceListId, setSelectedPriceListId] = useState<string>('');
+  const [priceListPrices, setPriceListPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [includeCertificazione, setIncludeCertificazione] = useState(true);
@@ -75,6 +78,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     if (open) {
       loadCustomers();
       loadProducts();
+      loadPriceLists();
       // Precompila i dati dal lead se forniti
       if (leadData) {
         setNewOffer(prev => ({
@@ -100,9 +104,44 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     const { data } = await supabase
       .from('products')
       .select('id, name, code, base_price, description')
+      .eq('is_active', true)
       .order('name');
     
     setProducts(data || []);
+  };
+
+  const loadPriceLists = async () => {
+    const { data } = await supabase
+      .from('price_lists')
+      .select('id, name, code')
+      .eq('is_active', true)
+      .order('name');
+    
+    setPriceLists(data || []);
+  };
+
+  const loadPriceListPrices = async (priceListId: string) => {
+    const { data } = await supabase
+      .from('product_price_lists' as any)
+      .select('product_id, price')
+      .eq('price_list_id', priceListId);
+    
+    if (data) {
+      const pricesMap: Record<string, number> = {};
+      (data as any[]).forEach((item: any) => {
+        pricesMap[item.product_id] = item.price;
+      });
+      setPriceListPrices(pricesMap);
+    }
+  };
+
+  const handlePriceListChange = async (priceListId: string) => {
+    setSelectedPriceListId(priceListId);
+    if (priceListId) {
+      await loadPriceListPrices(priceListId);
+    } else {
+      setPriceListPrices({});
+    }
   };
 
   const handleCreateOffer = async () => {
@@ -250,6 +289,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setInclusoCustom('');
     setEsclusoCaricoPredisposizione(false);
     setCurrentProductId('');
+    setSelectedPriceListId('');
+    setPriceListPrices({});
   };
 
   const formContent = (
@@ -533,6 +574,32 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               {isMobile ? "Aggiungi" : "Aggiungi Voce Manuale"}
             </Button>
           </div>
+          
+          <div>
+            <Label>Listino Prezzi (Opzionale)</Label>
+            <Select
+              value={selectedPriceListId}
+              onValueChange={handlePriceListChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Nessun listino - Prezzi manuali" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nessun listino - Prezzi manuali</SelectItem>
+                {priceLists.map((priceList) => (
+                  <SelectItem key={priceList.id} value={priceList.id}>
+                    {priceList.code} - {priceList.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedPriceListId && (
+              <p className="text-xs text-muted-foreground mt-1">
+                I prezzi saranno prelevati dal listino selezionato, ma potrai modificarli manualmente
+              </p>
+            )}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-2">
             <Select
               value={currentProductId}
@@ -542,11 +609,19 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                 <SelectValue placeholder="Seleziona prodotto" />
               </SelectTrigger>
               <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.code} - {product.name} - €{product.base_price?.toFixed(2) || '0.00'}
-                  </SelectItem>
-                ))}
+                {products.map((product) => {
+                  const priceToShow = selectedPriceListId && priceListPrices[product.id] 
+                    ? priceListPrices[product.id] 
+                    : product.base_price;
+                  return (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.code} - {product.name} - €{priceToShow?.toFixed(2) || '0.00'}
+                      {selectedPriceListId && priceListPrices[product.id] && (
+                        <span className="text-xs text-muted-foreground"> (da listino)</span>
+                      )}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Button
@@ -554,12 +629,16 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               onClick={() => {
                 const product = products.find(p => p.id === currentProductId);
                 if (product) {
+                  const priceFromList = selectedPriceListId && priceListPrices[product.id]
+                    ? priceListPrices[product.id]
+                    : product.base_price || 0;
+                  
                   setSelectedProducts([...selectedProducts, {
                     product_id: product.id,
                     product_name: product.name,
                     description: product.description || '',
                     quantity: 1,
-                    unit_price: product.base_price || 0,
+                    unit_price: priceFromList,
                     discount_percent: 0,
                     vat_rate: 22,
                     reverse_charge: false,
