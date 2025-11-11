@@ -53,7 +53,7 @@ interface Offer {
   payment_agreement?: string;
   archived?: boolean;
   unique_code?: string;
-  reverse_charge?: boolean;
+  vat_regime?: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue';
   approved?: boolean;
   approved_by?: string;
   approved_by_name?: string;
@@ -113,7 +113,6 @@ export default function OffersPage() {
     unit_price: number;
     discount_percent: number;
     vat_rate: number;
-    reverse_charge: boolean;
     notes?: string;
   }>>([]);
   const [currentProductId, setCurrentProductId] = useState<string>('');
@@ -141,7 +140,7 @@ export default function OffersPage() {
     metodi_pagamento?: string;
     payment_method?: string;
     payment_agreement?: string;
-    reverse_charge: boolean;
+    vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue';
   }>({
     id: undefined,
     customer_id: '',
@@ -161,7 +160,7 @@ export default function OffersPage() {
     metodi_pagamento: '',
     payment_method: '',
     payment_agreement: '',
-    reverse_charge: false
+    vat_regime: 'standard'
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -169,7 +168,7 @@ export default function OffersPage() {
     subject: '',
     net_amount: 0,
     vat_amount: 0,
-    reverse_charge: false
+    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue'
   });
 
   useEffect(() => {
@@ -667,7 +666,7 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            reverse_charge: newOffer.reverse_charge
+            vat_regime: newOffer.vat_regime
           })
           .eq('id', newOffer.id)
           .select()
@@ -731,7 +730,7 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            reverse_charge: newOffer.reverse_charge
+            vat_regime: newOffer.vat_regime
           }])
           .select()
           .single();
@@ -785,7 +784,7 @@ export default function OffersPage() {
             metodi_pagamento: '',
             payment_method: '',
             payment_agreement: '',
-            reverse_charge: false
+            vat_regime: 'standard'
           });
       setSelectedProducts([]);
       setIncludeCertificazione(true);
@@ -843,7 +842,7 @@ export default function OffersPage() {
 
       const offerNumber = `RIC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       
-      const totalAmount = offerRequest.reverse_charge 
+      const totalAmount = offerRequest.vat_regime !== 'standard'
         ? offerRequest.net_amount 
         : offerRequest.net_amount + offerRequest.vat_amount;
 
@@ -870,7 +869,7 @@ export default function OffersPage() {
         subject: '',
         net_amount: 0,
         vat_amount: 0,
-        reverse_charge: false
+        vat_regime: 'standard'
       });
       loadData();
     } catch (error) {
@@ -1328,7 +1327,7 @@ export default function OffersPage() {
                       value={offerRequest.net_amount}
                       onChange={(e) => {
                         const netAmount = parseFloat(e.target.value) || 0;
-                        const vatAmount = offerRequest.reverse_charge ? 0 : netAmount * 0.22;
+                        const vatAmount = offerRequest.vat_regime !== 'standard' ? 0 : netAmount * 0.22;
                         setOfferRequest(prev => ({ 
                           ...prev, 
                           net_amount: netAmount,
@@ -1340,23 +1339,29 @@ export default function OffersPage() {
                     />
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="request-reverse-charge"
-                      checked={offerRequest.reverse_charge}
-                      onCheckedChange={(checked) => {
-                        const isReverseCharge = checked === true;
-                        const vatAmount = isReverseCharge ? 0 : offerRequest.net_amount * 0.22;
+                  <div>
+                    <label className="text-sm font-medium">Regime IVA</label>
+                    <Select 
+                      value={offerRequest.vat_regime} 
+                      onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => {
+                        const vatAmount = value !== 'standard' ? 0 : offerRequest.net_amount * 0.22;
                         setOfferRequest(prev => ({ 
                           ...prev, 
-                          reverse_charge: isReverseCharge,
+                          vat_regime: value,
                           vat_amount: vatAmount
                         }));
                       }}
-                    />
-                    <label htmlFor="request-reverse-charge" className="text-sm cursor-pointer">
-                      Reverse Charge (IVA a 0)
-                    </label>
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona regime IVA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
+                        <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
+                        <SelectItem value="intra_ue">Intra UE</SelectItem>
+                        <SelectItem value="extra_ue">Extra UE</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   <div className="bg-muted/50 p-3 rounded-lg space-y-2">
@@ -1700,15 +1705,24 @@ export default function OffersPage() {
               </div>
               
               
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="offer-reverse-charge"
-                  checked={newOffer.reverse_charge}
-                  onCheckedChange={(checked) => setNewOffer(prev => ({ ...prev, reverse_charge: checked === true }))}
-                />
-                <label htmlFor="offer-reverse-charge" className="text-sm cursor-pointer">
-                  Reverse Charge (IVA a 0% - Inversione contabile)
-                </label>
+              <div>
+                <label className="text-sm font-medium">Regime IVA</label>
+                <Select 
+                  value={newOffer.vat_regime} 
+                  onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => 
+                    setNewOffer(prev => ({ ...prev, vat_regime: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona regime IVA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
+                    <SelectItem value="reverse_charge">Reverse Charge (IVA 0% - Inversione contabile)</SelectItem>
+                    <SelectItem value="intra_ue">Intra UE (IVA 0% - Art. 41 DL 331/93)</SelectItem>
+                    <SelectItem value="extra_ue">Extra UE (IVA 0% - Art. 8 DPR 633/72)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               {(newOffer.payment_agreement && 
@@ -1742,7 +1756,6 @@ export default function OffersPage() {
                         unit_price: 0,
                         discount_percent: 0,
                         vat_rate: 22,
-                        reverse_charge: false,
                         notes: ''
                       }]);
                     }}
@@ -1791,7 +1804,6 @@ export default function OffersPage() {
                           unit_price: priceToUse,
                           discount_percent: 0,
                           vat_rate: 22,
-                          reverse_charge: false,
                           notes: notes
                         }]);
                         setCurrentProductId('');
@@ -1909,25 +1921,9 @@ export default function OffersPage() {
                               placeholder="IVA"
                               min="0"
                               max="100"
-                              disabled={item.reverse_charge}
+                              disabled={newOffer.vat_regime !== 'standard'}
                               className="text-sm"
                             />
-                          </div>
-                          <div className="flex items-end">
-                            <div className="flex items-center gap-2 h-10">
-                              <Checkbox
-                                id={`reverse-charge-${index}`}
-                                checked={item.reverse_charge}
-                                onCheckedChange={(checked) => {
-                                  const updated = [...selectedProducts];
-                                  updated[index].reverse_charge = checked === true;
-                                  setSelectedProducts(updated);
-                                }}
-                              />
-                              <label htmlFor={`reverse-charge-${index}`} className="text-xs cursor-pointer whitespace-nowrap">
-                                Reverse Charge
-                              </label>
-                            </div>
                           </div>
                         </div>
 
@@ -1942,7 +1938,7 @@ export default function OffersPage() {
                             <div className="text-right">
                               <div className="text-xs text-muted-foreground">IVA</div>
                               <div className="font-medium">
-                                €{(item.reverse_charge ? 0 : (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100))).toFixed(2)}
+                                €{(newOffer.vat_regime === 'standard' ? (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100)) : 0).toFixed(2)}
                               </div>
                             </div>
                             <div className="text-right">
@@ -1950,7 +1946,7 @@ export default function OffersPage() {
                               <div className="font-semibold">
                                 €{(
                                   item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * 
-                                  (1 + (item.reverse_charge ? 0 : item.vat_rate / 100))
+                                  (1 + (newOffer.vat_regime === 'standard' ? item.vat_rate / 100 : 0))
                                 ).toFixed(2)}
                               </div>
                             </div>
@@ -1966,12 +1962,12 @@ export default function OffersPage() {
                       </div>
                       <div className="text-sm">
                         Totale IVA: €{selectedProducts.reduce((sum, item) => 
-                          sum + (item.reverse_charge ? 0 : (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100))), 0
+                          sum + (newOffer.vat_regime === 'standard' ? (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100)) : 0), 0
                         ).toFixed(2)}
                       </div>
                       <div className="text-lg font-bold">
                         Totale Lordo: €{selectedProducts.reduce((sum, item) => 
-                          sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (1 + (item.reverse_charge ? 0 : item.vat_rate / 100))), 0
+                          sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (1 + (newOffer.vat_regime === 'standard' ? item.vat_rate / 100 : 0))), 0
                         ).toFixed(2)}
                       </div>
                     </div>
@@ -2085,7 +2081,7 @@ export default function OffersPage() {
                                 metodi_pagamento: offer.metodi_pagamento || '',
                                 payment_method: offer.payment_method || '',
                                 payment_agreement: offer.payment_agreement || '',
-                                reverse_charge: offer.reverse_charge || false
+                                vat_regime: (offer as any).vat_regime || 'standard'
                               });
                               setSelectedProducts([]);
                               setIsCreateDialogOpen(true);
@@ -2866,7 +2862,7 @@ export default function OffersPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Imponibile Netto:</span>
                     <span className="font-medium">
-                      € {selectedOffer.reverse_charge 
+                      € {(selectedOffer as any).vat_regime !== 'standard'
                         ? selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })
                         : (selectedOffer.amount / 1.22).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                       }
@@ -2874,10 +2870,10 @@ export default function OffersPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      {selectedOffer.reverse_charge ? 'IVA (Reverse Charge):' : 'IVA 22%:'}
+                      {(selectedOffer as any).vat_regime !== 'standard' ? 'IVA (Regime speciale):' : 'IVA 22%:'}
                     </span>
                     <span className="font-medium">
-                      {selectedOffer.reverse_charge 
+                      {(selectedOffer as any).vat_regime !== 'standard'
                         ? '€ 0,00'
                         : `€ ${(selectedOffer.amount - (selectedOffer.amount / 1.22)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       }
@@ -3009,7 +3005,7 @@ export default function OffersPage() {
                         metodi_pagamento: (selectedOffer as any).metodi_pagamento || '',
                         payment_method: (selectedOffer as any).payment_method || '',
                         payment_agreement: (selectedOffer as any).payment_agreement || '',
-                        reverse_charge: selectedOffer.reverse_charge || false
+                        vat_regime: (selectedOffer as any).vat_regime || 'standard'
                       });
                       
                       // Carica i prodotti dell'offerta
