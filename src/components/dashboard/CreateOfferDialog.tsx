@@ -34,7 +34,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [priceLists, setPriceLists] = useState<any[]>([]);
-  const [selectedPriceListId, setSelectedPriceListId] = useState<string>('');
+  const [currentPriceListId, setCurrentPriceListId] = useState<string>('');
   const [priceListPrices, setPriceListPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
@@ -136,7 +136,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   };
 
   const handlePriceListChange = async (priceListId: string) => {
-    setSelectedPriceListId(priceListId);
+    setCurrentPriceListId(priceListId);
     if (priceListId) {
       await loadPriceListPrices(priceListId);
     } else {
@@ -289,7 +289,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setInclusoCustom('');
     setEsclusoCaricoPredisposizione(false);
     setCurrentProductId('');
-    setSelectedPriceListId('');
+    setCurrentPriceListId('');
     setPriceListPrices({});
   };
 
@@ -574,86 +574,111 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               {isMobile ? "Aggiungi" : "Aggiungi Voce Manuale"}
             </Button>
           </div>
-          
-          <div>
-            <Label>Listino Prezzi (Opzionale)</Label>
-            <Select
-              value={selectedPriceListId}
-              onValueChange={handlePriceListChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Nessun listino - Prezzi manuali" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nessun listino - Prezzi manuali</SelectItem>
-                {priceLists.map((priceList) => (
-                  <SelectItem key={priceList.id} value={priceList.id}>
-                    {priceList.code} - {priceList.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedPriceListId && (
-              <p className="text-xs text-muted-foreground mt-1">
-                I prezzi saranno prelevati dal listino selezionato, ma potrai modificarli manualmente
-              </p>
-            )}
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <Label>Seleziona Prodotto</Label>
+              <Select
+                value={currentProductId}
+                onValueChange={(value) => {
+                  setCurrentProductId(value);
+                  // Reset price list when changing product
+                  setCurrentPriceListId('');
+                  setPriceListPrices({});
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona prodotto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.code} - {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Listino Prezzo (Opzionale)</Label>
+              <Select
+                value={currentPriceListId}
+                onValueChange={handlePriceListChange}
+                disabled={!currentProductId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Prezzo base" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Prezzo base del prodotto</SelectItem>
+                  {priceLists.map((priceList) => (
+                    <SelectItem key={priceList.id} value={priceList.id}>
+                      {priceList.code} - {priceList.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Select
-              value={currentProductId}
-              onValueChange={setCurrentProductId}
-            >
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Seleziona prodotto" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => {
-                  const priceToShow = selectedPriceListId && priceListPrices[product.id] 
+          {currentProductId && (
+            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border">
+              <div className="flex-1 text-sm">
+                {(() => {
+                  const product = products.find(p => p.id === currentProductId);
+                  if (!product) return null;
+                  const priceToShow = currentPriceListId && priceListPrices[product.id] 
                     ? priceListPrices[product.id] 
                     : product.base_price;
                   return (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.code} - {product.name} - €{priceToShow?.toFixed(2) || '0.00'}
-                      {selectedPriceListId && priceListPrices[product.id] && (
-                        <span className="text-xs text-muted-foreground"> (da listino)</span>
-                      )}
-                    </SelectItem>
+                    <div>
+                      <span className="font-medium">{product.code} - {product.name}</span>
+                      <div className="text-muted-foreground">
+                        Prezzo: <span className="font-semibold text-foreground">€{priceToShow?.toFixed(2) || '0.00'}</span>
+                        {currentPriceListId && priceListPrices[product.id] && (
+                          <span className="text-xs ml-2">(da listino)</span>
+                        )}
+                        {!currentPriceListId && (
+                          <span className="text-xs ml-2">(prezzo base)</span>
+                        )}
+                      </div>
+                    </div>
                   );
-                })}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              onClick={() => {
-                const product = products.find(p => p.id === currentProductId);
-                if (product) {
-                  const priceFromList = selectedPriceListId && priceListPrices[product.id]
-                    ? priceListPrices[product.id]
-                    : product.base_price || 0;
-                  
-                  setSelectedProducts([...selectedProducts, {
-                    product_id: product.id,
-                    product_name: product.name,
-                    description: product.description || '',
-                    quantity: 1,
-                    unit_price: priceFromList,
-                    discount_percent: 0,
-                    vat_rate: 22,
-                    reverse_charge: false,
-                    notes: ''
-                  }]);
-                  setCurrentProductId('');
-                }
-              }}
-              disabled={!currentProductId}
-              className="sm:w-auto w-full"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Aggiungi
-            </Button>
-          </div>
+                })()}
+              </div>
+              <Button
+                type="button"
+                onClick={() => {
+                  const product = products.find(p => p.id === currentProductId);
+                  if (product) {
+                    const priceFromList = currentPriceListId && priceListPrices[product.id]
+                      ? priceListPrices[product.id]
+                      : product.base_price || 0;
+                    
+                    setSelectedProducts([...selectedProducts, {
+                      product_id: product.id,
+                      product_name: product.name,
+                      description: product.description || '',
+                      quantity: 1,
+                      unit_price: priceFromList,
+                      discount_percent: 0,
+                      vat_rate: 22,
+                      reverse_charge: false,
+                      notes: ''
+                    }]);
+                    setCurrentProductId('');
+                    setCurrentPriceListId('');
+                    setPriceListPrices({});
+                  }
+                }}
+                disabled={!currentProductId}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Aggiungi
+              </Button>
+            </div>
+          )}
 
           {/* Lista articoli selezionati */}
           {selectedProducts.length > 0 && (
