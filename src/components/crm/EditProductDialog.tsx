@@ -29,6 +29,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
     description: "",
     product_type: "component",
     base_price: "",
+    cost_price: "",
     unit_of_measure: "pz",
     material_id: "",
     bom_id: "",
@@ -41,6 +42,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
         description: product.description || "",
         product_type: product.product_type || "component",
         base_price: product.base_price ? String(product.base_price) : "",
+        cost_price: "", // Will be calculated from material/BOM
         unit_of_measure: product.unit_of_measure || "pz",
         material_id: product.material_id || "",
         bom_id: product.bom_id || "",
@@ -116,7 +118,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
       ...formData,
       material_id: materialId,
       bom_id: "",
-      base_price: material?.cost ? String(material.cost) : formData.base_price,
+      cost_price: material?.cost ? String(material.cost) : formData.cost_price,
     });
     setMaterialOpen(false);
   };
@@ -128,7 +130,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
       ...formData,
       bom_id: bomId,
       material_id: "",
-      base_price: cost > 0 ? String(cost.toFixed(2)) : formData.base_price,
+      cost_price: cost > 0 ? String(cost.toFixed(2)) : formData.cost_price,
     });
     setBomOpen(false);
   };
@@ -223,7 +225,21 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cost_price">Costo (€)</Label>
+              <Input
+                id="cost_price"
+                type="number"
+                step="0.01"
+                value={formData.cost_price}
+                readOnly
+                className="bg-muted/50"
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground">Calcolato da materiale/BOM</p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="base_price">Prezzo Base (€)</Label>
               <Input
@@ -234,6 +250,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
                 onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
                 placeholder="0.00"
               />
+              <p className="text-xs text-muted-foreground">Prezzo di listino</p>
             </div>
 
             <div className="space-y-2">
@@ -249,9 +266,9 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
 
           <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
             <div className="space-y-1">
-              <Label className="text-sm font-semibold">Riferimento Prezzo</Label>
+              <Label className="text-sm font-semibold">Riferimento Costo</Label>
               <p className="text-xs text-muted-foreground">
-                Collega il prodotto ad un materiale OPPURE ad una BOM per definire il prezzo di riferimento
+                Collega il prodotto ad un materiale OPPURE ad una BOM per calcolare il costo
               </p>
             </div>
 
@@ -307,7 +324,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
                 </Popover>
                 {formData.material_id && materials && (
                   <p className="text-xs text-muted-foreground">
-                    Prezzo da anagrafica materiale
+                    Costo da anagrafica materiale
                   </p>
                 )}
               </div>
@@ -356,7 +373,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
                 </Popover>
                 {formData.bom_id && (
                   <p className="text-xs text-muted-foreground">
-                    Prezzo calcolato dalla distinta base
+                    Costo calcolato dalla distinta base
                   </p>
                 )}
               </div>
