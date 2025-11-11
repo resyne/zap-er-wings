@@ -229,9 +229,12 @@ export default function OffersPage() {
 
       // Load products
       let productsDataToLoad = null;
+      console.log('📦 Loading products with price list:', selectedGlobalPriceListId);
+      
       if (selectedGlobalPriceListId && selectedGlobalPriceListId !== 'none') {
         // Se c'è un listino selezionato, carica solo i prodotti di quel listino
-        const { data: priceListProductsData } = await supabase
+        console.log('🔍 Fetching products from price list:', selectedGlobalPriceListId);
+        const { data: priceListProductsData, error: priceListError } = await supabase
           .from('product_price_lists' as any)
           .select(`
             price,
@@ -245,14 +248,18 @@ export default function OffersPage() {
           `)
           .eq('price_list_id', selectedGlobalPriceListId);
         
+        console.log('📊 Price list products data:', priceListProductsData, 'Error:', priceListError);
+        
         if (priceListProductsData) {
           productsDataToLoad = (priceListProductsData as any[]).map((item: any) => ({
             ...item.products,
             price_from_list: item.price
           }));
+          console.log('✅ Loaded products from price list:', productsDataToLoad.length);
         }
       } else {
         // Altrimenti carica tutti i prodotti
+        console.log('📋 Fetching all products');
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('id, name, code, base_price, description')
@@ -260,6 +267,7 @@ export default function OffersPage() {
 
         if (productsError) throw productsError;
         productsDataToLoad = productsData;
+        console.log('✅ Loaded all products:', productsDataToLoad?.length || 0);
       }
 
       // Load price lists
