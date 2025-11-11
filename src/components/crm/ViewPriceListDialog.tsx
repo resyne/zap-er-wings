@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -18,21 +19,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileSpreadsheet, Edit, History } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { EditPriceListDialog } from "./EditPriceListDialog";
+import { formatAmount } from "@/lib/formatAmount";
 
 interface ViewPriceListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   priceListId: string;
+  onSuccess?: () => void;
 }
 
 export function ViewPriceListDialog({
   open,
   onOpenChange,
   priceListId,
+  onSuccess,
 }: ViewPriceListDialogProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { data: priceList, isLoading: isLoadingList } = useQuery({
     queryKey: ["price-list", priceListId],
     queryFn: async () => {
@@ -48,7 +55,7 @@ export function ViewPriceListDialog({
     enabled: open && !!priceListId,
   });
 
-  const { data: items, isLoading: isLoadingItems } = useQuery({
+  const { data: items, isLoading: isLoadingItems, refetch: refetchItems } = useQuery({
     queryKey: ["price-list-items", priceListId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -57,6 +64,21 @@ export function ViewPriceListDialog({
           *,
           product:products(name, code)
         `)
+        .eq("price_list_id", priceListId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!priceListId,
+  });
+
+  const { data: auditLogs, isLoading: isLoadingLogs } = useQuery({
+    queryKey: ["price-list-audit-logs", priceListId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("price_list_audit_logs")
+        .select("*")
         .eq("price_list_id", priceListId)
         .order("created_at", { ascending: false });
 
@@ -125,6 +147,11 @@ export function ViewPriceListDialog({
     toast.success("Listino esportato con successo");
   };
 
+  const handleEditSuccess = () => {
+    refetchItems();
+    onSuccess?.();
+  };
+
   const isLoading = isLoadingList || isLoadingItems;
 
   return (
@@ -140,15 +167,25 @@ export function ViewPriceListDialog({
                 {priceList?.code}
               </DialogDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!items || items.length === 0}
-            >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Esporta Excel
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditDialogOpen(true)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Modifica
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={!items || items.length === 0}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Esporta
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
@@ -157,7 +194,16 @@ export function ViewPriceListDialog({
             <p className="text-muted-foreground">Caricamento...</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <Tabs defaultValue="details" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="details">Dettagli</TabsTrigger>
+              <TabsTrigger value="logs">
+                <History className="mr-2 h-4 w-4" />
+                Storico Modifiche
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="space-y-6">
             {priceList && (
               <Card>
                 <CardContent className="pt-6">
@@ -293,9 +339,109 @@ export function ViewPriceListDialog({
                 </Card>
               )}
             </div>
-          </div>
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-semibold mb-4">Storico Modifiche</h3>
+                {isLoadingLogs ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Caricamento...</p>
+                  </div>
+                ) : auditLogs && auditLogs.length > 0 ? (
+                  <div className="space-y-4">
+                    {auditLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="border-l-2 border-primary pl-4 py-2"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                log.action === "created"
+                                  ? "default"
+                                  : log.action === "updated"
+                                  ? "secondary"
+                                  : "destructive"
+                              }
+                            >
+                              {log.action === "created"
+                                ? "Creato"
+                                : log.action === "updated"
+                                ? "Modificato"
+                                : "Eliminato"}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {log.user_id ? "Utente" : "Sistema"}
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString("it-IT")}
+                          </span>
+                        </div>
+
+                        {log.changed_fields && log.changed_fields.length > 0 && (
+                          <div className="text-sm space-y-1">
+                            <p className="font-medium">Campi modificati:</p>
+                            {log.changed_fields.map((field) => (
+                              <div key={field} className="ml-4">
+                                <span className="text-muted-foreground">
+                                  {field}:
+                                </span>
+                                <div className="ml-2">
+                                  <span className="line-through text-muted-foreground">
+                                    {formatFieldValue(field, log.old_values?.[field])}
+                                  </span>
+                                  {" → "}
+                                  <span className="text-foreground font-medium">
+                                    {formatFieldValue(field, log.new_values?.[field])}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      Nessuna modifica registrata
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
         )}
       </DialogContent>
+
+      {editDialogOpen && (
+        <EditPriceListDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          priceListId={priceListId}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </Dialog>
   );
+}
+
+function formatFieldValue(field: string, value: any): string {
+  if (value === null || value === undefined) return "-";
+  
+  if (field === "default_multiplier") {
+    return `x${Number(value).toFixed(2)}`;
+  }
+  
+  if (field === "valid_from" || field === "valid_to") {
+    return new Date(value).toLocaleDateString("it-IT");
+  }
+  
+  return String(value);
 }

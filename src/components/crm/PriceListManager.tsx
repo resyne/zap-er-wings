@@ -186,6 +186,7 @@ export function PriceListManager() {
           open={viewDialogOpen}
           onOpenChange={setViewDialogOpen}
           priceListId={selectedPriceListId}
+          onSuccess={refetch}
         />
       )}
     </div>
