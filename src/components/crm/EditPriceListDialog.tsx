@@ -19,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 interface EditPriceListDialogProps {
   open: boolean;
@@ -35,6 +37,14 @@ export function EditPriceListDialog({
   onSuccess,
 }: EditPriceListDialogProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [items, setItems] = useState<Array<{ 
+    id?: string;
+    product_id: string; 
+    cost: number;
+    price: string; 
+    discount: string;
+    notes: string;
+  }>>([]);
 
   const { data: priceList, isLoading } = useQuery({
     queryKey: ["price-list", priceListId],
@@ -44,6 +54,53 @@ export function EditPriceListDialog({
         .select("*")
         .eq("id", priceListId)
         .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!priceListId,
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["products-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id, 
+          code, 
+          name, 
+          base_price,
+          materials(cost)
+        `)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  const { data: existingItems } = useQuery({
+    queryKey: ["price-list-items", priceListId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("price_list_items")
+        .select(`
+          id,
+          product_id,
+          price,
+          cost_price,
+          discount_percentage,
+          notes,
+          products:product_id (
+            id,
+            code,
+            name,
+            materials(cost)
+          )
+        `)
+        .eq("price_list_id", priceListId);
 
       if (error) throw error;
       return data;
@@ -82,6 +139,46 @@ export function EditPriceListDialog({
     }
   }, [priceList]);
 
+  // Load existing items
+  useEffect(() => {
+    if (existingItems) {
+      setItems(existingItems.map((item: any) => ({
+        id: item.id,
+        product_id: item.product_id,
+        cost: item.cost_price || 0,
+        price: item.price?.toString() || "",
+        discount: item.discount_percentage?.toString() || "",
+        notes: item.notes || "",
+      })));
+    }
+  }, [existingItems]);
+
+  const addItem = () => {
+    setItems([...items, { product_id: "", cost: 0, price: "", discount: "", notes: "" }]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, field: string, value: string | number) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Se cambia il prodotto, aggiorna automaticamente il costo e calcola il prezzo
+    if (field === "product_id" && value) {
+      const product = products?.find(p => p.id === value);
+      const cost = product?.materials?.cost || 0;
+      const multiplier = parseFloat(formData.default_multiplier) || 1;
+      const calculatedPrice = cost * multiplier;
+      
+      newItems[index].cost = cost;
+      newItems[index].price = calculatedPrice.toFixed(2);
+    }
+    
+    setItems(newItems);
+  };
+
   const handleSave = async () => {
     if (!formData.name || !formData.code) {
       toast.error("Nome e codice sono obbligatori");
@@ -119,6 +216,52 @@ export function EditPriceListDialog({
 
       if (updateError) throw updateError;
 
+      // Handle price list items
+      // 1. Delete items that are no longer present
+      const existingItemIds = existingItems?.map(item => item.id) || [];
+      const currentItemIds = items.filter(item => item.id).map(item => item.id);
+      const itemsToDelete = existingItemIds.filter(id => !currentItemIds.includes(id));
+      
+      if (itemsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("price_list_items")
+          .delete()
+          .in("id", itemsToDelete);
+        
+        if (deleteError) throw deleteError;
+      }
+
+      // 2. Update existing items and insert new ones
+      for (const item of items) {
+        if (!item.product_id || !item.price) continue;
+
+        const itemData = {
+          price_list_id: priceListId,
+          product_id: item.product_id,
+          price: parseFloat(item.price),
+          cost_price: item.cost,
+          discount_percentage: item.discount ? parseFloat(item.discount) : 0,
+          notes: item.notes || null,
+        };
+
+        if (item.id) {
+          // Update existing item
+          const { error: updateItemError } = await supabase
+            .from("price_list_items")
+            .update(itemData)
+            .eq("id", item.id);
+          
+          if (updateItemError) throw updateItemError;
+        } else {
+          // Insert new item
+          const { error: insertItemError } = await supabase
+            .from("price_list_items")
+            .insert(itemData);
+          
+          if (insertItemError) throw insertItemError;
+        }
+      }
+
       // Create audit log
       const changedFields: string[] = [];
       const oldValues: any = {};
@@ -132,7 +275,7 @@ export function EditPriceListDialog({
         }
       });
 
-      if (changedFields.length > 0) {
+      if (changedFields.length > 0 || items.length !== existingItems?.length) {
         await supabase.from("price_list_audit_logs").insert({
           price_list_id: priceListId,
           user_id: user?.id,
@@ -168,28 +311,16 @@ export function EditPriceListDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifica Listino</DialogTitle>
           <DialogDescription>
-            Modifica i dettagli del listino prezzi
+            Modifica i dettagli del listino prezzi e gestisci i prodotti associati
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Es: Listino Italia 2024"
-              />
-            </div>
-
+        <div className="space-y-6">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Codice *</Label>
               <Input
@@ -198,27 +329,12 @@ export function EditPriceListDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, code: e.target.value })
                 }
-                placeholder="Es: IT2024"
+                placeholder="es. LIST-IT-CLI-M"
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrizione</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              placeholder="Descrizione del listino"
-              rows={3}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="list_type">Tipo Listino</Label>
+              <Label htmlFor="list_type">Ambito *</Label>
               <Select
                 value={formData.list_type}
                 onValueChange={(value) =>
@@ -231,18 +347,12 @@ export function EditPriceListDialog({
                 <SelectContent>
                   <SelectItem value="generic">Generico</SelectItem>
                   <SelectItem value="country">Paese</SelectItem>
-                  <SelectItem value="region">Regione</SelectItem>
-                  <SelectItem value="customer_category">
-                    Categoria Cliente
-                  </SelectItem>
-                  <SelectItem value="reseller">Rivenditore</SelectItem>
-                  <SelectItem value="custom">Personalizzato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="default_multiplier">Moltiplicatore Default</Label>
+              <Label htmlFor="default_multiplier">Moltiplicatore Default *</Label>
               <Input
                 id="default_multiplier"
                 type="number"
@@ -255,14 +365,53 @@ export function EditPriceListDialog({
                     default_multiplier: e.target.value,
                   })
                 }
-                placeholder="Es: 2.5"
+                placeholder="1.5"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              placeholder="es. Listino Francia 2024"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrizione</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              placeholder="Descrizione del listino"
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            {formData.list_type === "country" && (
+              <div className="space-y-2">
+                <Label htmlFor="country">Paese *</Label>
+                <Input
+                  id="country"
+                  value={formData.country}
+                  onChange={(e) =>
+                    setFormData({ ...formData, country: e.target.value })
+                  }
+                  placeholder="es. Italia, Francia"
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="target_type">Target</Label>
+              <Label htmlFor="target_type">Target *</Label>
               <Select
                 value={formData.target_type}
                 onValueChange={(value) =>
@@ -279,45 +428,29 @@ export function EditPriceListDialog({
               </Select>
             </div>
 
-            {formData.target_type && (
-              <div className="space-y-2">
-                <Label htmlFor="tier">Tier</Label>
-                <Select
-                  value={formData.tier}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, tier: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="T">Top</SelectItem>
-                    <SelectItem value="M">Medium</SelectItem>
-                    <SelectItem value="L">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-
-          {formData.list_type === "country" && (
             <div className="space-y-2">
-              <Label htmlFor="country">Paese</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) =>
-                  setFormData({ ...formData, country: e.target.value })
+              <Label htmlFor="tier">Categoria *</Label>
+              <Select
+                value={formData.tier}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, tier: value })
                 }
-                placeholder="Es: Italia"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="T">Top (T)</SelectItem>
+                  <SelectItem value="M">Medium (M)</SelectItem>
+                  <SelectItem value="L">Low (L)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valid_from">Valido dal</Label>
+              <Label htmlFor="valid_from">Valido Dal</Label>
               <Input
                 id="valid_from"
                 type="date"
@@ -329,7 +462,7 @@ export function EditPriceListDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="valid_to">Valido fino al</Label>
+              <Label htmlFor="valid_to">Valido Fino Al</Label>
               <Input
                 id="valid_to"
                 type="date"
@@ -341,7 +474,109 @@ export function EditPriceListDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label>Prodotti e Prezzi</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                Aggiungi Prodotto
+              </Button>
+            </div>
+
+            {items.length > 0 && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Prodotto</TableHead>
+                      <TableHead>Costo (€)</TableHead>
+                      <TableHead>Molt.</TableHead>
+                      <TableHead>Prezzo (€)</TableHead>
+                      <TableHead>Sconto (%)</TableHead>
+                      <TableHead>Note Sconto Max</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item, index) => {
+                      const multiplier = parseFloat(formData.default_multiplier) || 1;
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="min-w-[200px]">
+                            <Select
+                              value={item.product_id}
+                              onValueChange={(value) => updateItem(index, "product_id", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products?.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.code} - {product.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.cost || ""}
+                              readOnly
+                              className="bg-muted"
+                              placeholder="0.00"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-medium">x{multiplier.toFixed(2)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) => updateItem(index, "price", e.target.value)}
+                              placeholder="0.00"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.discount}
+                              onChange={(e) => updateItem(index, "discount", e.target.value)}
+                              placeholder="0"
+                              className="w-20"
+                            />
+                          </TableCell>
+                          <TableCell className="min-w-[200px]">
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => updateItem(index, "notes", e.target.value)}
+                              placeholder="es. max 10%"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeItem(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
