@@ -2722,6 +2722,7 @@ export type Database = {
           contact_name: string | null
           country: string | null
           created_at: string | null
+          created_by: string | null
           custom_fields: Json | null
           email: string | null
           id: string
@@ -2744,6 +2745,7 @@ export type Database = {
           contact_name?: string | null
           country?: string | null
           created_at?: string | null
+          created_by?: string | null
           custom_fields?: Json | null
           email?: string | null
           id?: string
@@ -2766,6 +2768,7 @@ export type Database = {
           contact_name?: string | null
           country?: string | null
           created_at?: string | null
+          created_by?: string | null
           custom_fields?: Json | null
           email?: string | null
           id?: string
