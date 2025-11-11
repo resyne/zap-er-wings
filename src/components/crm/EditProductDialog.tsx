@@ -73,6 +73,66 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
     },
   });
 
+  // Calcola il costo della BOM quando viene selezionata
+  const calculateBomCost = async (bomId: string) => {
+    try {
+      // Ottieni tutte le inclusioni della BOM di livello 0
+      const { data: inclusions, error: inclusionsError } = await supabase
+        .from("bom_inclusions")
+        .select(`
+          quantity,
+          included_bom_id,
+          boms!bom_inclusions_included_bom_id_fkey(
+            level,
+            material_id,
+            materials(cost)
+          )
+        `)
+        .eq("parent_bom_id", bomId);
+
+      if (inclusionsError) throw inclusionsError;
+
+      let totalCost = 0;
+
+      for (const inclusion of inclusions || []) {
+        const bom = inclusion.boms;
+        if (bom && bom.level === 2 && bom.material_id && bom.materials) {
+          const materialCost = bom.materials.cost || 0;
+          totalCost += materialCost * inclusion.quantity;
+        }
+      }
+
+      return totalCost;
+    } catch (error) {
+      console.error("Error calculating BOM cost:", error);
+      return 0;
+    }
+  };
+
+  // Gestisce la selezione del materiale
+  const handleMaterialSelect = (materialId: string) => {
+    const material = materials?.find((m) => m.id === materialId);
+    setFormData({
+      ...formData,
+      material_id: materialId,
+      bom_id: "",
+      base_price: material?.cost ? String(material.cost) : formData.base_price,
+    });
+    setMaterialOpen(false);
+  };
+
+  // Gestisce la selezione della BOM
+  const handleBomSelect = async (bomId: string) => {
+    const cost = await calculateBomCost(bomId);
+    setFormData({
+      ...formData,
+      bom_id: bomId,
+      material_id: "",
+      base_price: cost > 0 ? String(cost.toFixed(2)) : formData.base_price,
+    });
+    setBomOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -222,10 +282,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
                             <CommandItem
                               key={material.id}
                               value={`${material.code} ${material.name}`}
-                              onSelect={() => {
-                                setFormData({ ...formData, material_id: material.id, bom_id: "" });
-                                setMaterialOpen(false);
-                              }}
+                              onSelect={() => handleMaterialSelect(material.id)}
                             >
                               <Check
                                 className={cn(
@@ -281,10 +338,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
                             <CommandItem
                               key={bom.id}
                               value={bom.name}
-                              onSelect={() => {
-                                setFormData({ ...formData, bom_id: bom.id, material_id: "" });
-                                setBomOpen(false);
-                              }}
+                              onSelect={() => handleBomSelect(bom.id)}
                             >
                               <Check
                                 className={cn(
