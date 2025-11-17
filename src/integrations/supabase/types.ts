@@ -557,44 +557,83 @@ export type Database = {
       configurator_links: {
         Row: {
           code: string
+          configuration_data: Json | null
           created_at: string | null
           created_by: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
           description: string | null
           expires_at: string | null
           id: string
           is_active: boolean | null
           name: string
+          notes: string | null
           preselected_model: string | null
           preselected_power: string | null
           preselected_size: number | null
+          selected_installation: string | null
+          selected_model: string | null
+          selected_power: string | null
+          selected_size: number | null
+          status: string | null
+          submitted_at: string | null
+          total_price: number | null
           updated_at: string | null
         }
         Insert: {
           code: string
+          configuration_data?: Json | null
           created_at?: string | null
           created_by?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
           name: string
+          notes?: string | null
           preselected_model?: string | null
           preselected_power?: string | null
           preselected_size?: number | null
+          selected_installation?: string | null
+          selected_model?: string | null
+          selected_power?: string | null
+          selected_size?: number | null
+          status?: string | null
+          submitted_at?: string | null
+          total_price?: number | null
           updated_at?: string | null
         }
         Update: {
           code?: string
+          configuration_data?: Json | null
           created_at?: string | null
           created_by?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
+          notes?: string | null
           preselected_model?: string | null
           preselected_power?: string | null
           preselected_size?: number | null
+          selected_installation?: string | null
+          selected_model?: string | null
+          selected_power?: string | null
+          selected_size?: number | null
+          status?: string | null
+          submitted_at?: string | null
+          total_price?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -4096,6 +4135,7 @@ export type Database = {
           base_price_wood: number | null
           created_at: string | null
           id: string
+          image_url: string | null
           installation_type: string | null
           is_available: boolean | null
           model_name: string
@@ -4114,6 +4154,7 @@ export type Database = {
           base_price_wood?: number | null
           created_at?: string | null
           id?: string
+          image_url?: string | null
           installation_type?: string | null
           is_available?: boolean | null
           model_name: string
@@ -4132,6 +4173,7 @@ export type Database = {
           base_price_wood?: number | null
           created_at?: string | null
           id?: string
+          image_url?: string | null
           installation_type?: string | null
           is_available?: boolean | null
           model_name?: string
