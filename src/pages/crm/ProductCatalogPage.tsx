@@ -55,6 +55,22 @@ export default function ProductCatalogPage() {
     },
   });
 
+  // Fetch media for selected product
+  const { data: productMedia } = useQuery({
+    queryKey: ["product-media", selectedProduct?.id],
+    queryFn: async () => {
+      if (!selectedProduct?.id) return [];
+      const { data, error } = await supabase
+        .from("product_configurator_media")
+        .select("*")
+        .eq("product_id", selectedProduct.id)
+        .order("display_order");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedProduct?.id && mediaDialogOpen,
+  });
+
   const productTypes = [
     { value: "all", label: "Tutti" },
     { value: "machinery", label: "Macchinari" },
@@ -309,12 +325,12 @@ export default function ProductCatalogPage() {
               <DialogHeader>
                 <DialogTitle>Gestione Media - {selectedProduct.name}</DialogTitle>
                 <DialogDescription>
-                  Carica foto e video a 360° per questo prodotto
+                  Carica foto e video a 360° per questo prodotto. Supporta drag & drop.
                 </DialogDescription>
               </DialogHeader>
               <ProductMediaUpload 
                 productId={selectedProduct.id}
-                existingMedia={[]}
+                existingMedia={productMedia || []}
               />
             </DialogContent>
           </Dialog>
