@@ -2725,6 +2725,7 @@ export type Database = {
           created_by: string | null
           custom_fields: Json | null
           email: string | null
+          external_configurator_link: string | null
           id: string
           next_activity_assigned_to: string | null
           next_activity_date: string | null
@@ -2748,6 +2749,7 @@ export type Database = {
           created_by?: string | null
           custom_fields?: Json | null
           email?: string | null
+          external_configurator_link?: string | null
           id?: string
           next_activity_assigned_to?: string | null
           next_activity_date?: string | null
@@ -2771,6 +2773,7 @@ export type Database = {
           created_by?: string | null
           custom_fields?: Json | null
           email?: string | null
+          external_configurator_link?: string | null
           id?: string
           next_activity_assigned_to?: string | null
           next_activity_date?: string | null
