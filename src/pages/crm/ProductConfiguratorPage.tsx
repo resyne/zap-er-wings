@@ -13,6 +13,7 @@ import { Plus, Search, Settings, Trash2, Flame, Zap, Logs, Link as LinkIcon } fr
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { GenerateConfiguratorLinkDialog } from "@/components/crm/GenerateConfiguratorLinkDialog";
+import { ConfiguratorLinksManager } from "@/components/crm/ConfiguratorLinksManager";
 
 const MODELS = ["Sebastian", "Realbosco", "Anastasia", "Ottavio"];
 const SIZES = [80, 100, 120, 130];
@@ -327,11 +328,12 @@ export default function ProductConfiguratorPage() {
 
       <Tabs defaultValue="configurations" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="configurations">Configurazioni</TabsTrigger>
+          <TabsTrigger value="configurations">Forni Configurabili</TabsTrigger>
+          <TabsTrigger value="links">Link Generati</TabsTrigger>
           <TabsTrigger value="shipping">Spedizione</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="configurations" className="space-y-6">
+        <TabsContent value="configurations" className="space-y-4">
           {configsLoading ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Caricamento configurazioni...</p>
@@ -347,58 +349,70 @@ export default function ProductConfiguratorPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
-              {MODELS.map((modelName) => {
-                const modelConfigs = configsByModel?.[modelName] || [];
-                if (modelConfigs.length === 0) return null;
-
-                return (
-                  <Card key={modelName}>
-                    <CardHeader>
-                      <CardTitle>{modelName}</CardTitle>
-                      <CardDescription>
-                        {modelConfigs.length} configurazioni disponibili
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-4">
-                        {modelConfigs.map((config: any) => (
-                          <div
-                            key={config.id}
-                            className="flex items-center justify-between p-4 border rounded-lg"
-                          >
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
-                                {getPowerIcon(config.power_type)}
-                                <span className="font-medium">{config.power_type}</span>
-                                <Badge variant="outline">{config.size_cm}cm</Badge>
-                                <Badge variant="secondary">
-                                  {config.power_type === "Legna" 
-                                    ? config.pizza_count_wood 
-                                    : config.pizza_count_gas_electric}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-4 gap-4 text-sm text-muted-foreground">
-                                <div>
-                                  <span className="font-medium">Base (Legna):</span> €{config.base_price_wood}
-                                </div>
-                                {config.price_gas > 0 && (
-                                  <div>
-                                    <span className="font-medium">Gas:</span> €{config.price_gas}
-                                  </div>
-                                )}
-                                {config.price_electric > 0 && (
-                                  <div>
-                                    <span className="font-medium">Elettrico:</span> €{config.price_electric}
-                                  </div>
-                                )}
-                                {config.price_onsite_installation > 0 && (
-                                  <div>
-                                    <span className="font-medium">Montaggio:</span> €{config.price_onsite_installation}
-                                  </div>
-                                )}
-                              </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Forni Configurabili</CardTitle>
+                <CardDescription>
+                  {configurations.length} configurazioni disponibili
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Immagine</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Modello</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Alimentazione</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Diametro</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Capacità</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Prezzo</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Stato</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {configurations.map((config: any) => (
+                        <tr key={config.id} className="border-b transition-colors hover:bg-muted/50">
+                          <td className="p-4">
+                            <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                              {config.image_url ? (
+                                <img src={config.image_url} alt={config.model_name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Settings className="h-8 w-8 text-muted-foreground" />
+                              )}
                             </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-medium">{config.model_name}</div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              {getPowerIcon(config.power_type)}
+                              <span>{config.power_type}</span>
+                            </div>
+                          </td>
+                          <td className="p-4">{config.size_cm}cm</td>
+                          <td className="p-4">
+                            {config.power_type === "Legna" 
+                              ? config.pizza_count_wood 
+                              : config.pizza_count_gas_electric}
+                          </td>
+                          <td className="p-4">
+                            <div className="font-semibold">€{config.base_price_wood}</div>
+                            {config.price_gas > 0 && (
+                              <div className="text-xs text-muted-foreground">Gas: €{config.price_gas}</div>
+                            )}
+                            {config.price_electric > 0 && (
+                              <div className="text-xs text-muted-foreground">Elettrico: €{config.price_electric}</div>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={config.is_available ? "default" : "secondary"}>
+                              {config.is_available ? "Attivo" : "Disattivo"}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -406,15 +420,19 @@ export default function ProductConfiguratorPage() {
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="links">
+          <ConfiguratorLinksManager />
         </TabsContent>
 
         <TabsContent value="shipping">

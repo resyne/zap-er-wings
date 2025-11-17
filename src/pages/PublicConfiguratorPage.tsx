@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Flame, Zap, Logs, Truck, Wrench } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +26,12 @@ export default function PublicConfiguratorPage() {
   const [selectedPower, setSelectedPower] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [selectedInstallation, setSelectedInstallation] = useState<string>("");
+  const [customerData, setCustomerData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+  });
 
   // Fetch configurator link details if code is provided
   const { data: linkData } = useQuery({
@@ -160,6 +167,7 @@ export default function PublicConfiguratorPage() {
     if (step === 2) return !!selectedPower;
     if (step === 3) return !!selectedSize;
     if (step === 4) return !!selectedInstallation;
+    if (step === 5) return !!customerData.name && !!customerData.email;
     return false;
   };
 
@@ -169,8 +177,47 @@ export default function PublicConfiguratorPage() {
     }
   };
 
-  const handleComplete = () => {
-    toast.success("Configurazione completata! Verrai contattato a breve.");
+  const handleComplete = async () => {
+    if (!code || !customerData.name || !customerData.email) {
+      toast.error("Compila tutti i campi richiesti");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("configurator_links")
+        .update({
+          customer_name: customerData.name,
+          customer_email: customerData.email,
+          customer_phone: customerData.phone || null,
+          customer_company: customerData.company || null,
+          selected_model: selectedModel,
+          selected_power: selectedPower,
+          selected_size: selectedSize,
+          selected_installation: selectedInstallation,
+          total_price: getTotalPrice(),
+          configuration_data: {
+            model: selectedModel,
+            power: selectedPower,
+            size: selectedSize,
+            installation: selectedInstallation,
+            configPrice: getConfigPrice(),
+            installationPrice: getInstallationPrice(),
+            totalPrice: getTotalPrice(),
+          },
+          submitted_at: new Date().toISOString(),
+          status: "submitted",
+        })
+        .eq("code", code);
+
+      if (error) throw error;
+
+      toast.success("Richiesta inviata con successo! Verrai contattato a breve.");
+      setStep(6); // Success state
+    } catch (error: any) {
+      console.error("Error submitting configuration:", error);
+      toast.error("Errore nell'invio della richiesta. Riprova.");
+    }
   };
 
   if (isLoading) {
@@ -192,13 +239,13 @@ export default function PublicConfiguratorPage() {
         {/* Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Passo {step} di 5</span>
-            <span className="text-sm text-muted-foreground">{Math.round((step / 5) * 100)}%</span>
+            <span className="text-sm font-medium">Passo {step} di 6</span>
+            <span className="text-sm text-muted-foreground">{Math.round((step / 6) * 100)}%</span>
           </div>
           <div className="h-2 bg-secondary rounded-full overflow-hidden">
             <div
               className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${(step / 5) * 100}%` }}
+              style={{ width: `${(step / 6) * 100}%` }}
             />
           </div>
         </div>
@@ -384,23 +431,96 @@ export default function PublicConfiguratorPage() {
               </Card>
             )}
 
+            {/* Step 5: Customer Info */}
+            {step >= 5 && step !== 6 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    5. I Tuoi Dati
+                  </CardTitle>
+                  <CardDescription>
+                    Inserisci i tuoi dati per ricevere il preventivo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome e Cognome *</Label>
+                    <Input
+                      id="name"
+                      placeholder="Mario Rossi"
+                      value={customerData.name}
+                      onChange={(e) => setCustomerData({ ...customerData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="mario.rossi@example.com"
+                      value={customerData.email}
+                      onChange={(e) => setCustomerData({ ...customerData, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefono</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+39 123 456 7890"
+                      value={customerData.phone}
+                      onChange={(e) => setCustomerData({ ...customerData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Azienda</Label>
+                    <Input
+                      id="company"
+                      placeholder="Nome Azienda"
+                      value={customerData.company}
+                      onChange={(e) => setCustomerData({ ...customerData, company: e.target.value })}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Success Message */}
+            {step === 6 && (
+              <Card className="border-green-600">
+                <CardContent className="py-12 text-center space-y-4">
+                  <CheckCircle2 className="h-16 w-16 mx-auto text-green-600" />
+                  <div>
+                    <h3 className="text-2xl font-bold mb-2">Richiesta Inviata!</h3>
+                    <p className="text-muted-foreground">
+                      Grazie per aver configurato il tuo forno. Verrai contattato a breve dal nostro team commerciale.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Navigation Buttons */}
-            <div className="flex gap-4">
-              {step > 1 && (
-                <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1">
-                  Indietro
-                </Button>
-              )}
-              {step < 5 ? (
-                <Button onClick={handleNext} disabled={!canGoNext()} className="flex-1">
-                  Avanti
-                </Button>
-              ) : (
-                <Button onClick={handleComplete} className="flex-1">
-                  Richiedi Preventivo
-                </Button>
-              )}
-            </div>
+            {step < 6 && (
+              <div className="flex gap-4">
+                {step > 1 && (
+                  <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1">
+                    Indietro
+                  </Button>
+                )}
+                {step < 5 ? (
+                  <Button onClick={handleNext} disabled={!canGoNext()} className="flex-1">
+                    Avanti
+                  </Button>
+                ) : (
+                  <Button onClick={handleComplete} disabled={!canGoNext()} className="flex-1">
+                    Richiedi Preventivo
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Summary */}
