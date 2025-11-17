@@ -4042,6 +4042,173 @@ export type Database = {
         }
         Relationships: []
       }
+      product_configurations: {
+        Row: {
+          additional_info: Json | null
+          created_at: string | null
+          id: string
+          installation_type: string | null
+          is_available: boolean | null
+          model_name: string
+          power_type: string | null
+          product_id: string
+          size: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          additional_info?: Json | null
+          created_at?: string | null
+          id?: string
+          installation_type?: string | null
+          is_available?: boolean | null
+          model_name: string
+          power_type?: string | null
+          product_id: string
+          size?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          additional_info?: Json | null
+          created_at?: string | null
+          id?: string
+          installation_type?: string | null
+          is_available?: boolean | null
+          model_name?: string
+          power_type?: string | null
+          product_id?: string
+          size?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_configurations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_configurator_links: {
+        Row: {
+          configuration_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          last_viewed_at: string | null
+          lead_id: string | null
+          product_id: string | null
+          title: string | null
+          unique_code: string
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          configuration_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_viewed_at?: string | null
+          lead_id?: string | null
+          product_id?: string | null
+          title?: string | null
+          unique_code: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          configuration_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_viewed_at?: string | null
+          lead_id?: string | null
+          product_id?: string | null
+          title?: string | null
+          unique_code?: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_configurator_links_configuration_id_fkey"
+            columns: ["configuration_id"]
+            isOneToOne: false
+            referencedRelation: "product_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_configurator_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_configurator_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_configurator_media: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_primary: boolean | null
+          media_type: string
+          media_url: string
+          product_id: string
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_primary?: boolean | null
+          media_type: string
+          media_url: string
+          product_id: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_primary?: boolean | null
+          media_type?: string
+          media_url?: string
+          product_id?: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_configurator_media_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           base_price: number | null
@@ -7009,6 +7176,7 @@ export type Database = {
         }
         Returns: string
       }
+      generate_configurator_code: { Args: never; Returns: string }
       generate_cost_draft_number: { Args: never; Returns: string }
       generate_customer_code: { Args: never; Returns: string }
       generate_ddt_code: { Args: never; Returns: string }
