@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Settings, Trash2, Flame, Zap, Logs } from "lucide-react";
+import { Plus, Search, Settings, Trash2, Flame, Zap, Logs, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { GenerateConfiguratorLinkDialog } from "@/components/crm/GenerateConfiguratorLinkDialog";
 
 const MODELS = ["Sebastian", "Realbosco", "Anastasia", "Ottavio"];
 const SIZES = [80, 100, 120, 130];
@@ -45,6 +46,7 @@ export default function ProductConfiguratorPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   
   // Configuration form state
   const [configForm, setConfigForm] = useState({
@@ -166,7 +168,12 @@ export default function ProductConfiguratorPage() {
           <h1 className="text-3xl font-bold">Configuratore Forni</h1>
           <p className="text-muted-foreground">Gestisci i modelli, le configurazioni e i prezzi dei forni</p>
         </div>
-        <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setLinkDialogOpen(true)}>
+            <LinkIcon className="h-4 w-4 mr-2" />
+            Genera Link
+          </Button>
+          <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -298,7 +305,13 @@ export default function ProductConfiguratorPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      <GenerateConfiguratorLinkDialog 
+        open={linkDialogOpen} 
+        onOpenChange={setLinkDialogOpen}
+      />
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
