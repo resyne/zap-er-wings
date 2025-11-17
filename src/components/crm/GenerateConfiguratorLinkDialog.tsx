@@ -149,7 +149,6 @@ export function GenerateConfiguratorLinkDialog({ open, onOpenChange }: GenerateC
                   <SelectValue placeholder="Nessuna preselezione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuna preselezione</SelectItem>
                   {MODELS.map((model) => (
                     <SelectItem key={model} value={model}>
                       {model}
@@ -157,6 +156,16 @@ export function GenerateConfiguratorLinkDialog({ open, onOpenChange }: GenerateC
                   ))}
                 </SelectContent>
               </Select>
+              {formData.preselected_model && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, preselected_model: "", preselected_power: "", preselected_size: "" })}
+                >
+                  Rimuovi preselezione
+                </Button>
+              )}
             </div>
 
             {formData.preselected_model && (
@@ -171,7 +180,6 @@ export function GenerateConfiguratorLinkDialog({ open, onOpenChange }: GenerateC
                       <SelectValue placeholder="Nessuna preselezione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuna preselezione</SelectItem>
                       {getPowerTypes(formData.preselected_model).map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
@@ -179,6 +187,16 @@ export function GenerateConfiguratorLinkDialog({ open, onOpenChange }: GenerateC
                       ))}
                     </SelectContent>
                   </Select>
+                  {formData.preselected_power && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, preselected_power: "", preselected_size: "" })}
+                    >
+                      Rimuovi preselezione
+                    </Button>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -191,7 +209,6 @@ export function GenerateConfiguratorLinkDialog({ open, onOpenChange }: GenerateC
                       <SelectValue placeholder="Nessuna preselezione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuna preselezione</SelectItem>
                       {SIZES.map((size) => (
                         <SelectItem key={size} value={size.toString()}>
                           {size}cm
@@ -199,6 +216,16 @@ export function GenerateConfiguratorLinkDialog({ open, onOpenChange }: GenerateC
                       ))}
                     </SelectContent>
                   </Select>
+                  {formData.preselected_size && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, preselected_size: "" })}
+                    >
+                      Rimuovi preselezione
+                    </Button>
+                  )}
                 </div>
               </>
             )}
