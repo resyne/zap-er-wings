@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Package, ListChecks, Pencil, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Search, Package, ListChecks, Pencil, Trash2, Image } from "lucide-react";
 import { CreateProductDialog } from "@/components/crm/CreateProductDialog";
 import { EditProductDialog } from "@/components/crm/EditProductDialog";
 import { ProductPriceListDialog } from "@/components/crm/ProductPriceListDialog";
 import { PriceListManager } from "@/components/crm/PriceListManager";
+import { ProductMediaUpload } from "@/components/crm/ProductMediaUpload";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
@@ -22,6 +24,7 @@ export default function ProductCatalogPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [priceListDialogOpen, setPriceListDialogOpen] = useState(false);
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
@@ -214,7 +217,7 @@ export default function ProductCatalogPage() {
                       </div>
                     )}
 
-                    <div className="flex gap-2 pt-2 border-t">
+                    <div className="flex gap-2 pt-2 border-t flex-wrap">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -229,7 +232,6 @@ export default function ProductCatalogPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-1"
                         onClick={() => {
                           setSelectedProduct(product);
                           setPriceListDialogOpen(true);
@@ -237,6 +239,17 @@ export default function ProductCatalogPage() {
                       >
                         <ListChecks className="h-4 w-4 mr-1" />
                         Listini
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          setMediaDialogOpen(true);
+                        }}
+                      >
+                        <Image className="h-4 w-4 mr-1" />
+                        Media
                       </Button>
                       <Button
                         variant="ghost"
