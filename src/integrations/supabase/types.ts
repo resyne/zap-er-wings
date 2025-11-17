@@ -4060,7 +4060,7 @@ export type Database = {
           price_electric: number | null
           price_gas: number | null
           price_onsite_installation: number | null
-          product_id: string
+          product_id: string | null
           size: string | null
           updated_at: string | null
         }
@@ -4078,7 +4078,7 @@ export type Database = {
           price_electric?: number | null
           price_gas?: number | null
           price_onsite_installation?: number | null
-          product_id: string
+          product_id?: string | null
           size?: string | null
           updated_at?: string | null
         }
@@ -4096,7 +4096,7 @@ export type Database = {
           price_electric?: number | null
           price_gas?: number | null
           price_onsite_installation?: number | null
-          product_id?: string
+          product_id?: string | null
           size?: string | null
           updated_at?: string | null
         }

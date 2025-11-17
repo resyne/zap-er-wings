@@ -97,6 +97,7 @@ export default function ProductConfiguratorPage() {
       const pizzaCountGasElectric = getPizzaCount(config.size_cm, config.power_type);
       
       const { error } = await supabase.from("product_configurations").insert([{
+        product_id: null,
         model_name: config.model_name,
         power_type: config.power_type,
         size: config.size_cm.toString(),
