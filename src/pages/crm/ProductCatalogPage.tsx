@@ -303,6 +303,21 @@ export default function ProductCatalogPage() {
             product={selectedProduct}
             onSuccess={refetch}
           />
+
+          <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Gestione Media - {selectedProduct.name}</DialogTitle>
+                <DialogDescription>
+                  Carica foto e video a 360° per questo prodotto
+                </DialogDescription>
+              </DialogHeader>
+              <ProductMediaUpload 
+                productId={selectedProduct.id}
+                existingMedia={[]}
+              />
+            </DialogContent>
+          </Dialog>
         </>
       )}
 
