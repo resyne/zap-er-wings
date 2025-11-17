@@ -26,6 +26,40 @@ export default function PublicConfiguratorPage() {
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [selectedInstallation, setSelectedInstallation] = useState<string>("");
 
+  // Fetch configurator link details if code is provided
+  const { data: linkData } = useQuery({
+    queryKey: ["configurator-link", code],
+    queryFn: async () => {
+      if (!code) return null;
+      
+      const { data, error } = await supabase
+        .from("configurator_links")
+        .select("*")
+        .eq("code", code)
+        .eq("is_active", true)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!code,
+  });
+
+  // Auto-select preselected values from link
+  useEffect(() => {
+    if (linkData) {
+      if (linkData.preselected_model) {
+        setSelectedModel(linkData.preselected_model);
+      }
+      if (linkData.preselected_power) {
+        setSelectedPower(linkData.preselected_power);
+      }
+      if (linkData.preselected_size) {
+        setSelectedSize(linkData.preselected_size);
+      }
+    }
+  }, [linkData]);
+
   // Fetch all configurations
   const { data: configurations, isLoading } = useQuery({
     queryKey: ["public-configurations"],

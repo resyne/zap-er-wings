@@ -554,6 +554,51 @@ export type Database = {
         }
         Relationships: []
       }
+      configurator_links: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          preselected_model: string | null
+          preselected_power: string | null
+          preselected_size: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          preselected_model?: string | null
+          preselected_power?: string | null
+          preselected_size?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          preselected_model?: string | null
+          preselected_power?: string | null
+          preselected_size?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       consultation_requests: {
         Row: {
           business_location: string
