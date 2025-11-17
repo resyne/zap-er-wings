@@ -4048,36 +4048,54 @@ export type Database = {
       product_configurations: {
         Row: {
           additional_info: Json | null
+          base_price_wood: number | null
           created_at: string | null
           id: string
           installation_type: string | null
           is_available: boolean | null
           model_name: string
+          pizza_count_gas_electric: string | null
+          pizza_count_wood: string | null
           power_type: string | null
+          price_electric: number | null
+          price_gas: number | null
+          price_onsite_installation: number | null
           product_id: string
           size: string | null
           updated_at: string | null
         }
         Insert: {
           additional_info?: Json | null
+          base_price_wood?: number | null
           created_at?: string | null
           id?: string
           installation_type?: string | null
           is_available?: boolean | null
           model_name: string
+          pizza_count_gas_electric?: string | null
+          pizza_count_wood?: string | null
           power_type?: string | null
+          price_electric?: number | null
+          price_gas?: number | null
+          price_onsite_installation?: number | null
           product_id: string
           size?: string | null
           updated_at?: string | null
         }
         Update: {
           additional_info?: Json | null
+          base_price_wood?: number | null
           created_at?: string | null
           id?: string
           installation_type?: string | null
           is_available?: boolean | null
           model_name?: string
+          pizza_count_gas_electric?: string | null
+          pizza_count_wood?: string | null
           power_type?: string | null
+          price_electric?: number | null
+          price_gas?: number | null
+          price_onsite_installation?: number | null
           product_id?: string
           size?: string | null
           updated_at?: string | null
@@ -5948,6 +5966,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shipping_prices: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          price: number
+          size_cm: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          price?: number
+          size_cm: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          price?: number
+          size_cm?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       standard_costs: {
         Row: {
