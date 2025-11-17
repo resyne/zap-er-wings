@@ -13,6 +13,7 @@ import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVerti
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
+import { GenerateConfiguratorLink } from "@/components/crm/GenerateConfiguratorLink";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -44,6 +45,7 @@ interface Lead {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  external_configurator_link?: string | null;
   custom_fields?: {
     // ZAPPER fields
     tipo_attivita?: string;
@@ -1664,6 +1666,17 @@ export default function LeadsPage() {
                                     )}
                                   </div>
 
+                                  {/* Link Configuratore per Vesuviano */}
+                                  {lead.pipeline === "Vesuviano" && (
+                                    <div className="border-t pt-2" onClick={(e) => e.stopPropagation()}>
+                                      <GenerateConfiguratorLink
+                                        leadId={lead.id}
+                                        leadName={lead.company_name}
+                                        pipeline={lead.pipeline}
+                                        existingLink={lead.external_configurator_link}
+                                      />
+                                    </div>
+                                  )}
 
                                 {/* Footer con valore e fonte */}
                                 <div className="flex items-center justify-between border-t pt-2">
