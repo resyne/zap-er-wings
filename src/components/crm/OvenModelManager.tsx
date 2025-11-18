@@ -8,15 +8,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Image as ImageIcon, Video, Pencil } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Video, Pencil, Package } from "lucide-react";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/ui/file-upload";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function OvenModelManager() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [editingModel, setEditingModel] = useState<any>(null);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [selectedModelForProduct, setSelectedModelForProduct] = useState<any>(null);
+  const [productForm, setProductForm] = useState({ product_id: "", price: "" });
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -30,7 +34,30 @@ export function OvenModelManager() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("oven_models")
-        .select("*")
+        .select(`
+          *,
+          oven_model_products (
+            id,
+            price,
+            product:products (
+              id,
+              name,
+              code
+            )
+          )
+        `)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, code")
         .order("name");
       if (error) throw error;
       return data;
@@ -166,6 +193,58 @@ export function OvenModelManager() {
     setEditingModel(null);
     setFormData({ name: "", description: "", power_types: [], sizes_available: [] });
     setMediaFiles([]);
+  };
+
+  const addProductMutation = useMutation({
+    mutationFn: async ({ modelId, productId, price }: { modelId: string; productId: string; price: number }) => {
+      const { error } = await supabase.from("oven_model_products").insert({
+        oven_model_id: modelId,
+        product_id: productId,
+        price: price,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["oven-models"] });
+      setProductDialogOpen(false);
+      setProductForm({ product_id: "", price: "" });
+      toast.success("Prodotto collegato con successo");
+    },
+    onError: (error: any) => {
+      toast.error("Errore: " + error.message);
+    },
+  });
+
+  const removeProductMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      const { error } = await supabase
+        .from("oven_model_products")
+        .delete()
+        .eq("id", linkId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["oven-models"] });
+      toast.success("Prodotto rimosso");
+    },
+  });
+
+  const handleAddProduct = (model: any) => {
+    setSelectedModelForProduct(model);
+    setProductForm({ product_id: "", price: "" });
+    setProductDialogOpen(true);
+  };
+
+  const handleSaveProduct = () => {
+    if (!productForm.product_id || !productForm.price) {
+      toast.error("Compila tutti i campi");
+      return;
+    }
+    addProductMutation.mutate({
+      modelId: selectedModelForProduct.id,
+      productId: productForm.product_id,
+      price: parseFloat(productForm.price),
+    });
   };
 
   return (
@@ -347,6 +426,44 @@ export function OvenModelManager() {
                   </div>
                 </div>
 
+                <div className="pt-3 border-t">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Prodotti Collegati</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddProduct(model)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Aggiungi Prodotto
+                    </Button>
+                  </div>
+                  {model.oven_model_products && model.oven_model_products.length > 0 ? (
+                    <div className="space-y-2">
+                      {model.oven_model_products.map((link: any) => (
+                        <div key={link.id} className="flex items-center justify-between bg-muted/50 p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-3 w-3" />
+                            <span className="text-sm">{link.product?.name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              €{link.price.toFixed(2)}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeProductMutation.mutate(link.id)}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Nessun prodotto collegato</p>
+                  )}
+                </div>
+
                 <Badge variant={model.is_active ? "default" : "secondary"}>
                   {model.is_active ? "Attivo" : "Disattivo"}
                 </Badge>
@@ -355,6 +472,54 @@ export function OvenModelManager() {
           ))}
         </div>
       )}
+
+      <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Collega Prodotto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Prodotto</Label>
+              <Select
+                value={productForm.product_id}
+                onValueChange={(value) => setProductForm({ ...productForm, product_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un prodotto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.filter(p => 
+                    !selectedModelForProduct?.oven_model_products?.some((link: any) => link.product?.id === p.id)
+                  ).map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.code} - {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Prezzo (€)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={productForm.price}
+                onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleSaveProduct} disabled={addProductMutation.isPending}>
+                Salva
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
