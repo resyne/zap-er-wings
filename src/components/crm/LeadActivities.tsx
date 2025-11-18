@@ -94,6 +94,53 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
     syncNextActivityToTable();
   }, [leadId]);
 
+  // Realtime subscription per le attività
+  useEffect(() => {
+    const channel = supabase
+      .channel('lead-activities-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'lead_activities',
+          filter: `lead_id=eq.${leadId}`
+        },
+        () => {
+          loadActivities();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'lead_activities',
+          filter: `lead_id=eq.${leadId}`
+        },
+        () => {
+          loadActivities();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'lead_activities',
+          filter: `lead_id=eq.${leadId}`
+        },
+        () => {
+          loadActivities();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [leadId]);
+
   useEffect(() => {
     if (activities.length > 0) {
       activities.forEach(activity => {
