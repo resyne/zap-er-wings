@@ -3858,6 +3858,48 @@ export type Database = {
         }
         Relationships: []
       }
+      oven_model_products: {
+        Row: {
+          created_at: string | null
+          id: string
+          oven_model_id: string
+          price: number
+          product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          oven_model_id: string
+          price: number
+          product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          oven_model_id?: string
+          price?: number
+          product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oven_model_products_oven_model_id_fkey"
+            columns: ["oven_model_id"]
+            isOneToOne: false
+            referencedRelation: "oven_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oven_model_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oven_models: {
         Row: {
           created_at: string | null
