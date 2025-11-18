@@ -20,7 +20,7 @@ export function OvenModelManager() {
   const [editingModel, setEditingModel] = useState<any>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [selectedModelForProduct, setSelectedModelForProduct] = useState<any>(null);
-  const [productForm, setProductForm] = useState({ product_id: "", price: "" });
+  const [productForm, setProductForm] = useState({ product_id: "" });
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -57,7 +57,7 @@ export function OvenModelManager() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, code")
+        .select("id, name, code, base_price")
         .order("name");
       if (error) throw error;
       return data;
@@ -207,7 +207,7 @@ export function OvenModelManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["oven-models"] });
       setProductDialogOpen(false);
-      setProductForm({ product_id: "", price: "" });
+      setProductForm({ product_id: "" });
       toast.success("Prodotto collegato con successo");
     },
     onError: (error: any) => {
@@ -231,19 +231,24 @@ export function OvenModelManager() {
 
   const handleAddProduct = (model: any) => {
     setSelectedModelForProduct(model);
-    setProductForm({ product_id: "", price: "" });
+    setProductForm({ product_id: "" });
     setProductDialogOpen(true);
   };
 
   const handleSaveProduct = () => {
-    if (!productForm.product_id || !productForm.price) {
-      toast.error("Compila tutti i campi");
+    if (!productForm.product_id) {
+      toast.error("Seleziona un prodotto");
+      return;
+    }
+    const selectedProduct = products?.find(p => p.id === productForm.product_id);
+    if (!selectedProduct?.base_price) {
+      toast.error("Il prodotto selezionato non ha un prezzo impostato");
       return;
     }
     addProductMutation.mutate({
       modelId: selectedModelForProduct.id,
       productId: productForm.product_id,
-      price: parseFloat(productForm.price),
+      price: selectedProduct.base_price,
     });
   };
 
@@ -483,7 +488,7 @@ export function OvenModelManager() {
               <Label>Prodotto</Label>
               <Select
                 value={productForm.product_id}
-                onValueChange={(value) => setProductForm({ ...productForm, product_id: value })}
+                onValueChange={(value) => setProductForm({ product_id: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona un prodotto" />
@@ -493,21 +498,14 @@ export function OvenModelManager() {
                     !selectedModelForProduct?.oven_model_products?.some((link: any) => link.product?.id === p.id)
                   ).map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.code} - {product.name}
+                      {product.code} - {product.name} - €{product.base_price?.toFixed(2) || 'N/A'}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Prezzo (€)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={productForm.price}
-                onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                placeholder="0.00"
-              />
+              <p className="text-xs text-muted-foreground">
+                Il prezzo verrà preso automaticamente dall'anagrafica prodotto
+              </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
