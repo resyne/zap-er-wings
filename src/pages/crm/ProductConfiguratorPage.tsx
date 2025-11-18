@@ -14,8 +14,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { GenerateConfiguratorLinkDialog } from "@/components/crm/GenerateConfiguratorLinkDialog";
 import { ConfiguratorLinksManager } from "@/components/crm/ConfiguratorLinksManager";
-
-const MODELS = ["Sebastian", "Realbosco", "Anastasia", "Ottavio"];
+import { OvenModelManager } from "@/components/crm/OvenModelManager";
+import { FileUpload } from "@/components/ui/file-upload";
 const SIZES = [80, 100, 120, 130];
 
 // Power types based on model
@@ -48,6 +48,7 @@ export default function ProductConfiguratorPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   
   // Configuration form state
   const [configForm, setConfigForm] = useState({
@@ -58,6 +59,35 @@ export default function ProductConfiguratorPage() {
     price_gas: 0,
     price_electric: 0,
     price_onsite_installation: 0,
+    product_id: null as string | null,
+  });
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+
+  // Fetch oven models
+  const { data: ovenModels } = useQuery({
+    queryKey: ["oven-models"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("oven_models")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch products for linking
+  const { data: products } = useQuery({
+    queryKey: ["products-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, code")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
   });
 
   // Fetch all configurations
@@ -93,14 +123,54 @@ export default function ProductConfiguratorPage() {
     },
   });
 
+  // Upload media files to storage
+  const uploadMediaFiles = async (files: File[]) => {
+    const urls: string[] = [];
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('oven-models')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('oven-models')
+        .getPublicUrl(filePath);
+
+      urls.push(publicUrl);
+    }
+    return urls;
+  };
+
   // Create configuration mutation
   const createConfigMutation = useMutation({
     mutationFn: async (config: any) => {
+      setUploadingMedia(true);
+      
+      let imageUrls: string[] = [];
+      let videoUrls: string[] = [];
+
+      if (mediaFiles.length > 0) {
+        const images = mediaFiles.filter(f => f.type.startsWith('image/'));
+        const videos = mediaFiles.filter(f => f.type.startsWith('video/'));
+        
+        if (images.length > 0) {
+          imageUrls = await uploadMediaFiles(images);
+        }
+        if (videos.length > 0) {
+          videoUrls = await uploadMediaFiles(videos);
+        }
+      }
+
       const pizzaCountWood = getPizzaCount(config.size_cm, "Legna");
       const pizzaCountGasElectric = getPizzaCount(config.size_cm, config.power_type);
       
       const { error } = await supabase.from("product_configurations").insert([{
-        product_id: null,
+        product_id: config.product_id,
         model_name: config.model_name,
         power_type: config.power_type,
         size: config.size_cm.toString(),
@@ -110,6 +180,8 @@ export default function ProductConfiguratorPage() {
         price_onsite_installation: config.price_onsite_installation,
         pizza_count_wood: pizzaCountWood,
         pizza_count_gas_electric: pizzaCountGasElectric,
+        image_urls: imageUrls,
+        video_urls: videoUrls,
         is_available: true,
       }]);
       if (error) throw error;
@@ -125,8 +197,13 @@ export default function ProductConfiguratorPage() {
         price_gas: 0,
         price_electric: 0,
         price_onsite_installation: 0,
+        product_id: null,
       });
+      setMediaFiles([]);
       toast.success("Configurazione creata con successo");
+    },
+    onSettled: () => {
+      setUploadingMedia(false);
     },
     onError: (error: any) => {
       toast.error("Errore nella creazione della configurazione: " + error.message);
@@ -195,7 +272,12 @@ export default function ProductConfiguratorPage() {
                   <Select
                     value={configForm.model_name}
                     onValueChange={(value) => {
-                      setConfigForm({ ...configForm, model_name: value, power_type: "" });
+                      const selectedModel = ovenModels?.find(m => m.name === value);
+                      setConfigForm({ 
+                        ...configForm, 
+                        model_name: value, 
+                        power_type: "" 
+                      });
                     }}
                     required
                   >
@@ -203,9 +285,28 @@ export default function ProductConfiguratorPage() {
                       <SelectValue placeholder="Seleziona modello" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MODELS.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
+                      {ovenModels?.map((model: any) => (
+                        <SelectItem key={model.id} value={model.name}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Prodotto in Anagrafica</Label>
+                  <Select
+                    value={configForm.product_id || ""}
+                    onValueChange={(value) => setConfigForm({ ...configForm, product_id: value || null })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona prodotto (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products?.map((product: any) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.code} - {product.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -224,11 +325,13 @@ export default function ProductConfiguratorPage() {
                       <SelectValue placeholder="Seleziona alimentazione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {configForm.model_name && getPowerTypes(configForm.model_name).map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
+                      {configForm.model_name && ovenModels
+                        ?.find(m => m.name === configForm.model_name)
+                        ?.power_types?.map((type: string) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -293,14 +396,27 @@ export default function ProductConfiguratorPage() {
                     onChange={(e) => setConfigForm({ ...configForm, price_onsite_installation: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label>Foto e Video</Label>
+                  <FileUpload
+                    value={mediaFiles}
+                    onChange={setMediaFiles}
+                    maxFiles={10}
+                    acceptedFileTypes={[
+                      'image/png', 'image/jpg', 'image/jpeg', 'image/webp',
+                      'video/mp4', 'video/quicktime', 'video/x-msvideo'
+                    ]}
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setConfigDialogOpen(false)}>
                   Annulla
                 </Button>
-                <Button type="submit" disabled={createConfigMutation.isPending}>
-                  Crea Configurazione
+                <Button type="submit" disabled={createConfigMutation.isPending || uploadingMedia}>
+                  {uploadingMedia ? "Caricamento..." : "Crea Configurazione"}
                 </Button>
               </div>
             </form>
@@ -328,10 +444,15 @@ export default function ProductConfiguratorPage() {
 
       <Tabs defaultValue="configurations" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="configurations">Forni Configurabili</TabsTrigger>
+          <TabsTrigger value="models">Modelli</TabsTrigger>
+          <TabsTrigger value="configurations">Configurazioni</TabsTrigger>
           <TabsTrigger value="links">Link Generati</TabsTrigger>
           <TabsTrigger value="shipping">Spedizione</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="models">
+          <OvenModelManager />
+        </TabsContent>
 
         <TabsContent value="configurations" className="space-y-4">
           {configsLoading ? (
