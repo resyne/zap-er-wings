@@ -137,7 +137,7 @@ export default function LeadsPage() {
     loadOffers();
   }, []);
 
-  // Realtime subscription per nuovi lead
+  // Realtime subscription per nuovi lead e aggiornamenti
   useEffect(() => {
     const channel = supabase
       .channel('leads-changes')
@@ -154,6 +154,26 @@ export default function LeadsPage() {
           toast({
             title: "Nuovo lead",
             description: `Nuovo lead aggiunto: ${(payload.new as Lead).company_name}`,
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('Lead aggiornato:', payload.new);
+          setLeads((prevLeads) => 
+            prevLeads.map(lead => 
+              lead.id === (payload.new as Lead).id ? payload.new as Lead : lead
+            )
+          );
+          toast({
+            title: "Lead aggiornato",
+            description: `Lead "${(payload.new as Lead).company_name}" è stato aggiornato`,
           });
         }
       )
