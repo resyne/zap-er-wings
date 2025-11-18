@@ -137,7 +137,7 @@ export default function LeadsPage() {
     loadOffers();
   }, []);
 
-  // Realtime subscription per nuovi lead e aggiornamenti
+  // Realtime subscription per nuovi lead, aggiornamenti ed eliminazioni
   useEffect(() => {
     const channel = supabase
       .channel('leads-changes')
@@ -174,6 +174,24 @@ export default function LeadsPage() {
           toast({
             title: "Lead aggiornato",
             description: `Lead "${(payload.new as Lead).company_name}" è stato aggiornato`,
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('Lead eliminato:', payload.old);
+          setLeads((prevLeads) => 
+            prevLeads.filter(lead => lead.id !== (payload.old as Lead).id)
+          );
+          toast({
+            title: "Lead eliminato",
+            description: "Un lead è stato eliminato",
           });
         }
       )

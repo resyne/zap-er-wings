@@ -47,6 +47,41 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
     loadFiles();
   }, [loadFiles]);
 
+  // Realtime subscription per i file
+  useEffect(() => {
+    const channel = supabase
+      .channel('lead-files-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'lead_files',
+          filter: `lead_id=eq.${leadId}`
+        },
+        () => {
+          loadFiles();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'lead_files',
+          filter: `lead_id=eq.${leadId}`
+        },
+        () => {
+          loadFiles();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [leadId, loadFiles]);
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
