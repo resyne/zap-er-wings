@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Image as ImageIcon, Video } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Video, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/ui/file-upload";
 
@@ -16,6 +16,7 @@ export function OvenModelManager() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [editingModel, setEditingModel] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -58,42 +59,55 @@ export function OvenModelManager() {
     return urls;
   };
 
-  const createModelMutation = useMutation({
+  const saveModelMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       setUploadingFiles(true);
       
-      let imageUrls: string[] = [];
-      let videoUrls: string[] = [];
+      let imageUrls: string[] = editingModel?.image_urls || [];
+      let videoUrls: string[] = editingModel?.video_urls || [];
 
       if (mediaFiles.length > 0) {
         const images = mediaFiles.filter(f => f.type.startsWith('image/'));
         const videos = mediaFiles.filter(f => f.type.startsWith('video/'));
         
         if (images.length > 0) {
-          imageUrls = await uploadMediaFiles(images);
+          const newImageUrls = await uploadMediaFiles(images);
+          imageUrls = [...imageUrls, ...newImageUrls];
         }
         if (videos.length > 0) {
-          videoUrls = await uploadMediaFiles(videos);
+          const newVideoUrls = await uploadMediaFiles(videos);
+          videoUrls = [...videoUrls, ...newVideoUrls];
         }
       }
 
-      const { error } = await supabase.from("oven_models").insert([{
-        name: data.name,
-        description: data.description,
-        power_types: data.power_types,
-        sizes_available: data.sizes_available,
-        image_urls: imageUrls,
-        video_urls: videoUrls,
-      }]);
-      
-      if (error) throw error;
+      if (editingModel) {
+        const { error } = await supabase.from("oven_models").update({
+          name: data.name,
+          description: data.description,
+          power_types: data.power_types,
+          sizes_available: data.sizes_available,
+          image_urls: imageUrls,
+          video_urls: videoUrls,
+        }).eq("id", editingModel.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("oven_models").insert([{
+          name: data.name,
+          description: data.description,
+          power_types: data.power_types,
+          sizes_available: data.sizes_available,
+          image_urls: imageUrls,
+          video_urls: videoUrls,
+        }]);
+        
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["oven-models"] });
-      setDialogOpen(false);
-      setFormData({ name: "", description: "", power_types: [], sizes_available: [] });
-      setMediaFiles([]);
-      toast.success("Modello creato con successo");
+      handleCloseDialog();
+      toast.success(editingModel ? "Modello aggiornato con successo" : "Modello creato con successo");
     },
     onError: (error: any) => {
       toast.error("Errore: " + error.message);
@@ -135,11 +149,30 @@ export function OvenModelManager() {
     }));
   };
 
+  const handleEditModel = (model: any) => {
+    setEditingModel(model);
+    setFormData({
+      name: model.name,
+      description: model.description || "",
+      power_types: model.power_types || [],
+      sizes_available: model.sizes_available || [],
+    });
+    setMediaFiles([]);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingModel(null);
+    setFormData({ name: "", description: "", power_types: [], sizes_available: [] });
+    setMediaFiles([]);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Gestione Modelli di Forni</h3>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleCloseDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -148,9 +181,9 @@ export function OvenModelManager() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Crea Nuovo Modello</DialogTitle>
+              <DialogTitle>{editingModel ? "Modifica Modello" : "Crea Nuovo Modello"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); createModelMutation.mutate(formData); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); saveModelMutation.mutate(formData); }} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nome Modello *</Label>
                 <Input
@@ -215,11 +248,11 @@ export function OvenModelManager() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
                   Annulla
                 </Button>
-                <Button type="submit" disabled={createModelMutation.isPending || uploadingFiles}>
-                  {uploadingFiles ? "Caricamento..." : "Crea Modello"}
+                <Button type="submit" disabled={saveModelMutation.isPending || uploadingFiles}>
+                  {uploadingFiles ? "Caricamento..." : (editingModel ? "Aggiorna Modello" : "Crea Modello")}
                 </Button>
               </div>
             </form>
@@ -242,13 +275,22 @@ export function OvenModelManager() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{model.name}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteModelMutation.mutate(model.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditModel(model)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteModelMutation.mutate(model.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
