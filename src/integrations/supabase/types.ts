@@ -3858,6 +3858,45 @@ export type Database = {
         }
         Relationships: []
       }
+      oven_models: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_urls: string[] | null
+          is_active: boolean | null
+          name: string
+          power_types: string[] | null
+          sizes_available: number[] | null
+          updated_at: string | null
+          video_urls: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          name: string
+          power_types?: string[] | null
+          sizes_available?: number[] | null
+          updated_at?: string | null
+          video_urls?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          name?: string
+          power_types?: string[] | null
+          sizes_available?: number[] | null
+          updated_at?: string | null
+          video_urls?: string[] | null
+        }
+        Relationships: []
+      }
       partner_materials: {
         Row: {
           created_at: string
@@ -4136,6 +4175,7 @@ export type Database = {
           created_at: string | null
           id: string
           image_url: string | null
+          image_urls: string[] | null
           installation_type: string | null
           is_available: boolean | null
           model_name: string
@@ -4148,6 +4188,7 @@ export type Database = {
           product_id: string | null
           size: string | null
           updated_at: string | null
+          video_urls: string[] | null
         }
         Insert: {
           additional_info?: Json | null
@@ -4155,6 +4196,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[] | null
           installation_type?: string | null
           is_available?: boolean | null
           model_name: string
@@ -4167,6 +4209,7 @@ export type Database = {
           product_id?: string | null
           size?: string | null
           updated_at?: string | null
+          video_urls?: string[] | null
         }
         Update: {
           additional_info?: Json | null
@@ -4174,6 +4217,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[] | null
           installation_type?: string | null
           is_available?: boolean | null
           model_name?: string
@@ -4186,6 +4230,7 @@ export type Database = {
           product_id?: string | null
           size?: string | null
           updated_at?: string | null
+          video_urls?: string[] | null
         }
         Relationships: [
           {
