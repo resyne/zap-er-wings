@@ -99,6 +99,7 @@ export const AddAppointmentDialog = ({ open, onOpenChange, employees, onSuccess 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="rspp">RSPP - Responsabile Servizio Prevenzione e Protezione</SelectItem>
+                <SelectItem value="preposto">Preposto</SelectItem>
                 <SelectItem value="antincendio">Addetto Antincendio</SelectItem>
                 <SelectItem value="primo_soccorso">Addetto Primo Soccorso</SelectItem>
               </SelectContent>
