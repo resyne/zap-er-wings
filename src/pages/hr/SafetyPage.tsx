@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { AddTrainingDialog } from "@/components/hr/AddTrainingDialog";
+import { AddDocumentDialog } from "@/components/hr/AddDocumentDialog";
+import { AddAppointmentDialog } from "@/components/hr/AddAppointmentDialog";
+import { AddMedicalCheckupDialog } from "@/components/hr/AddMedicalCheckupDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +25,10 @@ import { cn } from "@/lib/utils";
 
 const SafetyPage = () => {
   const [selectedTab, setSelectedTab] = useState("training");
+  const [trainingDialogOpen, setTrainingDialogOpen] = useState(false);
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [medicalDialogOpen, setMedicalDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch all data
@@ -95,10 +103,13 @@ const SafetyPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
-        .order("full_name");
+        .select("*")
+        .order("email");
       if (error) throw error;
-      return data;
+      return data.map(profile => ({
+        id: profile.id,
+        full_name: profile.email || profile.id
+      }));
     },
   });
 
@@ -144,6 +155,13 @@ const SafetyPage = () => {
     return labels[type] || type;
   };
 
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["safety-training"] });
+    queryClient.invalidateQueries({ queryKey: ["safety-documents"] });
+    queryClient.invalidateQueries({ queryKey: ["safety-appointments"] });
+    queryClient.invalidateQueries({ queryKey: ["medical-checkups"] });
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -185,7 +203,7 @@ const SafetyPage = () => {
                   Tracciamento delle formazioni e relative scadenze
                 </CardDescription>
               </div>
-              <Button>
+              <Button onClick={() => setTrainingDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Aggiungi Formazione
               </Button>
@@ -252,7 +270,7 @@ const SafetyPage = () => {
                   DUVRI, procedure e altra documentazione
                 </CardDescription>
               </div>
-              <Button>
+              <Button onClick={() => setDocumentDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Carica Documento
               </Button>
@@ -322,7 +340,7 @@ const SafetyPage = () => {
                   RSPP, Addetti Antincendio e Primo Soccorso
                 </CardDescription>
               </div>
-              <Button>
+              <Button onClick={() => setAppointmentDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Aggiungi Nomina
               </Button>
@@ -401,7 +419,7 @@ const SafetyPage = () => {
                   Tracciamento visite mediche dal medico competente
                 </CardDescription>
               </div>
-              <Button>
+              <Button onClick={() => setMedicalDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Registra Visita
               </Button>
@@ -460,6 +478,33 @@ const SafetyPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AddTrainingDialog
+        open={trainingDialogOpen}
+        onOpenChange={setTrainingDialogOpen}
+        employees={employees}
+        onSuccess={handleRefresh}
+      />
+
+      <AddDocumentDialog
+        open={documentDialogOpen}
+        onOpenChange={setDocumentDialogOpen}
+        onSuccess={handleRefresh}
+      />
+
+      <AddAppointmentDialog
+        open={appointmentDialogOpen}
+        onOpenChange={setAppointmentDialogOpen}
+        employees={employees}
+        onSuccess={handleRefresh}
+      />
+
+      <AddMedicalCheckupDialog
+        open={medicalDialogOpen}
+        onOpenChange={setMedicalDialogOpen}
+        employees={employees}
+        onSuccess={handleRefresh}
+      />
     </div>
   );
 };
