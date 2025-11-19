@@ -12,6 +12,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { DirectionalDashboardPage } from "./pages/dashboard/DirectionalDashboardPage";
 import PeoplePage from "./pages/hr/PeoplePage";
+import SafetyPage from "./pages/hr/SafetyPage";
 import CallRecordsPage from "./pages/crm/CallRecordsPage";
 import TechniciansPage from "./pages/hr/TechniciansPage";
 import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
@@ -116,6 +117,7 @@ const App = () => (
                 <Route path="personal-area" element={<DashboardPage />} />
                 
                 <Route path="hr/people" element={<PeoplePage />} />
+                <Route path="hr/safety" element={<SafetyPage />} />
                 <Route path="hr/technicians" element={<TechniciansPage />} />
                 <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />
                 <Route path="mfg/bom" element={<BomPage />} />
