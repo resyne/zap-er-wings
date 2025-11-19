@@ -105,6 +105,8 @@ export default function OffersPage() {
   const isMobile = useIsMobile();
   const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [leadSearchOpen, setLeadSearchOpen] = useState(false);
+  const [leadSearchTerm, setLeadSearchTerm] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
     product_name: string;
@@ -2656,22 +2658,81 @@ export default function OffersPage() {
               <div className="border-t pt-4">
                 <label className="text-sm font-medium">Lead Collegato</label>
                 <div className="flex gap-2 mt-2">
-                  <Select 
-                    value={selectedOffer.lead_id || "none"} 
-                    onValueChange={(value) => handleLinkLead(selectedOffer.id, value === "none" ? null : value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Seleziona un lead" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessun lead</SelectItem>
-                      {leads.map((lead) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          {lead.company_name} - {lead.contact_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={leadSearchOpen} onOpenChange={setLeadSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={leadSearchOpen}
+                        className="flex-1 justify-between"
+                      >
+                        {selectedOffer.lead_id
+                          ? (() => {
+                              const lead = leads.find((l) => l.id === selectedOffer.lead_id);
+                              return lead ? `${lead.company_name} - ${lead.contact_name}` : "Seleziona un lead";
+                            })()
+                          : "Nessun lead"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Cerca lead..." 
+                          value={leadSearchTerm}
+                          onValueChange={setLeadSearchTerm}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nessun lead trovato.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="none"
+                              onSelect={() => {
+                                handleLinkLead(selectedOffer.id, null);
+                                setLeadSearchOpen(false);
+                                setLeadSearchTerm('');
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  !selectedOffer.lead_id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              Nessun lead
+                            </CommandItem>
+                            {leads
+                              .filter((lead) => {
+                                const searchLower = leadSearchTerm.toLowerCase();
+                                return (
+                                  lead.company_name?.toLowerCase().includes(searchLower) ||
+                                  lead.contact_name?.toLowerCase().includes(searchLower)
+                                );
+                              })
+                              .map((lead) => (
+                                <CommandItem
+                                  key={lead.id}
+                                  value={lead.id}
+                                  onSelect={() => {
+                                    handleLinkLead(selectedOffer.id, lead.id);
+                                    setLeadSearchOpen(false);
+                                    setLeadSearchTerm('');
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedOffer.lead_id === lead.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {lead.company_name} - {lead.contact_name}
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {selectedOffer.lead_id && (
                     <Button
                       variant="outline"
