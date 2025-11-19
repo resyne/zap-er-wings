@@ -741,84 +741,95 @@ export default function LeadKpiPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sales" className="space-y-4">
-          <div className="flex items-center gap-4 mb-4">
-            <Filter className="h-5 w-5 text-muted-foreground" />
-            <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtra per periodo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Oggi</SelectItem>
-                <SelectItem value="week">Questa Settimana</SelectItem>
-                <SelectItem value="month">Questo Mese</SelectItem>
-                <SelectItem value="all">Tutto</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-muted-foreground">
-              Periodo: {activityFilter === 'today' ? 'Oggi' : activityFilter === 'week' ? 'Questa Settimana' : activityFilter === 'month' ? 'Questo Mese' : 'Tutto'}
+        <TabsContent value="sales" className="space-y-6">
+          {/* Filtro periodo */}
+          <div className="flex items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg border">
+            <div className="flex items-center gap-3">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+              <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtra per periodo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Oggi</SelectItem>
+                  <SelectItem value="week">Questa Settimana</SelectItem>
+                  <SelectItem value="month">Questo Mese</SelectItem>
+                  <SelectItem value="all">Tutto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {activityFilter === 'today' && '📅 Attività di oggi'}
+              {activityFilter === 'week' && '📅 Attività di questa settimana'}
+              {activityFilter === 'month' && '📅 Attività di questo mese'}
+              {activityFilter === 'all' && '📅 Tutte le attività'}
             </span>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance per Sales</CardTitle>
-              <CardDescription>Confronto performance venditori</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={salesPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="userName" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="totalLeads" fill="#8884d8" name="Totale Lead" />
-                  <Bar dataKey="wonLeads" fill="#00C49F" name="Lead Vinti" />
-                  <Bar dataKey="lostLeads" fill="#FF8042" name="Lead Persi" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          {/* Card statistiche utenti */}
+          <div className="grid gap-4 md:grid-cols-3">
+            {salesPerformance.map(user => {
+              const userActivities = getFilteredActivityLogs().filter(
+                log => log.assignedTo === user.userId
+              );
+              const completedCount = userActivities.filter(a => a.status === 'completed').length;
+              const scheduledCount = userActivities.filter(a => a.status === 'scheduled').length;
+              
+              return (
+                <Card key={user.userId} className="overflow-hidden">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base">{user.userName}</CardTitle>
+                        <CardDescription className="text-xs mt-0.5">
+                          {userActivities.length} {userActivities.length === 1 ? 'attività' : 'attività'}
+                        </CardDescription>
+                      </div>
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pb-4">
+                    <div className="text-3xl font-bold">{userActivities.length}</div>
+                    
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className="text-xs bg-green-500/10 border-green-500/20">
+                        ✓ {completedCount} Completate
+                      </Badge>
+                      <Badge variant="outline" className="text-xs bg-orange-500/10 border-orange-500/20">
+                        ⏰ {scheduledCount} Programmate
+                      </Badge>
+                    </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tasso di Conversione per Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={salesPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="userName" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
-                    <Bar dataKey="conversionRate" fill="#00C49F" name="Tasso Conversione %" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Valore Totale per Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={salesPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="userName" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => hideAmounts ? '•••' : `€${Number(value).toLocaleString()}`} />
-                    <Bar dataKey="totalValue" fill="#FFBB28" name="Valore Totale €" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+                    <div className="pt-2 border-t space-y-1">
+                      <div className="text-xs text-muted-foreground">
+                        Media: <span className="font-medium text-foreground">{userActivityStats.find(s => s.userId === user.userId)?.avgActivitiesPerDay.toFixed(1) || 0} attività/giorno</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Ultima: <span className="font-medium text-foreground">
+                          {userActivityStats.find(s => s.userId === user.userId)?.lastActivityDate 
+                            ? format(new Date(userActivityStats.find(s => s.userId === user.userId)!.lastActivityDate), 'dd/MM/yyyy HH:mm', { locale: it })
+                            : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
+          {/* Sezione Log Attività */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Attività per Utente</h3>
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <h3 className="text-lg font-semibold text-muted-foreground">Log Attività</h3>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            
+            <p className="text-sm text-muted-foreground text-center">
+              {getFilteredActivityLogs().length} {getFilteredActivityLogs().length === 1 ? 'attività trovata' : 'attività trovate'}
+            </p>
+
             {salesPerformance.map(user => {
               const userActivities = getFilteredActivityLogs().filter(
                 log => log.assignedTo === user.userId
@@ -827,76 +838,78 @@ export default function LeadKpiPage() {
               if (userActivities.length === 0) return null;
 
               return (
-                <Card key={user.userId}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
+                <Card key={user.userId} className="overflow-hidden">
+                  <CardHeader className="bg-muted/30 pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
-                        <CardTitle className="text-xl">{user.userName}</CardTitle>
-                        <CardDescription>
-                          {userActivities.length} attività nel periodo selezionato
+                        <CardTitle className="text-lg">{user.userName}</CardTitle>
+                        <CardDescription className="mt-1">
+                          {userActivities.length} {userActivities.length === 1 ? 'attività' : 'attività'} nel periodo selezionato
                         </CardDescription>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm text-muted-foreground">Performance</div>
-                        <div className="flex gap-3 mt-1">
-                          <Badge variant="outline" className="bg-green-500/10">
-                            {user.wonLeads} Vinti
-                          </Badge>
-                          <Badge variant="outline" className="bg-red-500/10">
-                            {user.lostLeads} Persi
-                          </Badge>
-                          <Badge variant="outline">
-                            {user.conversionRate.toFixed(1)}% Conv.
-                          </Badge>
-                        </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline" className="bg-green-500/10 border-green-500/30">
+                          ✓ {user.wonLeads} Vinti
+                        </Badge>
+                        <Badge variant="outline" className="bg-red-500/10 border-red-500/30">
+                          ✗ {user.lostLeads} Persi
+                        </Badge>
+                        <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30">
+                          📊 {user.conversionRate.toFixed(1)}% Conv.
+                        </Badge>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[140px]">Data/Ora</TableHead>
-                          <TableHead>Lead</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Stato</TableHead>
-                          <TableHead>Note</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {userActivities.map(log => (
-                          <TableRow key={log.id}>
-                            <TableCell className="font-mono text-xs">
-                              {format(new Date(log.activityDate), 'dd/MM/yyyy HH:mm', { locale: it })}
-                            </TableCell>
-                            <TableCell className="font-medium">{log.leadName}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {log.isAI && log.aiActionType
-                                  ? aiActionLabels[log.aiActionType] || log.aiActionType
-                                  : activityTypeLabels[log.activityType] || log.activityType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  log.status === 'completed'
-                                    ? 'default'
-                                    : log.status === 'cancelled'
-                                    ? 'destructive'
-                                    : 'secondary'
-                                }
-                              >
-                                {activityStatusLabels[log.status] || log.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate text-sm">
-                              {log.notes}
-                            </TableCell>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[130px]">Data/Ora</TableHead>
+                            <TableHead className="min-w-[180px]">Lead</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Stato</TableHead>
+                            <TableHead className="min-w-[200px]">Note</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {userActivities.map(log => (
+                            <TableRow key={log.id} className="hover:bg-muted/30">
+                              <TableCell className="font-mono text-xs whitespace-nowrap">
+                                {format(new Date(log.activityDate), 'dd/MM/yyyy HH:mm', { locale: it })}
+                              </TableCell>
+                              <TableCell className="font-medium">{log.leadName}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                  {log.isAI && log.aiActionType
+                                    ? aiActionLabels[log.aiActionType] || log.aiActionType
+                                    : activityTypeLabels[log.activityType] || log.activityType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    log.status === 'completed'
+                                      ? 'default'
+                                      : log.status === 'cancelled'
+                                      ? 'destructive'
+                                      : 'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {activityStatusLabels[log.status] || log.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-xs text-sm">
+                                <div className="truncate" title={log.notes}>
+                                  {log.notes}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                 </Card>
               );
