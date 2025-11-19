@@ -742,6 +742,24 @@ export default function LeadKpiPage() {
         </TabsContent>
 
         <TabsContent value="sales" className="space-y-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtra per periodo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Oggi</SelectItem>
+                <SelectItem value="week">Questa Settimana</SelectItem>
+                <SelectItem value="month">Questo Mese</SelectItem>
+                <SelectItem value="all">Tutto</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">
+              Periodo: {activityFilter === 'today' ? 'Oggi' : activityFilter === 'week' ? 'Questa Settimana' : activityFilter === 'month' ? 'Questo Mese' : 'Tutto'}
+            </span>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Performance per Sales</CardTitle>
@@ -797,6 +815,101 @@ export default function LeadKpiPage() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Attività per Utente</h3>
+            {salesPerformance.map(user => {
+              const userActivities = getFilteredActivityLogs().filter(
+                log => log.assignedTo === user.userId
+              );
+              
+              if (userActivities.length === 0) return null;
+
+              return (
+                <Card key={user.userId}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-xl">{user.userName}</CardTitle>
+                        <CardDescription>
+                          {userActivities.length} attività nel periodo selezionato
+                        </CardDescription>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground">Performance</div>
+                        <div className="flex gap-3 mt-1">
+                          <Badge variant="outline" className="bg-green-500/10">
+                            {user.wonLeads} Vinti
+                          </Badge>
+                          <Badge variant="outline" className="bg-red-500/10">
+                            {user.lostLeads} Persi
+                          </Badge>
+                          <Badge variant="outline">
+                            {user.conversionRate.toFixed(1)}% Conv.
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[140px]">Data/Ora</TableHead>
+                          <TableHead>Lead</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Stato</TableHead>
+                          <TableHead>Note</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {userActivities.map(log => (
+                          <TableRow key={log.id}>
+                            <TableCell className="font-mono text-xs">
+                              {format(new Date(log.activityDate), 'dd/MM/yyyy HH:mm', { locale: it })}
+                            </TableCell>
+                            <TableCell className="font-medium">{log.leadName}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {log.isAI && log.aiActionType
+                                  ? aiActionLabels[log.aiActionType] || log.aiActionType
+                                  : activityTypeLabels[log.activityType] || log.activityType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  log.status === 'completed'
+                                    ? 'default'
+                                    : log.status === 'cancelled'
+                                    ? 'destructive'
+                                    : 'secondary'
+                                }
+                              >
+                                {activityStatusLabels[log.status] || log.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate text-sm">
+                              {log.notes}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {salesPerformance.every(user => 
+              getFilteredActivityLogs().filter(log => log.assignedTo === user.userId).length === 0
+            ) && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nessuna attività trovata per il periodo selezionato
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
