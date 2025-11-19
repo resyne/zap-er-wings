@@ -50,3 +50,9 @@ verify_jwt = false
 
 [functions.translate-offer]
 verify_jwt = false
+
+# Cron Jobs - Scheduled tasks
+[[edge_runtime.scheduled_functions]]
+  name = "process-email-queue"
+  cron = "*/5 * * * *"  # Runs every 5 minutes
+  region = "eu-west-1"
