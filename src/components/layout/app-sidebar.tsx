@@ -38,7 +38,8 @@ import {
   Ticket,
   Palette,
   CheckSquare,
-  Phone
+  Phone,
+  Shield
 } from "lucide-react";
 
 import {
@@ -181,6 +182,7 @@ const navigationGroups: NavGroup[] = [
     title: "Risorse Umane",
     items: [
       { title: "Personale", url: "/hr/people", icon: Users },
+      { title: "Sicurezza sul Lavoro", url: "/hr/safety", icon: Shield },
       { title: "Tecnici", url: "/hr/technicians", icon: Wrench },
       { title: "Timesheet", url: "/hr/timesheets", icon: Clock },
       { title: "Rimborsi", url: "/hr/expenses", icon: DollarSign },

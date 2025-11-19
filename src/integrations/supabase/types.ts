@@ -3363,6 +3363,53 @@ export type Database = {
           },
         ]
       }
+      medical_checkups: {
+        Row: {
+          certificate_url: string | null
+          checkup_date: string
+          created_at: string | null
+          doctor_name: string | null
+          employee_id: string | null
+          expiry_date: string
+          id: string
+          notes: string | null
+          result: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          certificate_url?: string | null
+          checkup_date: string
+          created_at?: string | null
+          doctor_name?: string | null
+          employee_id?: string | null
+          expiry_date: string
+          id?: string
+          notes?: string | null
+          result?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          certificate_url?: string | null
+          checkup_date?: string
+          created_at?: string | null
+          doctor_name?: string | null
+          employee_id?: string | null
+          expiry_date?: string
+          id?: string
+          notes?: string | null
+          result?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_checkups_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_templates: {
         Row: {
           attachments: Json | null
@@ -5167,6 +5214,136 @@ export type Database = {
             columns: ["serial_id"]
             isOneToOne: false
             referencedRelation: "serials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      safety_appointments: {
+        Row: {
+          appointment_date: string
+          appointment_type: string
+          certificate_url: string | null
+          created_at: string | null
+          employee_id: string | null
+          employee_name: string
+          expiry_date: string | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_date: string
+          appointment_type: string
+          certificate_url?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          employee_name: string
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_date?: string
+          appointment_type?: string
+          certificate_url?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          employee_name?: string
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_appointments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      safety_documents: {
+        Row: {
+          created_at: string | null
+          document_name: string
+          document_type: string
+          document_url: string
+          expiry_date: string | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+          upload_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_name: string
+          document_type: string
+          document_url: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          upload_date: string
+        }
+        Update: {
+          created_at?: string | null
+          document_name?: string
+          document_type?: string
+          document_url?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          upload_date?: string
+        }
+        Relationships: []
+      }
+      safety_training_records: {
+        Row: {
+          certificate_url: string | null
+          created_at: string | null
+          employee_id: string | null
+          expiry_date: string
+          id: string
+          notes: string | null
+          training_date: string
+          training_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          certificate_url?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          expiry_date: string
+          id?: string
+          notes?: string | null
+          training_date: string
+          training_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          certificate_url?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          expiry_date?: string
+          id?: string
+          notes?: string | null
+          training_date?: string
+          training_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_training_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
