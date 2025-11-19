@@ -2701,33 +2701,25 @@ export default function OffersPage() {
                               />
                               Nessun lead
                             </CommandItem>
-                            {leads
-                              .filter((lead) => {
-                                const searchLower = leadSearchTerm.toLowerCase();
-                                return (
-                                  lead.company_name?.toLowerCase().includes(searchLower) ||
-                                  lead.contact_name?.toLowerCase().includes(searchLower)
-                                );
-                              })
-                              .map((lead) => (
-                                <CommandItem
-                                  key={lead.id}
-                                  value={lead.id}
-                                  onSelect={() => {
-                                    handleLinkLead(selectedOffer.id, lead.id);
-                                    setLeadSearchOpen(false);
-                                    setLeadSearchTerm('');
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedOffer.lead_id === lead.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {lead.company_name} - {lead.contact_name}
-                                </CommandItem>
-                              ))}
+                            {leads.map((lead) => (
+                              <CommandItem
+                                key={lead.id}
+                                value={`${lead.company_name || ''} ${lead.contact_name || ''}`.trim()}
+                                onSelect={() => {
+                                  handleLinkLead(selectedOffer.id, lead.id);
+                                  setLeadSearchOpen(false);
+                                  setLeadSearchTerm('');
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedOffer.lead_id === lead.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {lead.company_name} - {lead.contact_name}
+                              </CommandItem>
+                            ))}
                           </CommandGroup>
                         </CommandList>
                       </Command>
