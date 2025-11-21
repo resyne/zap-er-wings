@@ -1083,7 +1083,7 @@ export default function OrdersPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Lead:</span>
                           <Link 
-                            to={`/crm/opportunities?lead=${offer.lead_id}`}
+                            to={`/crm/leads?lead=${offer.lead_id}`}
                             className="text-primary hover:underline flex items-center gap-1"
                           >
                             {offer.leads.company_name}
