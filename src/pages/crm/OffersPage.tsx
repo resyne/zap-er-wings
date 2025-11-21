@@ -178,18 +178,38 @@ export default function OffersPage() {
   }, [showArchived, selectedGlobalPriceListId]);
 
   useEffect(() => {
-    if (!loading && offers.length > 0) {
-      const offerId = searchParams.get('offer');
-      if (offerId) {
-        const offer = offers.find(o => o.id === offerId);
-        if (offer) {
-          openDetails(offer);
-          // Remove the parameter to prevent reopening on refresh
-          setSearchParams({});
-        }
+    const offerId = searchParams.get('offer');
+    if (offerId && !loading) {
+      // First, try to find in current offers
+      let offer = offers.find(o => o.id === offerId);
+      
+      // If not found and we're not showing archived, load it directly
+      if (!offer && !showArchived) {
+        supabase
+          .from('offers')
+          .select(`
+            *,
+            customers (name, email, address, tax_id),
+            leads (id, company_name, contact_name, status, value)
+          `)
+          .eq('id', offerId)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              const transformedOffer = {
+                ...data,
+                customer_name: data.customers?.name || data.customer_name,
+              };
+              openDetails(transformedOffer as Offer);
+              setSearchParams({});
+            }
+          });
+      } else if (offer) {
+        openDetails(offer);
+        setSearchParams({});
       }
     }
-  }, [loading, offers, searchParams]);
+  }, [loading, offers, searchParams, showArchived]);
 
   const loadData = async () => {
     setLoading(true);
