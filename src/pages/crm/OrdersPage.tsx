@@ -924,6 +924,22 @@ export default function OrdersPage() {
     return labels[status] || status;
   };
 
+  const calculateAgingDays = (dateString?: string) => {
+    if (!dateString) return 0;
+    const date = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getAgingColor = (days: number) => {
+    if (days <= 7) return 'text-green-600 dark:text-green-400';
+    if (days <= 14) return 'text-yellow-600 dark:text-yellow-400';
+    if (days <= 30) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -1237,22 +1253,24 @@ export default function OrdersPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {viewMode === "table" ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Lead</TableHead>
-                <TableHead>Commesse</TableHead>
-                <TableHead>Data Ordine</TableHead>
-                <TableHead>Consegna</TableHead>
-                <TableHead>Stato</TableHead>
-                <TableHead>Note</TableHead>
-                <TableHead className="w-[50px]">Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="min-w-[800px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[120px]">Numero</TableHead>
+                  <TableHead className="min-w-[150px]">Cliente</TableHead>
+                  <TableHead className="min-w-[120px]">Lead</TableHead>
+                  <TableHead className="min-w-[150px]">Commesse</TableHead>
+                  <TableHead className="min-w-[110px]">Data Ordine</TableHead>
+                  <TableHead className="min-w-[90px]">Aging</TableHead>
+                  <TableHead className="min-w-[110px]">Consegna</TableHead>
+                  <TableHead className="min-w-[100px]">Stato</TableHead>
+                  <TableHead className="min-w-[150px]">Note</TableHead>
+                  <TableHead className="w-[50px]">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
                 <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
@@ -1298,17 +1316,30 @@ export default function OrdersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {order.order_date && (
+                    {order.order_date ? (
                       <span className="text-sm">
                         {new Date(order.order_date).toLocaleDateString('it-IT')}
                       </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    {order.delivery_date && (
+                    {order.order_date ? (
+                      <span className={`text-sm font-semibold ${getAgingColor(calculateAgingDays(order.order_date))}`}>
+                        {calculateAgingDays(order.order_date)} giorni
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {order.delivery_date ? (
                       <span className="text-sm">
                         {new Date(order.delivery_date).toLocaleDateString('it-IT')}
                       </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -1384,9 +1415,10 @@ export default function OrdersPage() {
               )}
             </TableBody>
           </Table>
+          </div>
           ) : (
             <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                 {orderStatuses.map((status) => (
                   <div key={status} className="space-y-3">
                     <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
@@ -1420,20 +1452,25 @@ export default function OrdersPage() {
                                         className={`p-4 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
                                           snapshot.isDragging ? 'shadow-lg opacity-90' : ''
                                         }`}
-                                      >
-                                         <div className="space-y-3">
-                                           <div className="flex items-start justify-between gap-2">
-                                             <div className="flex-1 min-w-0">
-                                               <div className="font-semibold text-base">{order.number}</div>
-                                               <div className="text-sm text-muted-foreground truncate">
-                                                 {order.customers?.name}
-                                               </div>
-                                               {order.order_date && (
-                                                 <div className="text-xs text-muted-foreground mt-1">
-                                                   {new Date(order.order_date).toLocaleDateString('it-IT')}
-                                                 </div>
-                                               )}
-                                             </div>
+                                       >
+                                          <div className="space-y-2 md:space-y-3">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="flex-1 min-w-0">
+                                                <div className="font-semibold text-sm md:text-base">{order.number}</div>
+                                                <div className="text-xs md:text-sm text-muted-foreground truncate">
+                                                  {order.customers?.name}
+                                                </div>
+                                                {order.order_date && (
+                                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                    <span className="text-xs text-muted-foreground">
+                                                      {new Date(order.order_date).toLocaleDateString('it-IT')}
+                                                    </span>
+                                                    <span className={`text-xs font-semibold ${getAgingColor(calculateAgingDays(order.order_date))}`}>
+                                                      • {calculateAgingDays(order.order_date)}gg
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
                                              <div className="flex items-center gap-2 shrink-0">
                                                <DropdownMenu>
                                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -1485,24 +1522,24 @@ export default function OrdersPage() {
                                               </DropdownMenu>
                                             </div>
                                            </div>
-                                           
-                                           {/* Created by and time */}
-                                           <div className="flex items-center justify-between text-xs text-muted-foreground border-b pb-2">
-                                             <span>
-                                               {order.profiles ? 
-                                                 `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() || order.profiles.email 
-                                                 : 'N/A'}
-                                             </span>
-                                             <span>
-                                               {new Date(order.created_at).toLocaleString('it-IT', {
-                                                 day: '2-digit',
-                                                 month: '2-digit',
-                                                 year: 'numeric',
-                                                 hour: '2-digit',
-                                                 minute: '2-digit'
-                                               })}
-                                             </span>
-                                           </div>
+                                            
+                                            {/* Created by and time */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-muted-foreground border-b pb-2 gap-1">
+                                              <span className="truncate">
+                                                {order.profiles ? 
+                                                  `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() || order.profiles.email 
+                                                  : 'N/A'}
+                                              </span>
+                                              <span className="text-[10px] sm:text-xs whitespace-nowrap">
+                                                {new Date(order.created_at).toLocaleString('it-IT', {
+                                                  day: '2-digit',
+                                                  month: '2-digit',
+                                                  year: 'numeric',
+                                                  hour: '2-digit',
+                                                  minute: '2-digit'
+                                                })}
+                                              </span>
+                                            </div>
                                            
                                             {/* Lead collegato */}
                                             {order.leads && (
@@ -1550,37 +1587,37 @@ export default function OrdersPage() {
                                            )}
                                            
                                            {/* Riferimenti ordini collegati */}
-                                          {getSubOrdersStatus(order).length > 0 && (
-                                            <div className="pt-2 border-t space-y-2">
-                                              <div className="text-xs font-medium text-muted-foreground">
-                                                Ordini Collegati:
-                                              </div>
-                                              {getSubOrdersStatus(order).map((subStatus, idx) => (
-                                                <div key={idx} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded">
-                                                  <div className="flex items-center gap-2 min-w-0">
-                                                    <Badge className={subStatus.color} variant="outline">
-                                                      {subStatus.type}
-                                                    </Badge>
-                                                    <span className="text-xs font-mono truncate">
-                                                      {subStatus.number}
-                                                    </span>
-                                                  </div>
-                                                  <span className="text-xs font-medium whitespace-nowrap">
-                                                    {getSubOrderStatusLabel(subStatus.status)}
-                                                  </span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                          
-                                          {/* Note preview */}
-                                          {order.notes && order.notes.length > 0 && (
-                                            <div className="pt-2 border-t">
-                                              <div className="text-xs text-muted-foreground line-clamp-2">
-                                                {order.notes}
-                                              </div>
-                                            </div>
-                                          )}
+                                           {getSubOrdersStatus(order).length > 0 && (
+                                             <div className="pt-2 border-t space-y-2">
+                                               <div className="text-xs font-medium text-muted-foreground">
+                                                 Ordini Collegati:
+                                               </div>
+                                               {getSubOrdersStatus(order).map((subStatus, idx) => (
+                                                 <div key={idx} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded">
+                                                   <div className="flex items-center gap-2 min-w-0">
+                                                     <Badge className={`${subStatus.color} text-[10px] md:text-xs`} variant="outline">
+                                                       {subStatus.type}
+                                                     </Badge>
+                                                     <span className="text-[10px] md:text-xs font-mono truncate">
+                                                       {subStatus.number}
+                                                     </span>
+                                                   </div>
+                                                   <span className="text-[10px] md:text-xs font-medium whitespace-nowrap">
+                                                     {getSubOrderStatusLabel(subStatus.status)}
+                                                   </span>
+                                                 </div>
+                                               ))}
+                                             </div>
+                                           )}
+                                           
+                                           {/* Note preview */}
+                                           {order.notes && order.notes.length > 0 && (
+                                             <div className="pt-2 border-t">
+                                               <div className="text-[11px] md:text-xs text-muted-foreground line-clamp-2">
+                                                 {order.notes}
+                                               </div>
+                                             </div>
+                                           )}
                                        </div>
                                     </div>
                                   )}
@@ -1852,12 +1889,12 @@ export default function OrdersPage() {
                         <Link 
                           key={wo.id} 
                           to="/mfg/work-orders"
-                          className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          className="block p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                         >
-                          <div className="flex items-center justify-between mb-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
-                              <div className="font-semibold">{wo.number}</div>
-                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              <div className="font-semibold text-sm md:text-base">{wo.number}</div>
+                              <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
                             </div>
                             <Badge className={
                               wo.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -1867,8 +1904,18 @@ export default function OrdersPage() {
                               {getSubOrderStatusLabel(wo.status)}
                             </Badge>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {wo.includes_installation ? 'Include Installazione' : 'Solo Produzione'}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs md:text-sm text-muted-foreground">
+                            <span>
+                              {wo.includes_installation ? 'Include Installazione' : 'Solo Produzione'}
+                            </span>
+                            {selectedOrder.order_date && (
+                              <div className="flex items-center gap-2">
+                                <span>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</span>
+                                <span className={`font-semibold ${getAgingColor(calculateAgingDays(selectedOrder.order_date))}`}>
+                                  • {calculateAgingDays(selectedOrder.order_date)} giorni
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </Link>
                       ))}
@@ -1889,12 +1936,12 @@ export default function OrdersPage() {
                         <Link 
                           key={swo.id} 
                           to="/support/work-orders"
-                          className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          className="block p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <div className="font-semibold">{swo.number}</div>
-                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              <div className="font-semibold text-sm md:text-base">{swo.number}</div>
+                              <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
                             </div>
                             <Badge className={
                               swo.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -1904,6 +1951,14 @@ export default function OrdersPage() {
                               {getSubOrderStatusLabel(swo.status)}
                             </Badge>
                           </div>
+                          {selectedOrder.order_date && (
+                            <div className="flex items-center gap-2 mt-2 text-xs md:text-sm text-muted-foreground">
+                              <span>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</span>
+                              <span className={`font-semibold ${getAgingColor(calculateAgingDays(selectedOrder.order_date))}`}>
+                                • {calculateAgingDays(selectedOrder.order_date)} giorni
+                              </span>
+                            </div>
+                          )}
                         </Link>
                       ))}
                     </div>
@@ -1923,12 +1978,12 @@ export default function OrdersPage() {
                         <Link 
                           key={so.id} 
                           to="/warehouse/shipping-orders"
-                          className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          className="block p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <div className="font-semibold">{so.number}</div>
-                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              <div className="font-semibold text-sm md:text-base">{so.number}</div>
+                              <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
                             </div>
                             <Badge className={
                               so.status === 'spedito' ? 'bg-green-100 text-green-800' :
@@ -1938,6 +1993,14 @@ export default function OrdersPage() {
                               {getSubOrderStatusLabel(so.status)}
                             </Badge>
                           </div>
+                          {selectedOrder.order_date && (
+                            <div className="flex items-center gap-2 mt-2 text-xs md:text-sm text-muted-foreground">
+                              <span>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</span>
+                              <span className={`font-semibold ${getAgingColor(calculateAgingDays(selectedOrder.order_date))}`}>
+                                • {calculateAgingDays(selectedOrder.order_date)} giorni
+                              </span>
+                            </div>
+                          )}
                         </Link>
                       ))}
                     </div>
