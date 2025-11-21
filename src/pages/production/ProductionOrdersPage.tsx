@@ -1419,42 +1419,58 @@ export default function WorkOrdersPage() {
                         )}
                       </TableCell>
                         <TableCell>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Select 
-                              value={wo.status} 
-                              onValueChange={(value: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => 
-                                handleStatusChange(wo.id, value)
-                              }
-                            >
-                              <SelectTrigger className="w-40">
-                                <SelectValue>
-                                  <StatusBadge status={wo.status} />
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="da_fare">
-                                  <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
-                                </SelectItem>
-                                <SelectItem value="in_lavorazione">
-                                  <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
-                                </SelectItem>
-                                <SelectItem value="in_test">
-                                  <Badge className="bg-orange-500 text-white">In Test</Badge>
-                                </SelectItem>
-                                <SelectItem value="pronto">
-                                  <Badge className="bg-blue-500 text-white">Pronto</Badge>
-                                </SelectItem>
-                                <SelectItem value="completato">
-                                  <Badge className="bg-success text-success-foreground">Completato</Badge>
-                                </SelectItem>
-                                <SelectItem value="standby">
-                                  <Badge className="bg-purple-500 text-white">Standby</Badge>
-                                </SelectItem>
-                                <SelectItem value="bloccato">
-                                  <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                          <div className="flex items-center gap-2">
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Select 
+                                value={wo.status} 
+                                onValueChange={(value: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => 
+                                  handleStatusChange(wo.id, value)
+                                }
+                              >
+                                <SelectTrigger className="w-40">
+                                  <SelectValue>
+                                    <StatusBadge status={wo.status} />
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="da_fare">
+                                    <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
+                                  </SelectItem>
+                                  <SelectItem value="in_lavorazione">
+                                    <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
+                                  </SelectItem>
+                                  <SelectItem value="in_test">
+                                    <Badge className="bg-orange-500 text-white">In Test</Badge>
+                                  </SelectItem>
+                                  <SelectItem value="pronto">
+                                    <Badge className="bg-blue-500 text-white">Pronto</Badge>
+                                  </SelectItem>
+                                  <SelectItem value="completato">
+                                    <Badge className="bg-success text-success-foreground">Completato</Badge>
+                                  </SelectItem>
+                                  <SelectItem value="standby">
+                                    <Badge className="bg-purple-500 text-white">Standby</Badge>
+                                  </SelectItem>
+                                  <SelectItem value="bloccato">
+                                    <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {wo.status === 'completato' && !wo.archived && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleArchive(wo.id, wo.archived || false);
+                                }}
+                                className="gap-1"
+                              >
+                                <Archive className="h-3 w-3" />
+                                Archivia
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                        <TableCell className="text-right">
@@ -1633,8 +1649,24 @@ export default function WorkOrdersPage() {
                                                <span>Inizio: {new Date(wo.planned_start_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
                                              </div>
                                            )}
+                                           
+                                           {/* Bottone Archivia per ordini completati */}
+                                           {wo.status === 'completato' && !wo.archived && (
+                                             <Button
+                                               size="sm"
+                                               variant="outline"
+                                               onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 handleArchive(wo.id, wo.archived || false);
+                                               }}
+                                               className="w-full text-[11px] md:text-xs h-7 md:h-8 gap-1 mt-1"
+                                             >
+                                               <Archive className="h-3 w-3" />
+                                               Archivia
+                                             </Button>
+                                           )}
                                          </div>
-                                      </div>
+                                       </div>
                                      </div>
                                   )}
                                 </Draggable>
