@@ -183,8 +183,8 @@ export default function OffersPage() {
       // First, try to find in current offers
       let offer = offers.find(o => o.id === offerId);
       
-      // If not found and we're not showing archived, load it directly
-      if (!offer && !showArchived) {
+      // If not found in current list, load it directly from database
+      if (!offer) {
         supabase
           .from('offers')
           .select(`
@@ -204,12 +204,12 @@ export default function OffersPage() {
               setSearchParams({});
             }
           });
-      } else if (offer) {
+      } else {
         openDetails(offer);
         setSearchParams({});
       }
     }
-  }, [loading, offers, searchParams, showArchived]);
+  }, [loading, offers, searchParams]);
 
   const loadData = async () => {
     setLoading(true);
