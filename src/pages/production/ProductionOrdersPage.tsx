@@ -1892,7 +1892,7 @@ export default function WorkOrdersPage() {
                   <Label className="text-sm font-medium">Lead</Label>
                   {selectedWO.leads ? (
                     <Link 
-                      to={`/crm/opportunities?lead=${selectedWO.lead_id}`}
+                      to={`/crm/leads?lead=${selectedWO.lead_id}`}
                       className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
                     >
                       {selectedWO.leads.company_name}
