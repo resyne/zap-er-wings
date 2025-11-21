@@ -73,6 +73,7 @@ interface WorkOrder {
   };
   sales_orders?: {
     number: string;
+    order_date?: string;
   };
   leads?: {
     id: string;
@@ -138,7 +139,7 @@ export default function WorkOrdersPage() {
           *,
           boms(name, version),
           customers(name, code),
-          sales_orders(number),
+          sales_orders(number, order_date),
           leads(id, company_name),
           offers(number),
           service_work_orders!production_work_order_id(id, number, title)
@@ -1095,6 +1096,22 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const calculateAgingDays = (dateString?: string) => {
+    if (!dateString) return 0;
+    const date = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getAgingColor = (days: number) => {
+    if (days <= 7) return 'text-green-600 dark:text-green-400';
+    if (days <= 14) return 'text-yellow-600 dark:text-yellow-400';
+    if (days <= 30) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
 
@@ -1287,18 +1304,21 @@ export default function WorkOrdersPage() {
         </CardHeader>
         <CardContent>
           {viewMode === "table" ? (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Numero</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Assegnato a</TableHead>
-                  <TableHead>Priorità</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
+          <div className="rounded-md border overflow-x-auto">
+            <div className="min-w-[900px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[120px]">Ordine</TableHead>
+                    <TableHead className="min-w-[150px]">Cliente</TableHead>
+                    <TableHead className="min-w-[140px]">Assegnato a</TableHead>
+                    <TableHead className="min-w-[100px]">Priorità</TableHead>
+                    <TableHead className="min-w-[110px]">Data Ordine</TableHead>
+                    <TableHead className="min-w-[90px]">Aging</TableHead>
+                    <TableHead className="min-w-[140px]">Stato</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
@@ -1320,14 +1340,19 @@ export default function WorkOrdersPage() {
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {wo.number}
-                          {wo.service_work_orders && wo.service_work_orders.length > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Wrench className="w-3 h-3 mr-1" />
-                              Installazione
-                            </Badge>
-                          )}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">
+                              {wo.sales_orders?.number || wo.number}
+                            </span>
+                            {wo.service_work_orders && wo.service_work_orders.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Wrench className="w-3 h-3 mr-1" />
+                                Installazione
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground">CdP: {wo.number}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1374,6 +1399,24 @@ export default function WorkOrdersPage() {
                            wo.priority === 'high' ? 'Alta' :
                            wo.priority === 'medium' ? 'Media' : 'Bassa'}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {wo.sales_orders?.order_date ? (
+                          <span className="text-sm">
+                            {new Date(wo.sales_orders.order_date).toLocaleDateString('it-IT')}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wo.sales_orders?.order_date ? (
+                          <span className={`text-sm font-semibold ${getAgingColor(calculateAgingDays(wo.sales_orders.order_date))}`}>
+                            {calculateAgingDays(wo.sales_orders.order_date)}gg
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                         <TableCell>
                           <div onClick={(e) => e.stopPropagation()}>
@@ -1454,10 +1497,11 @@ export default function WorkOrdersPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
           ) : viewMode === "kanban" ? (
             <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-7 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3 md:gap-4">
                 {workOrderStatuses.map((status) => (
                   <div key={status} className="space-y-3">
                     <div className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
@@ -1495,16 +1539,21 @@ export default function WorkOrdersPage() {
                                        className={`p-3 bg-card border rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all ${
                                          snapshot.isDragging ? 'shadow-lg opacity-90 ring-2 ring-primary' : ''
                                        }`}
-                                     >
-                                      <div className="space-y-2.5">
-                                        {/* Header con numero e priorità */}
-                                        <div className="flex items-start justify-between gap-2">
-                                          <div className="flex-1 min-w-0">
-                                            <div className="font-semibold text-sm text-foreground">{wo.number}</div>
-                                            <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                                              {wo.title}
-                                            </div>
-                                          </div>
+                                      >
+                                       <div className="space-y-2 md:space-y-2.5">
+                                         {/* Header con numero ordine e priorità */}
+                                         <div className="flex items-start justify-between gap-2">
+                                           <div className="flex-1 min-w-0">
+                                             <div className="font-semibold text-sm md:text-base text-foreground">
+                                               {wo.sales_orders?.number || wo.number}
+                                             </div>
+                                             <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
+                                               CdP: {wo.number}
+                                             </div>
+                                             <div className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                               {wo.title}
+                                             </div>
+                                           </div>
                                           {wo.priority && (
                                             <Badge 
                                               variant={
@@ -1520,59 +1569,71 @@ export default function WorkOrdersPage() {
                                             </Badge>
                                           )}
                                         </div>
-                                        
-                                        {/* Cliente e BOM */}
-                                        <div className="space-y-1.5">
-                                          {wo.customers && (
-                                            <div className="flex items-start gap-1.5 text-xs">
-                                              <span className="text-muted-foreground shrink-0">Cliente:</span>
-                                              <span className="font-medium text-foreground line-clamp-1">{wo.customers.name}</span>
-                                            </div>
-                                          )}
-                                          
-                                          {wo.boms && (
-                                            <div className="flex items-center gap-1">
-                                              <Badge variant="outline" className="text-xs">
-                                                {wo.boms.name}
-                                              </Badge>
-                                            </div>
-                                          )}
-                                        </div>
-                                        
-                                        {/* Responsabile e info aggiuntive */}
-                                        <div className="pt-2 border-t space-y-1.5">
-                                          {wo.technician ? (
-                                            <div className="flex items-center gap-1.5 text-xs bg-primary/5 rounded px-2 py-1.5">
-                                              <UserPlus className="h-3.5 w-3.5 text-primary shrink-0" />
-                                              <div className="flex-1 min-w-0">
-                                                <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Responsabile</span>
-                                                <div className="font-medium text-foreground truncate">
-                                                  {wo.technician.first_name} {wo.technician.last_name}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleTakeOwnership(wo.id);
-                                              }}
-                                              className="w-full text-xs h-8"
-                                            >
-                                              <UserPlus className="h-3 w-3 mr-1.5" />
-                                              Prendi in carico
-                                            </Button>
-                                          )}
-                                          
-                                          {wo.planned_start_date && (
-                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                              <CalendarIcon className="h-3 w-3 shrink-0" />
-                                              <span>Inizio: {new Date(wo.planned_start_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
-                                            </div>
-                                          )}
-                                        </div>
+                                         
+                                         {/* Cliente, Data Ordine e Aging */}
+                                         <div className="space-y-1.5">
+                                           {wo.customers && (
+                                             <div className="flex items-start gap-1.5 text-[11px] md:text-xs">
+                                               <span className="text-muted-foreground shrink-0">Cliente:</span>
+                                               <span className="font-medium text-foreground line-clamp-1">{wo.customers.name}</span>
+                                             </div>
+                                           )}
+                                           
+                                           {wo.sales_orders?.order_date && (
+                                             <div className="flex items-center gap-2 text-[10px] md:text-xs">
+                                               <CalendarIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                                               <span className="text-muted-foreground">
+                                                 {new Date(wo.sales_orders.order_date).toLocaleDateString('it-IT')}
+                                               </span>
+                                               <span className={`font-semibold ${getAgingColor(calculateAgingDays(wo.sales_orders.order_date))}`}>
+                                                 • {calculateAgingDays(wo.sales_orders.order_date)}gg
+                                               </span>
+                                             </div>
+                                           )}
+                                           
+                                           {wo.boms && (
+                                             <div className="flex items-center gap-1">
+                                               <Badge variant="outline" className="text-[10px] md:text-xs">
+                                                 {wo.boms.name}
+                                               </Badge>
+                                             </div>
+                                           )}
+                                         </div>
+                                         
+                                         {/* Responsabile e info aggiuntive */}
+                                         <div className="pt-2 border-t space-y-1.5">
+                                           {wo.technician ? (
+                                             <div className="flex items-center gap-1.5 text-[11px] md:text-xs bg-primary/5 rounded px-2 py-1.5">
+                                               <UserPlus className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
+                                               <div className="flex-1 min-w-0">
+                                                 <span className="text-muted-foreground text-[9px] md:text-[10px] uppercase tracking-wider">Responsabile</span>
+                                                 <div className="font-medium text-foreground truncate">
+                                                   {wo.technician.first_name} {wo.technician.last_name}
+                                                 </div>
+                                               </div>
+                                             </div>
+                                           ) : (
+                                             <Button
+                                               size="sm"
+                                               variant="outline"
+                                               onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 handleTakeOwnership(wo.id);
+                                               }}
+                                               className="w-full text-[11px] md:text-xs h-7 md:h-8"
+                                             >
+                                               <UserPlus className="h-3 w-3 mr-1.5" />
+                                               Prendi in carico
+                                             </Button>
+                                           )}
+                                           
+                                           {wo.planned_start_date && (
+                                             <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground">
+                                               <CalendarIcon className="h-3 w-3 shrink-0" />
+                                               <span>Inizio: {new Date(wo.planned_start_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
+                                             </div>
+                                           )}
+                                         </div>
                                       </div>
                                      </div>
                                   )}
