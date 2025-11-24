@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const retryCount = useRef<number>(0);
+  const maxRetries = 3;
 
   useEffect(() => {
     // Set up auth state listener first
@@ -65,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfile = async (userId: string) => {
+  const loadProfile = async (userId: string, attempt: number = 0) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -75,6 +77,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error loading profile:", error);
+        
+        // Implementa retry con backoff exponential
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Max 10 secondi
+          console.log(`Retrying profile load in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          
+          setTimeout(() => {
+            loadProfile(userId, attempt + 1);
+          }, delay);
+        } else {
+          console.error("Max retries reached for profile loading");
+          retryCount.current = 0; // Reset counter
+        }
         return;
       }
 
@@ -83,9 +98,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...data,
           user_type: data.user_type as 'erp' | 'website' | undefined
         });
+        retryCount.current = 0; // Reset on success
       }
     } catch (error) {
       console.error("Error loading profile:", error);
+      
+      // Retry logic anche per eccezioni generiche
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        setTimeout(() => {
+          loadProfile(userId, attempt + 1);
+        }, delay);
+      } else {
+        retryCount.current = 0;
+      }
     }
   };
 
