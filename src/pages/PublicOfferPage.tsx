@@ -288,7 +288,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{timeline_installazione\}\}/g, translatedTimelineInstallazione || '')
         .replace(/\{\{timeline_collaudo\}\}/g, translatedTimelineCollaudo || '')
         .replace(/\{\{descrizione\}\}/g, translatedDescription || '')
-        .replace(/\{\{firma_commerciale\}\}/g, 'Abbattitori Zapper')
+        .replace(/\{\{firma_commerciale\}\}/g, template === 'vesuviano' ? '' : 'Abbattitori Zapper')
         .replace(/\{\{payment_agreement\}\}/g, offer.payment_agreement || '')
         .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
 
