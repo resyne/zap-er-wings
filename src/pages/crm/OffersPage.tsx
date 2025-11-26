@@ -101,6 +101,7 @@ export default function OffersPage() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('all');
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
@@ -959,6 +960,9 @@ export default function OffersPage() {
     
     // Filter by status
     if (selectedStatus !== 'all' && offer.status !== selectedStatus) return false;
+    
+    // Filter by template
+    if (selectedTemplate !== 'all' && offer.template !== selectedTemplate) return false;
     
     // Filter by search term (search in number, customer name, title)
     if (searchTerm) {
@@ -2158,17 +2162,29 @@ export default function OffersPage() {
                 <SelectItem value="rifiutata">Rifiutate</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+              <SelectTrigger className={`w-full sm:w-[180px] ${isMobile ? 'h-9 text-sm' : ''}`}>
+                <SelectValue placeholder="Filtra per template" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i template</SelectItem>
+                <SelectItem value="zapper">Zapper</SelectItem>
+                <SelectItem value="vesuviano">Vesuviano</SelectItem>
+                <SelectItem value="zapperpro">ZapperPro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          {(searchTerm || selectedStatus !== 'all') && (
+          {(searchTerm || selectedStatus !== 'all' || selectedTemplate !== 'all') && (
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <span>Risultati: {filteredOffers.filter(o => o.status !== 'richiesta_offerta').length}</span>
-              {(searchTerm || selectedStatus !== 'all') && (
+              {(searchTerm || selectedStatus !== 'all' || selectedTemplate !== 'all') && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setSearchTerm('');
                     setSelectedStatus('all');
+                    setSelectedTemplate('all');
                   }}
                   className="h-6 px-2 text-xs"
                 >
