@@ -143,6 +143,7 @@ export default function OffersPage() {
     payment_method?: string;
     payment_agreement?: string;
     vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue';
+    company_entity?: 'climatel' | 'unita1';
   }>({
     id: undefined,
     customer_id: '',
@@ -162,7 +163,8 @@ export default function OffersPage() {
     metodi_pagamento: '',
     payment_method: '',
     payment_agreement: '',
-    vat_regime: 'standard'
+    vat_regime: 'standard',
+    company_entity: 'climatel',
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -688,7 +690,8 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            vat_regime: newOffer.vat_regime
+            vat_regime: newOffer.vat_regime,
+            company_entity: newOffer.company_entity || 'climatel',
           })
           .eq('id', newOffer.id)
           .select()
@@ -752,7 +755,8 @@ export default function OffersPage() {
             metodi_pagamento: newOffer.metodi_pagamento || null,
             payment_method: newOffer.payment_method || null,
             payment_agreement: newOffer.payment_agreement || null,
-            vat_regime: newOffer.vat_regime
+            vat_regime: newOffer.vat_regime,
+            company_entity: newOffer.company_entity || 'climatel',
           }])
           .select()
           .single();
@@ -1578,6 +1582,27 @@ export default function OffersPage() {
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Il contenuto verrà tradotto automaticamente
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Intestazione e Coordinate Bancarie</label>
+                <Select 
+                  value={newOffer.company_entity || 'climatel'} 
+                  onValueChange={(value: 'climatel' | 'unita1') => 
+                    setNewOffer(prev => ({ ...prev, company_entity: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona entità" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100] bg-background">
+                    <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
+                    <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Seleziona quale intestazione e coordinate bancarie utilizzare nell'offerta
                 </p>
               </div>
               
