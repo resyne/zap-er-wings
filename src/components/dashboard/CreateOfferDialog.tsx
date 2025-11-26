@@ -472,29 +472,27 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           </div>
         </div>
 
-        {/* Selettore entità aziendale per template Vesuviano */}
-        {newOffer.template === 'vesuviano' && (
-          <div>
-            <Label htmlFor="company_entity">Intestazione e Coordinate Bancarie</Label>
-            <Select 
-              value={newOffer.company_entity} 
-              onValueChange={(value: 'climatel' | 'unita1') => 
-                setNewOffer({ ...newOffer, company_entity: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona entità" />
-              </SelectTrigger>
-              <SelectContent className="z-[100] bg-background">
-                <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
-                <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Seleziona quale intestazione e coordinate bancarie utilizzare nell'offerta
-            </p>
-          </div>
-        )}
+        {/* Selettore entità aziendale */}
+        <div>
+          <Label htmlFor="company_entity">Intestazione e Coordinate Bancarie</Label>
+          <Select 
+            value={newOffer.company_entity} 
+            onValueChange={(value: 'climatel' | 'unita1') => 
+              setNewOffer({ ...newOffer, company_entity: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona entità" />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-background">
+              <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
+              <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Seleziona quale intestazione e coordinate bancarie utilizzare nell'offerta
+          </p>
+        </div>
 
         <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
           <div>
