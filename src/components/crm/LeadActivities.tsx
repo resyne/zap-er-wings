@@ -192,23 +192,35 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
 
   const loadComments = async (activityId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: commentsData, error } = await supabase
         .from("lead_activity_comments")
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            first_name,
-            last_name
-          )
-        `)
+        .select("*")
         .eq("activity_id", activityId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setComments(prev => ({ ...prev, [activityId]: data || [] }));
+
+      // Fetch user profiles separately
+      if (commentsData && commentsData.length > 0) {
+        const userIds = [...new Set(commentsData.map(c => c.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", userIds);
+
+        const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+        const enrichedComments = commentsData.map(comment => ({
+          ...comment,
+          profiles: profilesMap.get(comment.user_id)
+        }));
+
+        setComments(prev => ({ ...prev, [activityId]: enrichedComments }));
+      } else {
+        setComments(prev => ({ ...prev, [activityId]: [] }));
+      }
     } catch (error) {
       console.error("Error loading comments:", error);
+      setComments(prev => ({ ...prev, [activityId]: [] }));
     }
   };
 
