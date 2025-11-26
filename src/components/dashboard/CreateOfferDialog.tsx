@@ -485,7 +485,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona entità" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] bg-background">
                 <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
                 <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
               </SelectContent>
