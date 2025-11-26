@@ -217,12 +217,39 @@ export default function PublicOfferPage() {
         .filter(Boolean)
         .join(' - ');
 
+      // Determine company entity data based on template
+      const companyEntity = (offer as any).company_entity || 'climatel';
+      let brandOwnershipText = '';
+      let bankHolder = '';
+      let bankName = '';
+      let bankIban = '';
+
+      if (template === 'vesuviano') {
+        if (companyEntity === 'unita1') {
+          brandOwnershipText = 'Vesuviano Forni brand owned by UNITA 1 di Stanislao Elefante - P.IVA: IT02192040661 - C.F.: LFNSNS94E20G813Z - VIA PIAIA, 44 - 67034 PETTORANO SUL GIZIO (AQ) - IT - PEC: u1@pec.it';
+          bankHolder = 'UNITA 1 di Stanislao Elefante';
+          bankName = 'INTESA SAN PAOLO BANK';
+          bankIban = 'IT12P0306976451100000003224';
+        } else {
+          // Default CLIMATEL
+          brandOwnershipText = 'Il Marchio di prodotti Vesuviano Forni ® è di proprietà della ditta CLIMATEL di ELEFANTE PASQUALE, via galileo ferraris 24 Scafati (SA) 84018 - Italy - P.IVA 03895390650';
+          bankHolder = 'CLIMATEL DI ELEFANTE PASQUALE';
+          bankName = 'INTESA SANPAOLO';
+          bankIban = 'IT82 S030 6976 4511 0000 0003 441';
+        }
+      }
+
       // Replace all placeholders
       htmlTemplate = htmlTemplate
         .replace(/\{\{logo\}\}/g, logoUrl)
         .replace(/\{\{numero_offerta\}\}/g, offer.number || '')
         .replace(/\{\{data_offerta\}\}/g, new Date(offer.created_at).toLocaleDateString('it-IT'))
         .replace(/\{\{utente\}\}/g, 'Abbattitori Zapper')
+        // Company entity placeholders
+        .replace(/\{\{brand_ownership_text\}\}/g, brandOwnershipText)
+        .replace(/\{\{bank_holder\}\}/g, bankHolder)
+        .replace(/\{\{bank_name\}\}/g, bankName)
+        .replace(/\{\{bank_iban\}\}/g, bankIban)
         // Cliente placeholders (with and without dots)
         .replace(/\{\{cliente\.nome\}\}/g, offer.customers?.name || offer.customer_name || '')
         .replace(/\{\{cliente_nome\}\}/g, offer.customers?.name || offer.customer_name || '')

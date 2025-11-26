@@ -3563,6 +3563,7 @@ export type Database = {
           archived: boolean | null
           assigned_to: string | null
           attachments: string[] | null
+          company_entity: string | null
           created_at: string
           customer_id: string | null
           customer_name: string
@@ -3595,6 +3596,7 @@ export type Database = {
           archived?: boolean | null
           assigned_to?: string | null
           attachments?: string[] | null
+          company_entity?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name: string
@@ -3627,6 +3629,7 @@ export type Database = {
           archived?: boolean | null
           assigned_to?: string | null
           attachments?: string[] | null
+          company_entity?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string
