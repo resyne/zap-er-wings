@@ -2208,6 +2208,11 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      {offer.template && (
+                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                        </Badge>
+                      )}
                       {offer.status === 'offerta_pronta' && !offer.approved ? (
                         <>
                           <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
@@ -2294,6 +2299,11 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      {offer.template && (
+                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                        </Badge>
+                      )}
                       <div className="text-xs text-muted-foreground">
                         {new Date(offer.created_at).toLocaleDateString('it-IT')}
                       </div>
@@ -2340,6 +2350,11 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      {offer.template && (
+                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                        </Badge>
+                      )}
                       <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
                         <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
                           <SelectValue />
@@ -2383,6 +2398,11 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold text-green-700" : "text-sm font-semibold text-green-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      {offer.template && (
+                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                        </Badge>
+                      )}
                       <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
                         <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
                           <SelectValue />
@@ -2432,6 +2452,11 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className={isMobile ? "text-xs font-semibold text-red-700" : "text-sm font-semibold text-red-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      {offer.template && (
+                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                        </Badge>
+                      )}
                       <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
                         <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
                           <SelectValue />
@@ -2469,9 +2494,16 @@ export default function OffersPage() {
                           <div className="font-medium text-sm">{offer.number}</div>
                           <div className="text-xs text-muted-foreground truncate">{offer.customer_name}</div>
                         </div>
-                        <Badge className={`${getStatusColor(offer.status)} text-xs`}>
-                          {getStatusText(offer.status)}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-end">
+                          <Badge className={`${getStatusColor(offer.status)} text-xs`}>
+                            {getStatusText(offer.status)}
+                          </Badge>
+                          {offer.template && (
+                            <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                              {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className="flex items-center justify-between">
@@ -2543,6 +2575,7 @@ export default function OffersPage() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Titolo</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
+                  <TableHead>Template</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
@@ -2556,6 +2589,13 @@ export default function OffersPage() {
                     <TableCell className="max-w-md truncate">{offer.title}</TableCell>
                     <TableCell className="text-right font-medium">
                       € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>
+                      {offer.template && (
+                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
+                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {offer.status === 'offerta_pronta' && !offer.approved ? (
