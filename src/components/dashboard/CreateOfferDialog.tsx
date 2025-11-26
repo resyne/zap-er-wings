@@ -71,7 +71,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     escluso_fornitura: '',
     payment_method: '',
     payment_agreement: '',
-    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue'
+    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue',
+    company_entity: 'climatel' as 'climatel' | 'unita1'
   });
 
   useEffect(() => {
@@ -239,6 +240,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           payment_method: newOffer.payment_method || null,
           payment_agreement: newOffer.payment_agreement || null,
           vat_regime: newOffer.vat_regime,
+          company_entity: newOffer.company_entity,
           lead_id: leadData?.leadId || null
         }])
         .select('id, unique_code')
@@ -314,7 +316,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       escluso_fornitura: '',
       payment_method: '',
       payment_agreement: '',
-      vat_regime: 'standard'
+      vat_regime: 'standard',
+      company_entity: 'climatel'
     });
     setSelectedProducts([]);
     setIncludeCertificazione(true);
@@ -468,6 +471,30 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
             </p>
           </div>
         </div>
+
+        {/* Selettore entità aziendale per template Vesuviano */}
+        {newOffer.template === 'vesuviano' && (
+          <div>
+            <Label htmlFor="company_entity">Intestazione e Coordinate Bancarie</Label>
+            <Select 
+              value={newOffer.company_entity} 
+              onValueChange={(value: 'climatel' | 'unita1') => 
+                setNewOffer({ ...newOffer, company_entity: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona entità" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
+                <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Seleziona quale intestazione e coordinate bancarie utilizzare nell'offerta
+            </p>
+          </div>
+        )}
 
         <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
           <div>
