@@ -26,6 +26,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -87,6 +102,7 @@ export default function PurchaseOrdersPage() {
     items: [] as Array<{ material_id: string; quantity: number; unit_price: number }>
   });
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [materialSelectorOpen, setMaterialSelectorOpen] = useState<{[key: number]: boolean}>({});
 
   useEffect(() => {
     fetchOrders();
@@ -730,7 +746,15 @@ export default function PurchaseOrdersPage() {
                 <label className="text-sm font-medium">Fornitore *</label>
                 <Select
                   value={newOrder.supplier_id}
-                  onValueChange={(value) => setNewOrder(prev => ({ ...prev, supplier_id: value }))}
+                  onValueChange={(value) => {
+                    setNewOrder(prev => ({ 
+                      ...prev, 
+                      supplier_id: value,
+                      // Reset items when supplier changes as materials are filtered by supplier
+                      items: prev.supplier_id !== value ? [] : prev.items
+                    }));
+                    setMaterialSelectorOpen({});
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona fornitore" />
@@ -815,21 +839,54 @@ export default function PurchaseOrdersPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div className="md:col-span-1">
                             <label className="text-sm text-muted-foreground">Materiale</label>
-                            <Select
-                              value={item.material_id}
-                              onValueChange={(value) => updateOrderItem(index, 'material_id', value)}
+                            <Popover 
+                              open={materialSelectorOpen[index]} 
+                              onOpenChange={(open) => setMaterialSelectorOpen(prev => ({ ...prev, [index]: open }))}
                             >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleziona" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {materials.map((material) => (
-                                  <SelectItem key={material.id} value={material.id}>
-                                    {material.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={materialSelectorOpen[index]}
+                                  className="w-full justify-between"
+                                >
+                                  {item.material_id
+                                    ? materials.find((m) => m.id === item.material_id)?.name
+                                    : "Seleziona materiale..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[300px] p-0">
+                                <Command>
+                                  <CommandInput placeholder="Cerca materiale..." />
+                                  <CommandList>
+                                    <CommandEmpty>Nessun materiale trovato.</CommandEmpty>
+                                    <CommandGroup>
+                                      {materials
+                                        .filter(material => !newOrder.supplier_id || material.supplier_id === newOrder.supplier_id)
+                                        .map((material) => (
+                                          <CommandItem
+                                            key={material.id}
+                                            value={material.name}
+                                            onSelect={() => {
+                                              updateOrderItem(index, 'material_id', material.id);
+                                              setMaterialSelectorOpen(prev => ({ ...prev, [index]: false }));
+                                            }}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                item.material_id === material.id ? "opacity-100" : "opacity-0"
+                                              )}
+                                            />
+                                            {material.name}
+                                          </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
 
                           <div>
