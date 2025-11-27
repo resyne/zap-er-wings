@@ -244,11 +244,11 @@ function OrderCard({ order, getStatusBadge }: any) {
         <div className="flex flex-wrap gap-2 pt-4 border-t">
           <Button variant="outline" size="sm" className="gap-2">
             <MessageSquare className="h-4 w-4" />
-            Commenti ({order.purchase_order_comments?.[0]?.count || 0})
+            Commenti ({order.purchase_order_comments?.length || 0})
           </Button>
           <Button variant="outline" size="sm" className="gap-2">
             <Paperclip className="h-4 w-4" />
-            Allegati ({order.purchase_order_attachments?.[0]?.count || 0})
+            Allegati ({order.purchase_order_attachments?.length || 0})
           </Button>
           {order.production_status === 'pending' && (
             <Button size="sm" className="gap-2">
