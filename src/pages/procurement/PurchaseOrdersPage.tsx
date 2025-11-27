@@ -364,12 +364,22 @@ export default function PurchaseOrdersPage() {
   };
 
   const updateOrderItem = (index: number, field: string, value: any) => {
-    setNewOrder(prev => ({
-      ...prev,
-      items: prev.items.map((item, i) => 
-        i === index ? { ...item, [field]: value } : item
-      )
-    }));
+    setNewOrder(prev => {
+      const updatedItems = prev.items.map((item, i) => {
+        if (i !== index) return item;
+        
+        // When material is selected, auto-populate unit price from material cost
+        if (field === 'material_id' && value) {
+          const selectedMaterial = materials.find(m => m.id === value);
+          const unitPrice = selectedMaterial?.cost || 0;
+          return { ...item, material_id: value, unit_price: unitPrice };
+        }
+        
+        return { ...item, [field]: value };
+      });
+      
+      return { ...prev, items: updatedItems };
+    });
   };
 
   // Calculate KPIs
