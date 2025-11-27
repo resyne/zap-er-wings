@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,7 +43,8 @@ import {
   Upload,
   Send,
   Copy,
-  ExternalLink
+  ExternalLink,
+  X
 } from "lucide-react";
 
 interface PurchaseOrder {
@@ -68,9 +76,22 @@ export default function PurchaseOrdersPage() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [newOrder, setNewOrder] = useState({
+    supplier_id: "",
+    order_date: new Date().toISOString().split('T')[0],
+    expected_delivery_date: "",
+    notes: "",
+    items: [] as Array<{ material_id: string; quantity: number; unit_price: number }>
+  });
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
   useEffect(() => {
     fetchOrders();
+    fetchSuppliers();
+    fetchMaterials();
   }, []);
 
   useEffect(() => {
@@ -171,6 +192,34 @@ export default function PurchaseOrdersPage() {
     window.open(link, '_blank');
   };
 
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching suppliers:', error);
+    }
+  };
+
+  const fetchMaterials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('materials')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      setMaterials(data || []);
+    } catch (error: any) {
+      console.error('Error fetching materials:', error);
+    }
+  };
+
   const handleAddComment = async () => {
     if (!selectedOrder || !newComment.trim()) return;
 
@@ -216,6 +265,97 @@ export default function PurchaseOrdersPage() {
     }
   };
 
+  const handleCreateOrder = async () => {
+    if (!newOrder.supplier_id || newOrder.items.length === 0) {
+      toast.error("Seleziona un fornitore e aggiungi almeno un articolo");
+      return;
+    }
+
+    setIsCreatingOrder(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Calculate total amount
+      const totalAmount = newOrder.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      
+      // Generate order number
+      const orderNumber = `PO-${Date.now()}`;
+      
+      // Create purchase order
+      const { data: order, error: orderError } = await supabase
+        .from('purchase_orders')
+        .insert({
+          number: orderNumber,
+          supplier_id: newOrder.supplier_id,
+          order_date: newOrder.order_date,
+          expected_delivery_date: newOrder.expected_delivery_date || null,
+          estimated_delivery_date: newOrder.expected_delivery_date || null,
+          total_amount: totalAmount,
+          production_status: 'pending',
+          notes: newOrder.notes || null,
+          created_by: user?.id
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const itemsToInsert = newOrder.items.map(item => ({
+        purchase_order_id: order.id,
+        material_id: item.material_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.quantity * item.unit_price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast.success("Ordine di acquisto creato con successo");
+      setNewOrderDialogOpen(false);
+      setNewOrder({
+        supplier_id: "",
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery_date: "",
+        notes: "",
+        items: []
+      });
+      fetchOrders();
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      toast.error("Errore nella creazione dell'ordine");
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  const addOrderItem = () => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: [...prev.items, { material_id: "", quantity: 1, unit_price: 0 }]
+    }));
+  };
+
+  const removeOrderItem = (index: number) => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateOrderItem = (index: number, field: string, value: any) => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
   // Calculate KPIs
   const activeOrders = orders.filter(o => !['delivered', 'cancelled'].includes(o.production_status)).length;
   const inDelivery = orders.filter(o => ['shipped'].includes(o.production_status)).length;
@@ -232,7 +372,7 @@ export default function PurchaseOrdersPage() {
           <h1 className="text-3xl font-bold">Ordini di Acquisto</h1>
           <p className="text-muted-foreground mt-1">Gestisci gli ordini di acquisto ai fornitori</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setNewOrderDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Nuovo Ordine
         </Button>
@@ -570,6 +710,180 @@ export default function PurchaseOrdersPage() {
               </TabsContent>
             </ScrollArea>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Order Dialog */}
+      <Dialog open={newOrderDialogOpen} onOpenChange={setNewOrderDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Nuovo Ordine di Acquisto</DialogTitle>
+            <DialogDescription>
+              Crea un nuovo ordine di acquisto per un fornitore
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4">
+              {/* Supplier Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Fornitore *</label>
+                <Select
+                  value={newOrder.supplier_id}
+                  onValueChange={(value) => setNewOrder(prev => ({ ...prev, supplier_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona fornitore" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data Ordine *</label>
+                  <Input
+                    type="date"
+                    value={newOrder.order_date}
+                    onChange={(e) => setNewOrder(prev => ({ ...prev, order_date: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Consegna Prevista</label>
+                  <Input
+                    type="date"
+                    value={newOrder.expected_delivery_date}
+                    onChange={(e) => setNewOrder(prev => ({ ...prev, expected_delivery_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Note</label>
+                <Textarea
+                  placeholder="Note sull'ordine..."
+                  value={newOrder.notes}
+                  onChange={(e) => setNewOrder(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+
+              {/* Order Items */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Articoli *</label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addOrderItem}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Aggiungi Articolo
+                  </Button>
+                </div>
+
+                {newOrder.items.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed rounded-lg text-muted-foreground">
+                    Nessun articolo aggiunto. Clicca su "Aggiungi Articolo" per iniziare.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {newOrder.items.map((item, index) => (
+                      <div key={index} className="p-4 border rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Articolo {index + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeOrderItem(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="md:col-span-1">
+                            <label className="text-sm text-muted-foreground">Materiale</label>
+                            <Select
+                              value={item.material_id}
+                              onValueChange={(value) => updateOrderItem(index, 'material_id', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {materials.map((material) => (
+                                  <SelectItem key={material.id} value={material.id}>
+                                    {material.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="text-sm text-muted-foreground">Quantità</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateOrderItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-sm text-muted-foreground">Prezzo Unitario (€)</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.unit_price}
+                              onChange={(e) => updateOrderItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <span className="text-sm font-medium">
+                            Totale: €{(item.quantity * item.unit_price).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex justify-end pt-3 border-t">
+                      <div className="text-right">
+                        <span className="text-sm text-muted-foreground">Totale Ordine: </span>
+                        <span className="text-lg font-bold">
+                          €{newOrder.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setNewOrderDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleCreateOrder} disabled={isCreatingOrder}>
+              {isCreatingOrder ? "Creazione..." : "Crea Ordine"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
