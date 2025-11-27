@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key } from "lucide-react";
+import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
@@ -302,6 +302,15 @@ const SuppliersPage = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleCopyPortalLink = (supplier: Supplier) => {
+    const portalUrl = `${window.location.origin}/supplier/${supplier.id}`;
+    navigator.clipboard.writeText(portalUrl);
+    toast({
+      title: "Link copiato!",
+      description: "Link del portale fornitore copiato negli appunti",
+    });
   };
 
   if (loading) {
@@ -730,26 +739,37 @@ const SuppliersPage = () => {
                    <TableCell>{supplier.payment_terms} giorni</TableCell>
                    <TableCell>
                      {supplier.access_code ? (
-                       <div className="flex items-center gap-2">
-                         <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-md font-mono text-sm">
-                           <Key className="h-3 w-3 text-muted-foreground" />
-                           {supplier.access_code}
+                       <div className="space-y-2">
+                         <div className="flex items-center gap-2">
+                           <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-md font-mono text-sm">
+                             <Key className="h-3 w-3 text-muted-foreground" />
+                             {supplier.access_code}
+                           </div>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleCopyAccessCode(supplier.access_code!)}
+                             title="Copia codice"
+                           >
+                             <Copy className="h-3 w-3" />
+                           </Button>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleRegenerateAccessCode(supplier)}
+                             title="Rigenera codice"
+                           >
+                             <RefreshCw className="h-3 w-3" />
+                           </Button>
                          </div>
                          <Button
-                           variant="ghost"
+                           variant="outline"
                            size="sm"
-                           onClick={() => handleCopyAccessCode(supplier.access_code!)}
-                           title="Copia codice"
+                           onClick={() => handleCopyPortalLink(supplier)}
+                           className="w-full text-xs gap-1"
                          >
-                           <Copy className="h-3 w-3" />
-                         </Button>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => handleRegenerateAccessCode(supplier)}
-                           title="Rigenera codice"
-                         >
-                           <RefreshCw className="h-3 w-3" />
+                           <ExternalLink className="h-3 w-3" />
+                           Copia Link Portale
                          </Button>
                        </div>
                      ) : (
