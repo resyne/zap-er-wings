@@ -36,7 +36,7 @@ const supplierSchema = z.object({
   email: z.string().email("Email non valida").optional().or(z.literal("")),
   phone: z.string().optional(),
   contact_person: z.string().optional(),
-  contact_email: z.string().email("Email non valida").optional().or(z.literal("")),
+  contact_email: z.union([z.string().email("Email non valida"), z.literal("")]).optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
