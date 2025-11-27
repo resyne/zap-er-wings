@@ -181,9 +181,22 @@ const SuppliersPage = () => {
     if (!selectedSupplier) return;
 
     try {
+      const updateData = {
+        name: values.name,
+        email: values.email || null,
+        phone: values.phone || null,
+        address: values.address || null,
+        city: values.city || null,
+        country: values.country || null,
+        tax_id: values.tax_id || null,
+        payment_terms: values.payment_terms,
+        contact_person: values.contact_person || null,
+        contact_email: values.contact_email || null,
+      };
+
       const { error } = await supabase
         .from('suppliers')
-        .update(values)
+        .update(updateData)
         .eq('id', selectedSupplier.id);
 
       if (error) {
