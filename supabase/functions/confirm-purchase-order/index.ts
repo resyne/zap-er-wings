@@ -124,6 +124,22 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't fail the request if this update fails
     }
 
+    // Track confirmation in status updates
+    const statusUpdateNotes = `Ordine confermato dal fornitore. Data di consegna prevista: ${new Date(deliveryDate).toLocaleDateString('it-IT')}${supplierNotes ? `\nNote: ${supplierNotes}` : ''}`;
+    
+    const { error: statusUpdateError } = await supabase
+      .from('purchase_order_status_updates')
+      .insert({
+        purchase_order_id: confirmation.purchase_order_id,
+        status: 'confirmed',
+        notes: statusUpdateNotes
+      });
+
+    if (statusUpdateError) {
+      console.error("Error creating status update:", statusUpdateError);
+      // Don't fail the request if this update fails
+    }
+
     console.log(`Purchase order ${confirmation.purchase_orders?.number} confirmed by supplier`);
 
     // Send notification email to procurement department
