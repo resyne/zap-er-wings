@@ -16,23 +16,22 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { supplierId, accessCode } = await req.json()
+    const { supplierId } = await req.json()
 
-    console.log('Validating supplier access:', { supplierId, accessCode: '***' });
+    console.log('Loading supplier portal for:', supplierId);
 
-    // Validate supplier and access code
+    // Get supplier data
     const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('*')
       .eq('id', supplierId)
-      .eq('access_code', accessCode)
       .single()
 
     if (supplierError || !supplier) {
-      console.error('Invalid access code:', supplierError);
+      console.error('Supplier not found:', supplierError);
       return new Response(
-        JSON.stringify({ error: 'Codice di accesso non valido' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        JSON.stringify({ error: 'Fornitore non trovato' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       )
     }
 
@@ -77,8 +76,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         supplier, 
-        orders,
-        accessToken: `${supplierId}:${accessCode}` // Simple token for subsequent requests
+        orders
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

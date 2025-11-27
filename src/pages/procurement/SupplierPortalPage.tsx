@@ -10,63 +10,49 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Lock, Package, Clock, CheckCircle, AlertCircle, MessageSquare, Paperclip, Send, Upload } from "lucide-react";
+import { Package, Clock, CheckCircle, AlertCircle, MessageSquare, Paperclip, Send, Upload } from "lucide-react";
 
 export default function SupplierPortalPage() {
   const { supplierId } = useParams();
   const navigate = useNavigate();
-  const [accessCode, setAccessCode] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [supplierData, setSupplierData] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
 
-  // Check if already authenticated from sessionStorage
+  // Load supplier data automatically
   useEffect(() => {
-    const token = sessionStorage.getItem(`supplier_token_${supplierId}`);
-    if (token) {
-      const [storedSupplierId, storedCode] = token.split(':');
-      if (storedSupplierId === supplierId) {
-        setAccessCode(storedCode);
-        handleAccess(storedCode);
-      }
-    }
-  }, [supplierId]);
-
-  const handleAccess = async (code?: string) => {
-    const codeToUse = code || accessCode;
-    if (!codeToUse || !supplierId) {
-      toast.error("Inserisci il codice di accesso");
+    if (!supplierId) {
+      navigate('/');
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('supplier-portal-access', {
-        body: { supplierId, accessCode: codeToUse }
-      });
+    const loadSupplierData = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('supplier-portal-access', {
+          body: { supplierId }
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data.error) {
-        toast.error(data.error);
-        sessionStorage.removeItem(`supplier_token_${supplierId}`);
-        return;
+        if (data.error) {
+          toast.error(data.error);
+          return;
+        }
+
+        setSupplierData(data.supplier);
+        setOrders(data.orders || []);
+        toast.success(`Benvenuto, ${data.supplier.name}!`);
+      } catch (error: any) {
+        console.error('Access error:', error);
+        toast.error("Errore durante il caricamento dei dati");
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      setIsAuthenticated(true);
-      setSupplierData(data.supplier);
-      setOrders(data.orders || []);
-      sessionStorage.setItem(`supplier_token_${supplierId}`, data.accessToken);
-      toast.success(`Benvenuto, ${data.supplier.name}!`);
-    } catch (error: any) {
-      console.error('Access error:', error);
-      toast.error("Errore durante l'accesso");
-      sessionStorage.removeItem(`supplier_token_${supplierId}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadSupplierData();
+  }, [supplierId, navigate]);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -89,40 +75,28 @@ export default function SupplierPortalPage() {
     );
   };
 
-  if (!isAuthenticated) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Caricamento portale fornitore...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!supplierData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
         <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Lock className="h-6 w-6 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">Portale Fornitori</CardTitle>
+          <CardHeader className="text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <CardTitle>Fornitore non trovato</CardTitle>
             <CardDescription>
-              Inserisci il codice di accesso per visualizzare i tuoi ordini
+              Il portale richiesto non è disponibile.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="Codice di accesso"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                onKeyPress={(e) => e.key === 'Enter' && handleAccess()}
-                className="text-center text-lg tracking-widest"
-                maxLength={8}
-              />
-            </div>
-            <Button 
-              onClick={() => handleAccess()} 
-              className="w-full" 
-              size="lg"
-              disabled={isLoading || accessCode.length < 6}
-            >
-              {isLoading ? "Verifica in corso..." : "Accedi"}
-            </Button>
-          </CardContent>
         </Card>
       </div>
     );
@@ -140,15 +114,6 @@ export default function SupplierPortalPage() {
                 Portale di gestione ordini • {orders.length} ordini totali
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                sessionStorage.removeItem(`supplier_token_${supplierId}`);
-                setIsAuthenticated(false);
-              }}
-            >
-              Esci
-            </Button>
           </div>
         </div>
       </div>
