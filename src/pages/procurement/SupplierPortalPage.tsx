@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Lock, Package, Clock, CheckCircle, AlertCircle, MessageSquare, Paperclip } from "lucide-react";
+import { Lock, Package, Clock, CheckCircle, AlertCircle, MessageSquare, Paperclip, Send, Upload } from "lucide-react";
 
 export default function SupplierPortalPage() {
   const { supplierId } = useParams();
@@ -190,8 +193,142 @@ export default function SupplierPortalPage() {
 }
 
 function OrderCard({ order, getStatusBadge }: any) {
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
+  const [showAttachmentsDialog, setShowAttachmentsDialog] = useState(false);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [supplierNotes, setSupplierNotes] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const [newStatus, setNewStatus] = useState(order.production_status);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [comments, setComments] = useState(order.purchase_order_comments || []);
+  const [attachments, setAttachments] = useState(order.purchase_order_attachments || []);
+
+  const handleConfirmOrder = async () => {
+    if (!deliveryDate) {
+      toast.error("Inserisci la data di consegna prevista");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('supplier-confirm-order', {
+        body: { 
+          orderId: order.id,
+          deliveryDate,
+          supplierNotes 
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Ordine confermato con successo!");
+      setShowConfirmDialog(false);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error: any) {
+      console.error('Confirm error:', error);
+      toast.error("Errore durante la conferma");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) {
+      toast.error("Inserisci un commento");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('supplier-add-comment', {
+        body: { 
+          orderId: order.id,
+          comment: newComment,
+          supplierName: order.suppliers?.name || 'Fornitore'
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Commento aggiunto con successo!");
+      setNewComment("");
+      setComments([...comments, data.comment]);
+    } catch (error: any) {
+      console.error('Comment error:', error);
+      toast.error("Errore durante l'invio del commento");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsSubmitting(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${order.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('purchase_orders')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('purchase_orders')
+        .getPublicUrl(fileName);
+
+      const { data, error } = await supabase.functions.invoke('supplier-add-attachment', {
+        body: { 
+          orderId: order.id,
+          fileName: file.name,
+          fileUrl: publicUrl
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("File caricato con successo!");
+      setAttachments([...attachments, data.attachment]);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error("Errore durante il caricamento del file");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('supplier-update-status', {
+        body: { 
+          orderId: order.id,
+          status: newStatus,
+          notes: supplierNotes
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Stato aggiornato con successo!");
+      setShowStatusDialog(false);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error: any) {
+      console.error('Status update error:', error);
+      toast.error("Errore durante l'aggiornamento dello stato");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <Card>
+    <>
+      <Card>
       <CardHeader>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
@@ -242,22 +379,22 @@ function OrderCard({ order, getStatusBadge }: any) {
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCommentsDialog(true)}>
             <MessageSquare className="h-4 w-4" />
-            Commenti ({order.purchase_order_comments?.length || 0})
+            Commenti ({comments.length})
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAttachmentsDialog(true)}>
             <Paperclip className="h-4 w-4" />
-            Allegati ({order.purchase_order_attachments?.length || 0})
+            Allegati ({attachments.length})
           </Button>
           {order.production_status === 'pending' && (
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2" onClick={() => setShowConfirmDialog(true)}>
               <CheckCircle className="h-4 w-4" />
               Conferma Ordine
             </Button>
           )}
           {order.production_status === 'confirmed' && (
-            <Button size="sm" variant="secondary" className="gap-2">
+            <Button size="sm" variant="secondary" className="gap-2" onClick={() => setShowStatusDialog(true)}>
               <Package className="h-4 w-4" />
               Aggiorna Stato
             </Button>
@@ -265,5 +402,181 @@ function OrderCard({ order, getStatusBadge }: any) {
         </div>
       </CardContent>
     </Card>
+
+    {/* Confirm Order Dialog */}
+    <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Conferma Ordine {order.number}</DialogTitle>
+          <DialogDescription>
+            Conferma la ricezione dell'ordine e indica la data di consegna prevista
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="delivery-date">Data di consegna prevista *</Label>
+            <Input
+              id="delivery-date"
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="supplier-notes">Note (opzionale)</Label>
+            <Textarea
+              id="supplier-notes"
+              placeholder="Aggiungi eventuali note sulla consegna..."
+              value={supplierNotes}
+              onChange={(e) => setSupplierNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+            Annulla
+          </Button>
+          <Button onClick={handleConfirmOrder} disabled={isSubmitting || !deliveryDate}>
+            {isSubmitting ? "Conferma in corso..." : "Conferma Ordine"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Comments Dialog */}
+    <Dialog open={showCommentsDialog} onOpenChange={setShowCommentsDialog}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Commenti - {order.number}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {/* Existing Comments */}
+          {comments.length > 0 ? (
+            <div className="space-y-3">
+              {comments.map((comment: any) => (
+                <div key={comment.id} className="p-3 bg-muted rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-semibold text-sm">
+                      {comment.is_supplier ? comment.supplier_name : 'Azienda'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(comment.created_at).toLocaleString('it-IT')}
+                    </span>
+                  </div>
+                  <p className="text-sm">{comment.comment}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-4">Nessun commento</p>
+          )}
+
+          {/* Add Comment */}
+          <div className="space-y-2 pt-4 border-t">
+            <Label htmlFor="new-comment">Aggiungi commento</Label>
+            <Textarea
+              id="new-comment"
+              placeholder="Scrivi un commento..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              rows={3}
+            />
+            <Button onClick={handleAddComment} disabled={isSubmitting} className="gap-2">
+              <Send className="h-4 w-4" />
+              {isSubmitting ? "Invio..." : "Invia Commento"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Attachments Dialog */}
+    <Dialog open={showAttachmentsDialog} onOpenChange={setShowAttachmentsDialog}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Allegati - {order.number}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {/* Existing Attachments */}
+          {attachments.length > 0 ? (
+            <div className="space-y-2">
+              {attachments.map((att: any) => (
+                <div key={att.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" />
+                    <span className="text-sm font-medium">{att.file_name}</span>
+                  </div>
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={att.file_url} target="_blank" rel="noopener noreferrer">
+                      Scarica
+                    </a>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-4">Nessun allegato</p>
+          )}
+
+          {/* Upload File */}
+          <div className="space-y-2 pt-4 border-t">
+            <Label htmlFor="file-upload">Carica nuovo file</Label>
+            <Input
+              id="file-upload"
+              type="file"
+              onChange={handleFileUpload}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Update Status Dialog */}
+    <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Aggiorna Stato - {order.number}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="status">Nuovo Stato</Label>
+            <select
+              id="status"
+              className="w-full p-2 border rounded-md"
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value)}
+            >
+              <option value="confirmed">Confermato</option>
+              <option value="in_production">In Produzione</option>
+              <option value="ready_to_ship">Pronto per Spedizione</option>
+              <option value="shipped">Spedito</option>
+              <option value="delivered">Consegnato</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="status-notes">Note (opzionale)</Label>
+            <Textarea
+              id="status-notes"
+              placeholder="Aggiungi eventuali note sullo stato..."
+              value={supplierNotes}
+              onChange={(e) => setSupplierNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowStatusDialog(false)}>
+            Annulla
+          </Button>
+          <Button onClick={handleUpdateStatus} disabled={isSubmitting}>
+            {isSubmitting ? "Aggiornamento..." : "Aggiorna Stato"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
