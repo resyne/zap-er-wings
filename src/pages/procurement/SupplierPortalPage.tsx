@@ -113,6 +113,17 @@ export default function SupplierPortalPage() {
               <p className="text-muted-foreground mt-1">
                 Portale di gestione ordini • {orders.length} ordini totali
               </p>
+              {(supplierData?.contact_name || supplierData?.contact_email) && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Referente: {supplierData?.contact_name}
+                  {supplierData?.contact_email && (
+                    <>
+                      {supplierData?.contact_name ? " • " : ""}
+                      <span>{supplierData.contact_email}</span>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </div>
