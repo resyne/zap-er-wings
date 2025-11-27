@@ -4913,6 +4913,7 @@ export type Database = {
       purchase_orders: {
         Row: {
           actual_delivery_date: string | null
+          archived: boolean | null
           created_at: string
           created_by: string | null
           delivery_timeframe_days: number | null
@@ -4936,6 +4937,7 @@ export type Database = {
         }
         Insert: {
           actual_delivery_date?: string | null
+          archived?: boolean | null
           created_at?: string
           created_by?: string | null
           delivery_timeframe_days?: number | null
@@ -4959,6 +4961,7 @@ export type Database = {
         }
         Update: {
           actual_delivery_date?: string | null
+          archived?: boolean | null
           created_at?: string
           created_by?: string | null
           delivery_timeframe_days?: number | null
