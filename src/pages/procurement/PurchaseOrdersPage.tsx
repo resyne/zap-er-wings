@@ -198,13 +198,13 @@ export default function PurchaseOrdersPage() {
   };
 
   const copySupplierLink = (order: PurchaseOrder) => {
-    const link = `${window.location.origin}/supplier/${order.supplier_id}`;
+    const link = `https://erp.abbattitorizapper.it/supplier/${order.supplier_id}`;
     navigator.clipboard.writeText(link);
     toast.success("Link copiato negli appunti");
   };
-
+ 
   const openSupplierPortal = (order: PurchaseOrder) => {
-    const link = `${window.location.origin}/supplier/${order.supplier_id}`;
+    const link = `https://erp.abbattitorizapper.it/supplier/${order.supplier_id}`;
     window.open(link, '_blank');
   };
 
