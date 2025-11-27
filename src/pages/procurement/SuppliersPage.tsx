@@ -305,7 +305,7 @@ const SuppliersPage = () => {
   };
 
   const handleCopyPortalLink = (supplier: Supplier) => {
-    const portalUrl = `${window.location.origin}/supplier/${supplier.id}`;
+    const portalUrl = `https://erp.abbattitorizapper.it/supplier/${supplier.id}`;
     navigator.clipboard.writeText(portalUrl);
     toast({
       title: "Link copiato!",
