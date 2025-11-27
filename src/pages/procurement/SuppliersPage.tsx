@@ -25,7 +25,7 @@ interface Supplier {
   payment_terms: number;
   active: boolean;
   access_code?: string;
-  contact_person?: string;
+  contact_name?: string;
   contact_email?: string;
   created_at?: string;
   updated_at?: string;
@@ -40,7 +40,7 @@ const supplierSchema = z.object({
   country: z.string().optional(),
   tax_id: z.string().optional(),
   payment_terms: z.number().min(0, "Giorni di pagamento devono essere positivi"),
-  contact_person: z.string().optional(),
+  contact_name: z.string().optional(),
   contact_email: z.string().email("Email non valida").optional().or(z.literal("")),
 });
 
@@ -63,7 +63,7 @@ const SuppliersPage = () => {
       country: "",
       tax_id: "",
       payment_terms: 30,
-      contact_person: "",
+      contact_name: "",
       contact_email: "",
     },
   });
@@ -78,7 +78,7 @@ const SuppliersPage = () => {
       country: "",
       tax_id: "",
       payment_terms: 30,
-      contact_person: "",
+      contact_name: "",
       contact_email: "",
     },
   });
@@ -140,7 +140,7 @@ const SuppliersPage = () => {
         payment_terms: values.payment_terms,
         active: true,
         access_code: Math.random().toString(36).substring(2, 10).toUpperCase(),
-        contact_person: values.contact_person || null,
+        contact_name: values.contact_name || null,
         contact_email: values.contact_email || null,
       };
 
@@ -190,7 +190,7 @@ const SuppliersPage = () => {
         country: values.country || null,
         tax_id: values.tax_id || null,
         payment_terms: values.payment_terms,
-        contact_person: values.contact_person || null,
+        contact_name: values.contact_name || null,
         contact_email: values.contact_email || null,
       };
 
@@ -239,7 +239,7 @@ const SuppliersPage = () => {
       country: supplier.country || "",
       tax_id: supplier.tax_id || "",
       payment_terms: supplier.payment_terms,
-      contact_person: supplier.contact_person || "",
+      contact_name: supplier.contact_name || "",
       contact_email: supplier.contact_email || "",
     });
     setIsEditDialogOpen(true);
@@ -411,7 +411,7 @@ const SuppliersPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="contact_person"
+                    name="contact_name"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Persona di Contatto</FormLabel>
@@ -579,7 +579,7 @@ const SuppliersPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={editForm.control}
-                    name="contact_person"
+                    name="contact_name"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Persona di Contatto</FormLabel>
@@ -800,11 +800,11 @@ const SuppliersPage = () => {
                            {supplier.phone}
                          </div>
                        )}
-                       {(supplier.contact_person || supplier.contact_email) && (
+                       {(supplier.contact_name || supplier.contact_email) && (
                          <div className="pt-1 mt-1 border-t space-y-1">
-                           {supplier.contact_person && (
+                           {supplier.contact_name && (
                              <div className="text-xs text-muted-foreground">
-                               {supplier.contact_person}
+                               {supplier.contact_name}
                              </div>
                            )}
                            {supplier.contact_email && (
