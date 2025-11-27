@@ -34,6 +34,8 @@ interface Supplier {
   address?: string;
   city?: string;
   country?: string;
+  contact_name?: string;
+  contact_email?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -211,7 +213,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Confirmation token created:", confirmation);
 
     // Send email to supplier if email is available
-    if (supplier.email) {
+    // Prioritize contact_email if available, otherwise use main email
+    const recipientEmail = supplier.contact_email || supplier.email;
+    const recipientName = supplier.contact_name || supplier.name;
+    
+    if (recipientEmail) {
       const deliveryDateText = expectedDeliveryDate 
         ? new Date(expectedDeliveryDate).toLocaleDateString('it-IT')
         : "Da concordare";
@@ -226,6 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
               <h1 style="color: #333; text-align: center;">Ordine di Acquisto</h1>
               <h2 style="color: #666;">N° ${purchaseOrder.number}</h2>
+              ${supplier.contact_name ? `<p style="color: #666; text-align: center;">Attenzione: ${supplier.contact_name}</p>` : ''}
               
               <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Dettagli Ordine</h3>
@@ -323,14 +330,17 @@ const handler = async (req: Request): Promise<Response> => {
       `;
 
       try {
+        // Send to supplier (contact person or main email) AND cc to info@abbattitorizapper.it
         const emailResult = await resend.emails.send({
           from: "Sistema ERP <acquisti@abbattitorizapper.it>",
-          to: [supplier.email],
+          to: [recipientEmail],
+          cc: ["info@abbattitorizapper.it"],
           subject: `🔔 Ordine di Acquisto N° ${purchaseOrder.number} - Conferma Richiesta`,
           html: emailHtml,
         });
 
-        console.log("Email sent successfully:", emailResult);
+        console.log("Email sent successfully to:", recipientEmail, "with cc to info@abbattitorizapper.it");
+        console.log("Email result:", emailResult);
       } catch (emailError) {
         console.error("Error sending email:", emailError);
         // Continue even if email fails - the order was created successfully
@@ -342,7 +352,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         purchaseOrder: purchaseOrder,
         orderItem: orderItem,
-        emailSent: !!supplier.email
+        emailSent: !!recipientEmail
       }),
       {
         status: 200,
