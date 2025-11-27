@@ -18,6 +18,8 @@ interface Supplier {
   name: string;
   email?: string;
   phone?: string;
+  contact_person?: string;
+  contact_email?: string;
   address?: string;
   city?: string;
   country?: string;
@@ -33,6 +35,8 @@ const supplierSchema = z.object({
   name: z.string().min(1, "Nome richiesto"),
   email: z.string().email("Email non valida").optional().or(z.literal("")),
   phone: z.string().optional(),
+  contact_person: z.string().optional(),
+  contact_email: z.string().email("Email non valida").optional().or(z.literal("")),
   address: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
@@ -54,6 +58,8 @@ const SuppliersPage = () => {
       name: "",
       email: "",
       phone: "",
+      contact_person: "",
+      contact_email: "",
       address: "",
       city: "",
       country: "",
@@ -67,6 +73,8 @@ const SuppliersPage = () => {
       name: "",
       email: "",
       phone: "",
+      contact_person: "",
+      contact_email: "",
       address: "",
       city: "",
       country: "",
@@ -125,6 +133,8 @@ const SuppliersPage = () => {
         name: values.name,
         email: values.email || null,
         phone: values.phone || null,
+        contact_person: values.contact_person || null,
+        contact_email: values.contact_email || null,
         address: values.address || null,
         city: values.city || null,
         country: values.country || null,
@@ -211,6 +221,8 @@ const SuppliersPage = () => {
       name: supplier.name,
       email: supplier.email || "",
       phone: supplier.phone || "",
+      contact_person: supplier.contact_person || "",
+      contact_email: supplier.contact_email || "",
       address: supplier.address || "",
       city: supplier.city || "",
       country: supplier.country || "",
@@ -383,6 +395,34 @@ const SuppliersPage = () => {
                     )}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contact_person"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Referente</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Nome del referente" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Referente</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" placeholder="Email del referente" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="address"
@@ -517,6 +557,34 @@ const SuppliersPage = () => {
                         <FormLabel>Telefono</FormLabel>
                         <FormControl>
                           <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="contact_person"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Referente</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Nome del referente" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="contact_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Referente</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" placeholder="Email del referente" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -717,6 +785,18 @@ const SuppliersPage = () => {
                          <div className="flex items-center text-sm">
                            <Phone className="mr-1 h-3 w-3" />
                            {supplier.phone}
+                         </div>
+                       )}
+                       {supplier.contact_person && (
+                         <div className="mt-2 pt-2 border-t border-border">
+                           <div className="text-xs text-muted-foreground">Referente:</div>
+                           <div className="text-sm font-medium">{supplier.contact_person}</div>
+                           {supplier.contact_email && (
+                             <div className="flex items-center text-sm text-muted-foreground">
+                               <Mail className="mr-1 h-3 w-3" />
+                               {supplier.contact_email}
+                             </div>
+                           )}
                          </div>
                        )}
                      </div>
