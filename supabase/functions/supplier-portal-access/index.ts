@@ -52,11 +52,10 @@ Deno.serve(async (req) => {
           material:materials (*)
         ),
         purchase_order_comments (
-          *,
-          count
+          *
         ),
         purchase_order_attachments (
-          count
+          *
         ),
         purchase_order_status_updates (
           *
