@@ -4642,6 +4642,132 @@ export type Database = {
           },
         ]
       }
+      purchase_order_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          purchase_order_id: string
+          uploaded_at: string | null
+          uploaded_by_supplier: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          purchase_order_id: string
+          uploaded_at?: string | null
+          uploaded_by_supplier?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          purchase_order_id?: string
+          uploaded_at?: string | null
+          uploaded_by_supplier?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_attachments_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_change_requests: {
+        Row: {
+          created_at: string | null
+          current_value: string | null
+          id: string
+          proposed_value: string
+          purchase_order_id: string
+          reason: string | null
+          request_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_value?: string | null
+          id?: string
+          proposed_value: string
+          purchase_order_id: string
+          reason?: string | null
+          request_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_value?: string | null
+          id?: string
+          proposed_value?: string
+          purchase_order_id?: string
+          reason?: string | null
+          request_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_change_requests_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_comments: {
+        Row: {
+          comment: string
+          created_at: string | null
+          id: string
+          is_supplier: boolean | null
+          purchase_order_id: string
+          supplier_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comment: string
+          created_at?: string | null
+          id?: string
+          is_supplier?: boolean | null
+          purchase_order_id: string
+          supplier_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string
+          created_at?: string | null
+          id?: string
+          is_supplier?: boolean | null
+          purchase_order_id?: string
+          supplier_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_comments_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_order_confirmations: {
         Row: {
           confirmation_token: string
@@ -4743,56 +4869,115 @@ export type Database = {
           },
         ]
       }
+      purchase_order_status_updates: {
+        Row: {
+          created_at: string | null
+          estimated_delivery_date: string | null
+          id: string
+          new_status: string
+          notes: string | null
+          old_status: string | null
+          purchase_order_id: string
+          updated_by_supplier: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          estimated_delivery_date?: string | null
+          id?: string
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+          purchase_order_id: string
+          updated_by_supplier?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          estimated_delivery_date?: string | null
+          id?: string
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+          purchase_order_id?: string
+          updated_by_supplier?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_status_updates_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_orders: {
         Row: {
+          actual_delivery_date: string | null
           created_at: string
           created_by: string | null
           delivery_timeframe_days: number | null
+          estimated_delivery_date: string | null
           expected_delivery_date: string | null
           id: string
           notes: string | null
           number: string
           order_date: string
           priority: string | null
+          production_status: string | null
           status: string
           subtotal: number | null
+          supplier_confirmed_at: string | null
+          supplier_confirmed_by: string | null
           supplier_id: string | null
           tax_amount: number | null
           total_amount: number | null
+          tracking_number: string | null
           updated_at: string
         }
         Insert: {
+          actual_delivery_date?: string | null
           created_at?: string
           created_by?: string | null
           delivery_timeframe_days?: number | null
+          estimated_delivery_date?: string | null
           expected_delivery_date?: string | null
           id?: string
           notes?: string | null
           number: string
           order_date?: string
           priority?: string | null
+          production_status?: string | null
           status?: string
           subtotal?: number | null
+          supplier_confirmed_at?: string | null
+          supplier_confirmed_by?: string | null
           supplier_id?: string | null
           tax_amount?: number | null
           total_amount?: number | null
+          tracking_number?: string | null
           updated_at?: string
         }
         Update: {
+          actual_delivery_date?: string | null
           created_at?: string
           created_by?: string | null
           delivery_timeframe_days?: number | null
+          estimated_delivery_date?: string | null
           expected_delivery_date?: string | null
           id?: string
           notes?: string | null
           number?: string
           order_date?: string
           priority?: string | null
+          production_status?: string | null
           status?: string
           subtotal?: number | null
+          supplier_confirmed_at?: string | null
+          supplier_confirmed_by?: string | null
           supplier_id?: string | null
           tax_amount?: number | null
           total_amount?: number | null
+          tracking_number?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6630,14 +6815,18 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          access_code: string
           active: boolean | null
           address: string | null
           city: string | null
           code: string
+          contact_email: string | null
+          contact_name: string | null
           country: string | null
           created_at: string | null
           email: string | null
           id: string
+          last_access_at: string | null
           name: string
           payment_terms: number | null
           phone: string | null
@@ -6645,14 +6834,18 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          access_code: string
           active?: boolean | null
           address?: string | null
           city?: string | null
           code: string
+          contact_email?: string | null
+          contact_name?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
+          last_access_at?: string | null
           name: string
           payment_terms?: number | null
           phone?: string | null
@@ -6660,14 +6853,18 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          access_code?: string
           active?: boolean | null
           address?: string | null
           city?: string | null
           code?: string
+          contact_email?: string | null
+          contact_name?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
+          last_access_at?: string | null
           name?: string
           payment_terms?: number | null
           phone?: string | null
