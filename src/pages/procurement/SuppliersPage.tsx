@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
@@ -24,6 +24,7 @@ interface Supplier {
   tax_id?: string;
   payment_terms: number;
   active: boolean;
+  access_code?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -251,6 +252,53 @@ const SuppliersPage = () => {
       toast({
         title: "Errore",
         description: "Errore nell'eliminazione del fornitore",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyAccessCode = (accessCode: string) => {
+    navigator.clipboard.writeText(accessCode);
+    toast({
+      title: "Copiato!",
+      description: "Codice di accesso copiato negli appunti",
+    });
+  };
+
+  const handleRegenerateAccessCode = async (supplier: Supplier) => {
+    if (!confirm(`Sei sicuro di voler rigenerare il codice di accesso per ${supplier.name}? Il vecchio codice non funzionerà più.`)) {
+      return;
+    }
+
+    try {
+      const newAccessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      
+      const { error } = await supabase
+        .from('suppliers')
+        .update({ access_code: newAccessCode })
+        .eq('id', supplier.id);
+
+      if (error) {
+        console.error('Error regenerating access code:', error);
+        toast({
+          title: "Errore",
+          description: "Errore nella rigenerazione del codice",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Successo",
+        description: `Nuovo codice: ${newAccessCode}`,
+      });
+
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error regenerating access code:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella rigenerazione del codice",
         variant: "destructive",
       });
     }
@@ -633,6 +681,7 @@ const SuppliersPage = () => {
                 <TableHead>Contatti</TableHead>
                 <TableHead>Indirizzo</TableHead>
                 <TableHead>Pagamento</TableHead>
+                <TableHead>Codice Accesso</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>Azioni</TableHead>
               </TableRow>
@@ -679,6 +728,34 @@ const SuppliersPage = () => {
                      )}
                    </TableCell>
                    <TableCell>{supplier.payment_terms} giorni</TableCell>
+                   <TableCell>
+                     {supplier.access_code ? (
+                       <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-md font-mono text-sm">
+                           <Key className="h-3 w-3 text-muted-foreground" />
+                           {supplier.access_code}
+                         </div>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => handleCopyAccessCode(supplier.access_code!)}
+                           title="Copia codice"
+                         >
+                           <Copy className="h-3 w-3" />
+                         </Button>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => handleRegenerateAccessCode(supplier)}
+                           title="Rigenera codice"
+                         >
+                           <RefreshCw className="h-3 w-3" />
+                         </Button>
+                       </div>
+                     ) : (
+                       <span className="text-muted-foreground text-sm">Nessun codice</span>
+                     )}
+                   </TableCell>
                   <TableCell>
                     <Badge variant={supplier.active ? "default" : "secondary"}>
                       {supplier.active ? "Attivo" : "Inattivo"}
