@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Select,
   SelectContent,
@@ -59,7 +69,9 @@ import {
   Send,
   Copy,
   ExternalLink,
-  X
+  X,
+  Archive,
+  Trash2
 } from "lucide-react";
 
 interface PurchaseOrder {
@@ -103,12 +115,15 @@ export default function PurchaseOrdersPage() {
   });
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [materialSelectorOpen, setMaterialSelectorOpen] = useState<{[key: number]: boolean}>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     fetchOrders();
     fetchSuppliers();
     fetchMaterials();
-  }, []);
+  }, [showArchived]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -124,7 +139,7 @@ export default function PurchaseOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('purchase_orders')
         .select(`
           *,
@@ -162,8 +177,14 @@ export default function PurchaseOrdersPage() {
             proposed_value,
             reason
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
+      
+      // Filter by archived status
+      if (!showArchived) {
+        query = query.or('archived.is.null,archived.eq.false');
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setOrders(data || []);
@@ -382,6 +403,51 @@ export default function PurchaseOrdersPage() {
     });
   };
 
+  const handleArchiveOrder = async (order: PurchaseOrder) => {
+    try {
+      const { error } = await supabase
+        .from('purchase_orders')
+        .update({ archived: true })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      toast.success("Ordine archiviato con successo");
+      fetchOrders();
+    } catch (error: any) {
+      console.error('Error archiving order:', error);
+      toast.error("Errore nell'archiviazione dell'ordine");
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return;
+
+    try {
+      // Delete related records first
+      await supabase.from('purchase_order_items').delete().eq('purchase_order_id', orderToDelete.id);
+      await supabase.from('purchase_order_comments').delete().eq('purchase_order_id', orderToDelete.id);
+      await supabase.from('purchase_order_attachments').delete().eq('purchase_order_id', orderToDelete.id);
+      await supabase.from('purchase_order_change_requests').delete().eq('purchase_order_id', orderToDelete.id);
+      
+      // Delete the order
+      const { error } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', orderToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Ordine eliminato con successo");
+      setDeleteDialogOpen(false);
+      setOrderToDelete(null);
+      fetchOrders();
+    } catch (error: any) {
+      console.error('Error deleting order:', error);
+      toast.error("Errore nell'eliminazione dell'ordine");
+    }
+  };
+
   // Calculate KPIs
   const activeOrders = orders.filter(o => !['delivered', 'cancelled'].includes(o.production_status)).length;
   const inDelivery = orders.filter(o => ['shipped'].includes(o.production_status)).length;
@@ -469,14 +535,28 @@ export default function PurchaseOrdersPage() {
               <CardTitle>Elenco Ordini</CardTitle>
               <CardDescription>Visualizza e gestisci tutti gli ordini di acquisto</CardDescription>
             </div>
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca ordini..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="show-archived"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <label htmlFor="show-archived" className="text-sm text-muted-foreground cursor-pointer">
+                  Mostra archiviati
+                </label>
+              </div>
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cerca ordini..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -523,16 +603,39 @@ export default function PurchaseOrdersPage() {
                       </TableCell>
                       <TableCell>{getStatusBadge(order.production_status)}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setDetailsDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setDetailsDialogOpen(true);
+                            }}
+                            title="Visualizza dettagli"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleArchiveOrder(order)}
+                            title="Archivia ordine"
+                          >
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setOrderToDelete(order);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-destructive hover:text-destructive"
+                            title="Elimina ordine"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -953,6 +1056,28 @@ export default function PurchaseOrdersPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare l'ordine {orderToDelete?.number}? 
+              Questa azione non può essere annullata e eliminerà anche tutti i dati correlati (articoli, commenti, allegati).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteOrder}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
