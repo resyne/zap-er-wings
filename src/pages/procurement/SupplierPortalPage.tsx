@@ -174,13 +174,16 @@ function OrderCard({ order, getStatusBadge }: any) {
   const [showAttachmentsDialog, setShowAttachmentsDialog] = useState(false);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [showPickedUpDialog, setShowPickedUpDialog] = useState(false);
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [commentAuthorName, setCommentAuthorName] = useState("");
   const [newStatus, setNewStatus] = useState(order.production_status);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState(order.purchase_order_comments || []);
   const [attachments, setAttachments] = useState(order.purchase_order_attachments || []);
+  const [statusUpdates, setStatusUpdates] = useState(order.purchase_order_status_updates || []);
 
   const handleConfirmOrder = async () => {
     if (!deliveryDate) {
@@ -216,6 +219,10 @@ function OrderCard({ order, getStatusBadge }: any) {
       toast.error("Inserisci un commento");
       return;
     }
+    if (!commentAuthorName.trim()) {
+      toast.error("Inserisci il tuo nome");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -223,7 +230,7 @@ function OrderCard({ order, getStatusBadge }: any) {
         body: { 
           orderId: order.id,
           comment: newComment,
-          supplierName: order.suppliers?.name || 'Fornitore'
+          supplierName: commentAuthorName
         }
       });
 
@@ -231,6 +238,7 @@ function OrderCard({ order, getStatusBadge }: any) {
       
       toast.success("Commento aggiunto con successo!");
       setNewComment("");
+      setCommentAuthorName("");
       setComments([...comments, data.comment]);
     } catch (error: any) {
       console.error('Comment error:', error);
@@ -390,6 +398,10 @@ function OrderCard({ order, getStatusBadge }: any) {
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-2 pt-4 border-t">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowActivityDialog(true)}>
+            <Clock className="h-4 w-4" />
+            Cronologia Attività
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCommentsDialog(true)}>
             <MessageSquare className="h-4 w-4" />
             Commenti ({comments.length})
@@ -533,6 +545,14 @@ function OrderCard({ order, getStatusBadge }: any) {
 
           {/* Add Comment */}
           <div className="space-y-2 pt-4 border-t">
+            <Label htmlFor="author-name">Il tuo nome *</Label>
+            <Input
+              id="author-name"
+              placeholder="Es. Mario Rossi"
+              value={commentAuthorName}
+              onChange={(e) => setCommentAuthorName(e.target.value)}
+              required
+            />
             <Label htmlFor="new-comment">Aggiungi commento</Label>
             <Textarea
               id="new-comment"
@@ -730,6 +750,108 @@ function OrderCard({ order, getStatusBadge }: any) {
             {isSubmitting ? "Aggiornamento..." : "Conferma Aggiornamento"}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Activity Timeline Dialog */}
+    <Dialog open={showActivityDialog} onOpenChange={setShowActivityDialog}>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Cronologia Attività - {order.number}</DialogTitle>
+          <DialogDescription>
+            Tutti gli eventi relativi a questo ordine in ordine cronologico
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-4">
+          {(() => {
+            // Combine all activities
+            const activities = [
+              ...comments.map((c: any) => ({
+                type: 'comment',
+                date: new Date(c.created_at),
+                data: c
+              })),
+              ...attachments.map((a: any) => ({
+                type: 'attachment',
+                date: new Date(a.created_at),
+                data: a
+              })),
+              ...statusUpdates.map((s: any) => ({
+                type: 'status',
+                date: new Date(s.created_at),
+                data: s
+              })),
+              {
+                type: 'created',
+                date: new Date(order.created_at),
+                data: { note: 'Ordine creato' }
+              }
+            ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+            if (activities.length === 0) {
+              return <p className="text-center text-muted-foreground py-8">Nessuna attività registrata</p>;
+            }
+
+            return activities.map((activity, idx) => (
+              <div key={idx} className="flex gap-3 p-3 bg-muted/50 rounded-lg">
+                <div className="flex-shrink-0 mt-1">
+                  {activity.type === 'comment' && <MessageSquare className="h-5 w-5 text-blue-500" />}
+                  {activity.type === 'attachment' && <Paperclip className="h-5 w-5 text-green-500" />}
+                  {activity.type === 'status' && <Package className="h-5 w-5 text-orange-500" />}
+                  {activity.type === 'created' && <CheckCircle className="h-5 w-5 text-purple-500" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="font-semibold text-sm">
+                      {activity.type === 'comment' && 'Commento'}
+                      {activity.type === 'attachment' && 'Allegato caricato'}
+                      {activity.type === 'status' && 'Aggiornamento stato'}
+                      {activity.type === 'created' && 'Ordine creato'}
+                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {activity.date.toLocaleString('it-IT')}
+                    </span>
+                  </div>
+                  
+                  {activity.type === 'comment' && (
+                    <>
+                      <div className="text-xs text-muted-foreground mb-1">
+                        da {activity.data.is_supplier ? activity.data.supplier_name : 'Azienda'}
+                      </div>
+                      <p className="text-sm">{activity.data.comment}</p>
+                    </>
+                  )}
+                  
+                  {activity.type === 'attachment' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{activity.data.file_name}</span>
+                      <Button size="sm" variant="ghost" asChild>
+                        <a href={activity.data.file_url} target="_blank" rel="noopener noreferrer" className="text-xs">
+                          Apri
+                        </a>
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {activity.type === 'status' && (
+                    <>
+                      <div className="text-sm">
+                        Stato cambiato in: <span className="font-semibold">{activity.data.status}</span>
+                      </div>
+                      {activity.data.notes && (
+                        <p className="text-xs text-muted-foreground mt-1">{activity.data.notes}</p>
+                      )}
+                    </>
+                  )}
+                  
+                  {activity.type === 'created' && (
+                    <p className="text-sm text-muted-foreground">{activity.data.note}</p>
+                  )}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
       </DialogContent>
     </Dialog>
 
