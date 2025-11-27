@@ -360,13 +360,40 @@ function OrderCard({ order, getStatusBadge }: any) {
               <CardTitle className="text-xl">{order.number}</CardTitle>
               {getStatusBadge(order.production_status)}
             </div>
-            <CardDescription className="mt-2">
-              Ordinato il {new Date(order.created_at).toLocaleDateString('it-IT')}
+            <CardDescription className="mt-2 space-y-1">
+              <div>Ordinato il {new Date(order.created_at).toLocaleDateString('it-IT')}</div>
               {order.expected_delivery_date && (
-                <> • Consegna prevista: {new Date(order.expected_delivery_date).toLocaleDateString('it-IT')}</>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3" />
+                  <span className="font-medium">
+                    Consegna prevista: {new Date(order.expected_delivery_date).toLocaleDateString('it-IT')}
+                  </span>
+                </div>
               )}
             </CardDescription>
           </div>
+          {order.expected_delivery_date && (
+            <div className="text-right">
+              <div className="text-sm text-muted-foreground">Scadenza</div>
+              <div className="text-lg font-bold">
+                {new Date(order.expected_delivery_date).toLocaleDateString('it-IT')}
+              </div>
+              {(() => {
+                const daysUntil = Math.ceil((new Date(order.expected_delivery_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div className={`text-xs font-medium mt-1 ${
+                    daysUntil < 0 ? 'text-destructive' : 
+                    daysUntil < 7 ? 'text-orange-500' : 
+                    'text-muted-foreground'
+                  }`}>
+                    {daysUntil < 0 ? `${Math.abs(daysUntil)} giorni in ritardo` : 
+                     daysUntil === 0 ? 'Scade oggi' :
+                     `Tra ${daysUntil} giorni`}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -434,25 +461,46 @@ function OrderCard({ order, getStatusBadge }: any) {
         <DialogHeader>
           <DialogTitle>Conferma Ordine {order.number}</DialogTitle>
           <DialogDescription>
-            Conferma la ricezione dell'ordine e indica la data di consegna prevista
+            Conferma la ricezione dell'ordine e indica la data di consegna prevista (obbligatoria)
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+            <div className="flex gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-semibold text-amber-700 dark:text-amber-400">Attenzione</p>
+                <p className="text-amber-600 dark:text-amber-300">
+                  La data di consegna prevista è obbligatoria per confermare l'ordine. 
+                  Indica quando prevedi di poter evadere l'ordine.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="delivery-date">Data di consegna prevista *</Label>
+            <Label htmlFor="delivery-date" className="text-base font-semibold">
+              Data di consegna prevista *
+            </Label>
             <Input
               id="delivery-date"
               type="date"
               value={deliveryDate}
               onChange={(e) => setDeliveryDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
+              className="text-lg"
+              required
             />
+            {!deliveryDate && (
+              <p className="text-xs text-destructive">Campo obbligatorio</p>
+            )}
           </div>
+          
           <div className="space-y-2">
-            <Label htmlFor="supplier-notes">Note (opzionale)</Label>
+            <Label htmlFor="supplier-notes">Note aggiuntive (opzionale)</Label>
             <Textarea
               id="supplier-notes"
-              placeholder="Aggiungi eventuali note sulla consegna..."
+              placeholder="Aggiungi eventuali note sulla consegna o specifiche sull'ordine..."
               value={supplierNotes}
               onChange={(e) => setSupplierNotes(e.target.value)}
               rows={3}
@@ -460,10 +508,19 @@ function OrderCard({ order, getStatusBadge }: any) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+          <Button variant="outline" onClick={() => {
+            setShowConfirmDialog(false);
+            setDeliveryDate('');
+            setSupplierNotes('');
+          }}>
             Annulla
           </Button>
-          <Button onClick={handleConfirmOrder} disabled={isSubmitting || !deliveryDate}>
+          <Button 
+            onClick={handleConfirmOrder} 
+            disabled={isSubmitting || !deliveryDate}
+            className="gap-2"
+          >
+            <CheckCircle className="h-4 w-4" />
             {isSubmitting ? "Conferma in corso..." : "Conferma Ordine"}
           </Button>
         </DialogFooter>
