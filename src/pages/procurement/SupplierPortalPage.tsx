@@ -197,6 +197,7 @@ function OrderCard({ order, getStatusBadge }: any) {
   const [showCommentsDialog, setShowCommentsDialog] = useState(false);
   const [showAttachmentsDialog, setShowAttachmentsDialog] = useState(false);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [showPickedUpDialog, setShowPickedUpDialog] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [newComment, setNewComment] = useState("");
@@ -326,6 +327,29 @@ function OrderCard({ order, getStatusBadge }: any) {
     }
   };
 
+  const handleMarkAsPickedUp = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('supplier-mark-picked-up', {
+        body: { 
+          orderId: order.id,
+          notes: supplierNotes
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Ordine segnato come ritirato!");
+      setShowPickedUpDialog(false);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error: any) {
+      console.error('Picked up error:', error);
+      toast.error("Errore durante la segnalazione del ritiro");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -343,12 +367,6 @@ function OrderCard({ order, getStatusBadge }: any) {
               )}
             </CardDescription>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">
-              €{order.total_amount?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-            </div>
-            <div className="text-sm text-muted-foreground">Totale ordine</div>
-          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -358,19 +376,9 @@ function OrderCard({ order, getStatusBadge }: any) {
             <h4 className="font-semibold text-sm text-muted-foreground">Articoli</h4>
             <div className="space-y-2">
               {order.purchase_order_items.map((item: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <div className="font-medium">{item.material?.name || item.description}</div>
-                    <div className="text-sm text-muted-foreground">Quantità: {item.quantity}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">
-                      €{item.unit_price?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Tot: €{(item.quantity * item.unit_price).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
+                <div key={idx} className="p-3 bg-muted/50 rounded-lg">
+                  <div className="font-medium">{item.material?.name || item.description}</div>
+                  <div className="text-sm text-muted-foreground">Quantità: {item.quantity}</div>
                 </div>
               ))}
             </div>
@@ -397,6 +405,12 @@ function OrderCard({ order, getStatusBadge }: any) {
             <Button size="sm" variant="secondary" className="gap-2" onClick={() => setShowStatusDialog(true)}>
               <Package className="h-4 w-4" />
               Aggiorna Stato
+            </Button>
+          )}
+          {order.production_status === 'delivered' && (
+            <Button size="sm" className="gap-2" onClick={() => setShowPickedUpDialog(true)}>
+              <CheckCircle className="h-4 w-4" />
+              Segna come Ritirato
             </Button>
           )}
         </div>
@@ -573,6 +587,38 @@ function OrderCard({ order, getStatusBadge }: any) {
           </Button>
           <Button onClick={handleUpdateStatus} disabled={isSubmitting}>
             {isSubmitting ? "Aggiornamento..." : "Aggiorna Stato"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Picked Up Dialog */}
+    <Dialog open={showPickedUpDialog} onOpenChange={setShowPickedUpDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Segna come Ritirato - {order.number}</DialogTitle>
+          <DialogDescription>
+            Conferma che l'ordine è stato ritirato dall'azienda
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="pickup-notes">Note (opzionale)</Label>
+            <Textarea
+              id="pickup-notes"
+              placeholder="Aggiungi eventuali note sul ritiro..."
+              value={supplierNotes}
+              onChange={(e) => setSupplierNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowPickedUpDialog(false)}>
+            Annulla
+          </Button>
+          <Button onClick={handleMarkAsPickedUp} disabled={isSubmitting}>
+            {isSubmitting ? "Segnalazione in corso..." : "Conferma Ritiro"}
           </Button>
         </DialogFooter>
       </DialogContent>
