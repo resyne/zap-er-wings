@@ -181,13 +181,14 @@ export function InvoiceXMLImporter({ onSuccess }: InvoiceXMLImporterProps) {
           supplier = existingSupplier;
         } else {
           // Create new supplier
-          const { data: newSupplier, error: supplierError } = await supabase
+          const { data: newSupplier, error: supplierError} = await supabase
             .from('suppliers')
             .insert([{
               name: invoice.supplier.name,
               tax_id: invoice.supplier.vatNumber,
               address: invoice.supplier.address,
-              code: `SUP-${Date.now()}` // Temporary code
+              code: `SUP-${Date.now()}`, // Temporary code
+              access_code: Math.random().toString(36).substring(2, 10).toUpperCase()
             }])
             .select()
             .single();
