@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.confirm-purchase-order]
 verify_jwt = false
 
+[functions.supplier-portal-access]
+verify_jwt = false
+
 [functions.zapier-webhook]
 verify_jwt = false
 

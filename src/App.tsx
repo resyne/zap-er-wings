@@ -32,6 +32,7 @@ import OffersPage from "./pages/crm/OffersPage";
 import ProductCatalogPage from "./pages/crm/ProductCatalogPage";
 import ProductConfiguratorPage from "./pages/crm/ProductConfiguratorPage";
 import PublicConfiguratorPage from "./pages/PublicConfiguratorPage";
+import SupplierPortalPage from "./pages/procurement/SupplierPortalPage";
 import StockPage from "./pages/warehouse/StockPage";
 import MovementsPage from "./pages/warehouse/MovementsPage";
 
@@ -103,6 +104,7 @@ const App = () => (
               <Route path="/offerta/:code" element={<PublicOfferPage />} />
               <Route path="/ddt/:code" element={<PublicDDTPage />} />
               <Route path="/configurator/:code" element={<PublicConfiguratorPage />} />
+              <Route path="/supplier/:supplierId" element={<SupplierPortalPage />} />
               <Route path="/procurement/purchase-order-confirm" element={<PurchaseOrderConfirmPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>

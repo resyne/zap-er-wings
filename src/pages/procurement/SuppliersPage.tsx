@@ -130,6 +130,7 @@ const SuppliersPage = () => {
         tax_id: values.tax_id || null,
         payment_terms: values.payment_terms,
         active: true,
+        access_code: Math.random().toString(36).substring(2, 10).toUpperCase(),
       };
 
       const { data, error } = await supabase
