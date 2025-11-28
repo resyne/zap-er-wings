@@ -682,49 +682,74 @@ export default function BomPage() {
 
               {selectedLevel === 2 && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="supplier_filter">Filter by Supplier (optional)</Label>
-                    <Select 
-                      value={selectedSupplierId} 
-                      onValueChange={setSelectedSupplierId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="All suppliers" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
-                        <SelectItem value="all">All suppliers</SelectItem>
-                        {suppliers.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name} ({supplier.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="material_id">Warehouse Material</Label>
-                    <Select 
-                      value={formData.material_id} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, material_id: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Connect to warehouse material (optional)" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
-                        {materials.map((material) => (
-                          <SelectItem key={material.id} value={material.id}>
-                            {material.name} ({material.code}) - Stock: {material.current_stock} {material.unit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedSupplierId && selectedSupplierId !== 'all' ? 
-                        `Showing materials from selected supplier (${materials.length} items)` :
-                        `Showing all materials (${materials.length} items)`
-                      }
-                    </p>
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-4">
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Importa da Anagrafica Materiali
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="supplier_filter">Filtra per Fornitore</Label>
+                        <Select 
+                          value={selectedSupplierId} 
+                          onValueChange={setSelectedSupplierId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tutti i fornitori" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
+                            <SelectItem value="all">Tutti i fornitori</SelectItem>
+                            {suppliers.map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name} ({supplier.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="material_id">Seleziona Materiale</Label>
+                        <Select 
+                          value={formData.material_id} 
+                          onValueChange={(value) => {
+                            const material = materials.find(m => m.id === value);
+                            if (material) {
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                material_id: value,
+                                name: material.name,
+                                version: "v1",
+                                description: `${material.name} - ${material.code}`
+                              }));
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona un materiale dall'anagrafica" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-md max-h-[300px] overflow-y-auto z-50">
+                            {materials.map((material) => (
+                              <SelectItem key={material.id} value={material.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{material.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {material.code} | Stock: {material.current_stock} {material.unit}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedSupplierId && selectedSupplierId !== 'all' ? 
+                            `${materials.length} materiali dal fornitore selezionato` :
+                            `${materials.length} materiali totali`
+                          }
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
