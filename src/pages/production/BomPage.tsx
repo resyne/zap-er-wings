@@ -22,6 +22,11 @@ interface BOM {
   name: string;
   version: string;
   parent_id?: string;
+  parent_bom?: {
+    id: string;
+    name: string;
+    version: string;
+  };
   description?: string;
   notes?: string;
   created_at: string;
@@ -260,6 +265,7 @@ export default function BomPage() {
           *,
           bom_items(count),
           material:materials(id, name, code, current_stock, unit, cost),
+          parent_bom:boms!parent_id(id, name, version),
           bom_inclusions!parent_bom_id(
             id,
             included_bom_id,
@@ -1458,7 +1464,13 @@ export default function BomPage() {
                         groupedBoms[level].map((bom) => (
                            <TableRow key={bom.id}>
                              <TableCell className="font-medium">
-                               {level === 2 && bom.material ? bom.material.name : bom.name}
+                               {level === 0 ? (
+                                 bom.parent_id && bom.parent_bom ? bom.parent_bom.name : bom.name
+                               ) : level === 2 && bom.material ? (
+                                 bom.material.name
+                               ) : (
+                                 bom.name
+                               )}
                              </TableCell>
                              <TableCell>
                                <Badge variant="outline">{bom.version}</Badge>
@@ -1471,9 +1483,7 @@ export default function BomPage() {
                              {level === 0 && (
                               <TableCell>
                                 {bom.parent_id ? (
-                                  <Badge variant="outline" className="w-fit text-xs">
-                                    Variante
-                                  </Badge>
+                                  <span className="font-medium">{bom.name}</span>
                                 ) : (
                                   <span className="text-muted-foreground text-xs">-</span>
                                 )}
