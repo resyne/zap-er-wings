@@ -667,31 +667,40 @@ export default function BomPage() {
 
   const importCoemGrundfosMaterials = async () => {
     try {
-      // Get all materials with their suppliers
+      console.log('Starting import...');
+      
+      // First, get COEM and Grundfos supplier IDs
+      const { data: suppliers, error: suppliersError } = await supabase
+        .from('suppliers')
+        .select('id, name, code')
+        .or('code.eq.SUP716347,name.ilike.%Grundfos%');
+
+      if (suppliersError) throw suppliersError;
+      
+      console.log('Found suppliers:', suppliers);
+
+      if (!suppliers || suppliers.length === 0) {
+        toast({
+          title: "Errore",
+          description: "Fornitori COEM o Grundfos non trovati",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const supplierIds = suppliers.map(s => s.id);
+
+      // Get all materials from these suppliers
       const { data: materials, error: materialsError } = await supabase
         .from('materials')
-        .select(`
-          id,
-          name,
-          code,
-          supplier_id,
-          suppliers!inner (
-            id,
-            name,
-            code
-          )
-        `);
+        .select('id, name, code, supplier_id')
+        .in('supplier_id', supplierIds);
 
       if (materialsError) throw materialsError;
 
-      // Filter for COEM and Grundfos
-      const filteredMaterials = materials?.filter((material: any) => {
-        const supplierCode = material.suppliers?.code;
-        const supplierName = material.suppliers?.name;
-        return supplierCode === 'SUP716347' || supplierName?.toLowerCase().includes('grundfos');
-      }) || [];
+      console.log('Found materials:', materials?.length);
 
-      if (filteredMaterials.length === 0) {
+      if (!materials || materials.length === 0) {
         toast({
           title: "Nessun materiale trovato",
           description: "Nessun materiale COEM o Grundfos trovato",
@@ -701,19 +710,27 @@ export default function BomPage() {
       }
 
       // Create BOM level 2 for each material
-      const bomsToCreate = filteredMaterials.map((material: any) => ({
-        name: material.name,
-        version: '1.0',
-        level: 2,
-        material_id: material.id,
-        description: `Importato da ${material.suppliers?.name || 'fornitore'}`
-      }));
+      const bomsToCreate = materials.map(material => {
+        const supplier = suppliers.find(s => s.id === material.supplier_id);
+        return {
+          name: material.name,
+          version: '1.0',
+          level: 2,
+          material_id: material.id,
+          description: `Importato da ${supplier?.name || 'fornitore'}`
+        };
+      });
+
+      console.log('Creating BOMs:', bomsToCreate.length);
 
       const { error: insertError } = await supabase
         .from('boms')
         .insert(bomsToCreate);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw insertError;
+      }
 
       toast({
         title: "Successo",
@@ -722,6 +739,7 @@ export default function BomPage() {
       
       fetchBoms();
     } catch (error: any) {
+      console.error('Import error:', error);
       toast({
         title: "Errore",
         description: error.message,
