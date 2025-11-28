@@ -35,6 +35,21 @@ const COUNTRY_ISO_MAP: Record<string, string> = {
   Germany: 'DE',
   Svezia: 'SE',
   Sweden: 'SE',
+  Spagna: 'ES',
+  Spain: 'ES',
+  Portogallo: 'PT',
+  Portugal: 'PT',
+  Austria: 'AT',
+  Svizzera: 'CH',
+  Switzerland: 'CH',
+  Belgio: 'BE',
+  Belgium: 'BE',
+  Olanda: 'NL',
+  Netherlands: 'NL',
+  'Paesi Bassi': 'NL',
+  'Regno Unito': 'GB',
+  'United Kingdom': 'GB',
+  UK: 'GB',
 };
 const STATUS_CONFIG = {
   'new': { color: '#3b82f6', label: 'Nuovo' },
@@ -139,7 +154,14 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       const location = lead.custom_fields?.luogo;
       if (!location) continue;
 
-      console.log(`[LeadMap] Geocoding location: "${location}" for lead: ${lead.company_name} (status: ${lead.status}, country: ${lead.country || 'N/A'})`);
+      console.log(`[LeadMap] FULL LEAD DATA:`, {
+        company: lead.company_name,
+        location: location,
+        country: lead.country,
+        country_type: typeof lead.country,
+        country_value: JSON.stringify(lead.country),
+        status: lead.status
+      });
       
       const coords = await geocodeLocation(location, lead.country);
       if (!coords) {
@@ -228,6 +250,12 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       }
     };
   }, []);
+
+  // Clear geocode cache when leads change to ensure fresh geocoding
+  useEffect(() => {
+    geocodeCache.current.clear();
+    console.log('[LeadMap] Cleared geocode cache due to leads update');
+  }, [leads]);
 
   useEffect(() => {
     if (map.current && map.current.loaded()) {
