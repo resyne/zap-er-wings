@@ -74,9 +74,8 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     if (geocodeCache.current.has(key)) return geocodeCache.current.get(key)!;
     
     try {
-      // Add proximity bias to Italy (center coordinates) and country filter
-      const italyCenter = '12.5,42'; // lng,lat of Italy center
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?proximity=${italyCenter}&country=IT&limit=1&access_token=${mapboxToken}`;
+      // Geocodifica focalizzata su città/località italiane
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?types=place,locality,region&country=IT&limit=1&access_token=${mapboxToken}`;
       const res = await fetch(url);
       const data = await res.json();
       
@@ -84,13 +83,12 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
         const feature = data.features[0];
         const center = feature.center as [number, number];
         
-        // Log for debugging
         console.log(`[LeadMap] Geocoded "${location}" to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
         
         geocodeCache.current.set(key, center);
         return center;
       } else {
-        console.warn(`[LeadMap] No results found for location: "${location}"`);
+        console.warn(`[LeadMap] No results found for location: "${location}"`, data);
       }
     } catch (e) {
       console.warn('Failed to geocode location:', location, e);
