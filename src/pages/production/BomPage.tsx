@@ -964,14 +964,14 @@ export default function BomPage() {
                   <div className="space-y-2">
                     <Label htmlFor="parent_model">Modello Padre (per varianti)</Label>
                     <Select
-                      value={formData.parent_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value }))}
+                      value={formData.parent_id || "NO_PARENT"}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value === "NO_PARENT" ? "" : value }))}
                     >
                       <SelectTrigger id="parent_model">
                         <SelectValue placeholder="Seleziona modello (opzionale)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nessuno (Modello famiglia)</SelectItem>
+                        <SelectItem value="NO_PARENT">Nessuno (Modello famiglia)</SelectItem>
                         {boms.filter(b => b.level === 0 && !b.parent_id).map((model) => (
                           <SelectItem key={model.id} value={model.id}>
                             {model.name}
