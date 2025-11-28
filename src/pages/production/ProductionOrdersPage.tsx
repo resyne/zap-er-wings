@@ -84,6 +84,12 @@ interface WorkOrder {
   offers?: {
     number: string;
   };
+  work_order_article_items?: Array<{
+    id: string;
+    description: string;
+    is_completed: boolean;
+    position: number;
+  }>;
 }
 
 export default function WorkOrdersPage() {
@@ -1354,6 +1360,7 @@ export default function WorkOrdersPage() {
                   <TableRow>
                     <TableHead className="min-w-[120px]">Ordine</TableHead>
                     <TableHead className="min-w-[150px]">Cliente</TableHead>
+                    <TableHead className="min-w-[200px]">Articoli</TableHead>
                     <TableHead className="min-w-[140px]">Assegnato a</TableHead>
                     <TableHead className="min-w-[100px]">Priorità</TableHead>
                     <TableHead className="min-w-[110px]">Data Ordine</TableHead>
@@ -1406,6 +1413,31 @@ export default function WorkOrdersPage() {
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wo.work_order_article_items && wo.work_order_article_items.length > 0 ? (
+                          <div className="space-y-1">
+                            {wo.work_order_article_items.slice(0, 3).map((item: any) => (
+                              <div key={item.id} className="text-xs flex items-start gap-1">
+                                <Checkbox 
+                                  checked={item.is_completed} 
+                                  disabled
+                                  className="mt-0.5"
+                                />
+                                <span className={item.is_completed ? 'line-through text-muted-foreground' : ''}>
+                                  {item.description.split('\n')[0]}
+                                </span>
+                              </div>
+                            ))}
+                            {wo.work_order_article_items.length > 3 && (
+                              <div className="text-xs text-muted-foreground">
+                                +{wo.work_order_article_items.length - 3} altri
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Nessun articolo</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1650,14 +1682,37 @@ export default function WorkOrdersPage() {
                                              </div>
                                            )}
                                            
-                                           {wo.boms && (
-                                             <div className="flex items-center gap-1">
-                                               <Badge variant="outline" className="text-[10px] md:text-xs">
-                                                 {wo.boms.name}
-                                               </Badge>
-                                             </div>
-                                           )}
-                                         </div>
+                                            {wo.boms && (
+                                              <div className="flex items-center gap-1">
+                                                <Badge variant="outline" className="text-[10px] md:text-xs">
+                                                  {wo.boms.name}
+                                                </Badge>
+                                              </div>
+                                            )}
+                                            
+                                            {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
+                                              <div className="space-y-1 pt-1">
+                                                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Articoli:</div>
+                                                {wo.work_order_article_items.slice(0, 2).map((item: any) => (
+                                                  <div key={item.id} className="text-[10px] md:text-xs flex items-start gap-1.5">
+                                                    <Checkbox 
+                                                      checked={item.is_completed} 
+                                                      disabled
+                                                      className="h-3 w-3 mt-0.5"
+                                                    />
+                                                    <span className={item.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}>
+                                                      {item.description.split('\n')[0]}
+                                                    </span>
+                                                  </div>
+                                                ))}
+                                                {wo.work_order_article_items.length > 2 && (
+                                                  <div className="text-[10px] text-muted-foreground pl-5">
+                                                    +{wo.work_order_article_items.length - 2} altri
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
                                          
                                          {/* Responsabile e info aggiuntive */}
                                          <div className="pt-2 border-t space-y-1.5">
