@@ -189,7 +189,7 @@ export default function BomPage() {
     if (selectedLevel < 2) {
       fetchIncludableBoms();
     }
-  }, [selectedLevel]);
+  }, [selectedLevel, formData.parent_id]);
 
   useEffect(() => {
     fetchMaterials();
@@ -1159,37 +1159,49 @@ export default function BomPage() {
                 <div className="space-y-2">
                   <Label>
                     {selectedLevel === 0 
-                      ? `Include BOMs di Level 1 ${formData.parent_id ? '(componenti di questa variante)' : '(che fanno parte di questo modello)'}`
+                      ? formData.parent_id 
+                        ? 'BOMs Level 1 per questa variante *'
+                        : 'BOMs Level 1 per questo modello (opzionale)'
                       : `Include BOMs di Level ${selectedLevel + 1} (che fanno parte di questo BOM)`
                     }
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Seleziona i BOM di livello inferiore che compongono questo elemento
+                    {selectedLevel === 0 && formData.parent_id
+                      ? 'Seleziona i componenti Level 1 che compongono questa variante'
+                      : 'Seleziona i BOM di livello inferiore che compongono questo elemento'
+                    }
                   </p>
-                  <div className="border rounded-md p-4 max-h-40 overflow-y-auto space-y-2">
-                    {includableBoms.map((bom) => (
-                      <div key={bom.id} className="flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-2 flex-1">
-                          <Checkbox
-                            checked={bom.selected}
-                            onCheckedChange={(checked) => handleInclusionToggle(bom.id, checked as boolean)}
-                          />
-                          <span className="text-sm">{bom.name} ({bom.version})</span>
-                        </div>
-                        {bom.selected && (
-                          <div className="flex items-center space-x-2">
-                            <Label className="text-xs">Qty:</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={bom.quantity}
-                              onChange={(e) => handleQuantityChange(bom.id, parseInt(e.target.value) || 1)}
-                              className="w-16 text-xs"
+                  <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
+                    {includableBoms.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nessun BOM Level {selectedLevel + 1} disponibile. Creane prima di procedere.
+                      </p>
+                    ) : (
+                      includableBoms.map((bom) => (
+                        <div key={bom.id} className="flex items-center justify-between space-x-2 p-2 hover:bg-muted/50 rounded">
+                          <div className="flex items-center space-x-2 flex-1">
+                            <Checkbox
+                              checked={bom.selected}
+                              onCheckedChange={(checked) => handleInclusionToggle(bom.id, checked as boolean)}
                             />
+                            <span className="text-sm font-medium">{bom.name}</span>
+                            <Badge variant="outline" className="text-xs">{bom.version}</Badge>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          {bom.selected && (
+                            <div className="flex items-center space-x-2">
+                              <Label className="text-xs">Quantità:</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={bom.quantity}
+                                onChange={(e) => handleQuantityChange(bom.id, parseInt(e.target.value) || 1)}
+                                className="w-20 text-xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
