@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Plus, Search, Edit, Trash2, Package2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package2, Copy } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -248,6 +248,24 @@ export default function MaterialsPage() {
       minimum_stock: material.minimum_stock,
       maximum_stock: material.maximum_stock,
       current_stock: material.current_stock,
+      location: material.location || "",
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDuplicate = (material: Material) => {
+    setEditingMaterial(null); // Non impostiamo editingMaterial per creare un nuovo materiale
+    form.reset({
+      name: material.name + " (copia)",
+      description: material.description || "",
+      material_type: material.material_type,
+      category: material.category || "",
+      unit: material.unit,
+      cost: material.cost,
+      supplier_id: material.supplier_id || "",
+      minimum_stock: material.minimum_stock,
+      maximum_stock: material.maximum_stock,
+      current_stock: 0, // Reset stock for duplicated material
       location: material.location || "",
     });
     setIsDialogOpen(true);
@@ -677,6 +695,13 @@ export default function MaterialsPage() {
                             onClick={() => handleEdit(material)}
                           >
                             <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDuplicate(material)}
+                          >
+                            <Copy className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
