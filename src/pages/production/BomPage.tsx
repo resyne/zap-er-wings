@@ -1429,10 +1429,10 @@ export default function BomPage() {
                   <Table>
                      <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead>Modello</TableHead>
                           <TableHead>Version</TableHead>
                           <TableHead>Description</TableHead>
-                          {level === 0 && <TableHead>Modello + Variante</TableHead>}
+                          {level === 0 && <TableHead>Variante</TableHead>}
                           {level === 2 && <TableHead>Material</TableHead>}
                           {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
                           <TableHead>Components</TableHead>
@@ -1470,14 +1470,13 @@ export default function BomPage() {
                              </TableCell>
                              {level === 0 && (
                               <TableCell>
-                                <div className="flex flex-col gap-1">
-                                  <span className="font-medium">{bom.name}</span>
-                                  {bom.parent_id && (
-                                    <Badge variant="outline" className="w-fit text-xs">
-                                      Variante
-                                    </Badge>
-                                  )}
-                                </div>
+                                {bom.parent_id ? (
+                                  <Badge variant="outline" className="w-fit text-xs">
+                                    Variante
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
                               </TableCell>
                             )}
                             {level === 2 && (
