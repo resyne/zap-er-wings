@@ -1281,7 +1281,7 @@ export default function WorkOrdersServicePage() {
                               } ${isToday ? "text-primary font-bold" : ""}`}>
                                 {format(day, "d")}
                               </div>
-                              <div className="space-y-1">
+                              <div className="space-y-2">
                                 {workOrders.map((wo, index) => (
                                   <Draggable key={wo.id} draggableId={wo.id} index={index}>
                                     {(provided, snapshot) => (
@@ -1294,21 +1294,23 @@ export default function WorkOrdersServicePage() {
                                           setSelectedWorkOrder(wo);
                                           setShowDetailsDialog(true);
                                         }}
-                                        className={`cursor-pointer bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded p-1 text-xs transition-colors ${
-                                          snapshot.isDragging ? 'opacity-50' : ''
+                                        className={`cursor-pointer bg-card hover:bg-accent border-2 border-primary/40 rounded-md p-2.5 transition-all ${
+                                          snapshot.isDragging ? 'opacity-50 shadow-lg' : 'shadow-sm hover:shadow-md'
                                         }`}
                                       >
-                                        <div className="font-medium truncate" title={wo.title}>
-                                          {wo.title}
-                                        </div>
-                                        <div className="text-muted-foreground truncate" title={wo.customers?.name}>
-                                          {wo.customers?.name}
-                                        </div>
-                                        {wo.scheduled_date && (
-                                          <div className="text-muted-foreground">
-                                            {format(new Date(wo.scheduled_date), "HH:mm")}
+                                        <div className="space-y-1.5">
+                                          <div className="font-semibold text-sm leading-tight line-clamp-2" title={wo.title}>
+                                            {wo.title}
                                           </div>
-                                        )}
+                                          <div className="text-xs text-muted-foreground truncate" title={wo.customers?.name}>
+                                            {wo.customers?.name || 'Nessun cliente'}
+                                          </div>
+                                          {wo.scheduled_date && (
+                                            <div className="text-xs font-medium text-primary">
+                                              {format(new Date(wo.scheduled_date), "HH:mm")}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                   </Draggable>
