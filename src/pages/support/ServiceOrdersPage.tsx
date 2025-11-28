@@ -1294,22 +1294,17 @@ export default function WorkOrdersServicePage() {
                                           setSelectedWorkOrder(wo);
                                           setShowDetailsDialog(true);
                                         }}
-                                        className={`cursor-pointer bg-card hover:bg-accent border-2 border-primary/40 rounded-md p-2.5 transition-all ${
+                                        className={`cursor-pointer bg-card hover:bg-accent border-2 border-primary/40 rounded-md p-3 transition-all ${
                                           snapshot.isDragging ? 'opacity-50 shadow-lg' : 'shadow-sm hover:shadow-md'
                                         }`}
                                       >
-                                        <div className="space-y-1.5">
-                                          <div className="font-semibold text-sm leading-tight line-clamp-2" title={wo.title}>
+                                        <div className="space-y-2">
+                                          <div className="font-semibold text-base leading-tight line-clamp-2" title={wo.title}>
                                             {wo.title}
                                           </div>
-                                          <div className="text-xs text-muted-foreground truncate" title={wo.customers?.name}>
+                                          <div className="text-sm text-muted-foreground truncate" title={wo.customers?.name}>
                                             {wo.customers?.name || 'Nessun cliente'}
                                           </div>
-                                          {wo.scheduled_date && (
-                                            <div className="text-xs font-medium text-primary">
-                                              {format(new Date(wo.scheduled_date), "HH:mm")}
-                                            </div>
-                                          )}
                                         </div>
                                       </div>
                                     )}
