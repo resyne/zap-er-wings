@@ -37,6 +37,7 @@ interface WorkOrder {
   number: string;
   title: string;
   status: string;
+  created_at: string;
   planned_start_date?: string;
   planned_end_date?: string;
   assigned_to?: string;

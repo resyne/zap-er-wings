@@ -16,10 +16,12 @@ interface WorkOrder {
   id: string;
   number: string;
   title: string;
+  created_at: string;
   planned_start_date?: string | null;
   planned_end_date?: string | null;
   customers?: {
     name: string;
+    code: string;
   } | null;
   status: string;
   priority?: string | null;
@@ -69,10 +71,17 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
     const destinationDate = result.destination.droppableId;
 
     if (destinationDate.startsWith("day-")) {
-      const dateStr = destinationDate.replace("day-", "");
+      const wo = workOrders.find(w => w.id === workOrderId);
+      if (!wo) return;
+      
       setDraggedWorkOrderId(workOrderId);
-      setTempStartDate(new Date(dateStr));
-      setTempEndDate(new Date(dateStr));
+      
+      // Use created_at as start date
+      const createdDate = new Date(wo.created_at);
+      setTempStartDate(createdDate);
+      
+      // Default end date is same as start date (1 day duration)
+      setTempEndDate(createdDate);
       setShowDateDialog(true);
     }
   };
