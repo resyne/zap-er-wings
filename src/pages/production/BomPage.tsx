@@ -723,8 +723,17 @@ export default function BomPage() {
 
       const existingBomNames = new Set(existingBoms?.map(b => b.name) || []);
 
-      // Filter out materials whose names would create duplicate BOM names
-      const materialsToImport = materials.filter(m => !existingBomNames.has(m.name));
+      // Build a map to ensure we import at most one BOM per distinct material name
+      const uniqueMaterialsByName = new Map<string, typeof materials[0]>();
+      for (const m of materials) {
+        // Skip if a BOM with this name+version already exists
+        if (existingBomNames.has(m.name)) continue;
+        // Skip if we already queued a material with the same name in this batch
+        if (uniqueMaterialsByName.has(m.name)) continue;
+        uniqueMaterialsByName.set(m.name, m);
+      }
+
+      const materialsToImport = Array.from(uniqueMaterialsByName.values());
 
       console.log('Materials to import:', materialsToImport.length);
 
