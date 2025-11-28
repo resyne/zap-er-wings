@@ -292,6 +292,7 @@ export default function WorkOrdersPage() {
         });
       } else {
         // Create production work order (number will be auto-generated)
+        const now = new Date().toISOString();
         const { data: productionWO, error: productionError } = await supabase
           .from('work_orders')
           .insert([{ 
@@ -302,7 +303,7 @@ export default function WorkOrdersPage() {
             customer_id: formData.customer_id || null,
             assigned_to: (formData.assigned_to && formData.assigned_to.trim() !== '' && formData.assigned_to !== 'none') ? formData.assigned_to : null,
             priority: formData.priority,
-            planned_start_date: formData.planned_start_date || null,
+            planned_start_date: now, // Always set to creation time
             planned_end_date: formData.planned_end_date || null,
             notes: formData.notes,
             status: 'da_fare'
