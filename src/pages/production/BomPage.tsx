@@ -1155,27 +1155,22 @@ export default function BomPage() {
                 />
               </div>
 
-              {selectedLevel < 3 && includableBoms.length > 0 && (
+              {selectedLevel === 0 && formData.parent_id && includableBoms.length >= 0 && (
                 <div className="space-y-2">
-                  <Label>
-                    {selectedLevel === 0 
-                      ? formData.parent_id 
-                        ? 'BOMs Level 1 per questa variante *'
-                        : 'BOMs Level 1 per questo modello (opzionale)'
-                      : `Include BOMs di Level ${selectedLevel + 1} (che fanno parte di questo BOM)`
-                    }
-                  </Label>
+                  <Label>BOMs Level 1 per questa variante *</Label>
                   <p className="text-xs text-muted-foreground">
-                    {selectedLevel === 0 && formData.parent_id
-                      ? 'Seleziona i componenti Level 1 che compongono questa variante'
-                      : 'Seleziona i BOM di livello inferiore che compongono questo elemento'
-                    }
+                    Seleziona i componenti Level 1 che compongono questa variante del modello
                   </p>
                   <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
                     {includableBoms.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nessun BOM Level {selectedLevel + 1} disponibile. Creane prima di procedere.
-                      </p>
+                      <div className="text-center py-6">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Nessun BOM Level 1 disponibile
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Crea prima i BOM Level 1 per poterli collegare a questa variante
+                        </p>
+                      </div>
                     ) : (
                       includableBoms.map((bom) => (
                         <div key={bom.id} className="flex items-center justify-between space-x-2 p-2 hover:bg-muted/50 rounded">
@@ -1202,6 +1197,41 @@ export default function BomPage() {
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+              )}
+
+              {selectedLevel > 0 && selectedLevel < 3 && includableBoms.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Include BOMs di Level {selectedLevel + 1}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Seleziona i BOM di livello inferiore che compongono questo elemento
+                  </p>
+                  <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
+                    {includableBoms.map((bom) => (
+                      <div key={bom.id} className="flex items-center justify-between space-x-2 p-2 hover:bg-muted/50 rounded">
+                        <div className="flex items-center space-x-2 flex-1">
+                          <Checkbox
+                            checked={bom.selected}
+                            onCheckedChange={(checked) => handleInclusionToggle(bom.id, checked as boolean)}
+                          />
+                          <span className="text-sm font-medium">{bom.name}</span>
+                          <Badge variant="outline" className="text-xs">{bom.version}</Badge>
+                        </div>
+                        {bom.selected && (
+                          <div className="flex items-center space-x-2">
+                            <Label className="text-xs">Quantità:</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={bom.quantity}
+                              onChange={(e) => handleQuantityChange(bom.id, parseInt(e.target.value) || 1)}
+                              className="w-20 text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
