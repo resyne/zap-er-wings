@@ -511,25 +511,59 @@ export default function BomPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this BOM? This will remove it and its inclusions, but not the included BOMs.")) return;
+    if (!confirm("Sei sicuro di voler eliminare questo BOM? Verranno rimosse anche le sue inclusioni, ma non i BOM inclusi.")) return;
 
     try {
       // Check if this BOM is used in any work orders
       const { data: workOrders, error: checkError } = await supabase
         .from('work_orders')
         .select('id, number')
-        .eq('bom_id', id)
-        .limit(1);
+        .eq('bom_id', id);
 
       if (checkError) throw checkError;
 
       if (workOrders && workOrders.length > 0) {
+        const workOrderNumbers = workOrders.map(wo => wo.number).join(', ');
+        const confirmDelete = confirm(
+          `Questo BOM è collegato a ${workOrders.length} commessa/e di produzione (${workOrderNumbers}). ` +
+          `Vuoi eliminare anche tutte le commesse collegate?`
+        );
+        
+        if (!confirmDelete) {
+          return;
+        }
+
+        // Delete related work orders
+        for (const workOrder of workOrders) {
+          // Delete work order articles first
+          const { error: articlesError } = await supabase
+            .from('work_order_article_items')
+            .delete()
+            .eq('work_order_id', workOrder.id);
+
+          if (articlesError) throw articlesError;
+
+          // Delete executions
+          const { error: executionsError } = await supabase
+            .from('executions')
+            .delete()
+            .eq('work_order_id', workOrder.id);
+
+          if (executionsError) throw executionsError;
+
+          // Finally delete the work order itself
+          const { error: workOrderError } = await supabase
+            .from('work_orders')
+            .delete()
+            .eq('id', workOrder.id);
+
+          if (workOrderError) throw workOrderError;
+        }
+
         toast({
-          title: "Cannot Delete BOM",
-          description: "This BOM is being used by one or more work orders. Please remove or update those work orders first.",
-          variant: "destructive",
+          title: "Commesse eliminate",
+          description: `${workOrders.length} commessa/e di produzione eliminate con successo`,
         });
-        return;
       }
 
       // First, delete all inclusions where this BOM is the parent
@@ -549,13 +583,13 @@ export default function BomPage() {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "BOM deleted successfully",
+        title: "Successo",
+        description: "BOM eliminato con successo",
       });
       fetchBoms();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Errore",
         description: error.message,
         variant: "destructive",
       });
