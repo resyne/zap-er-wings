@@ -396,6 +396,16 @@ function OrderCard({ order, getStatusBadge }: any) {
           </div>
         )}
 
+        {/* Order Notes */}
+        {order.notes && (
+          <div className="space-y-2">
+            <h4 className="font-semibold text-sm text-muted-foreground">Note Ordine</h4>
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-2 pt-4 border-t">
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowActivityDialog(true)}>
