@@ -20,6 +20,7 @@ import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { ScheduleInstallationDialog } from "@/components/support/ScheduleInstallationDialog";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek } from "date-fns";
 import { it } from "date-fns/locale";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 interface ServiceWorkOrder {
   id: string;
@@ -868,6 +869,73 @@ export default function WorkOrdersServicePage() {
     setCurrentMonth(new Date());
   };
 
+  const handleCalendarDragEnd = async (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+    const woId = draggableId;
+
+    try {
+      // Check if dropping from unprogrammed to calendar
+      if (source.droppableId === 'unprogrammed' && destination.droppableId.startsWith('calendar-')) {
+        // Extract date from droppableId (format: calendar-YYYY-MM-DD)
+        const dateStr = destination.droppableId.replace('calendar-', '');
+        
+        const { error } = await supabase
+          .from("service_work_orders")
+          .update({ scheduled_date: dateStr, status: 'programmata' })
+          .eq("id", woId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Commessa programmata",
+          description: `La commessa è stata programmata per il ${new Date(dateStr).toLocaleDateString('it-IT')}`,
+        });
+
+        loadServiceWorkOrders();
+      } else if (destination.droppableId.startsWith('calendar-')) {
+        // Moving between calendar days
+        const dateStr = destination.droppableId.replace('calendar-', '');
+        
+        const { error } = await supabase
+          .from("service_work_orders")
+          .update({ scheduled_date: dateStr })
+          .eq("id", woId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Data aggiornata",
+          description: `La commessa è stata spostata al ${new Date(dateStr).toLocaleDateString('it-IT')}`,
+        });
+
+        loadServiceWorkOrders();
+      } else if (destination.droppableId === 'unprogrammed') {
+        // Moving back to unprogrammed
+        const { error } = await supabase
+          .from("service_work_orders")
+          .update({ scheduled_date: null, status: 'da_programmare' })
+          .eq("id", woId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Commessa deprogrammata",
+          description: "La commessa è stata rimossa dal calendario",
+        });
+
+        loadServiceWorkOrders();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare la data della commessa",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
@@ -1113,60 +1181,149 @@ export default function WorkOrdersServicePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-7 gap-2">
-              {/* Header giorni della settimana */}
-              {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((day) => (
-                <div key={day} className="text-center font-semibold text-sm text-muted-foreground p-2">
-                  {day}
-                </div>
-              ))}
-              
-              {/* Celle del calendario */}
-              {calendarDays.map((day, idx) => {
-                const workOrders = getWorkOrdersForDay(day);
-                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
-                const isToday = isSameDay(day, new Date());
-                
-                return (
-                  <div
-                    key={idx}
-                    className={`min-h-32 border rounded-lg p-2 ${
-                      !isCurrentMonth ? "bg-muted/30" : ""
-                    } ${isToday ? "ring-2 ring-primary" : ""}`}
-                  >
-                    <div className={`text-sm font-medium mb-2 ${
-                      !isCurrentMonth ? "text-muted-foreground" : ""
-                    } ${isToday ? "text-primary font-bold" : ""}`}>
-                      {format(day, "d")}
-                    </div>
-                    <div className="space-y-1">
-                      {workOrders.map((wo) => (
-                        <div
-                          key={wo.id}
-                          onClick={() => {
-                            setSelectedWorkOrder(wo);
-                            setShowDetailsDialog(true);
-                          }}
-                          className="cursor-pointer bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded p-1 text-xs transition-colors"
-                        >
-                          <div className="font-medium truncate" title={wo.title}>
-                            {wo.title}
-                          </div>
-                          <div className="text-muted-foreground truncate" title={wo.customers?.name}>
-                            {wo.customers?.name}
-                          </div>
-                          {wo.scheduled_date && (
-                            <div className="text-muted-foreground">
-                              {format(new Date(wo.scheduled_date), "HH:mm")}
+            <DragDropContext onDragEnd={handleCalendarDragEnd}>
+              <div className="flex gap-4">
+                {/* Unprogrammed Orders Sidebar */}
+                <div className="w-64 flex-shrink-0 space-y-2">
+                  <div className="sticky top-4">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm">Non Programmate</CardTitle>
+                        <CardDescription className="text-xs">
+                          Trascina nel calendario per programmare
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Droppable droppableId="unprogrammed">
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`space-y-2 min-h-[200px] p-2 rounded-lg transition-colors ${
+                                snapshot.isDraggingOver ? 'bg-muted/50' : 'bg-background'
+                              }`}
+                            >
+                              {filteredWorkOrders
+                                .filter(wo => !wo.scheduled_date)
+                                .map((wo, index) => (
+                                  <Draggable key={wo.id} draggableId={wo.id} index={index}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={`p-2 bg-card border rounded-lg cursor-move hover:shadow-md transition-all ${
+                                          snapshot.isDragging ? 'shadow-lg opacity-80' : ''
+                                        }`}
+                                        onClick={() => {
+                                          setSelectedWorkOrder(wo);
+                                          setShowDetailsDialog(true);
+                                        }}
+                                      >
+                                        <div className="text-xs font-medium truncate">{wo.number}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">
+                                          {wo.customers?.name || 'Nessun cliente'}
+                                        </div>
+                                        {wo.priority && (
+                                          <Badge variant={wo.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-[9px] mt-1 h-4">
+                                            {wo.priority}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                              {provided.placeholder}
+                              {filteredWorkOrders.filter(wo => !wo.scheduled_date).length === 0 && (
+                                <div className="text-xs text-muted-foreground text-center py-4">
+                                  Nessuna commessa da programmare
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
-                      ))}
-                    </div>
+                        </Droppable>
+                      </CardContent>
+                    </Card>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-7 gap-2">
+                    {/* Header giorni della settimana */}
+                    {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((day) => (
+                      <div key={day} className="text-center font-semibold text-sm text-muted-foreground p-2">
+                        {day}
+                      </div>
+                    ))}
+                    
+                    {/* Celle del calendario */}
+                    {calendarDays.map((day, idx) => {
+                      const workOrders = getWorkOrdersForDay(day);
+                      const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                      const isToday = isSameDay(day, new Date());
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      
+                      return (
+                        <Droppable key={idx} droppableId={`calendar-${dateStr}`}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`min-h-32 border rounded-lg p-2 transition-colors ${
+                                !isCurrentMonth ? "bg-muted/30" : ""
+                              } ${isToday ? "ring-2 ring-primary" : ""} ${
+                                snapshot.isDraggingOver ? 'bg-primary/10 border-primary' : ''
+                              }`}
+                            >
+                              <div className={`text-sm font-medium mb-2 ${
+                                !isCurrentMonth ? "text-muted-foreground" : ""
+                              } ${isToday ? "text-primary font-bold" : ""}`}>
+                                {format(day, "d")}
+                              </div>
+                              <div className="space-y-1">
+                                {workOrders.map((wo, index) => (
+                                  <Draggable key={wo.id} draggableId={wo.id} index={index}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedWorkOrder(wo);
+                                          setShowDetailsDialog(true);
+                                        }}
+                                        className={`cursor-pointer bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded p-1 text-xs transition-colors ${
+                                          snapshot.isDragging ? 'opacity-50' : ''
+                                        }`}
+                                      >
+                                        <div className="font-medium truncate" title={wo.title}>
+                                          {wo.title}
+                                        </div>
+                                        <div className="text-muted-foreground truncate" title={wo.customers?.name}>
+                                          {wo.customers?.name}
+                                        </div>
+                                        {wo.scheduled_date && (
+                                          <div className="text-muted-foreground">
+                                            {format(new Date(wo.scheduled_date), "HH:mm")}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {provided.placeholder}
+                              </div>
+                            </div>
+                          )}
+                        </Droppable>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </DragDropContext>
           </CardContent>
         </Card>
       )}
