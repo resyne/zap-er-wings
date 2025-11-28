@@ -709,19 +709,19 @@ export default function BomPage() {
         return;
       }
 
-      // Get existing BOMs to avoid duplicates
+      // Get existing BOMs to avoid duplicates by checking name+version combination
       const { data: existingBoms, error: existingError } = await supabase
         .from('boms')
-        .select('material_id')
+        .select('name, version')
         .eq('level', 2)
-        .in('material_id', materials.map(m => m.id));
+        .eq('version', '1');
 
       if (existingError) throw existingError;
 
-      const existingMaterialIds = new Set(existingBoms?.map(b => b.material_id) || []);
+      const existingBomNames = new Set(existingBoms?.map(b => b.name) || []);
 
-      // Filter out materials that already have BOMs
-      const materialsToImport = materials.filter(m => !existingMaterialIds.has(m.id));
+      // Filter out materials whose names would create duplicate BOM names
+      const materialsToImport = materials.filter(m => !existingBomNames.has(m.name));
 
       console.log('Materials to import:', materialsToImport.length);
 
@@ -758,7 +758,7 @@ export default function BomPage() {
 
       toast({
         title: "Successo",
-        description: `${bomsToCreate.length} BOM importati con successo${existingMaterialIds.size > 0 ? ` (${existingMaterialIds.size} già esistenti)` : ''}`,
+        description: `${bomsToCreate.length} BOM importati con successo${existingBomNames.size > 0 ? ` (${existingBomNames.size} già esistenti)` : ''}`,
       });
       
       fetchBoms();
