@@ -709,8 +709,32 @@ export default function BomPage() {
         return;
       }
 
-      // Create BOM level 2 for each material
-      const bomsToCreate = materials.map(material => {
+      // Get existing BOMs to avoid duplicates
+      const { data: existingBoms, error: existingError } = await supabase
+        .from('boms')
+        .select('material_id')
+        .eq('level', 2)
+        .in('material_id', materials.map(m => m.id));
+
+      if (existingError) throw existingError;
+
+      const existingMaterialIds = new Set(existingBoms?.map(b => b.material_id) || []);
+
+      // Filter out materials that already have BOMs
+      const materialsToImport = materials.filter(m => !existingMaterialIds.has(m.id));
+
+      console.log('Materials to import:', materialsToImport.length);
+
+      if (materialsToImport.length === 0) {
+        toast({
+          title: "Info",
+          description: "Tutti i materiali COEM e Grundfos sono già stati importati come BOM",
+        });
+        return;
+      }
+
+      // Create BOM level 2 for each new material
+      const bomsToCreate = materialsToImport.map(material => {
         const supplier = suppliers.find(s => s.id === material.supplier_id);
         return {
           name: material.name,
@@ -734,7 +758,7 @@ export default function BomPage() {
 
       toast({
         title: "Successo",
-        description: `${bomsToCreate.length} BOM importati con successo`,
+        description: `${bomsToCreate.length} BOM importati con successo${existingMaterialIds.size > 0 ? ` (${existingMaterialIds.size} già esistenti)` : ''}`,
       });
       
       fetchBoms();
