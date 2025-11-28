@@ -153,6 +153,27 @@ export default function BomPage() {
     fetchBoms();
     fetchMaterials();
     fetchSuppliers();
+
+    // Real-time updates for materials changes
+    const materialsChannel = supabase
+      .channel('materials-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'materials'
+        },
+        () => {
+          console.log('Material changed, refreshing BOMs...');
+          fetchBoms();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(materialsChannel);
+    };
   }, []);
 
   useEffect(() => {
@@ -1077,7 +1098,7 @@ export default function BomPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Package2 className="h-5 w-5" />
-              <span>BOM Details: {viewingBom?.name}</span>
+              <span>BOM Details: {viewingBom?.level === 2 && viewingBom?.material ? viewingBom.material.name : viewingBom?.name}</span>
             </DialogTitle>
             <DialogDescription>
               View all components and inclusions for this BOM
@@ -1090,7 +1111,9 @@ export default function BomPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Name</Label>
-                  <p className="text-sm text-muted-foreground">{bomDetails.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {bomDetails.level === 2 && bomDetails.material ? bomDetails.material.name : bomDetails.name}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Version</Label>
@@ -1162,7 +1185,11 @@ export default function BomPage() {
                       <TableBody>
                         {bomDetails.bom_inclusions.map((inclusion: any) => (
                           <TableRow key={inclusion.id}>
-                            <TableCell>{inclusion.included_bom.name}</TableCell>
+                            <TableCell>
+                              {inclusion.included_bom.level === 2 && inclusion.included_bom.material 
+                                ? inclusion.included_bom.material.name 
+                                : inclusion.included_bom.name}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline">{inclusion.included_bom.version}</Badge>
                             </TableCell>
@@ -1366,7 +1393,9 @@ export default function BomPage() {
                       ) : (
                         groupedBoms[level].map((bom) => (
                            <TableRow key={bom.id}>
-                             <TableCell className="font-medium">{bom.name}</TableCell>
+                             <TableCell className="font-medium">
+                               {level === 2 && bom.material ? bom.material.name : bom.name}
+                             </TableCell>
                              <TableCell>
                                <Badge variant="outline">{bom.version}</Badge>
                              </TableCell>
