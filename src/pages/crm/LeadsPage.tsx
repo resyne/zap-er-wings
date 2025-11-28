@@ -22,6 +22,8 @@ import { formatAmount } from "@/lib/formatAmount";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateOfferDialog } from "@/components/dashboard/CreateOfferDialog";
 import { cn } from "@/lib/utils";
+import { LeadMap } from "@/components/crm/LeadMap";
+import { MapIcon } from "lucide-react";
 
 
 interface Lead {
@@ -100,6 +102,7 @@ export default function LeadsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [activeView, setActiveView] = useState<"kanban" | "map">("kanban");
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
   const [leadForOffer, setLeadForOffer] = useState<Lead | null>(null);
@@ -1334,60 +1337,83 @@ export default function LeadsPage() {
         </Card>
       </div>
 
-      {/* Pipeline, Country Filters and Search */}
-      <div className="flex items-center space-x-4 flex-wrap">
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="pipeline-filter">Pipeline:</Label>
-          <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Seleziona pipeline" />
-            </SelectTrigger>
-            <SelectContent>
-              {pipelines.map(pipeline => (
-                <SelectItem key={pipeline} value={pipeline}>
-                  {pipeline}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* View Switcher, Pipeline, Country Filters and Search */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center space-x-4 flex-wrap">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="pipeline-filter">Pipeline:</Label>
+            <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Seleziona pipeline" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map(pipeline => (
+                  <SelectItem key={pipeline} value={pipeline}>
+                    {pipeline}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="country-filter">Paese:</Label>
+            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Seleziona paese" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i paesi</SelectItem>
+                {countries.map(country => (
+                  <SelectItem key={country} value={country}>
+                    {country}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            onClick={() => setShowArchived(!showArchived)}
+            size="sm"
+          >
+            <Archive className="h-4 w-4 mr-2" />
+            {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
+          </Button>
+          <div className="flex items-center space-x-2">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cerca lead..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="country-filter">Paese:</Label>
-          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Seleziona paese" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutti i paesi</SelectItem>
-              {countries.map(country => (
-                <SelectItem key={country} value={country}>
-                  {country}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button
-          variant={showArchived ? "default" : "outline"}
-          onClick={() => setShowArchived(!showArchived)}
-          size="sm"
-        >
-          <Archive className="h-4 w-4 mr-2" />
-          {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
-        </Button>
-        <div className="flex items-center space-x-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cerca lead..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
+        
+        {/* View Toggle Buttons */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={activeView === "kanban" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveView("kanban")}
+          >
+            Kanban
+          </Button>
+          <Button
+            variant={activeView === "map" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveView("map")}
+          >
+            <MapIcon className="h-4 w-4 mr-2" />
+            Mappa
+          </Button>
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={onDragEnd}>
+      {/* Content - Kanban or Map View */}
+      {activeView === "kanban" ? (
+        /* Kanban Board */
+        <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {kanbanStatuses.map(status => (
             <div key={status.id} className="bg-muted/30 rounded-lg p-4 min-w-[300px]">
@@ -1847,6 +1873,10 @@ export default function LeadsPage() {
           ))}
         </div>
       </DragDropContext>
+      ) : (
+        /* Map View */
+        <LeadMap leads={filteredLeads} />
+      )}
 
       {/* Lead Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
