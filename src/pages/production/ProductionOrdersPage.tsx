@@ -1163,7 +1163,7 @@ export default function WorkOrdersPage() {
         .update({
           planned_start_date: startDate,
           planned_end_date: endDate,
-          status: 'planned',
+          status: 'da_fare',
         })
         .eq('id', workOrderId);
 
