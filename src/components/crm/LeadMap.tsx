@@ -56,12 +56,40 @@ const COUNTRY_ISO_MAP: Record<string, string> = {
 const LOCATION_NAME_OVERRIDES: Record<string, string> = {
   svezia: 'Sweden',
   slovenia: 'Slovenia',
+  francia: 'France',
+  germania: 'Germany',
+  spagna: 'Spain',
+  portogallo: 'Portugal',
+  austria: 'Austria',
+  svizzera: 'Switzerland',
+  belgio: 'Belgium',
+  olanda: 'Netherlands',
 };
+
+// Lista di nomi di paesi (quando il luogo è un paese intero, non una città)
+const COUNTRY_NAMES = new Set([
+  'svezia', 'sweden',
+  'italia', 'italy',
+  'francia', 'france',
+  'germania', 'germany',
+  'spagna', 'spain',
+  'portogallo', 'portugal',
+  'austria',
+  'svizzera', 'switzerland',
+  'belgio', 'belgium',
+  'olanda', 'netherlands',
+  'slovenia',
+]);
 
 // Cerca il paese sia nel testo del luogo sia nel campo country
 const getIsoCountryFromLead = (location: string, country?: string): string | undefined => {
   const normalizedLocation = location.toLowerCase();
   const normalizedCountry = country?.toLowerCase();
+
+  // Se il luogo è un nome di paese, non applicare filtri country
+  if (COUNTRY_NAMES.has(normalizedLocation)) {
+    return undefined;
+  }
 
   // 1) Prima prova a riconoscere il paese dal testo del luogo / company_name
   const fromLocationKey = Object.keys(COUNTRY_ISO_MAP).find(key =>
@@ -131,60 +159,41 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     const lowerLocation = normalizedLocation.toLowerCase();
     const normalizedCountry = country?.trim();
 
-    // Caso speciale: "Svezia" -> posiziona al centro della Svezia senza usare Mapbox
-    if (lowerLocation === 'svezia' || lowerLocation.includes('svezia')) {
-      const swedenCenter: [number, number] = [18.6435, 60.1282];
-      console.log('[LeadMap] Using hardcoded Sweden center for location', normalizedLocation, '->', swedenCenter);
-      return swedenCenter;
-    }
-
     // Applica eventuale override del nome (es. "Svezia" -> "Sweden")
     const overriddenQuery = LOCATION_NAME_OVERRIDES[lowerLocation] || normalizedLocation;
 
-    // Determina il paese in modo intelligente (campo country + testo luogo)
+    // Determina il paese per il filtro (solo se il luogo non è già un paese)
     const isoCountry = getIsoCountryFromLead(normalizedLocation, normalizedCountry);
 
-    const cacheKey = `${overriddenQuery.toLowerCase()}__${isoCountry || normalizedCountry?.toLowerCase() || 'any'}`;
+    const cacheKey = `${overriddenQuery.toLowerCase()}__${isoCountry || 'none'}`;
     if (geocodeCache.current.has(cacheKey)) return geocodeCache.current.get(cacheKey)!;
     
     try {
-      const buildParams = (withCountry: boolean) => {
-        const params = new URLSearchParams({
-          types: 'place,locality,region',
-          limit: '1',
-          access_token: mapboxToken,
-        });
-        if (withCountry && isoCountry) {
-          params.append('country', isoCountry);
-        }
-        return params;
-      };
-
-      // Primo tentativo: con country se disponibile
-      let params = buildParams(true);
-      let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(overriddenQuery)}.json?${params.toString()}`;
-      let res = await fetch(url);
-      let data = await res.json();
-
-      // Se non trova nulla e abbiamo forzato un paese, riprova senza country (ricerca globale)
-      if ((!data?.features || data.features.length === 0) && isoCountry) {
-        console.warn(`[LeadMap] No results with country=${isoCountry} for "${overriddenQuery}", retrying globally`);
-        params = buildParams(false);
-        url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(overriddenQuery)}.json?${params.toString()}`;
-        res = await fetch(url);
-        data = await res.json();
+      const params = new URLSearchParams({
+        types: 'place,locality,region,country',
+        limit: '1',
+        access_token: mapboxToken,
+      });
+      
+      // Applica filtro country solo se non stiamo cercando un paese intero
+      if (isoCountry) {
+        params.append('country', isoCountry);
       }
+
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(overriddenQuery)}.json?${params.toString()}`;
+      const res = await fetch(url);
+      const data = await res.json();
       
       if (data?.features && data.features.length > 0) {
         const feature = data.features[0];
         const center = feature.center as [number, number];
         
-        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (query="${overriddenQuery}", countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'N/A'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
+        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (query="${overriddenQuery}", countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'global'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
         
         geocodeCache.current.set(cacheKey, center);
         return center;
       } else {
-        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" (query="${overriddenQuery}", countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'N/A'}")`, data);
+        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" (query="${overriddenQuery}", isoCountry="${isoCountry || 'global'}")`, data);
       }
     } catch (e) {
       console.warn('Failed to geocode location:', location, e);
