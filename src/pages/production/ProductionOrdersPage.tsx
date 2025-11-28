@@ -444,6 +444,411 @@ export default function WorkOrdersPage() {
     document.body.removeChild(link);
   };
 
+  const generateWorkOrderHTML = (wo: WorkOrder) => {
+    const statusLabels: Record<string, string> = {
+      'da_fare': 'DA FARE',
+      'in_lavorazione': 'IN LAVORAZIONE',
+      'in_test': 'IN TEST',
+      'pronto': 'PRONTO',
+      'completato': 'COMPLETATO',
+      'standby': 'STANDBY',
+      'bloccato': 'BLOCCATO'
+    };
+
+    const statusColors: Record<string, string> = {
+      'da_fare': '#9ca3af',
+      'in_lavorazione': '#f59e0b',
+      'in_test': '#f97316',
+      'pronto': '#3b82f6',
+      'completato': '#10b981',
+      'standby': '#a855f7',
+      'bloccato': '#ef4444'
+    };
+
+    const priorityLabels: Record<string, string> = {
+      'low': 'Bassa',
+      'medium': 'Media',
+      'high': 'Alta'
+    };
+
+    const priorityClasses: Record<string, string> = {
+      'low': 'priority-bassa',
+      'medium': 'priority-media',
+      'high': 'priority-alta'
+    };
+
+    const formatDate = (date: string | undefined) => {
+      if (!date) return 'Non pianificata';
+      try {
+        return format(parseISO(date), 'dd/MM/yyyy, HH:mm:ss', { locale: it });
+      } catch {
+        return 'Data non valida';
+      }
+    };
+
+    const articlesRows = wo.work_order_article_items
+      ?.sort((a, b) => a.position - b.position)
+      .map(item => `
+        <tr>
+          <td>1x</td>
+          <td>${item.description}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="2">Nessun articolo</td></tr>';
+
+    return `<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Commessa - ${wo.number}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.3;
+            color: #333;
+            background: #f5f5f5;
+            padding: 5px;
+            font-size: 11px;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 12px;
+            border-bottom: 2px solid #5568d3;
+        }
+        
+        .header h1 {
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+        
+        .header .subtitle {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-top: 3px;
+            background: ${statusColors[wo.status] || '#9ca3af'};
+            color: white;
+        }
+        
+        .content {
+            padding: 10px 12px;
+        }
+        
+        .section {
+            margin-bottom: 10px;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 5px 7px;
+            border-radius: 3px;
+            border-left: 2px solid #667eea;
+        }
+        
+        .info-label {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            margin-bottom: 2px;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 11px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .info-value.empty {
+            color: #999;
+            font-style: italic;
+            font-size: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            background: white;
+            font-size: 10px;
+        }
+        
+        table thead {
+            background: #667eea;
+            color: white;
+        }
+        
+        table th {
+            padding: 5px 6px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10px;
+        }
+        
+        table td {
+            padding: 4px 6px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .notes-box {
+            background: #fff8e1;
+            border-left: 2px solid #ffc107;
+            padding: 6px 8px;
+            border-radius: 2px;
+            margin-top: 5px;
+            font-size: 10px;
+        }
+        
+        .notes-box strong {
+            color: #f57c00;
+            display: block;
+            margin-bottom: 3px;
+            font-size: 10px;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 6px 12px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+            font-size: 9px;
+        }
+        
+        .priority-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .priority-alta { background: #ffebee; color: #c62828; }
+        .priority-media { background: #fff3e0; color: #ef6c00; }
+        .priority-bassa { background: #e8f5e9; color: #2e7d32; }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Commessa di Produzione</h1>
+            <div class="subtitle">${wo.number}</div>
+            <span class="status-badge">${statusLabels[wo.status] || wo.status}</span>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Informazioni Generali -->
+            <div class="section">
+                <h2 class="section-title">Informazioni Generali</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Numero Ordine</div>
+                        <div class="info-value">${wo.number}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Titolo</div>
+                        <div class="info-value">${wo.title}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Priorità</div>
+                        <div class="info-value">
+                            <span class="priority-badge ${priorityClasses[wo.priority || 'medium']}">${priorityLabels[wo.priority || 'medium']}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Cliente</div>
+                        <div class="info-value ${!wo.customers?.name ? 'empty' : ''}">${wo.customers?.name || 'Nessun cliente'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Lead</div>
+                        <div class="info-value ${!wo.leads?.company_name ? 'empty' : ''}">${wo.leads?.company_name || 'Nessun lead'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Ordine di Vendita</div>
+                        <div class="info-value ${!wo.sales_orders?.number ? 'empty' : ''}">${wo.sales_orders?.number || 'Nessun ordine di vendita'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risorse e Assegnazioni -->
+            <div class="section">
+                <h2 class="section-title">Risorse e Assegnazioni</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Tecnico Assegnato</div>
+                        <div class="info-value ${!wo.technician ? 'empty' : ''}">${wo.technician ? `${wo.technician.first_name} ${wo.technician.last_name}` : 'Nessun assegnato'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Back Office Manager</div>
+                        <div class="info-value ${!wo.back_office ? 'empty' : ''}">${wo.back_office ? `${wo.back_office.first_name} ${wo.back_office.last_name}` : 'Nessun back office'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Distinta Base</div>
+                        <div class="info-value ${!wo.boms ? 'empty' : ''}">${wo.boms ? `${wo.boms.name} (${wo.boms.version})` : 'Nessuna BOM'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Offerta Collegata</div>
+                        <div class="info-value ${!wo.offers?.number ? 'empty' : ''}">${wo.offers?.number || 'Nessuna offerta collegata'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Date Pianificate -->
+            <div class="section">
+                <h2 class="section-title">Pianificazione</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Data Inizio Pianificata</div>
+                        <div class="info-value">${formatDate(wo.planned_start_date)}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Data Fine Pianificata</div>
+                        <div class="info-value">${formatDate(wo.planned_end_date)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Articoli -->
+            <div class="section">
+                <h2 class="section-title">Articoli</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Quantità</th>
+                            <th>Descrizione</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${articlesRows}
+                    </tbody>
+                </table>
+            </div>
+            
+            ${wo.notes ? `
+            <!-- Note -->
+            <div class="section">
+                <h2 class="section-title">Note</h2>
+                <div class="notes-box">
+                    <strong>⚠️ Attenzione</strong>
+                    ${wo.notes}
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            Report generato il ${format(new Date(), 'dd/MM/yyyy', { locale: it })} | Sistema di Gestione Commesse
+        </div>
+    </div>
+</body>
+</html>`;
+  };
+
+  const handleDownloadDetailedReport = async (wo: WorkOrder) => {
+    try {
+      toast({
+        title: "Generazione report...",
+        description: "Attendere prego"
+      });
+
+      const htmlContent = generateWorkOrderHTML(wo);
+      
+      const { data, error } = await supabase.functions.invoke('generate-pdf-from-html', {
+        body: { html: htmlContent }
+      });
+
+      if (error) throw error;
+
+      // Convert base64 to blob
+      const byteCharacters = atob(data.pdf);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+
+      // Download PDF
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Report-${wo.number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Successo",
+        description: "Report scaricato con successo"
+      });
+    } catch (error: any) {
+      console.error('Error generating report:', error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile generare il report",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleStatusChange = async (woId: string, newStatus: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => {
     // Trova l'ordine corrente per salvare lo stato precedente
     const currentWO = workOrders.find(wo => wo.id === woId);
@@ -1793,10 +2198,25 @@ export default function WorkOrdersPage() {
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Dettagli Commessa di Produzione</DialogTitle>
-            <DialogDescription>
-              Modifica i dettagli della commessa di produzione {selectedWO?.number}
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>Dettagli Commessa di Produzione</DialogTitle>
+                <DialogDescription>
+                  Modifica i dettagli della commessa di produzione {selectedWO?.number}
+                </DialogDescription>
+              </div>
+              {selectedWO && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownloadDetailedReport(selectedWO)}
+                  className="ml-4"
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Scarica Report
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           {selectedWO && (
             <div className="space-y-6">
