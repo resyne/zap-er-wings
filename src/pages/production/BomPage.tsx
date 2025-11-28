@@ -126,6 +126,7 @@ export default function BomPage() {
   const [formData, setFormData] = useState({
     name: "",
     parent_id: "",
+    variant_name: "",
     version: "",
     description: "",
     notes: "",
@@ -145,6 +146,7 @@ export default function BomPage() {
     setFormData({
       name: "",
       parent_id: "",
+      variant_name: "",
       version: "",
       description: "",
       notes: "",
@@ -399,10 +401,22 @@ export default function BomPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Per le varianti (Level 0 con parent_id), usa variant_name come nome del BOM
+      const bomName = selectedLevel === 0 && formData.parent_id ? formData.variant_name : formData.name;
+      
+      if (selectedLevel === 0 && formData.parent_id && !formData.variant_name) {
+        toast({
+          title: "Errore",
+          description: "Inserisci il nome della variante",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Get next version automatically
       const { data: nextVersion, error: versionError } = await supabase
         .rpc('get_next_bom_version', {
-          p_name: formData.name,
+          p_name: bomName,
           p_variant: null,
           p_level: selectedLevel,
           p_parent_id: formData.parent_id || null
@@ -411,7 +425,7 @@ export default function BomPage() {
       if (versionError) throw versionError;
 
       const submitData = {
-        name: formData.name,
+        name: bomName,
         parent_id: formData.parent_id || null,
         version: nextVersion,
         description: formData.description,
@@ -450,7 +464,7 @@ export default function BomPage() {
 
         toast({
           title: "Success",
-          description: "BOM created successfully",
+          description: formData.parent_id ? "Variante creata con successo" : "Modello creato con successo",
         });
       }
 
@@ -499,8 +513,9 @@ export default function BomPage() {
     setSelectedBom(bom);
     setSelectedLevel(bom.level);
     setFormData({
-      name: bom.name,
+      name: bom.parent_id && bom.parent_bom ? bom.parent_bom.name : bom.name,
       parent_id: bom.parent_id || "",
+      variant_name: bom.parent_id ? bom.name : "",
       version: bom.version,
       description: bom.description || "",
       notes: bom.notes || "",
@@ -955,29 +970,25 @@ export default function BomPage() {
               {selectedLevel === 0 && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="model_name">Modello Base *</Label>
-                    <Input
-                      id="model_name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="es. ZBR MAX"
-                      required={selectedLevel === 0}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Nome del modello principale (es. ZBR MAX, COEM, ecc.)
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="parent_model">Modello Padre (per varianti)</Label>
+                    <Label htmlFor="parent_model">Modello</Label>
                     <Select
                       value={formData.parent_id || "NO_PARENT"}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value === "NO_PARENT" ? "" : value }))}
+                      onValueChange={(value) => {
+                        const newParentId = value === "NO_PARENT" ? "" : value;
+                        const selectedModel = boms.find(b => b.id === value);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          parent_id: newParentId, 
+                          variant_name: "",
+                          name: selectedModel ? selectedModel.name : prev.name
+                        }));
+                      }}
                     >
                       <SelectTrigger id="parent_model">
-                        <SelectValue placeholder="Seleziona modello (opzionale)" />
+                        <SelectValue placeholder="Seleziona o crea nuovo modello" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="NO_PARENT">Nessuno (Modello famiglia)</SelectItem>
+                        <SelectItem value="NO_PARENT">+ Nuovo Modello</SelectItem>
                         {boms.filter(b => b.level === 0 && !b.parent_id).map((model) => (
                           <SelectItem key={model.id} value={model.id}>
                             {model.name}
@@ -986,9 +997,39 @@ export default function BomPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Se è una variante, seleziona il modello famiglia di appartenenza
+                      Seleziona un modello esistente per aggiungere una variante, o crea un nuovo modello
                     </p>
                   </div>
+
+                  {!formData.parent_id ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="model_name">Nome Modello *</Label>
+                      <Input
+                        id="model_name"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="es. ZPZ, ZBR MAX, ecc."
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Nome del modello base (famiglia)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="variant_name">Nome Variante *</Label>
+                      <Input
+                        id="variant_name"
+                        value={formData.variant_name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, variant_name: e.target.value }))}
+                        placeholder="es. 200mm, 300mm, Standard, ecc."
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Nome specifico di questa variante del modello {formData.name || 'selezionato'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1116,9 +1157,14 @@ export default function BomPage() {
 
               {selectedLevel < 3 && includableBoms.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Include BOMs di Level {selectedLevel + 1} (che fanno parte di questo BOM)</Label>
+                  <Label>
+                    {selectedLevel === 0 
+                      ? `Include BOMs di Level 1 ${formData.parent_id ? '(componenti di questa variante)' : '(che fanno parte di questo modello)'}`
+                      : `Include BOMs di Level ${selectedLevel + 1} (che fanno parte di questo BOM)`
+                    }
+                  </Label>
                   <p className="text-xs text-muted-foreground">
-                    Seleziona i BOM di livello inferiore che sono inclusi in questo BOM
+                    Seleziona i BOM di livello inferiore che compongono questo elemento
                   </p>
                   <div className="border rounded-md p-4 max-h-40 overflow-y-auto space-y-2">
                     {includableBoms.map((bom) => (
@@ -1153,7 +1199,7 @@ export default function BomPage() {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {selectedBom ? "Crea Nuova Versione" : "Crea BOM"}
+                  {selectedBom ? "Crea Nuova Versione" : formData.parent_id ? "Crea Variante" : "Crea Modello"}
                 </Button>
               </div>
             </form>
