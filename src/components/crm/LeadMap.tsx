@@ -52,24 +52,24 @@ const COUNTRY_ISO_MAP: Record<string, string> = {
   UK: 'GB',
 };
 
-// Cerca il paese sia nel campo country sia nel testo del luogo (es. "ZPZ - Svezia - Drillon")
+// Cerca il paese sia nel testo del luogo sia nel campo country
 const getIsoCountryFromLead = (location: string, country?: string): string | undefined => {
   const normalizedLocation = location.toLowerCase();
   const normalizedCountry = country?.toLowerCase();
 
-  // 1) Prova dal campo country
+  // 1) Prima prova a riconoscere il paese dal testo del luogo / company_name
+  const fromLocationKey = Object.keys(COUNTRY_ISO_MAP).find(key =>
+    normalizedLocation.includes(key.toLowerCase())
+  );
+  if (fromLocationKey) return COUNTRY_ISO_MAP[fromLocationKey];
+
+  // 2) Solo se non trovato, prova dal campo country
   if (normalizedCountry) {
     const directMatchKey = Object.keys(COUNTRY_ISO_MAP).find(
       key => key.toLowerCase() === normalizedCountry
     );
     if (directMatchKey) return COUNTRY_ISO_MAP[directMatchKey];
   }
-
-  // 2) Prova a riconoscere il paese dal testo del luogo / company_name
-  const matchKey = Object.keys(COUNTRY_ISO_MAP).find(key =>
-    normalizedLocation.includes(key.toLowerCase())
-  );
-  if (matchKey) return COUNTRY_ISO_MAP[matchKey];
 
   return undefined;
 };
