@@ -131,6 +131,13 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     const lowerLocation = normalizedLocation.toLowerCase();
     const normalizedCountry = country?.trim();
 
+    // Caso speciale: "Svezia" -> posiziona al centro della Svezia senza usare Mapbox
+    if (lowerLocation === 'svezia' || lowerLocation.includes('svezia')) {
+      const swedenCenter: [number, number] = [18.6435, 60.1282];
+      console.log('[LeadMap] Using hardcoded Sweden center for location', normalizedLocation, '->', swedenCenter);
+      return swedenCenter;
+    }
+
     // Applica eventuale override del nome (es. "Svezia" -> "Sweden")
     const overriddenQuery = LOCATION_NAME_OVERRIDES[lowerLocation] || normalizedLocation;
 
