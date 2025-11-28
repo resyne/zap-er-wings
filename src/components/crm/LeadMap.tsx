@@ -15,6 +15,7 @@ interface Lead {
   value?: number;
   source?: string;
   status: string;
+  country?: string;
   custom_fields?: {
     luogo?: string;
     [key: string]: any;
@@ -25,6 +26,16 @@ interface LeadMapProps {
   leads: Lead[];
 }
 
+const COUNTRY_ISO_MAP: Record<string, string> = {
+  Italia: 'IT',
+  Italy: 'IT',
+  Francia: 'FR',
+  France: 'FR',
+  Germania: 'DE',
+  Germany: 'DE',
+  Svezia: 'SE',
+  Sweden: 'SE',
+};
 const STATUS_CONFIG = {
   'new': { color: '#3b82f6', label: 'Nuovo' },
   'qualified': { color: '#22c55e', label: 'Qualificato' },
@@ -69,13 +80,29 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     }
   };
 
-  const geocodeLocation = async (location: string): Promise<[number, number] | null> => {
-    const key = location.trim().toLowerCase();
-    if (geocodeCache.current.has(key)) return geocodeCache.current.get(key)!;
+  const geocodeLocation = async (
+    location: string,
+    country?: string
+  ): Promise<[number, number] | null> => {
+    const normalizedLocation = location.trim();
+    const normalizedCountry = country?.trim();
+
+    const cacheKey = `${normalizedLocation.toLowerCase()}__${normalizedCountry?.toLowerCase() || 'any'}`;
+    if (geocodeCache.current.has(cacheKey)) return geocodeCache.current.get(cacheKey)!;
     
     try {
-      // Geocodifica focalizzata su città/località italiane
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?types=place,locality,region&country=IT&limit=1&access_token=${mapboxToken}`;
+      const isoCountry = normalizedCountry ? COUNTRY_ISO_MAP[normalizedCountry as keyof typeof COUNTRY_ISO_MAP] : undefined;
+
+      const params = new URLSearchParams({
+        types: 'place,locality,region',
+        limit: '1',
+        access_token: mapboxToken,
+      });
+      if (isoCountry) {
+        params.append('country', isoCountry);
+      }
+
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(normalizedLocation)}.json?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json();
       
@@ -83,12 +110,12 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
         const feature = data.features[0];
         const center = feature.center as [number, number];
         
-        console.log(`[LeadMap] Geocoded "${location}" to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
+        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (country="${normalizedCountry || 'N/A'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
         
-        geocodeCache.current.set(key, center);
+        geocodeCache.current.set(cacheKey, center);
         return center;
       } else {
-        console.warn(`[LeadMap] No results found for location: "${location}"`, data);
+        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" with country="${normalizedCountry || 'N/A'}"`, data);
       }
     } catch (e) {
       console.warn('Failed to geocode location:', location, e);
@@ -112,9 +139,9 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       const location = lead.custom_fields?.luogo;
       if (!location) continue;
 
-      console.log(`[LeadMap] Geocoding location: "${location}" for lead: ${lead.company_name} (status: ${lead.status})`);
+      console.log(`[LeadMap] Geocoding location: "${location}" for lead: ${lead.company_name} (status: ${lead.status}, country: ${lead.country || 'N/A'})`);
       
-      const coords = await geocodeLocation(location);
+      const coords = await geocodeLocation(location, lead.country);
       if (!coords) {
         console.warn(`[LeadMap] Failed to geocode location: "${location}"`);
         continue;
