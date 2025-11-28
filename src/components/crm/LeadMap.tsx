@@ -33,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
 export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<mapboxgl.Marker[]>([]);
   const mapboxToken = 'pk.eyJ1IjoiemFwcGVyLWl0YWx5IiwiYSI6ImNtZXRyZHppNjAyMHMyanBmaDVjaXRqNGkifQ.a-m1oX08G8vNi9s6uzNr7Q';
   const geocodeCache = useRef<Map<string, [number, number]>>(new Map());
 
@@ -84,9 +85,9 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   const addLeadMarkers = async () => {
     if (!map.current) return;
 
-    // Clear existing markers first
-    const existingMarkers = document.querySelectorAll('.mapboxgl-marker');
-    existingMarkers.forEach(marker => marker.remove());
+    // Clear existing markers properly
+    markers.current.forEach(marker => marker.remove());
+    markers.current = [];
 
     const leadsWithLocation = leads.filter(lead => lead.custom_fields?.luogo);
     console.log(`[LeadMap] Processing ${leadsWithLocation.length} leads with location out of ${leads.length} total leads`);
@@ -177,10 +178,12 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
           </div>
         `);
 
-      new mapboxgl.Marker(markerElement)
+      const marker = new mapboxgl.Marker(markerElement)
         .setLngLat([lng, lat])
         .setPopup(popup)
         .addTo(map.current!);
+      
+      markers.current.push(marker);
     }
 
     console.log(`[LeadMap] Added ${leadsWithLocation.length} markers to map`);
@@ -189,6 +192,8 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   useEffect(() => {
     initializeMap();
     return () => {
+      markers.current.forEach(marker => marker.remove());
+      markers.current = [];
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -197,11 +202,7 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   }, []);
 
   useEffect(() => {
-    if (map.current && leads.length > 0) {
-      // Clear existing markers
-      const markers = document.querySelectorAll('.custom-marker');
-      markers.forEach(marker => marker.remove());
-      // Add new markers
+    if (map.current && map.current.loaded()) {
       void addLeadMarkers();
     }
   }, [leads]);
