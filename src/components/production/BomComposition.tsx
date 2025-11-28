@@ -10,6 +10,12 @@ interface BomItem {
   version: string;
   level: number;
   quantity?: number;
+  material?: {
+    id: string;
+    name: string;
+    code: string;
+    cost?: number;
+  };
 }
 
 interface BomCompositionProps {
@@ -42,7 +48,7 @@ export function BomComposition({ bomId }: BomCompositionProps) {
         const bomIds = level1Inclusions.map(inc => inc.included_bom_id);
         const { data: level1Boms, error: bomError } = await supabase
           .from('boms')
-          .select('id, name, version, level')
+          .select('id, name, version, level, material:materials(id, name, code, cost)')
           .in('id', bomIds);
 
         if (!bomError && level1Boms) {
@@ -54,7 +60,8 @@ export function BomComposition({ bomId }: BomCompositionProps) {
                 name: bom.name,
                 version: bom.version,
                 level: bom.level,
-                quantity: inclusion?.quantity || 1
+                quantity: inclusion?.quantity || 1,
+                material: (bom as any).material || undefined
               };
             })
           );
@@ -76,7 +83,7 @@ export function BomComposition({ bomId }: BomCompositionProps) {
 
         const { data: level2Boms, error: bomError } = await supabase
           .from('boms')
-          .select('id, name, version, level')
+          .select('id, name, version, level, material:materials(id, name, code, cost)')
           .in('id', bomIds);
 
         if (!bomError && level2Boms) {
@@ -88,7 +95,8 @@ export function BomComposition({ bomId }: BomCompositionProps) {
                 name: bom.name,
                 version: bom.version,
                 level: bom.level,
-                quantity: inclusion?.quantity || 1
+                quantity: inclusion?.quantity || 1,
+                material: (bom as any).material || undefined
               };
             })
           );
@@ -156,9 +164,12 @@ export function BomComposition({ bomId }: BomCompositionProps) {
                 <div key={item.id} className="flex items-start gap-2">
                   <ChevronRight className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-sm font-medium">
+                      {item.level === 2 && item.material ? item.material.name : item.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       v{item.version} • Qtà: {item.quantity || 1}
+                      {item.material?.cost && ` • €${Number(item.material.cost).toFixed(2)}`}
                     </p>
                   </div>
                 </div>
@@ -183,9 +194,12 @@ export function BomComposition({ bomId }: BomCompositionProps) {
                 <div key={item.id} className="flex items-start gap-2">
                   <ChevronRight className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm">{item.name}</p>
+                    <p className="text-sm">
+                      {item.level === 2 && item.material ? item.material.name : item.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       v{item.version} • Qtà: {item.quantity || 1}
+                      {item.material?.cost && ` • €${Number(item.material.cost).toFixed(2)}`}
                     </p>
                   </div>
                 </div>
