@@ -242,6 +242,7 @@ export type Database = {
           notes: string | null
           parent_id: string | null
           updated_at: string
+          variant: string | null
           version: string
         }
         Insert: {
@@ -256,6 +257,7 @@ export type Database = {
           notes?: string | null
           parent_id?: string | null
           updated_at?: string
+          variant?: string | null
           version: string
         }
         Update: {
@@ -270,6 +272,7 @@ export type Database = {
           notes?: string | null
           parent_id?: string | null
           updated_at?: string
+          variant?: string | null
           version?: string
         }
         Relationships: [
@@ -7804,6 +7807,10 @@ export type Database = {
         Returns: string
       }
       generate_ticket_number: { Args: never; Returns: string }
+      get_next_bom_version: {
+        Args: { p_level?: number; p_name: string; p_variant?: string }
+        Returns: string
+      }
       get_quote_by_code: {
         Args: { input_code: string }
         Returns: {
