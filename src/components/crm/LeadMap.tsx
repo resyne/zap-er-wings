@@ -52,6 +52,12 @@ const COUNTRY_ISO_MAP: Record<string, string> = {
   UK: 'GB',
 };
 
+// Alcune traduzioni manuali per paesi scritti in italiano
+const LOCATION_NAME_OVERRIDES: Record<string, string> = {
+  svezia: 'Sweden',
+  slovenia: 'Slovenia',
+};
+
 // Cerca il paese sia nel testo del luogo sia nel campo country
 const getIsoCountryFromLead = (location: string, country?: string): string | undefined => {
   const normalizedLocation = location.toLowerCase();
@@ -122,38 +128,56 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     country?: string
   ): Promise<[number, number] | null> => {
     const normalizedLocation = location.trim();
+    const lowerLocation = normalizedLocation.toLowerCase();
     const normalizedCountry = country?.trim();
+
+    // Applica eventuale override del nome (es. "Svezia" -> "Sweden")
+    const overriddenQuery = LOCATION_NAME_OVERRIDES[lowerLocation] || normalizedLocation;
 
     // Determina il paese in modo intelligente (campo country + testo luogo)
     const isoCountry = getIsoCountryFromLead(normalizedLocation, normalizedCountry);
 
-    const cacheKey = `${normalizedLocation.toLowerCase()}__${isoCountry || normalizedCountry?.toLowerCase() || 'any'}`;
+    const cacheKey = `${overriddenQuery.toLowerCase()}__${isoCountry || normalizedCountry?.toLowerCase() || 'any'}`;
     if (geocodeCache.current.has(cacheKey)) return geocodeCache.current.get(cacheKey)!;
     
     try {
-      const params = new URLSearchParams({
-        types: 'place,locality,region',
-        limit: '1',
-        access_token: mapboxToken,
-      });
-      if (isoCountry) {
-        params.append('country', isoCountry);
-      }
+      const buildParams = (withCountry: boolean) => {
+        const params = new URLSearchParams({
+          types: 'place,locality,region',
+          limit: '1',
+          access_token: mapboxToken,
+        });
+        if (withCountry && isoCountry) {
+          params.append('country', isoCountry);
+        }
+        return params;
+      };
 
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(normalizedLocation)}.json?${params.toString()}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      // Primo tentativo: con country se disponibile
+      let params = buildParams(true);
+      let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(overriddenQuery)}.json?${params.toString()}`;
+      let res = await fetch(url);
+      let data = await res.json();
+
+      // Se non trova nulla e abbiamo forzato un paese, riprova senza country (ricerca globale)
+      if ((!data?.features || data.features.length === 0) && isoCountry) {
+        console.warn(`[LeadMap] No results with country=${isoCountry} for "${overriddenQuery}", retrying globally`);
+        params = buildParams(false);
+        url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(overriddenQuery)}.json?${params.toString()}`;
+        res = await fetch(url);
+        data = await res.json();
+      }
       
       if (data?.features && data.features.length > 0) {
         const feature = data.features[0];
         const center = feature.center as [number, number];
         
-        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'N/A'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
+        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (query="${overriddenQuery}", countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'N/A'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
         
         geocodeCache.current.set(cacheKey, center);
         return center;
       } else {
-        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" with countryField="${normalizedCountry || 'N/A'}" isoCountry="${isoCountry || 'N/A'}"`, data);
+        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" (query="${overriddenQuery}", countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'N/A'}")`, data);
       }
     } catch (e) {
       console.warn('Failed to geocode location:', location, e);
