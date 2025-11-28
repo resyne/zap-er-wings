@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameMonth, parseISO, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -104,6 +104,11 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [parentOrderFiles, setParentOrderFiles] = useState<any[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [showDateDialog, setShowDateDialog] = useState(false);
+  const [draggedWorkOrderId, setDraggedWorkOrderId] = useState<string | null>(null);
+  const [tempStartDate, setTempStartDate] = useState("");
+  const [tempEndDate, setTempEndDate] = useState("");
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
 
@@ -1151,46 +1156,12 @@ export default function WorkOrdersPage() {
     const woId = draggableId;
 
     try {
-      // Check if dropping from unprogrammed to calendar
-      if (source.droppableId === 'unprogrammed' && destination.droppableId.startsWith('calendar-')) {
-        // Extract date from droppableId (format: calendar-YYYY-MM-DD)
-        const dateStr = destination.droppableId.replace('calendar-', '');
-        
-        const { error } = await supabase
-          .from("work_orders")
-          .update({ planned_start_date: dateStr })
-          .eq("id", woId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Commessa programmata",
-          description: `La commessa è stata programmata per il ${new Date(dateStr).toLocaleDateString('it-IT')}`,
-        });
-
-        fetchWorkOrders();
-      } else if (destination.droppableId.startsWith('calendar-')) {
-        // Moving between calendar days
-        const dateStr = destination.droppableId.replace('calendar-', '');
-        
-        const { error } = await supabase
-          .from("work_orders")
-          .update({ planned_start_date: dateStr })
-          .eq("id", woId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Data aggiornata",
-          description: `La commessa è stata spostata al ${new Date(dateStr).toLocaleDateString('it-IT')}`,
-        });
-
-        fetchWorkOrders();
-      } else if (destination.droppableId === 'unprogrammed') {
+      // Check if dropping from unprogrammed to calendar or moving back to unprogrammed
+      if (destination.droppableId === 'unprogrammed') {
         // Moving back to unprogrammed
         const { error } = await supabase
           .from("work_orders")
-          .update({ planned_start_date: null })
+          .update({ planned_start_date: null, planned_end_date: null })
           .eq("id", woId);
 
         if (error) throw error;
@@ -1201,6 +1172,31 @@ export default function WorkOrdersPage() {
         });
 
         fetchWorkOrders();
+      } else if (destination.droppableId.startsWith('calendar-')) {
+        // Extract date from droppableId (format: calendar-YYYY-MM-DD)
+        const dateStr = destination.droppableId.replace('calendar-', '');
+        
+        // Set temporary values and show dialog
+        setDraggedWorkOrderId(woId);
+        setTempStartDate(dateStr);
+        
+        // If work order already has dates, use end date as default
+        const wo = workOrders.find(w => w.id === woId);
+        if (wo?.planned_end_date) {
+          const currentStart = wo.planned_start_date ? parseISO(wo.planned_start_date) : new Date(dateStr);
+          const currentEnd = parseISO(wo.planned_end_date);
+          const duration = differenceInDays(currentEnd, currentStart);
+          const newEnd = new Date(dateStr);
+          newEnd.setDate(newEnd.getDate() + duration);
+          setTempEndDate(newEnd.toISOString().split('T')[0]);
+        } else {
+          // Default to 7 days duration
+          const endDate = new Date(dateStr);
+          endDate.setDate(endDate.getDate() + 7);
+          setTempEndDate(endDate.toISOString().split('T')[0]);
+        }
+        
+        setShowDateDialog(true);
       }
     } catch (error: any) {
       toast({
@@ -1209,6 +1205,50 @@ export default function WorkOrdersPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleConfirmDates = async () => {
+    if (!draggedWorkOrderId || !tempStartDate) return;
+
+    try {
+      const { error } = await supabase
+        .from("work_orders")
+        .update({ 
+          planned_start_date: tempStartDate,
+          planned_end_date: tempEndDate || tempStartDate
+        })
+        .eq("id", draggedWorkOrderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Commessa programmata",
+        description: `Programmata dal ${new Date(tempStartDate).toLocaleDateString('it-IT')} al ${new Date(tempEndDate || tempStartDate).toLocaleDateString('it-IT')}`,
+      });
+
+      fetchWorkOrders();
+      setShowDateDialog(false);
+      setDraggedWorkOrderId(null);
+      setTempStartDate("");
+      setTempEndDate("");
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile programmare la commessa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getWorkOrdersForDate = (dateStr: string) => {
+    return filteredWorkOrders.filter(wo => {
+      if (!wo.planned_start_date) return false;
+      
+      const startDate = wo.planned_start_date.split('T')[0];
+      const endDate = wo.planned_end_date ? wo.planned_end_date.split('T')[0] : startDate;
+      
+      return dateStr >= startDate && dateStr <= endDate;
+    });
   };
 
   const filteredWorkOrders = workOrders.filter(wo => {
@@ -1813,6 +1853,27 @@ export default function WorkOrdersPage() {
 
                 {/* Calendar Grid */}
                 <div className="flex-1 space-y-4">
+                  {/* Month Navigation */}
+                  <div className="flex items-center justify-between bg-card p-4 rounded-lg border">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <h3 className="text-lg font-semibold">
+                      {format(currentMonth, 'MMMM yyyy', { locale: it })}
+                    </h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-7 gap-2 mb-4">
                     {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
                       <div key={day} className="text-center font-medium text-sm text-muted-foreground p-2">
@@ -1821,54 +1882,75 @@ export default function WorkOrdersPage() {
                     ))}
                   </div>
                   <div className="grid grid-cols-7 gap-2">
-                    {Array.from({ length: 35 }).map((_, i) => {
-                      const date = new Date();
-                      date.setDate(date.getDate() - date.getDay() + i);
-                      const dateStr = date.toISOString().split('T')[0];
-                      const dayOrders = filteredWorkOrders.filter(wo => 
-                        wo.planned_start_date && wo.planned_start_date.split('T')[0] === dateStr
-                      );
+                    {(() => {
+                      const monthStart = startOfMonth(currentMonth);
+                      const monthEnd = endOfMonth(currentMonth);
+                      const startDay = monthStart.getDay() === 0 ? 6 : monthStart.getDay() - 1;
+                      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                      const totalCells = Math.ceil((days.length + startDay) / 7) * 7;
                       
-                      return (
-                        <Droppable key={i} droppableId={`calendar-${dateStr}`}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`min-h-[100px] p-2 border rounded-lg transition-colors ${
-                                date.getMonth() !== new Date().getMonth() ? 'bg-muted/20' : 'bg-card'
-                              } ${snapshot.isDraggingOver ? 'bg-primary/10 border-primary' : ''}`}
-                            >
-                              <div className="text-sm font-medium mb-1">{date.getDate()}</div>
-                              <div className="space-y-1">
-                                {dayOrders.map((wo, index) => (
-                                  <Draggable key={wo.id} draggableId={wo.id} index={index}>
-                                    {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleViewDetails(wo);
-                                        }}
-                                        className={`text-xs p-1 bg-primary/10 rounded cursor-pointer hover:bg-primary/20 transition-colors ${
-                                          snapshot.isDragging ? 'opacity-50' : ''
-                                        }`}
-                                      >
-                                        <div className="font-medium truncate">{wo.number}</div>
-                                        <div className="text-muted-foreground truncate">{wo.customers?.name}</div>
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))}
-                                {provided.placeholder}
+                      return Array.from({ length: totalCells }).map((_, i) => {
+                        if (i < startDay || i >= startDay + days.length) {
+                          return <div key={i} className="min-h-[100px] p-2 border rounded-lg bg-muted/20" />;
+                        }
+                        
+                        const date = days[i - startDay];
+                        const dateStr = date.toISOString().split('T')[0];
+                        const dayOrders = getWorkOrdersForDate(dateStr);
+                        
+                        return (
+                          <Droppable key={i} droppableId={`calendar-${dateStr}`}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`min-h-[100px] p-2 border rounded-lg transition-colors ${
+                                  !isSameMonth(date, currentMonth) ? 'bg-muted/20' : 'bg-card'
+                                } ${snapshot.isDraggingOver ? 'bg-primary/10 border-primary' : ''}`}
+                              >
+                                <div className="text-sm font-medium mb-1">{date.getDate()}</div>
+                                <div className="space-y-1">
+                                  {dayOrders.map((wo, index) => {
+                                    const startDate = wo.planned_start_date!.split('T')[0];
+                                    const isFirstDay = dateStr === startDate;
+                                    
+                                    return (
+                                      <Draggable key={wo.id} draggableId={wo.id} index={index}>
+                                        {(provided, snapshot) => (
+                                          <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleViewDetails(wo);
+                                            }}
+                                            className={`text-xs p-1 rounded cursor-pointer transition-colors ${
+                                              snapshot.isDragging ? 'opacity-50' : ''
+                                            } ${
+                                              isFirstDay ? 'bg-primary/20 hover:bg-primary/30 border border-primary/40' : 'bg-primary/10 hover:bg-primary/20'
+                                            }`}
+                                          >
+                                            {isFirstDay && (
+                                              <>
+                                                <div className="font-medium truncate">{wo.number}</div>
+                                                <div className="text-muted-foreground truncate">{wo.customers?.name}</div>
+                                              </>
+                                            )}
+                                            {!isFirstDay && <div className="h-4" />}
+                                          </div>
+                                        )}
+                                      </Draggable>
+                                    );
+                                  })}
+                                  {provided.placeholder}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </Droppable>
-                      );
-                    })}
+                            )}
+                          </Droppable>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1876,6 +1958,46 @@ export default function WorkOrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Date Selection Dialog */}
+      <Dialog open={showDateDialog} onOpenChange={setShowDateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Programma Periodo Lavorazione</DialogTitle>
+            <DialogDescription>
+              Imposta la data di inizio e fine lavorazione per questa commessa
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Data Inizio Lavorazione</Label>
+              <Input
+                type="date"
+                value={tempStartDate}
+                onChange={(e) => setTempStartDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Data Fine Lavorazione</Label>
+              <Input
+                type="date"
+                value={tempEndDate}
+                onChange={(e) => setTempEndDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowDateDialog(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleConfirmDates}>
+                Conferma
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
