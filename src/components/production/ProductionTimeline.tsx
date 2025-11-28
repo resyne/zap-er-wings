@@ -290,6 +290,11 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                             }`}
                           >
                             <div className="text-sm font-medium truncate">{wo.number}</div>
+                            {wo.title && (
+                              <div className="text-xs font-medium text-foreground/80 truncate mt-0.5">
+                                {wo.title}
+                              </div>
+                            )}
                             <div className="text-xs text-muted-foreground truncate">
                               {wo.customers?.name}
                             </div>
@@ -430,6 +435,11 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                               <GripVertical className="w-3 h-3 mr-1 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="text-xs font-medium truncate">{wo.number}</div>
+                                {wo.title && (
+                                  <div className="text-xs font-medium text-foreground/80 truncate">
+                                    {wo.title}
+                                  </div>
+                                )}
                                 <div className="text-xs text-muted-foreground truncate">
                                   {wo.customers?.name}
                                 </div>
