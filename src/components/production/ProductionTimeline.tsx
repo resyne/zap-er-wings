@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, differenceInDays, startOfDay } from "date-fns";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, GripVertical } from "lucide-react";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, differenceInDays, startOfDay, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -37,6 +37,10 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
   const [draggedWorkOrderId, setDraggedWorkOrderId] = useState<string | null>(null);
   const [tempStartDate, setTempStartDate] = useState<Date | undefined>();
   const [tempEndDate, setTempEndDate] = useState<Date | undefined>();
+  const [draggingWo, setDraggingWo] = useState<{ id: string; type: 'move' | 'resize-left' | 'resize-right' } | null>(null);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [originalDates, setOriginalDates] = useState<{ start: Date; end: Date } | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const weekEnd = endOfWeek(currentWeekStart, { locale: it });
   const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
@@ -161,6 +165,74 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
     };
   };
 
+  const handleMouseDown = (e: React.MouseEvent, wo: WorkOrder, type: 'move' | 'resize-left' | 'resize-right') => {
+    e.stopPropagation();
+    setDraggingWo({ id: wo.id, type });
+    setDragStartX(e.clientX);
+    setOriginalDates({
+      start: new Date(wo.planned_start_date!),
+      end: new Date(wo.planned_end_date!)
+    });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!draggingWo || !originalDates || !timelineRef.current) return;
+
+    const rect = timelineRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - dragStartX;
+    const totalDays = weeksToShow * 7;
+    const dayWidth = rect.width / totalDays;
+    const daysDelta = Math.round(deltaX / dayWidth);
+
+    const wo = workOrders.find(w => w.id === draggingWo.id);
+    if (!wo) return;
+
+    if (draggingWo.type === 'move') {
+      const newStart = addDays(originalDates.start, daysDelta);
+      const newEnd = addDays(originalDates.end, daysDelta);
+      setTempStartDate(newStart);
+      setTempEndDate(newEnd);
+    } else if (draggingWo.type === 'resize-left') {
+      const newStart = addDays(originalDates.start, daysDelta);
+      if (newStart < originalDates.end) {
+        setTempStartDate(newStart);
+        setTempEndDate(originalDates.end);
+      }
+    } else if (draggingWo.type === 'resize-right') {
+      const newEnd = addDays(originalDates.end, daysDelta);
+      if (newEnd > originalDates.start) {
+        setTempStartDate(originalDates.start);
+        setTempEndDate(newEnd);
+      }
+    }
+  };
+
+  const handleMouseUp = async () => {
+    if (draggingWo && tempStartDate && tempEndDate) {
+      try {
+        await onUpdateDates(draggingWo.id, tempStartDate.toISOString(), tempEndDate.toISOString());
+      } catch (error) {
+        console.error("Error updating dates:", error);
+      }
+    }
+    setDraggingWo(null);
+    setDragStartX(0);
+    setOriginalDates(null);
+    setTempStartDate(undefined);
+    setTempEndDate(undefined);
+  };
+
+  useEffect(() => {
+    if (draggingWo) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [draggingWo, dragStartX, originalDates, tempStartDate, tempEndDate]);
+
   const statusColors: Record<string, string> = {
     planned: "bg-blue-500/20 border-blue-500",
     in_lavorazione: "bg-yellow-500/20 border-yellow-500",
@@ -265,7 +337,7 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                 </div>
 
                 {/* Timeline Grid - Days */}
-                <div className="relative">
+                <div className="relative" ref={timelineRef}>
                   {/* Day columns (for drop zones) */}
                   <div className="grid grid-cols-[repeat(28,1fr)] gap-px absolute inset-0 pointer-events-none">
                     {Array.from({ length: weeksToShow * 7 }).map((_, dayIndex) => {
@@ -303,19 +375,20 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                   >
                     {lanes.map((lane, laneIndex) => 
                       lane.map((wo) => {
-                        const position = getWorkOrderPosition(wo, laneIndex);
+                        const isDragging = draggingWo?.id === wo.id;
+                        const displayStart = isDragging && tempStartDate ? tempStartDate : new Date(wo.planned_start_date!);
+                        const displayEnd = isDragging && tempEndDate ? tempEndDate : new Date(wo.planned_end_date!);
+                        
+                        const tempWo = { ...wo, planned_start_date: displayStart.toISOString(), planned_end_date: displayEnd.toISOString() };
+                        const position = getWorkOrderPosition(tempWo, laneIndex);
                         if (!position) return null;
 
                         return (
                           <div
                             key={wo.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onViewDetails(wo);
-                            }}
-                            className={`absolute h-16 rounded-lg border-2 p-2 cursor-pointer hover:shadow-lg transition-all ${
+                            className={`absolute h-16 rounded-lg border-2 hover:shadow-lg transition-shadow group ${
                               statusColors[wo.status] || "bg-gray-500/20 border-gray-500"
-                            }`}
+                            } ${isDragging ? 'opacity-70 shadow-xl z-50' : ''}`}
                             style={{
                               left: position.left,
                               width: position.width,
@@ -323,13 +396,40 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                               minWidth: "100px",
                             }}
                           >
-                            <div className="text-xs font-medium truncate">{wo.number}</div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {wo.customers?.name}
+                            {/* Resize handle left */}
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onMouseDown={(e) => handleMouseDown(e, wo, 'resize-left')}
+                            />
+                            
+                            {/* Main content area - draggable */}
+                            <div
+                              className="absolute inset-0 p-2 cursor-move flex items-center"
+                              onMouseDown={(e) => handleMouseDown(e, wo, 'move')}
+                              onClick={(e) => {
+                                if (!isDragging) {
+                                  e.stopPropagation();
+                                  onViewDetails(wo);
+                                }
+                              }}
+                            >
+                              <GripVertical className="w-3 h-3 mr-1 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">{wo.number}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {wo.customers?.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {position.duration} {position.duration === 1 ? "giorno" : "giorni"}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {position.duration} {position.duration === 1 ? "giorno" : "giorni"}
-                            </div>
+
+                            {/* Resize handle right */}
+                            <div
+                              className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onMouseDown={(e) => handleMouseDown(e, wo, 'resize-right')}
+                            />
                           </div>
                         );
                       })
