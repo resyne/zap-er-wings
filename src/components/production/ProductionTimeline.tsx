@@ -91,7 +91,55 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
     }
   };
 
-  const getWorkOrderPosition = (wo: WorkOrder) => {
+  // Calculate lanes for overlapping work orders
+  const getWorkOrderLanes = () => {
+    const lanes: WorkOrder[][] = [];
+    
+    // Sort by start date
+    const sortedOrders = [...programmedOrders].sort((a, b) => {
+      const dateA = new Date(a.planned_start_date!).getTime();
+      const dateB = new Date(b.planned_start_date!).getTime();
+      return dateA - dateB;
+    });
+
+    sortedOrders.forEach(wo => {
+      const start = startOfDay(new Date(wo.planned_start_date!));
+      const end = startOfDay(new Date(wo.planned_end_date!));
+      
+      // Find first available lane
+      let laneIndex = 0;
+      let placed = false;
+      
+      while (!placed) {
+        if (!lanes[laneIndex]) {
+          lanes[laneIndex] = [];
+        }
+        
+        // Check if this work order overlaps with any in this lane
+        const hasOverlap = lanes[laneIndex].some(existingWo => {
+          const existingStart = startOfDay(new Date(existingWo.planned_start_date!));
+          const existingEnd = startOfDay(new Date(existingWo.planned_end_date!));
+          
+          // Check for overlap: start is before existingEnd and end is after existingStart
+          return start <= existingEnd && end >= existingStart;
+        });
+        
+        if (!hasOverlap) {
+          lanes[laneIndex].push(wo);
+          placed = true;
+        } else {
+          laneIndex++;
+        }
+      }
+    });
+    
+    return lanes;
+  };
+
+  const lanes = getWorkOrderLanes();
+  const laneHeight = 70; // Height of each lane in pixels
+
+  const getWorkOrderPosition = (wo: WorkOrder, laneIndex: number) => {
     if (!wo.planned_start_date || !wo.planned_end_date) return null;
 
     const start = startOfDay(new Date(wo.planned_start_date));
@@ -108,6 +156,7 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
     return {
       left: `${(startOffset / totalDays) * 100}%`,
       width: `${(duration / totalDays) * 100}%`,
+      top: `${laneIndex * laneHeight}px`,
       duration,
     };
   };
@@ -246,37 +295,45 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                   </div>
 
                   {/* Work Orders */}
-                  <div className="space-y-2 py-4 relative min-h-[400px]">
-                    {programmedOrders.map((wo) => {
-                      const position = getWorkOrderPosition(wo);
-                      if (!position) return null;
+                  <div 
+                    className="py-4 relative" 
+                    style={{ 
+                      minHeight: `${Math.max(400, lanes.length * laneHeight + 40)}px` 
+                    }}
+                  >
+                    {lanes.map((lane, laneIndex) => 
+                      lane.map((wo) => {
+                        const position = getWorkOrderPosition(wo, laneIndex);
+                        if (!position) return null;
 
-                      return (
-                        <div
-                          key={wo.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onViewDetails(wo);
-                          }}
-                          className={`absolute h-16 rounded-lg border-2 p-2 cursor-pointer hover:shadow-lg transition-all ${
-                            statusColors[wo.status] || "bg-gray-500/20 border-gray-500"
-                          }`}
-                          style={{
-                            left: position.left,
-                            width: position.width,
-                            minWidth: "100px",
-                          }}
-                        >
-                          <div className="text-xs font-medium truncate">{wo.number}</div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {wo.customers?.name}
+                        return (
+                          <div
+                            key={wo.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewDetails(wo);
+                            }}
+                            className={`absolute h-16 rounded-lg border-2 p-2 cursor-pointer hover:shadow-lg transition-all ${
+                              statusColors[wo.status] || "bg-gray-500/20 border-gray-500"
+                            }`}
+                            style={{
+                              left: position.left,
+                              width: position.width,
+                              top: position.top,
+                              minWidth: "100px",
+                            }}
+                          >
+                            <div className="text-xs font-medium truncate">{wo.number}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {wo.customers?.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {position.duration} {position.duration === 1 ? "giorno" : "giorni"}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {position.duration} {position.duration === 1 ? "giorno" : "giorni"}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
