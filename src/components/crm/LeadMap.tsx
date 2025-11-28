@@ -127,13 +127,6 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
         transition: transform 0.2s;
       `;
 
-      markerElement.addEventListener('mouseenter', () => {
-        markerElement.style.transform = 'scale(1.15)';
-      });
-
-      markerElement.addEventListener('mouseleave', () => {
-        markerElement.style.transform = 'scale(1)';
-      });
 
       const icon = document.createElement('div');
       icon.innerHTML = '📍';
