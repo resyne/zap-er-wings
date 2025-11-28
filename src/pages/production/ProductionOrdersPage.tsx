@@ -1144,6 +1144,73 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleCalendarDragEnd = async (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+    const woId = draggableId;
+
+    try {
+      // Check if dropping from unprogrammed to calendar
+      if (source.droppableId === 'unprogrammed' && destination.droppableId.startsWith('calendar-')) {
+        // Extract date from droppableId (format: calendar-YYYY-MM-DD)
+        const dateStr = destination.droppableId.replace('calendar-', '');
+        
+        const { error } = await supabase
+          .from("work_orders")
+          .update({ planned_start_date: dateStr })
+          .eq("id", woId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Commessa programmata",
+          description: `La commessa è stata programmata per il ${new Date(dateStr).toLocaleDateString('it-IT')}`,
+        });
+
+        fetchWorkOrders();
+      } else if (destination.droppableId.startsWith('calendar-')) {
+        // Moving between calendar days
+        const dateStr = destination.droppableId.replace('calendar-', '');
+        
+        const { error } = await supabase
+          .from("work_orders")
+          .update({ planned_start_date: dateStr })
+          .eq("id", woId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Data aggiornata",
+          description: `La commessa è stata spostata al ${new Date(dateStr).toLocaleDateString('it-IT')}`,
+        });
+
+        fetchWorkOrders();
+      } else if (destination.droppableId === 'unprogrammed') {
+        // Moving back to unprogrammed
+        const { error } = await supabase
+          .from("work_orders")
+          .update({ planned_start_date: null })
+          .eq("id", woId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Commessa deprogrammata",
+          description: "La commessa è stata rimossa dal calendario",
+        });
+
+        fetchWorkOrders();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare la data della commessa",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredWorkOrders = workOrders.filter(wo => {
     const matchesSearch = 
       wo.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1681,45 +1748,131 @@ export default function WorkOrdersPage() {
               </div>
             </DragDropContext>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-                  <div key={day} className="text-center font-medium text-sm text-muted-foreground p-2">
-                    {day}
+            <DragDropContext onDragEnd={handleCalendarDragEnd}>
+              <div className="flex gap-4">
+                {/* Unprogrammed Orders Sidebar */}
+                <div className="w-64 flex-shrink-0 space-y-2">
+                  <div className="sticky top-4">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm">Non Programmate</CardTitle>
+                        <CardDescription className="text-xs">
+                          Trascina nel calendario per programmare
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Droppable droppableId="unprogrammed">
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`space-y-2 min-h-[200px] p-2 rounded-lg transition-colors ${
+                                snapshot.isDraggingOver ? 'bg-muted/50' : 'bg-background'
+                              }`}
+                            >
+                              {filteredWorkOrders
+                                .filter(wo => !wo.planned_start_date)
+                                .map((wo, index) => (
+                                  <Draggable key={wo.id} draggableId={wo.id} index={index}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={`p-2 bg-card border rounded-lg cursor-move hover:shadow-md transition-all ${
+                                          snapshot.isDragging ? 'shadow-lg opacity-80' : ''
+                                        }`}
+                                        onClick={() => handleViewDetails(wo)}
+                                      >
+                                        <div className="text-xs font-medium truncate">{wo.number}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">
+                                          {wo.customers?.name || 'Nessun cliente'}
+                                        </div>
+                                        {wo.priority && (
+                                          <Badge variant={wo.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-[9px] mt-1 h-4">
+                                            {wo.priority}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                              {provided.placeholder}
+                              {filteredWorkOrders.filter(wo => !wo.planned_start_date).length === 0 && (
+                                <div className="text-xs text-muted-foreground text-center py-4">
+                                  Nessuna commessa da programmare
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Droppable>
+                      </CardContent>
+                    </Card>
                   </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 35 }).map((_, i) => {
-                  const date = new Date();
-                  date.setDate(date.getDate() - date.getDay() + i);
-                  const dateStr = date.toISOString().split('T')[0];
-                  const dayOrders = filteredWorkOrders.filter(wo => 
-                    wo.planned_start_date && wo.planned_start_date.split('T')[0] === dateStr
-                  );
-                  
-                  return (
-                    <div key={i} className={`min-h-[100px] p-2 border rounded-lg ${
-                      date.getMonth() !== new Date().getMonth() ? 'bg-muted/20' : 'bg-card'
-                    }`}>
-                      <div className="text-sm font-medium mb-1">{date.getDate()}</div>
-                      <div className="space-y-1">
-                        {dayOrders.map(wo => (
-                          <div
-                            key={wo.id}
-                            onClick={() => handleViewDetails(wo)}
-                            className="text-xs p-1 bg-primary/10 rounded cursor-pointer hover:bg-primary/20 transition-colors"
-                          >
-                            <div className="font-medium truncate">{wo.number}</div>
-                            <div className="text-muted-foreground truncate">{wo.customers?.name}</div>
-                          </div>
-                        ))}
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-7 gap-2 mb-4">
+                    {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                      <div key={day} className="text-center font-medium text-sm text-muted-foreground p-2">
+                        {day}
                       </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: 35 }).map((_, i) => {
+                      const date = new Date();
+                      date.setDate(date.getDate() - date.getDay() + i);
+                      const dateStr = date.toISOString().split('T')[0];
+                      const dayOrders = filteredWorkOrders.filter(wo => 
+                        wo.planned_start_date && wo.planned_start_date.split('T')[0] === dateStr
+                      );
+                      
+                      return (
+                        <Droppable key={i} droppableId={`calendar-${dateStr}`}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`min-h-[100px] p-2 border rounded-lg transition-colors ${
+                                date.getMonth() !== new Date().getMonth() ? 'bg-muted/20' : 'bg-card'
+                              } ${snapshot.isDraggingOver ? 'bg-primary/10 border-primary' : ''}`}
+                            >
+                              <div className="text-sm font-medium mb-1">{date.getDate()}</div>
+                              <div className="space-y-1">
+                                {dayOrders.map((wo, index) => (
+                                  <Draggable key={wo.id} draggableId={wo.id} index={index}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewDetails(wo);
+                                        }}
+                                        className={`text-xs p-1 bg-primary/10 rounded cursor-pointer hover:bg-primary/20 transition-colors ${
+                                          snapshot.isDragging ? 'opacity-50' : ''
+                                        }`}
+                                      >
+                                        <div className="font-medium truncate">{wo.number}</div>
+                                        <div className="text-muted-foreground truncate">{wo.customers?.name}</div>
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {provided.placeholder}
+                              </div>
+                            </div>
+                          )}
+                        </Droppable>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
+            </DragDropContext>
           )}
         </CardContent>
       </Card>
