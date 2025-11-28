@@ -456,16 +456,6 @@ export default function WorkOrdersPage() {
       'bloccato': 'BLOCCATO'
     };
 
-    const statusColors: Record<string, string> = {
-      'da_fare': '#9ca3af',
-      'in_lavorazione': '#f59e0b',
-      'in_test': '#f97316',
-      'pronto': '#3b82f6',
-      'completato': '#10b981',
-      'standby': '#a855f7',
-      'bloccato': '#ef4444'
-    };
-
     const priorityLabels: Record<string, string> = {
       'low': 'Bassa',
       'medium': 'Media',
@@ -473,9 +463,9 @@ export default function WorkOrdersPage() {
     };
 
     const priorityClasses: Record<string, string> = {
-      'low': 'priority-bassa',
-      'medium': 'priority-media',
-      'high': 'priority-alta'
+      'low': 'bassa',
+      'medium': 'media',
+      'high': 'alta'
     };
 
     const formatDate = (date: string | undefined) => {
@@ -496,195 +486,8 @@ export default function WorkOrdersPage() {
         </tr>
       `).join('') || '<tr><td colspan="2">Nessun articolo</td></tr>';
 
-    return `<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report Commessa - ${wo.number}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.3;
-            color: #333;
-            background: #f5f5f5;
-            padding: 5px;
-            font-size: 11px;
-        }
-        
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-            background: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 8px 12px;
-            border-bottom: 2px solid #5568d3;
-        }
-        
-        .header h1 {
-            font-size: 16px;
-            margin-bottom: 3px;
-        }
-        
-        .header .subtitle {
-            font-size: 10px;
-            opacity: 0.9;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 9px;
-            font-weight: bold;
-            margin-top: 3px;
-            background: ${statusColors[wo.status] || '#9ca3af'};
-            color: white;
-        }
-        
-        .content {
-            padding: 10px 12px;
-        }
-        
-        .section {
-            margin-bottom: 10px;
-        }
-        
-        .section-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: #667eea;
-            border-bottom: 1px solid #e0e0e0;
-            padding-bottom: 3px;
-            margin-bottom: 6px;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 6px;
-            margin-bottom: 6px;
-        }
-        
-        .info-item {
-            background: #f8f9fa;
-            padding: 5px 7px;
-            border-radius: 3px;
-            border-left: 2px solid #667eea;
-        }
-        
-        .info-label {
-            font-size: 9px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.2px;
-            margin-bottom: 2px;
-            font-weight: 600;
-        }
-        
-        .info-value {
-            font-size: 11px;
-            color: #333;
-            font-weight: 500;
-        }
-        
-        .info-value.empty {
-            color: #999;
-            font-style: italic;
-            font-size: 10px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 5px;
-            background: white;
-            font-size: 10px;
-        }
-        
-        table thead {
-            background: #667eea;
-            color: white;
-        }
-        
-        table th {
-            padding: 5px 6px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 10px;
-        }
-        
-        table td {
-            padding: 4px 6px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        table tbody tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .notes-box {
-            background: #fff8e1;
-            border-left: 2px solid #ffc107;
-            padding: 6px 8px;
-            border-radius: 2px;
-            margin-top: 5px;
-            font-size: 10px;
-        }
-        
-        .notes-box strong {
-            color: #f57c00;
-            display: block;
-            margin-bottom: 3px;
-            font-size: 10px;
-        }
-        
-        .footer {
-            background: #f8f9fa;
-            padding: 6px 12px;
-            border-top: 1px solid #e0e0e0;
-            text-align: center;
-            color: #666;
-            font-size: 9px;
-        }
-        
-        .priority-badge {
-            display: inline-block;
-            padding: 1px 6px;
-            border-radius: 8px;
-            font-size: 9px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .priority-alta { background: #ffebee; color: #c62828; }
-        .priority-media { background: #fff3e0; color: #ef6c00; }
-        .priority-bassa { background: #e8f5e9; color: #2e7d32; }
-        
-        @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            .container {
-                box-shadow: none;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
+    // Replace placeholders in template
+    return `    <div class="container">
         <!-- Header -->
         <div class="header">
             <h1>Commessa di Produzione</h1>
@@ -709,7 +512,7 @@ export default function WorkOrdersPage() {
                     <div class="info-item">
                         <div class="info-label">Priorità</div>
                         <div class="info-value">
-                            <span class="priority-badge ${priorityClasses[wo.priority || 'medium']}">${priorityLabels[wo.priority || 'medium']}</span>
+                            <span class="priority-badge priority-${priorityClasses[wo.priority || 'medium']}">${priorityLabels[wo.priority || 'medium']}</span>
                         </div>
                     </div>
                     <div class="info-item">
@@ -797,9 +600,7 @@ export default function WorkOrdersPage() {
         <div class="footer">
             Report generato il ${format(new Date(), 'dd/MM/yyyy', { locale: it })} | Sistema di Gestione Commesse
         </div>
-    </div>
-</body>
-</html>`;
+    </div>`;
   };
 
   const handleDownloadDetailedReport = async (wo: WorkOrder) => {
@@ -1040,7 +841,7 @@ export default function WorkOrdersPage() {
 
   const handleDownloadReport = async () => {
     try {
-      const ordersToExport = filteredWorkOrders.slice(0, 5); // Limit to first 5 orders
+      const ordersToExport = filteredWorkOrders; // Export ALL orders
       
       if (ordersToExport.length === 0) {
         toast({
@@ -1052,76 +853,263 @@ export default function WorkOrdersPage() {
       }
 
       toast({
-        title: "Generazione reports...",
-        description: `Generazione di ${ordersToExport.length} report...`
+        title: "Generazione report...",
+        description: `Generazione report con ${ordersToExport.length} commesse...`
       });
 
-      // Generate and download reports for each work order
-      for (let i = 0; i < ordersToExport.length; i++) {
-        const wo = ordersToExport[i];
-        const htmlContent = generateWorkOrderHTML(wo);
-        
-        // Create a temporary container for the HTML
-        const container = document.createElement('div');
-        container.innerHTML = htmlContent;
-        container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        container.style.width = '700px';
-        document.body.appendChild(container);
-
-        // Wait for fonts and styles to load
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        try {
-          // Use html2canvas to capture the HTML as an image
-          const canvas = await html2canvas(container.querySelector('.container') as HTMLElement, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-          });
-
-          // Remove the temporary container
-          document.body.removeChild(container);
-
-          // Create PDF from canvas
-          const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-          });
-
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const imgWidth = canvas.width;
-          const imgHeight = canvas.height;
-          const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-          const imgX = (pdfWidth - imgWidth * ratio) / 2;
-          const imgY = 0;
-
-          pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-          pdf.save(`Report-${wo.number}.pdf`);
-
-          // Small delay between downloads
-          if (i < ordersToExport.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        } catch (err) {
-          console.error(`Error generating report for ${wo.number}:`, err);
-          document.body.removeChild(container);
+      // Generate combined HTML for all work orders
+      const allOrdersHTML = ordersToExport.map(wo => generateWorkOrderHTML(wo)).join('<div style="page-break-after: always;"></div>');
+      
+      const fullHTML = `<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Commesse di Produzione</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.3;
+            color: #333;
+            background: #f5f5f5;
+            padding: 5px;
+            font-size: 11px;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto 20px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 12px;
+            border-bottom: 2px solid #5568d3;
+        }
+        
+        .header h1 {
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+        
+        .header .subtitle {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-top: 3px;
+            color: white;
+        }
+        
+        .content {
+            padding: 10px 12px;
+        }
+        
+        .section {
+            margin-bottom: 10px;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 5px 7px;
+            border-radius: 3px;
+            border-left: 2px solid #667eea;
+        }
+        
+        .info-label {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            margin-bottom: 2px;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 11px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .info-value.empty {
+            color: #999;
+            font-style: italic;
+            font-size: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            background: white;
+            font-size: 10px;
+        }
+        
+        table thead {
+            background: #667eea;
+            color: white;
+        }
+        
+        table th {
+            padding: 5px 6px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10px;
+        }
+        
+        table td {
+            padding: 4px 6px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .notes-box {
+            background: #fff8e1;
+            border-left: 2px solid #ffc107;
+            padding: 6px 8px;
+            border-radius: 2px;
+            margin-top: 5px;
+            font-size: 10px;
+        }
+        
+        .notes-box strong {
+            color: #f57c00;
+            display: block;
+            margin-bottom: 3px;
+            font-size: 10px;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 6px 12px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+            font-size: 9px;
+        }
+        
+        .priority-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .priority-alta { background: #ffebee; color: #c62828; }
+        .priority-media { background: #fff3e0; color: #ef6c00; }
+        .priority-bassa { background: #e8f5e9; color: #2e7d32; }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+${allOrdersHTML}
+</body>
+</html>`;
+      
+      // Create a temporary container for the HTML
+      const container = document.createElement('div');
+      container.innerHTML = fullHTML;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.width = '700px';
+      document.body.appendChild(container);
+
+      // Wait for fonts and styles to load
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Create PDF with all pages
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const containers = container.querySelectorAll('.container');
+      
+      for (let i = 0; i < containers.length; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        const canvas = await html2canvas(containers[i] as HTMLElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const imgX = (pdfWidth - imgWidth * ratio) / 2;
+        const imgY = 0;
+
+        pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       }
+
+      // Remove the temporary container
+      document.body.removeChild(container);
+
+      pdf.save(`Report-Commesse-Produzione-${format(new Date(), 'yyyy-MM-dd', { locale: it })}.pdf`);
 
       toast({
         title: "Successo",
-        description: `${ordersToExport.length} report scaricati con successo`
+        description: `Report con ${ordersToExport.length} commesse scaricato con successo`
       });
     } catch (error: any) {
-      console.error('Error generating reports:', error);
+      console.error('Error generating report:', error);
       toast({
         title: "Errore",
-        description: error.message || "Impossibile generare i report",
+        description: error.message || "Impossibile generare il report",
         variant: "destructive"
       });
     }
