@@ -137,6 +137,49 @@ export default function PurchaseOrdersPage() {
     }
   }, [searchTerm, orders]);
 
+  // Real-time subscription for purchase order comments
+  useEffect(() => {
+    if (!selectedOrder) return;
+
+    const channel = supabase
+      .channel('purchase-order-comments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'purchase_order_comments',
+          filter: `purchase_order_id=eq.${selectedOrder.id}`
+        },
+        async (payload) => {
+          console.log('Comment change detected:', payload);
+          
+          // Refresh the selected order to get updated comments
+          const { data: updatedOrder } = await supabase
+            .from('purchase_orders')
+            .select(`
+              *,
+              suppliers (name, access_code),
+              purchase_order_items (*),
+              purchase_order_comments (*),
+              purchase_order_attachments (*),
+              purchase_order_change_requests (*)
+            `)
+            .eq('id', selectedOrder.id)
+            .single();
+          
+          if (updatedOrder) {
+            setSelectedOrder(updatedOrder);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedOrder]);
+
   const fetchOrders = async () => {
     try {
       let query = supabase
