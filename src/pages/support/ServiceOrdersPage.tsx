@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon, Download } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon, Download, Building2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Link } from "react-router-dom";
@@ -1302,8 +1302,9 @@ export default function WorkOrdersServicePage() {
                                           <div className="font-semibold text-base leading-tight line-clamp-2" title={wo.title}>
                                             {wo.title}
                                           </div>
-                                          <div className="text-sm text-muted-foreground truncate" title={wo.customers?.name}>
-                                            {wo.customers?.name || 'Nessun cliente'}
+                                          <div className="flex items-center gap-1.5 text-base font-medium text-foreground truncate" title={wo.customers?.name}>
+                                            <Building2 className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                                            <span className="truncate">{wo.customers?.name || 'Nessun cliente'}</span>
                                           </div>
                                         </div>
                                       </div>
