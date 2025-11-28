@@ -738,7 +738,7 @@ export default function BomPage() {
         const supplier = suppliers.find(s => s.id === material.supplier_id);
         return {
           name: material.name,
-          version: '1.0',
+          version: '1',
           level: 2,
           material_id: material.id,
           description: `Importato da ${supplier?.name || 'fornitore'}`
