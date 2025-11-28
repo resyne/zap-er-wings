@@ -21,13 +21,14 @@ interface BOM {
   id: string;
   name: string;
   version: string;
+  variant?: string;
   description?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
   component_count: number;
   level: number;
-  machinery_model?: string;
+  machinery_model?: string; // Deprecated, kept for backward compatibility
   material_id?: string;
   children?: BOM[];
   material?: {
@@ -118,11 +119,11 @@ export default function BomPage() {
 
   const [formData, setFormData] = useState({
     name: "",
+    variant: "",
     version: "",
     description: "",
     notes: "",
     level: 0,
-    machinery_model: "",
     material_id: ""
   });
 
@@ -137,11 +138,11 @@ export default function BomPage() {
   const resetForm = () => {
     setFormData({
       name: "",
+      variant: "",
       version: "",
       description: "",
       notes: "",
       level: 0,
-      machinery_model: "",
       material_id: ""
     });
     setSelectedLevel(0);
@@ -391,24 +392,38 @@ export default function BomPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Get next version automatically
+      const { data: nextVersion, error: versionError } = await supabase
+        .rpc('get_next_bom_version', {
+          p_name: formData.name,
+          p_variant: formData.variant || null,
+          p_level: selectedLevel
+        });
+
+      if (versionError) throw versionError;
+
       const submitData = {
-        ...formData,
+        name: formData.name,
+        variant: selectedLevel === 0 ? formData.variant || null : null,
+        version: nextVersion,
+        description: formData.description,
+        notes: formData.notes,
         level: selectedLevel,
-        machinery_model: selectedLevel === 0 ? formData.machinery_model : null,
         material_id: selectedLevel === 2 && formData.material_id ? formData.material_id : null
       };
 
       let bomId: string;
 
       if (selectedBom) {
-        // Update
-        const { error } = await supabase
+        // When editing, create a new version instead of updating
+        const { data, error } = await supabase
           .from('boms')
-          .update(submitData)
-          .eq('id', selectedBom.id);
+          .insert([submitData])
+          .select()
+          .single();
 
         if (error) throw error;
-        bomId = selectedBom.id;
+        bomId = data.id;
 
         toast({
           title: "Success",
@@ -477,11 +492,11 @@ export default function BomPage() {
     setSelectedLevel(bom.level);
     setFormData({
       name: bom.name,
+      variant: bom.variant || "",
       version: bom.version,
       description: bom.description || "",
       notes: bom.notes || "",
       level: bom.level,
-      machinery_model: bom.machinery_model || "",
       material_id: bom.material_id || ""
     });
 
@@ -628,13 +643,23 @@ export default function BomPage() {
   const handleDuplicate = async (bom: BOM) => {
     try {
       // Create duplicate BOM with modified name
+      // Get next version for the duplicate
+      const { data: nextVersion, error: versionError } = await supabase
+        .rpc('get_next_bom_version', {
+          p_name: bom.name,
+          p_variant: bom.variant || null,
+          p_level: bom.level
+        });
+
+      if (versionError) throw versionError;
+
       const duplicateData = {
-        name: `${bom.name} (copia)`,
-        version: bom.version,
+        name: bom.name,
+        variant: bom.variant,
+        version: nextVersion,
         description: bom.description,
-        notes: bom.notes,
+        notes: `${bom.notes || ''}\n[Duplicato da versione ${bom.version}]`.trim(),
         level: bom.level,
-        machinery_model: bom.machinery_model,
         material_id: bom.material_id
       };
 
@@ -824,7 +849,7 @@ export default function BomPage() {
   const filteredBoms = boms.filter(bom =>
     bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     bom.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (bom.machinery_model && bom.machinery_model.toLowerCase().includes(searchTerm.toLowerCase()))
+    (bom.variant && bom.variant.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const groupedBoms = filteredBoms.reduce((acc, bom) => {
@@ -919,15 +944,32 @@ export default function BomPage() {
               )}
 
               {selectedLevel === 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="machinery_model">Machinery Model *</Label>
-                  <Input
-                    id="machinery_model"
-                    value={formData.machinery_model}
-                    onChange={(e) => setFormData(prev => ({ ...prev, machinery_model: e.target.value }))}
-                    placeholder="Enter machinery model name"
-                    required={selectedLevel === 0}
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="model_name">Modello Base *</Label>
+                    <Input
+                      id="model_name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="es. ZBR MAX"
+                      required={selectedLevel === 0}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Nome del modello principale (es. ZBR MAX, COEM, ecc.)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="variant">Variante</Label>
+                    <Input
+                      id="variant"
+                      value={formData.variant}
+                      onChange={(e) => setFormData(prev => ({ ...prev, variant: e.target.value }))}
+                      placeholder="es. 350 mm, 400 mm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Configurazione specifica del modello (opzionale)
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -1005,25 +1047,34 @@ export default function BomPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter BOM name"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="version">Version *</Label>
-                <Input
-                  id="version"
-                  value={formData.version}
-                  onChange={(e) => setFormData(prev => ({ ...prev, version: e.target.value }))}
-                  placeholder="e.g., v1.0"
-                  required
-                />
+              {selectedLevel !== 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter BOM name"
+                    required
+                  />
+                </div>
+              )}
+              
+              <div className="rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4">
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Versionamento Automatico</h4>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      La versione verrà generata automaticamente (v.01, v.02, ecc.). 
+                      {selectedBom ? ' Salvando, verrà creata una nuova versione di questo BOM.' : ' Una nuova versione si crea ad ogni modifica.'}
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
@@ -1083,7 +1134,7 @@ export default function BomPage() {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {selectedBom ? "Update" : "Create"} BOM
+                  {selectedBom ? "Crea Nuova Versione" : "Crea BOM"}
                 </Button>
               </div>
             </form>
@@ -1308,7 +1359,7 @@ export default function BomPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search BOMs by name, version, or machinery model..."
+                placeholder="Cerca BOM per nome, versione o variante..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
@@ -1368,7 +1419,7 @@ export default function BomPage() {
                           <TableHead>Name</TableHead>
                           <TableHead>Version</TableHead>
                           <TableHead>Description</TableHead>
-                          {level === 0 && <TableHead>Machinery Model</TableHead>}
+                          {level === 0 && <TableHead>Modello + Variante</TableHead>}
                           {level === 2 && <TableHead>Material</TableHead>}
                           {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
                           <TableHead>Components</TableHead>
@@ -1404,13 +1455,16 @@ export default function BomPage() {
                                  <span className="text-muted-foreground italic">Nessuna descrizione</span>
                                )}
                              </TableCell>
-                            {level === 0 && (
+                             {level === 0 && (
                               <TableCell>
-                                {bom.machinery_model ? (
-                                  <Badge variant="default">{bom.machinery_model}</Badge>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-medium">{bom.name}</span>
+                                  {bom.variant && (
+                                    <Badge variant="outline" className="w-fit">
+                                      {bom.variant}
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                             )}
                             {level === 2 && (
