@@ -6,6 +6,7 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -810,30 +811,46 @@ export default function WorkOrdersPage() {
 
       const htmlContent = generateWorkOrderHTML(wo);
       
-      const { data, error } = await supabase.functions.invoke('generate-pdf-from-html', {
-        body: { html: htmlContent }
+      // Create a temporary container for the HTML
+      const container = document.createElement('div');
+      container.innerHTML = htmlContent;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.width = '700px';
+      document.body.appendChild(container);
+
+      // Wait for fonts and styles to load
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Use html2canvas to capture the HTML as an image
+      const canvas = await html2canvas(container.querySelector('.container') as HTMLElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
       });
 
-      if (error) throw error;
+      // Remove the temporary container
+      document.body.removeChild(container);
 
-      // Convert base64 to blob
-      const byteCharacters = atob(data.pdf);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      // Create PDF from canvas
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-      // Download PDF
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Report-${wo.number}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save(`Report-${wo.number}.pdf`);
 
       toast({
         title: "Successo",
@@ -1036,48 +1053,69 @@ export default function WorkOrdersPage() {
 
       toast({
         title: "Generazione reports...",
-        description: `Generazione di ${ordersToExport.length} report${ordersToExport.length > 1 ? 's' : ''}...`
+        description: `Generazione di ${ordersToExport.length} report...`
       });
 
       // Generate and download reports for each work order
-      for (const wo of ordersToExport) {
+      for (let i = 0; i < ordersToExport.length; i++) {
+        const wo = ordersToExport[i];
         const htmlContent = generateWorkOrderHTML(wo);
         
-        const { data, error } = await supabase.functions.invoke('generate-pdf-from-html', {
-          body: { html: htmlContent }
-        });
+        // Create a temporary container for the HTML
+        const container = document.createElement('div');
+        container.innerHTML = htmlContent;
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.width = '700px';
+        document.body.appendChild(container);
 
-        if (error) {
-          console.error(`Error generating report for ${wo.number}:`, error);
-          continue;
+        // Wait for fonts and styles to load
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        try {
+          // Use html2canvas to capture the HTML as an image
+          const canvas = await html2canvas(container.querySelector('.container') as HTMLElement, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+          });
+
+          // Remove the temporary container
+          document.body.removeChild(container);
+
+          // Create PDF from canvas
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = canvas.width;
+          const imgHeight = canvas.height;
+          const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+          const imgX = (pdfWidth - imgWidth * ratio) / 2;
+          const imgY = 0;
+
+          pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+          pdf.save(`Report-${wo.number}.pdf`);
+
+          // Small delay between downloads
+          if (i < ordersToExport.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (err) {
+          console.error(`Error generating report for ${wo.number}:`, err);
+          document.body.removeChild(container);
         }
-
-        // Convert base64 to blob
-        const byteCharacters = atob(data.pdf);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-
-        // Download PDF
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Report-${wo.number}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        // Small delay between downloads
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       toast({
         title: "Successo",
-        description: `${ordersToExport.length} report${ordersToExport.length > 1 ? 's' : ''} scaricato con successo`
+        description: `${ordersToExport.length} report scaricati con successo`
       });
     } catch (error: any) {
       console.error('Error generating reports:', error);
