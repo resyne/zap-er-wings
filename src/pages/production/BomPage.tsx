@@ -604,6 +604,67 @@ export default function BomPage() {
     }
   };
 
+  const handleDuplicate = async (bom: BOM) => {
+    try {
+      // Create duplicate BOM with modified name
+      const duplicateData = {
+        name: `${bom.name} (copia)`,
+        version: bom.version,
+        description: bom.description,
+        notes: bom.notes,
+        level: bom.level,
+        machinery_model: bom.machinery_model,
+        material_id: bom.material_id
+      };
+
+      const { data: newBom, error: bomError } = await supabase
+        .from('boms')
+        .insert([duplicateData])
+        .select()
+        .single();
+
+      if (bomError) throw bomError;
+
+      // If the BOM has inclusions, duplicate them too
+      if (bom.level < 2) {
+        const { data: inclusions, error: inclusionsError } = await supabase
+          .from('bom_inclusions')
+          .select('included_bom_id, quantity, notes')
+          .eq('parent_bom_id', bom.id);
+
+        if (inclusionsError) throw inclusionsError;
+
+        if (inclusions && inclusions.length > 0) {
+          const newInclusions = inclusions.map(inc => ({
+            parent_bom_id: newBom.id,
+            included_bom_id: inc.included_bom_id,
+            quantity: inc.quantity,
+            notes: inc.notes
+          }));
+
+          const { error: newInclusionsError } = await supabase
+            .from('bom_inclusions')
+            .insert(newInclusions);
+
+          if (newInclusionsError) throw newInclusionsError;
+        }
+      }
+
+      toast({
+        title: "Successo",
+        description: "BOM duplicato con successo",
+      });
+      
+      fetchBoms();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleInclusionToggle = (bomId: string, checked: boolean) => {
     setIncludableBoms(prev => 
       prev.map(bom => 
@@ -1246,7 +1307,7 @@ export default function BomPage() {
                                 <Button variant="ghost" size="sm" onClick={() => handleEdit(bom)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" onClick={() => handleDuplicate(bom)}>
                                   <Copy className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="sm">
