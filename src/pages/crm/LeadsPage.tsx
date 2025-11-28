@@ -1929,6 +1929,75 @@ export default function LeadsPage() {
                 </div>
               )}
 
+              {/* Custom Fields - ZAPPER */}
+              {(selectedLead.pipeline === "Zapper" || selectedLead.pipeline === "Zapper Pro") && (
+                selectedLead.custom_fields?.tipo_attivita || 
+                selectedLead.custom_fields?.diametro_canna_fumaria || 
+                selectedLead.custom_fields?.luogo || 
+                selectedLead.custom_fields?.installazione
+              ) && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Informazioni ZAPPER</h4>
+                  <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    {selectedLead.custom_fields?.tipo_attivita && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Tipo di attività</label>
+                        <p className="text-sm mt-1">{selectedLead.custom_fields.tipo_attivita}</p>
+                      </div>
+                    )}
+                    {selectedLead.custom_fields?.diametro_canna_fumaria && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Diametro canna fumaria</label>
+                        <p className="text-sm mt-1">{selectedLead.custom_fields.diametro_canna_fumaria}</p>
+                      </div>
+                    )}
+                    {selectedLead.custom_fields?.luogo && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Luogo</label>
+                        <p className="text-sm mt-1">{selectedLead.custom_fields.luogo}</p>
+                      </div>
+                    )}
+                    {selectedLead.custom_fields?.installazione && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Installazione</label>
+                        <p className="text-sm mt-1">✓ Richiesta</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Fields - VESUVIANO */}
+              {selectedLead.pipeline === "Vesuviano" && (
+                selectedLead.custom_fields?.dimensioni_forno || 
+                selectedLead.custom_fields?.alimentazione || 
+                selectedLead.custom_fields?.pronta_consegna
+              ) && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Informazioni Vesuviano</h4>
+                  <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    {selectedLead.custom_fields?.dimensioni_forno && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Dimensioni forno</label>
+                        <p className="text-sm mt-1">{selectedLead.custom_fields.dimensioni_forno}</p>
+                      </div>
+                    )}
+                    {selectedLead.custom_fields?.alimentazione && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Alimentazione</label>
+                        <p className="text-sm mt-1 capitalize">{selectedLead.custom_fields.alimentazione}</p>
+                      </div>
+                    )}
+                    {selectedLead.custom_fields?.pronta_consegna && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Pronta consegna</label>
+                        <p className="text-sm mt-1">✓ Sì</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Next Activity */}
               {(selectedLead.next_activity_type || selectedLead.next_activity_date) && (
                 <div className="border-t pt-4">
