@@ -535,6 +535,14 @@ export default function BomPage() {
 
         // Delete related work orders
         for (const workOrder of workOrders) {
+          // First, unlink or delete related service work orders
+          const { error: serviceWorkOrdersError } = await supabase
+            .from('service_work_orders')
+            .update({ production_work_order_id: null })
+            .eq('production_work_order_id', workOrder.id);
+
+          if (serviceWorkOrdersError) throw serviceWorkOrdersError;
+
           // Delete work order articles first
           const { error: articlesError } = await supabase
             .from('work_order_article_items')
