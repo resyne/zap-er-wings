@@ -189,6 +189,29 @@ export default function MaterialsPage() {
     fetchSuppliers();
   }, []);
 
+  // Realtime updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('materials-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'materials'
+        },
+        (payload) => {
+          console.log('Material change detected:', payload);
+          fetchMaterials();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const handleSubmit = async (data: MaterialFormData) => {
     try {
       const submitData = {
