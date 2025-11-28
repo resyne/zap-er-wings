@@ -248,10 +248,11 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
   }, [draggingWo, dragStartX, originalDates, tempStartDate, tempEndDate]);
 
   const statusColors: Record<string, string> = {
-    planned: "bg-blue-500/20 border-blue-500",
+    da_fare: "bg-muted border-muted-foreground",
+    pronto: "bg-blue-500/20 border-blue-500",
     in_lavorazione: "bg-yellow-500/20 border-yellow-500",
+    in_test: "bg-orange-500/20 border-orange-500",
     completato: "bg-green-500/20 border-green-500",
-    in_attesa: "bg-gray-500/20 border-gray-500",
     standby: "bg-purple-500/20 border-purple-500",
     bloccato: "bg-red-500/20 border-red-500",
   };
