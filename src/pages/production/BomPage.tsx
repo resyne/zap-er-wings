@@ -1571,13 +1571,13 @@ export default function BomPage() {
                             <>
                               {/* Riga del modello base */}
                               {!model.parent_id && (
-                                <TableRow key={model.id} className="bg-muted/30">
-                                  <TableCell className="font-bold" colSpan={10}>
-                                    <div className="flex items-center gap-2">
-                                      <Factory className="h-4 w-4" />
-                                      <span>{model.name}</span>
-                                      <Badge variant="secondary" className="text-xs">
-                                        {variants.length} varianti
+                                <TableRow key={model.id} className="bg-accent/50 border-b-2 border-border">
+                                  <TableCell className="font-bold text-base py-3" colSpan={10}>
+                                    <div className="flex items-center gap-3">
+                                      <Factory className="h-5 w-5 text-primary" />
+                                      <span className="text-lg">{model.name}</span>
+                                      <Badge variant="default" className="ml-2">
+                                        {variants.length} {variants.length === 1 ? 'variante' : 'varianti'}
                                       </Badge>
                                     </div>
                                   </TableCell>
@@ -1587,8 +1587,8 @@ export default function BomPage() {
                               {/* Righe delle varianti */}
                               {variants.map((variant) => (
                                 <TableRow key={variant.id} className="hover:bg-muted/50">
-                                  <TableCell className="font-medium pl-8">
-                                    {model.name}
+                                  <TableCell className="font-medium pl-8 text-muted-foreground">
+                                    <span className="text-xs">↳</span>
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="outline">{variant.version}</Badge>
