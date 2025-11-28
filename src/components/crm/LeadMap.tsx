@@ -51,6 +51,28 @@ const COUNTRY_ISO_MAP: Record<string, string> = {
   'United Kingdom': 'GB',
   UK: 'GB',
 };
+
+// Cerca il paese sia nel campo country sia nel testo del luogo (es. "ZPZ - Svezia - Drillon")
+const getIsoCountryFromLead = (location: string, country?: string): string | undefined => {
+  const normalizedLocation = location.toLowerCase();
+  const normalizedCountry = country?.toLowerCase();
+
+  // 1) Prova dal campo country
+  if (normalizedCountry) {
+    const directMatchKey = Object.keys(COUNTRY_ISO_MAP).find(
+      key => key.toLowerCase() === normalizedCountry
+    );
+    if (directMatchKey) return COUNTRY_ISO_MAP[directMatchKey];
+  }
+
+  // 2) Prova a riconoscere il paese dal testo del luogo / company_name
+  const matchKey = Object.keys(COUNTRY_ISO_MAP).find(key =>
+    normalizedLocation.includes(key.toLowerCase())
+  );
+  if (matchKey) return COUNTRY_ISO_MAP[matchKey];
+
+  return undefined;
+};
 const STATUS_CONFIG = {
   'new': { color: '#3b82f6', label: 'Nuovo' },
   'qualified': { color: '#22c55e', label: 'Qualificato' },
@@ -102,12 +124,13 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     const normalizedLocation = location.trim();
     const normalizedCountry = country?.trim();
 
-    const cacheKey = `${normalizedLocation.toLowerCase()}__${normalizedCountry?.toLowerCase() || 'any'}`;
+    // Determina il paese in modo intelligente (campo country + testo luogo)
+    const isoCountry = getIsoCountryFromLead(normalizedLocation, normalizedCountry);
+
+    const cacheKey = `${normalizedLocation.toLowerCase()}__${isoCountry || normalizedCountry?.toLowerCase() || 'any'}`;
     if (geocodeCache.current.has(cacheKey)) return geocodeCache.current.get(cacheKey)!;
     
     try {
-      const isoCountry = normalizedCountry ? COUNTRY_ISO_MAP[normalizedCountry as keyof typeof COUNTRY_ISO_MAP] : undefined;
-
       const params = new URLSearchParams({
         types: 'place,locality,region',
         limit: '1',
@@ -125,12 +148,12 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
         const feature = data.features[0];
         const center = feature.center as [number, number];
         
-        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (country="${normalizedCountry || 'N/A'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
+        console.log(`[LeadMap] Geocoded "${normalizedLocation}" (countryField="${normalizedCountry || 'N/A'}", isoCountry="${isoCountry || 'N/A'}") to ${feature.place_name} at [${center[0]}, ${center[1]}]`);
         
         geocodeCache.current.set(cacheKey, center);
         return center;
       } else {
-        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" with country="${normalizedCountry || 'N/A'}"`, data);
+        console.warn(`[LeadMap] No results found for location: "${normalizedLocation}" with countryField="${normalizedCountry || 'N/A'}" isoCountry="${isoCountry || 'N/A'}"`, data);
       }
     } catch (e) {
       console.warn('Failed to geocode location:', location, e);
