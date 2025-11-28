@@ -1,7 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapPin } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 
 interface Lead {
   id: string;
@@ -22,12 +25,12 @@ interface LeadMapProps {
   leads: Lead[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  'new': '#3b82f6', // blue
-  'qualified': '#22c55e', // green
-  'negotiation': '#f97316', // orange
-  'won': '#10b981', // emerald
-  'lost': '#ef4444', // red
+const STATUS_CONFIG = {
+  'new': { color: '#3b82f6', label: 'Nuovo' },
+  'qualified': { color: '#22c55e', label: 'Qualificato' },
+  'negotiation': { color: '#f97316', label: 'Trattativa' },
+  'won': { color: '#10b981', label: 'Vinto' },
+  'lost': { color: '#ef4444', label: 'Perso' },
 };
 
 export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
@@ -36,6 +39,9 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   const markers = useRef<mapboxgl.Marker[]>([]);
   const mapboxToken = 'pk.eyJ1IjoiemFwcGVyLWl0YWx5IiwiYSI6ImNtZXRyZHppNjAyMHMyanBmaDVjaXRqNGkifQ.a-m1oX08G8vNi9s6uzNr7Q';
   const geocodeCache = useRef<Map<string, [number, number]>>(new Map());
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(
+    new Set(Object.keys(STATUS_CONFIG))
+  );
 
   const initializeMap = () => {
     if (!mapContainer.current || map.current) return;
@@ -89,7 +95,9 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    const leadsWithLocation = leads.filter(lead => lead.custom_fields?.luogo);
+    const leadsWithLocation = leads.filter(
+      lead => lead.custom_fields?.luogo && selectedStatuses.has(lead.status)
+    );
     console.log(`[LeadMap] Processing ${leadsWithLocation.length} leads with location out of ${leads.length} total leads`);
 
     for (const lead of leadsWithLocation) {
@@ -107,7 +115,7 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       const [lng, lat] = coords;
       console.log(`[LeadMap] Geocoded "${location}" to [${lng}, ${lat}]`);
 
-      const markerColor = STATUS_COLORS[lead.status] || '#6366f1';
+      const markerColor = STATUS_CONFIG[lead.status as keyof typeof STATUS_CONFIG]?.color || '#6366f1';
       console.log(`[LeadMap] Using color ${markerColor} for status "${lead.status}"`);
 
       const markerElement = document.createElement('div');
@@ -132,14 +140,6 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       icon.innerHTML = '📍';
       icon.style.fontSize = '14px';
       markerElement.appendChild(icon);
-
-      const statusLabels: Record<string, string> = {
-        'new': 'Nuovo',
-        'qualified': 'Qualificato',
-        'negotiation': 'Trattativa',
-        'won': 'Vinto',
-        'lost': 'Perso'
-      };
 
       const popup = new mapboxgl.Popup({ offset: 25 })
         .setHTML(`
@@ -166,7 +166,7 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
               </p>
             ` : ''}
             <div style="margin-top: 8px; padding: 4px 8px; background: ${markerColor}; color: white; border-radius: 4px; font-size: 11px; text-align: center; font-weight: 500;">
-              ${statusLabels[lead.status] || lead.status.toUpperCase()}
+              ${STATUS_CONFIG[lead.status as keyof typeof STATUS_CONFIG]?.label || lead.status.toUpperCase()}
             </div>
           </div>
         `);
@@ -198,18 +198,71 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     if (map.current && map.current.loaded()) {
       void addLeadMarkers();
     }
-  }, [leads]);
+  }, [leads, selectedStatuses]);
+
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(status)) {
+        newSet.delete(status);
+      } else {
+        newSet.add(status);
+      }
+      return newSet;
+    });
+  };
 
   const leadsWithLocation = leads.filter(lead => lead.custom_fields?.luogo);
+  const filteredLeadsWithLocation = leadsWithLocation.filter(lead => selectedStatuses.has(lead.status));
 
   return (
     <div className="relative w-full h-[600px]">
       <div ref={mapContainer} className="absolute inset-0 rounded-lg overflow-hidden" />
+      
+      {/* Legend and filters */}
+      <Card className="absolute top-4 right-4 p-4 shadow-lg bg-background/95 backdrop-blur-sm z-10">
+        <div className="space-y-3">
+          <h3 className="font-semibold text-sm mb-2">Legenda e Filtri</h3>
+          {Object.entries(STATUS_CONFIG).map(([status, config]) => {
+            const count = leadsWithLocation.filter(l => l.status === status).length;
+            return (
+              <div key={status} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`status-${status}`}
+                  checked={selectedStatuses.has(status)}
+                  onCheckedChange={() => toggleStatus(status)}
+                />
+                <Label
+                  htmlFor={`status-${status}`}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  <div
+                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                    style={{ backgroundColor: config.color }}
+                  />
+                  <span>{config.label}</span>
+                  <span className="text-muted-foreground">({count})</span>
+                </Label>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {leadsWithLocation.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
           <div className="text-center space-y-2">
             <MapPin className="h-8 w-8 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">Nessun lead con luogo specificato</p>
+          </div>
+        </div>
+      )}
+      
+      {leadsWithLocation.length > 0 && filteredLeadsWithLocation.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center space-y-2 bg-background/80 backdrop-blur-sm p-6 rounded-lg">
+            <MapPin className="h-8 w-8 text-muted-foreground mx-auto" />
+            <p className="text-muted-foreground">Nessun lead con i filtri selezionati</p>
           </div>
         </div>
       )}
