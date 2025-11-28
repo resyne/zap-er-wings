@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameMonth, parseISO, differenceInDays } from "date-fns";
+import { format, parseISO, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -30,6 +30,7 @@ import { WorkOrderComments } from "@/components/production/WorkOrderComments";
 import { WorkOrderArticles } from "@/components/production/WorkOrderArticles";
 import { WorkOrderActivityLog } from "@/components/production/WorkOrderActivityLog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ProductionTimeline } from "@/components/production/ProductionTimeline";
 
 interface WorkOrder {
   id: string;
@@ -95,7 +96,7 @@ export default function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
-  const [viewMode, setViewMode] = useState<"table" | "kanban" | "calendar">("table");
+  const [viewMode, setViewMode] = useState<"table" | "kanban" | "timeline">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
@@ -104,11 +105,6 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [parentOrderFiles, setParentOrderFiles] = useState<any[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [showDateDialog, setShowDateDialog] = useState(false);
-  const [draggedWorkOrderId, setDraggedWorkOrderId] = useState<string | null>(null);
-  const [tempStartDate, setTempStartDate] = useState("");
-  const [tempEndDate, setTempEndDate] = useState("");
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
 
@@ -1149,106 +1145,33 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const handleCalendarDragEnd = async (result: any) => {
-    if (!result.destination) return;
-
-    const { source, destination, draggableId } = result;
-    const woId = draggableId;
-
-    try {
-      // Check if dropping from unprogrammed to calendar or moving back to unprogrammed
-      if (destination.droppableId === 'unprogrammed') {
-        // Moving back to unprogrammed
-        const { error } = await supabase
-          .from("work_orders")
-          .update({ planned_start_date: null, planned_end_date: null })
-          .eq("id", woId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Commessa deprogrammata",
-          description: "La commessa è stata rimossa dal calendario",
-        });
-
-        fetchWorkOrders();
-      } else if (destination.droppableId.startsWith('calendar-')) {
-        // Extract date from droppableId (format: calendar-YYYY-MM-DD)
-        const dateStr = destination.droppableId.replace('calendar-', '');
-        
-        // Set temporary values and show dialog
-        setDraggedWorkOrderId(woId);
-        setTempStartDate(dateStr);
-        
-        // If work order already has dates, use end date as default
-        const wo = workOrders.find(w => w.id === woId);
-        if (wo?.planned_end_date) {
-          const currentStart = wo.planned_start_date ? parseISO(wo.planned_start_date) : new Date(dateStr);
-          const currentEnd = parseISO(wo.planned_end_date);
-          const duration = differenceInDays(currentEnd, currentStart);
-          const newEnd = new Date(dateStr);
-          newEnd.setDate(newEnd.getDate() + duration);
-          setTempEndDate(newEnd.toISOString().split('T')[0]);
-        } else {
-          // Default to 7 days duration
-          const endDate = new Date(dateStr);
-          endDate.setDate(endDate.getDate() + 7);
-          setTempEndDate(endDate.toISOString().split('T')[0]);
-        }
-        
-        setShowDateDialog(true);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: "Impossibile aggiornare la data della commessa",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleConfirmDates = async () => {
-    if (!draggedWorkOrderId || !tempStartDate) return;
-
+  const handleUpdateDates = async (workOrderId: string, startDate: string, endDate: string) => {
     try {
       const { error } = await supabase
-        .from("work_orders")
-        .update({ 
-          planned_start_date: tempStartDate,
-          planned_end_date: tempEndDate || tempStartDate
+        .from('work_orders')
+        .update({
+          planned_start_date: startDate,
+          planned_end_date: endDate,
+          status: 'planned',
         })
-        .eq("id", draggedWorkOrderId);
+        .eq('id', workOrderId);
 
       if (error) throw error;
 
       toast({
-        title: "Commessa programmata",
-        description: `Programmata dal ${new Date(tempStartDate).toLocaleDateString('it-IT')} al ${new Date(tempEndDate || tempStartDate).toLocaleDateString('it-IT')}`,
+        title: "Successo",
+        description: "Date aggiornate con successo",
       });
 
       fetchWorkOrders();
-      setShowDateDialog(false);
-      setDraggedWorkOrderId(null);
-      setTempStartDate("");
-      setTempEndDate("");
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error updating dates:', error);
       toast({
         title: "Errore",
-        description: "Impossibile programmare la commessa",
+        description: "Impossibile aggiornare le date",
         variant: "destructive",
       });
     }
-  };
-
-  const getWorkOrdersForDate = (dateStr: string) => {
-    return filteredWorkOrders.filter(wo => {
-      if (!wo.planned_start_date) return false;
-      
-      const startDate = wo.planned_start_date.split('T')[0];
-      const endDate = wo.planned_end_date ? wo.planned_end_date.split('T')[0] : startDate;
-      
-      return dateStr >= startDate && dateStr <= endDate;
-    });
   };
 
   const filteredWorkOrders = workOrders.filter(wo => {
@@ -1362,7 +1285,7 @@ export default function WorkOrdersPage() {
                 className={isMobile ? "pl-7 h-8 text-sm" : "pl-8"}
               />
             </div>
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "calendar")} className={isMobile ? "w-full" : ""}>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "timeline")} className={isMobile ? "w-full" : ""}>
               <TabsList className={isMobile ? "w-full grid grid-cols-3" : ""}>
                 <TabsTrigger value="table" className={isMobile ? "text-xs py-1" : ""}>
                   <List className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
@@ -1372,9 +1295,9 @@ export default function WorkOrdersPage() {
                   <LayoutGrid className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
                   {!isMobile && "Kanban"}
                 </TabsTrigger>
-                <TabsTrigger value="calendar" className={isMobile ? "text-xs py-1" : ""}>
+                <TabsTrigger value="timeline" className={isMobile ? "text-xs py-1" : ""}>
                   <CalendarIcon className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
-                  {!isMobile && "Calendario"}
+                  {!isMobile && "Timeline"}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -1788,211 +1711,15 @@ export default function WorkOrdersPage() {
               </div>
             </DragDropContext>
           ) : (
-            <DragDropContext onDragEnd={handleCalendarDragEnd}>
-              <div className="flex gap-4">
-                {/* Unprogrammed Orders Sidebar */}
-                <div className="w-64 flex-shrink-0 space-y-2">
-                  <div className="sticky top-4">
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Non Programmate</CardTitle>
-                        <CardDescription className="text-xs">
-                          Trascina nel calendario per programmare
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Droppable droppableId="unprogrammed">
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`space-y-2 min-h-[200px] p-2 rounded-lg transition-colors ${
-                                snapshot.isDraggingOver ? 'bg-muted/50' : 'bg-background'
-                              }`}
-                            >
-                              {filteredWorkOrders
-                                .filter(wo => !wo.planned_start_date)
-                                .map((wo, index) => (
-                                  <Draggable key={wo.id} draggableId={wo.id} index={index}>
-                                    {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        className={`p-2 bg-card border rounded-lg cursor-move hover:shadow-md transition-all ${
-                                          snapshot.isDragging ? 'shadow-lg opacity-80' : ''
-                                        }`}
-                                        onClick={() => handleViewDetails(wo)}
-                                      >
-                                        <div className="text-xs font-medium truncate">{wo.number}</div>
-                                        <div className="text-[10px] text-muted-foreground truncate">
-                                          {wo.customers?.name || 'Nessun cliente'}
-                                        </div>
-                                        {wo.priority && (
-                                          <Badge variant={wo.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-[9px] mt-1 h-4">
-                                            {wo.priority}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))}
-                              {provided.placeholder}
-                              {filteredWorkOrders.filter(wo => !wo.planned_start_date).length === 0 && (
-                                <div className="text-xs text-muted-foreground text-center py-4">
-                                  Nessuna commessa da programmare
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </Droppable>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="flex-1 space-y-4">
-                  {/* Month Navigation */}
-                  <div className="flex items-center justify-between bg-card p-4 rounded-lg border">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <h3 className="text-lg font-semibold">
-                      {format(currentMonth, 'MMMM yyyy', { locale: it })}
-                    </h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-2 mb-4">
-                    {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-                      <div key={day} className="text-center font-medium text-sm text-muted-foreground p-2">
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-2">
-                    {(() => {
-                      const monthStart = startOfMonth(currentMonth);
-                      const monthEnd = endOfMonth(currentMonth);
-                      const startDay = monthStart.getDay() === 0 ? 6 : monthStart.getDay() - 1;
-                      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-                      const totalCells = Math.ceil((days.length + startDay) / 7) * 7;
-                      
-                      return Array.from({ length: totalCells }).map((_, i) => {
-                        if (i < startDay || i >= startDay + days.length) {
-                          return <div key={i} className="min-h-[100px] p-2 border rounded-lg bg-muted/20" />;
-                        }
-                        
-                        const date = days[i - startDay];
-                        const dateStr = date.toISOString().split('T')[0];
-                        const dayOrders = getWorkOrdersForDate(dateStr);
-                        
-                        return (
-                          <Droppable key={i} droppableId={`calendar-${dateStr}`}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className={`min-h-[100px] p-2 border rounded-lg transition-colors ${
-                                  !isSameMonth(date, currentMonth) ? 'bg-muted/20' : 'bg-card'
-                                } ${snapshot.isDraggingOver ? 'bg-primary/10 border-primary' : ''}`}
-                              >
-                                <div className="text-sm font-medium mb-1">{date.getDate()}</div>
-                                <div className="space-y-1">
-                                  {dayOrders.map((wo, index) => {
-                                    const startDate = wo.planned_start_date!.split('T')[0];
-                                    const isFirstDay = dateStr === startDate;
-                                    
-                                    return (
-                                      <Draggable key={wo.id} draggableId={wo.id} index={index}>
-                                        {(provided, snapshot) => (
-                                          <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleViewDetails(wo);
-                                            }}
-                                            className={`text-[10px] p-1.5 rounded cursor-pointer transition-colors ${
-                                              snapshot.isDragging ? 'opacity-50' : ''
-                                            } ${
-                                              isFirstDay ? 'bg-primary/20 hover:bg-primary/30 border border-primary/40' : 'bg-primary/10 hover:bg-primary/20 border border-primary/20'
-                                            }`}
-                                          >
-                                            <div className="font-medium truncate">{wo.number}</div>
-                                            <div className="text-[9px] text-muted-foreground truncate">{wo.customers?.name}</div>
-                                          </div>
-                                        )}
-                                      </Draggable>
-                                    );
-                                  })}
-                                  {provided.placeholder}
-                                </div>
-                              </div>
-                            )}
-                          </Droppable>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </DragDropContext>
+            <ProductionTimeline
+              workOrders={filteredWorkOrders}
+              onUpdateDates={handleUpdateDates}
+              onViewDetails={handleViewDetails}
+            />
           )}
         </CardContent>
       </Card>
 
-      {/* Date Selection Dialog */}
-      <Dialog open={showDateDialog} onOpenChange={setShowDateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Programma Periodo Lavorazione</DialogTitle>
-            <DialogDescription>
-              Imposta la data di inizio e fine lavorazione per questa commessa
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Data Inizio Lavorazione</Label>
-              <Input
-                type="date"
-                value={tempStartDate}
-                onChange={(e) => setTempStartDate(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Data Fine Lavorazione</Label>
-              <Input
-                type="date"
-                value={tempEndDate}
-                onChange={(e) => setTempEndDate(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowDateDialog(false)}>
-                Annulla
-              </Button>
-              <Button onClick={handleConfirmDates}>
-                Conferma
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
