@@ -665,6 +665,71 @@ export default function BomPage() {
     }
   };
 
+  const importCoemGrundfosMaterials = async () => {
+    try {
+      // Get all materials with their suppliers
+      const { data: materials, error: materialsError } = await supabase
+        .from('materials')
+        .select(`
+          id,
+          name,
+          code,
+          supplier_id,
+          suppliers!inner (
+            id,
+            name,
+            code
+          )
+        `);
+
+      if (materialsError) throw materialsError;
+
+      // Filter for COEM and Grundfos
+      const filteredMaterials = materials?.filter((material: any) => {
+        const supplierCode = material.suppliers?.code;
+        const supplierName = material.suppliers?.name;
+        return supplierCode === 'SUP716347' || supplierName?.toLowerCase().includes('grundfos');
+      }) || [];
+
+      if (filteredMaterials.length === 0) {
+        toast({
+          title: "Nessun materiale trovato",
+          description: "Nessun materiale COEM o Grundfos trovato",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create BOM level 2 for each material
+      const bomsToCreate = filteredMaterials.map((material: any) => ({
+        name: material.name,
+        version: '1.0',
+        level: 2,
+        material_id: material.id,
+        description: `Importato da ${material.suppliers?.name || 'fornitore'}`
+      }));
+
+      const { error: insertError } = await supabase
+        .from('boms')
+        .insert(bomsToCreate);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Successo",
+        description: `${bomsToCreate.length} BOM importati con successo`,
+      });
+      
+      fetchBoms();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleInclusionToggle = (bomId: string, checked: boolean) => {
     setIncludableBoms(prev => 
       prev.map(bom => 
@@ -728,13 +793,21 @@ export default function BomPage() {
             Manage machinery models, parent groups, and child elements with automatic warehouse integration
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { setSelectedBom(null); resetForm(); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              New BOM
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={importCoemGrundfosMaterials}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Importa COEM/Grundfos
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setSelectedBom(null); resetForm(); }}>
+                <Plus className="mr-2 h-4 w-4" />
+                New BOM
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{selectedBom ? "Edit BOM" : "Create New BOM"}</DialogTitle>
@@ -941,6 +1014,7 @@ export default function BomPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* BOM View Dialog */}
