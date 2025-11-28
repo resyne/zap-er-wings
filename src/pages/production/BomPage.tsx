@@ -21,16 +21,17 @@ interface BOM {
   id: string;
   name: string;
   version: string;
-  variant?: string;
+  parent_id?: string;
   description?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
   component_count: number;
   level: number;
-  machinery_model?: string; // Deprecated, kept for backward compatibility
+  machinery_model?: string; // Deprecated
   material_id?: string;
   children?: BOM[];
+  variants?: BOM[]; // For model families (parent BOMs)
   material?: {
     id: string;
     name: string;
@@ -85,7 +86,7 @@ interface Supplier {
 }
 
 const levelLabels = {
-  0: "Machinery Models",
+  0: "Modelli / Varianti",
   1: "Parent Groups", 
   2: "Child Elements",
   3: "Accessories"
@@ -119,7 +120,7 @@ export default function BomPage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    variant: "",
+    parent_id: "",
     version: "",
     description: "",
     notes: "",
@@ -138,7 +139,7 @@ export default function BomPage() {
   const resetForm = () => {
     setFormData({
       name: "",
-      variant: "",
+      parent_id: "",
       version: "",
       description: "",
       notes: "",
@@ -396,15 +397,16 @@ export default function BomPage() {
       const { data: nextVersion, error: versionError } = await supabase
         .rpc('get_next_bom_version', {
           p_name: formData.name,
-          p_variant: formData.variant || null,
-          p_level: selectedLevel
+          p_variant: null,
+          p_level: selectedLevel,
+          p_parent_id: formData.parent_id || null
         });
 
       if (versionError) throw versionError;
 
       const submitData = {
         name: formData.name,
-        variant: selectedLevel === 0 ? formData.variant || null : null,
+        parent_id: formData.parent_id || null,
         version: nextVersion,
         description: formData.description,
         notes: formData.notes,
@@ -492,7 +494,7 @@ export default function BomPage() {
     setSelectedLevel(bom.level);
     setFormData({
       name: bom.name,
-      variant: bom.variant || "",
+      parent_id: bom.parent_id || "",
       version: bom.version,
       description: bom.description || "",
       notes: bom.notes || "",
@@ -647,15 +649,16 @@ export default function BomPage() {
       const { data: nextVersion, error: versionError } = await supabase
         .rpc('get_next_bom_version', {
           p_name: bom.name,
-          p_variant: bom.variant || null,
-          p_level: bom.level
+          p_variant: null,
+          p_level: bom.level,
+          p_parent_id: bom.parent_id || null
         });
 
       if (versionError) throw versionError;
 
       const duplicateData = {
         name: bom.name,
-        variant: bom.variant,
+        parent_id: bom.parent_id,
         version: nextVersion,
         description: bom.description,
         notes: `${bom.notes || ''}\n[Duplicato da versione ${bom.version}]`.trim(),
@@ -849,7 +852,7 @@ export default function BomPage() {
   const filteredBoms = boms.filter(bom =>
     bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     bom.version.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (bom.variant && bom.variant.toLowerCase().includes(searchTerm.toLowerCase()))
+    (bom.description && bom.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const groupedBoms = filteredBoms.reduce((acc, bom) => {
@@ -959,15 +962,25 @@ export default function BomPage() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="variant">Variante</Label>
-                    <Input
-                      id="variant"
-                      value={formData.variant}
-                      onChange={(e) => setFormData(prev => ({ ...prev, variant: e.target.value }))}
-                      placeholder="es. 350 mm, 400 mm"
-                    />
+                    <Label htmlFor="parent_model">Modello Padre (per varianti)</Label>
+                    <Select
+                      value={formData.parent_id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value }))}
+                    >
+                      <SelectTrigger id="parent_model">
+                        <SelectValue placeholder="Seleziona modello (opzionale)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Nessuno (Modello famiglia)</SelectItem>
+                        {boms.filter(b => b.level === 0 && !b.parent_id).map((model) => (
+                          <SelectItem key={model.id} value={model.id}>
+                            {model.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-xs text-muted-foreground">
-                      Configurazione specifica del modello (opzionale)
+                      Se è una variante, seleziona il modello famiglia di appartenenza
                     </p>
                   </div>
                 </div>
@@ -1359,7 +1372,7 @@ export default function BomPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cerca BOM per nome, versione o variante..."
+                placeholder="Cerca BOM per nome, versione o descrizione..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
@@ -1459,9 +1472,9 @@ export default function BomPage() {
                               <TableCell>
                                 <div className="flex flex-col gap-1">
                                   <span className="font-medium">{bom.name}</span>
-                                  {bom.variant && (
-                                    <Badge variant="outline" className="w-fit">
-                                      {bom.variant}
+                                  {bom.parent_id && (
+                                    <Badge variant="outline" className="w-fit text-xs">
+                                      Variante
                                     </Badge>
                                   )}
                                 </div>
