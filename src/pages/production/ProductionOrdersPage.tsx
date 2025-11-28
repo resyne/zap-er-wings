@@ -1022,6 +1022,74 @@ export default function WorkOrdersPage() {
   };
 
   const handleDownloadReport = async () => {
+    try {
+      const ordersToExport = filteredWorkOrders.slice(0, 5); // Limit to first 5 orders
+      
+      if (ordersToExport.length === 0) {
+        toast({
+          title: "Nessun ordine",
+          description: "Non ci sono ordini da esportare",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Generazione reports...",
+        description: `Generazione di ${ordersToExport.length} report${ordersToExport.length > 1 ? 's' : ''}...`
+      });
+
+      // Generate and download reports for each work order
+      for (const wo of ordersToExport) {
+        const htmlContent = generateWorkOrderHTML(wo);
+        
+        const { data, error } = await supabase.functions.invoke('generate-pdf-from-html', {
+          body: { html: htmlContent }
+        });
+
+        if (error) {
+          console.error(`Error generating report for ${wo.number}:`, error);
+          continue;
+        }
+
+        // Convert base64 to blob
+        const byteCharacters = atob(data.pdf);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+
+        // Download PDF
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Report-${wo.number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      toast({
+        title: "Successo",
+        description: `${ordersToExport.length} report${ordersToExport.length > 1 ? 's' : ''} scaricato con successo`
+      });
+    } catch (error: any) {
+      console.error('Error generating reports:', error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile generare i report",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDownloadOldReport = async () => {
     const doc = new jsPDF();
     
     // Titolo
