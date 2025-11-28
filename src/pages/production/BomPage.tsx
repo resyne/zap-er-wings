@@ -882,6 +882,30 @@ export default function BomPage() {
     return acc;
   }, {} as Record<number, BOM[]>);
 
+  // Raggruppa i BOM Level 0 per modello base
+  const groupedLevel0Boms = groupedBoms[0]?.reduce((acc, bom) => {
+    // Se è un modello base (senza parent_id)
+    if (!bom.parent_id) {
+      if (!acc[bom.id]) {
+        acc[bom.id] = {
+          model: bom,
+          variants: []
+        };
+      }
+    } else if (bom.parent_bom) {
+      // Se è una variante, aggiungila al suo modello base
+      const parentId = bom.parent_id;
+      if (!acc[parentId]) {
+        acc[parentId] = {
+          model: bom.parent_bom as any,
+          variants: []
+        };
+      }
+      acc[parentId].variants.push(bom);
+    }
+    return acc;
+  }, {} as Record<string, { model: BOM; variants: BOM[] }>);
+
   const getLevelBadgeVariant = (level: number) => {
     switch (level) {
       case 0: return "default";
@@ -1535,26 +1559,104 @@ export default function BomPage() {
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                      </TableHeader>
-                    <TableBody>
+                     <TableBody>
                         {loading ? (
                           <TableRow>
-                            <TableCell colSpan={level === 0 ? 8 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
+                            <TableCell colSpan={10} className="text-center py-8">
                               Loading BOMs...
                             </TableCell>
                           </TableRow>
+                        ) : level === 0 && groupedLevel0Boms ? (
+                          Object.values(groupedLevel0Boms).map(({ model, variants }) => (
+                            <>
+                              {/* Riga del modello base */}
+                              {!model.parent_id && (
+                                <TableRow key={model.id} className="bg-muted/30">
+                                  <TableCell className="font-bold" colSpan={10}>
+                                    <div className="flex items-center gap-2">
+                                      <Factory className="h-4 w-4" />
+                                      <span>{model.name}</span>
+                                      <Badge variant="secondary" className="text-xs">
+                                        {variants.length} varianti
+                                      </Badge>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              
+                              {/* Righe delle varianti */}
+                              {variants.map((variant) => (
+                                <TableRow key={variant.id} className="hover:bg-muted/50">
+                                  <TableCell className="font-medium pl-8">
+                                    {model.name}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{variant.version}</Badge>
+                                  </TableCell>
+                                  <TableCell className="max-w-xs truncate">
+                                    {variant.description || (
+                                      <span className="text-muted-foreground italic">Nessuna descrizione</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="font-medium">{variant.name}</span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary">
+                                      {variant.component_count} items
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {variant.totalCost && variant.totalCost > 0 ? (
+                                      <div className="flex flex-col">
+                                        <span className="font-medium text-green-600">
+                                          {formatAmount(variant.totalCost, hideAmounts)}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          Total BOM cost
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {new Date(variant.updated_at).toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end space-x-2">
+                                      <Button variant="ghost" size="sm" onClick={() => handleView(variant)}>
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" onClick={() => handleEdit(variant)}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" onClick={() => handleDuplicate(variant)}>
+                                        <Copy className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm">
+                                        <Wrench className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" onClick={() => handleDelete(variant.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </>
+                          ))
                         ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={level === 0 ? 8 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
+                            <TableCell colSpan={level === 0 ? 10 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
                               No Level {level} BOMs found
                             </TableCell>
                           </TableRow>
-                      ) : (
+                      ) : level > 0 ? (
                         groupedBoms[level].map((bom) => (
                            <TableRow key={bom.id}>
                              <TableCell className="font-medium">
-                               {level === 0 ? (
-                                 bom.parent_id && bom.parent_bom ? bom.parent_bom.name : bom.name
-                               ) : level === 2 && bom.material ? (
+                               {level === 2 && bom.material ? (
                                  bom.material.name
                                ) : (
                                  bom.name
@@ -1568,15 +1670,6 @@ export default function BomPage() {
                                  <span className="text-muted-foreground italic">Nessuna descrizione</span>
                                )}
                              </TableCell>
-                             {level === 0 && (
-                              <TableCell>
-                                {bom.parent_id ? (
-                                  <span className="font-medium">{bom.name}</span>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </TableCell>
-                            )}
                             {level === 2 && (
                               <TableCell>
                                 {bom.material ? (
@@ -1641,7 +1734,7 @@ export default function BomPage() {
                             </TableCell>
                           </TableRow>
                         ))
-                      )}
+                      ) : null}
                     </TableBody>
                   </Table>
                 </div>
