@@ -23,13 +23,11 @@ interface LeadMapProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  'nuovo': 'hsl(217, 91%, 60%)', // blue
-  'contattato': 'hsl(142, 76%, 36%)', // green
-  'qualificato': 'hsl(47, 96%, 53%)', // yellow
-  'proposta': 'hsl(25, 95%, 53%)', // orange
-  'negoziazione': 'hsl(262, 83%, 58%)', // purple
-  'vinto': 'hsl(142, 76%, 36%)', // green
-  'perso': 'hsl(0, 84%, 60%)', // red
+  'new': '#3b82f6', // blue
+  'qualified': '#22c55e', // green
+  'negotiation': '#f97316', // orange
+  'won': '#10b981', // emerald
+  'lost': '#ef4444', // red
 };
 
 export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
@@ -86,19 +84,33 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   const addLeadMarkers = async () => {
     if (!map.current) return;
 
-    for (const lead of leads) {
+    // Clear existing markers first
+    const existingMarkers = document.querySelectorAll('.mapboxgl-marker');
+    existingMarkers.forEach(marker => marker.remove());
+
+    const leadsWithLocation = leads.filter(lead => lead.custom_fields?.luogo);
+    console.log(`[LeadMap] Processing ${leadsWithLocation.length} leads with location out of ${leads.length} total leads`);
+
+    for (const lead of leadsWithLocation) {
       const location = lead.custom_fields?.luogo;
       if (!location) continue;
 
+      console.log(`[LeadMap] Geocoding location: "${location}" for lead: ${lead.company_name} (status: ${lead.status})`);
+      
       const coords = await geocodeLocation(location);
-      if (!coords) continue;
+      if (!coords) {
+        console.warn(`[LeadMap] Failed to geocode location: "${location}"`);
+        continue;
+      }
 
       const [lng, lat] = coords;
+      console.log(`[LeadMap] Geocoded "${location}" to [${lng}, ${lat}]`);
+
+      const markerColor = STATUS_COLORS[lead.status] || '#6366f1';
+      console.log(`[LeadMap] Using color ${markerColor} for status "${lead.status}"`);
 
       const markerElement = document.createElement('div');
       markerElement.className = 'custom-marker';
-
-      const markerColor = STATUS_COLORS[lead.status] || 'hsl(var(--primary))';
 
       markerElement.style.cssText = `
         width: 32px;
@@ -127,6 +139,14 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       icon.style.fontSize = '14px';
       markerElement.appendChild(icon);
 
+      const statusLabels: Record<string, string> = {
+        'new': 'Nuovo',
+        'qualified': 'Qualificato',
+        'negotiation': 'Trattativa',
+        'won': 'Vinto',
+        'lost': 'Perso'
+      };
+
       const popup = new mapboxgl.Popup({ offset: 25 })
         .setHTML(`
           <div style="padding: 10px; min-width: 200px;">
@@ -152,7 +172,7 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
               </p>
             ` : ''}
             <div style="margin-top: 8px; padding: 4px 8px; background: ${markerColor}; color: white; border-radius: 4px; font-size: 11px; text-align: center; font-weight: 500;">
-              ${lead.status.toUpperCase()}
+              ${statusLabels[lead.status] || lead.status.toUpperCase()}
             </div>
           </div>
         `);
@@ -162,6 +182,8 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
         .setPopup(popup)
         .addTo(map.current!);
     }
+
+    console.log(`[LeadMap] Added ${leadsWithLocation.length} markers to map`);
   };
 
   useEffect(() => {
