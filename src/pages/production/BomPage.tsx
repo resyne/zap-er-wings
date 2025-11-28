@@ -709,12 +709,15 @@ export default function BomPage() {
         return;
       }
 
+      // Get all material names to check for existing BOMs
+      const materialNames = materials.map(m => m.name);
+
       // Get existing BOMs to avoid duplicates by checking name+version combination
       const { data: existingBoms, error: existingError } = await supabase
         .from('boms')
-        .select('name, version')
-        .eq('level', 2)
-        .eq('version', '1');
+        .select('name')
+        .eq('version', '1')
+        .in('name', materialNames);
 
       if (existingError) throw existingError;
 
