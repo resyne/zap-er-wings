@@ -1925,19 +1925,14 @@ export default function WorkOrdersPage() {
                                               e.stopPropagation();
                                               handleViewDetails(wo);
                                             }}
-                                            className={`text-xs p-1 rounded cursor-pointer transition-colors ${
+                                            className={`text-[10px] p-1.5 rounded cursor-pointer transition-colors ${
                                               snapshot.isDragging ? 'opacity-50' : ''
                                             } ${
-                                              isFirstDay ? 'bg-primary/20 hover:bg-primary/30 border border-primary/40' : 'bg-primary/10 hover:bg-primary/20'
+                                              isFirstDay ? 'bg-primary/20 hover:bg-primary/30 border border-primary/40' : 'bg-primary/10 hover:bg-primary/20 border border-primary/20'
                                             }`}
                                           >
-                                            {isFirstDay && (
-                                              <>
-                                                <div className="font-medium truncate">{wo.number}</div>
-                                                <div className="text-muted-foreground truncate">{wo.customers?.name}</div>
-                                              </>
-                                            )}
-                                            {!isFirstDay && <div className="h-4" />}
+                                            <div className="font-medium truncate">{wo.number}</div>
+                                            <div className="text-[9px] text-muted-foreground truncate">{wo.customers?.name}</div>
                                           </div>
                                         )}
                                       </Draggable>
