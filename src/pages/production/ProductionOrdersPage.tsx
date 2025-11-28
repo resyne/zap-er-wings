@@ -384,6 +384,16 @@ export default function WorkOrdersPage() {
       bom.name === wo.boms?.name && bom.version === wo.boms?.version
     );
     
+    // Format dates for datetime-local input (YYYY-MM-DDTHH:mm)
+    const formatDateForInput = (date: string | undefined) => {
+      if (!date) return "";
+      try {
+        return new Date(date).toISOString().slice(0, 16);
+      } catch {
+        return "";
+      }
+    };
+    
     setFormData({
       title: wo.title,
       bom_id: bomMatch?.id || "",
@@ -392,8 +402,8 @@ export default function WorkOrdersPage() {
       assigned_to: wo.assigned_to || "",
       back_office_manager: wo.back_office_manager || "",
       priority: wo.priority || "medium",
-      planned_start_date: wo.planned_start_date || "",
-      planned_end_date: wo.planned_end_date || "",
+      planned_start_date: formatDateForInput(wo.planned_start_date),
+      planned_end_date: formatDateForInput(wo.planned_end_date),
       notes: wo.notes || "",
       createServiceOrder: false,
       serviceOrderTitle: "",
