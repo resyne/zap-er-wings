@@ -144,9 +144,11 @@ export default function WorkOrdersPage() {
           sales_orders(number, order_date),
           leads(id, company_name),
           offers(number),
-          service_work_orders!production_work_order_id(id, number, title)
+          service_work_orders!production_work_order_id(id, number, title),
+          work_order_article_items(id, description, is_completed, position)
         `)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .order('position', { referencedTable: 'work_order_article_items', ascending: true });
 
       if (error) throw error;
 

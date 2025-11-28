@@ -25,6 +25,11 @@ interface WorkOrder {
   } | null;
   status: string;
   priority?: string | null;
+  work_order_article_items?: Array<{
+    id: string;
+    description: string;
+    is_completed: boolean;
+  }> | null;
 }
 
 interface ProductionTimelineProps {
@@ -298,6 +303,20 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                             <div className="text-xs text-muted-foreground truncate">
                               {wo.customers?.name}
                             </div>
+                            {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {wo.work_order_article_items.slice(0, 2).map((item, idx) => (
+                                  <div key={item.id} className="truncate">
+                                    • {item.description.split('\n')[0]}
+                                  </div>
+                                ))}
+                                {wo.work_order_article_items.length > 2 && (
+                                  <div className="truncate">
+                                    +{wo.work_order_article_items.length - 2} altri
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </Draggable>
@@ -443,9 +462,12 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
                                 <div className="text-xs text-muted-foreground truncate">
                                   {wo.customers?.name}
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {position.duration} {position.duration === 1 ? "giorno" : "giorni"}
-                                </div>
+                                {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
+                                  <div className="text-xs text-muted-foreground/70 mt-0.5 truncate">
+                                    {wo.work_order_article_items[0].description.split('\n')[0]}
+                                    {wo.work_order_article_items.length > 1 && ` +${wo.work_order_article_items.length - 1}`}
+                                  </div>
+                                )}
                               </div>
                             </div>
 
