@@ -160,17 +160,22 @@ export function ProductionTimeline({ workOrders, onUpdateDates, onViewDetails }:
     const firstDay = allWeeks[0].start;
     const lastDay = allWeeks[allWeeks.length - 1].end;
 
+    // If the work order is completely outside the visible range, don't show it
     if (end < firstDay || start > lastDay) return null;
 
-    const startOffset = Math.max(0, differenceInDays(start, firstDay));
-    const duration = differenceInDays(end, start) + 1;
+    // Clamp the start and end dates to the visible range
+    const visibleStart = start < firstDay ? firstDay : start;
+    const visibleEnd = end > lastDay ? lastDay : end;
+
+    const startOffset = Math.max(0, differenceInDays(visibleStart, firstDay));
+    const duration = differenceInDays(visibleEnd, visibleStart) + 1;
     const totalDays = weeksToShow * 7;
 
     return {
       left: `${(startOffset / totalDays) * 100}%`,
-      width: `${(duration / totalDays) * 100}%`,
+      width: `${Math.min((duration / totalDays) * 100, 100 - (startOffset / totalDays) * 100)}%`,
       top: `${laneIndex * laneHeight}px`,
-      duration,
+      duration: differenceInDays(end, start) + 1, // Show actual total duration
     };
   };
 
