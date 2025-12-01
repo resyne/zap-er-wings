@@ -12,7 +12,10 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json()
-    console.log('[CONFIGURATOR-WEBHOOK] Event received:', payload)
+    console.log('[CONFIGURATOR-WEBHOOK] Full request received')
+    console.log('[CONFIGURATOR-WEBHOOK] Payload:', JSON.stringify(payload, null, 2))
+    console.log('[CONFIGURATOR-WEBHOOK] Event type:', payload.event_type)
+    console.log('[CONFIGURATOR-WEBHOOK] Session ID:', payload.session_id)
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
