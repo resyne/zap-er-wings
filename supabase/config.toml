@@ -60,6 +60,9 @@ verify_jwt = false
 [functions.configurator-webhook]
 verify_jwt = false
 
+[functions.sync-all-vesuviano-leads]
+verify_jwt = false
+
 # Cron Jobs - Scheduled tasks
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
