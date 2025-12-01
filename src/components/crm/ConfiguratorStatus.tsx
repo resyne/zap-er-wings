@@ -7,18 +7,21 @@ interface ConfiguratorStatusProps {
 }
 
 export const ConfiguratorStatus = ({ lead }: ConfiguratorStatusProps) => {
-  if (!lead.configurator_session_id) {
-    return null;
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Stato Configuratore Vesuviano</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Link opened */}
-        <div className="flex items-center justify-between">
+        {!lead.configurator_session_id && !lead.external_configurator_link && (
+          <div className="text-sm text-muted-foreground">
+            Link configuratore non ancora generato
+          </div>
+        )}
+        {lead.configurator_session_id && (
+          <>
+            {/* Link opened */}
+            <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Link aperto:</span>
           {lead.configurator_opened ? (
             <Badge variant="default" className="bg-green-600">
@@ -89,10 +92,13 @@ export const ConfiguratorStatus = ({ lead }: ConfiguratorStatusProps) => {
           </div>
         )}
 
+          </>
+        )}
+
         {/* Link to configurator */}
-        {lead.configurator_link && (
+        {(lead.configurator_link || lead.external_configurator_link) && (
           <a
-            href={lead.configurator_link}
+            href={lead.configurator_link || lead.external_configurator_link || ''}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-primary hover:underline"
