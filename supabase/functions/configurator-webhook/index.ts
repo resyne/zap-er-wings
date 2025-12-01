@@ -73,10 +73,11 @@ Deno.serve(async (req) => {
         break
     }
 
-    // Add event to history
+    // Add event to history with description
     const currentHistory = lead.configurator_history || []
     currentHistory.push({
       event_type: payload.event_type,
+      description: payload.description || payload.event_type,
       timestamp: payload.timestamp,
       data: payload.event_data
     })
