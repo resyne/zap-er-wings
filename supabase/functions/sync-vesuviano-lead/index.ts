@@ -47,13 +47,17 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Prepare webhook URL for callbacks
+    const erpWebhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/configurator-webhook`
+
     // Prepare data for external API
     const apiData = {
       name: lead.contact_name || lead.company_name || 'Nome non specificato',
       email: lead.email || '',
       phone: lead.phone || '',
       pipeline_id: lead.id,
-      price_list: 'A' // Default price list
+      price_list: 'A', // Default price list
+      erp_webhook_url: erpWebhookUrl // URL to receive configurator events
     }
 
     console.log('Calling external API with data:', apiData)
@@ -85,19 +89,28 @@ Deno.serve(async (req) => {
     const result = await response.json()
     console.log('External API response:', result)
 
-    // Save configurator link to lead if available
+    // Save configurator data to lead if available
+    const leadUpdates: any = {}
+    
     if (result.configurator_link) {
+      leadUpdates.external_configurator_link = result.configurator_link
+      leadUpdates.configurator_link = result.configurator_link
+    }
+    
+    if (result.session_id) {
+      leadUpdates.configurator_session_id = result.session_id
+    }
+    
+    if (Object.keys(leadUpdates).length > 0) {
       const { error: updateError } = await supabase
         .from('leads')
-        .update({ 
-          external_configurator_link: result.configurator_link 
-        })
+        .update(leadUpdates)
         .eq('id', leadId)
 
       if (updateError) {
-        console.error('Error updating lead with configurator link:', updateError)
+        console.error('Error updating lead with configurator data:', updateError)
       } else {
-        console.log('Saved configurator link to lead')
+        console.log('Saved configurator data to lead:', leadUpdates)
       }
     }
 

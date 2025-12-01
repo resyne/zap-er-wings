@@ -2803,6 +2803,16 @@ export type Database = {
           archived: boolean | null
           assigned_to: string | null
           company_name: string
+          configurator_has_quote: boolean | null
+          configurator_history: Json | null
+          configurator_last_updated: string | null
+          configurator_link: string | null
+          configurator_model: string | null
+          configurator_opened: boolean | null
+          configurator_opened_at: string | null
+          configurator_quote_price: number | null
+          configurator_session_id: string | null
+          configurator_status: string | null
           contact_name: string | null
           country: string | null
           created_at: string | null
@@ -2827,6 +2837,16 @@ export type Database = {
           archived?: boolean | null
           assigned_to?: string | null
           company_name: string
+          configurator_has_quote?: boolean | null
+          configurator_history?: Json | null
+          configurator_last_updated?: string | null
+          configurator_link?: string | null
+          configurator_model?: string | null
+          configurator_opened?: boolean | null
+          configurator_opened_at?: string | null
+          configurator_quote_price?: number | null
+          configurator_session_id?: string | null
+          configurator_status?: string | null
           contact_name?: string | null
           country?: string | null
           created_at?: string | null
@@ -2851,6 +2871,16 @@ export type Database = {
           archived?: boolean | null
           assigned_to?: string | null
           company_name?: string
+          configurator_has_quote?: boolean | null
+          configurator_history?: Json | null
+          configurator_last_updated?: string | null
+          configurator_link?: string | null
+          configurator_model?: string | null
+          configurator_opened?: boolean | null
+          configurator_opened_at?: string | null
+          configurator_quote_price?: number | null
+          configurator_session_id?: string | null
+          configurator_status?: string | null
           contact_name?: string | null
           country?: string | null
           created_at?: string | null
