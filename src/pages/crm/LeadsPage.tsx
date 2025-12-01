@@ -370,6 +370,29 @@ export default function LeadsPage() {
         }
       }
 
+      // Sync with external Vesuviano site if pipeline is Vesuviano
+      if (newLeadData && (newLead.pipeline === "Vesuviano" || selectedPipeline === "Vesuviano")) {
+        try {
+          console.log('Syncing Vesuviano lead with external site...');
+          const { data: syncResult, error: syncError } = await supabase.functions.invoke('sync-vesuviano-lead', {
+            body: { leadId: newLeadData.id }
+          });
+
+          if (syncError) {
+            console.error('Error syncing Vesuviano lead:', syncError);
+          } else if (syncResult?.configurator_link) {
+            console.log('Vesuviano lead synced successfully:', syncResult.configurator_link);
+            toast({
+              title: "Lead Vesuviano sincronizzato",
+              description: "Il lead è stato sincronizzato con il sito Vesuviano",
+            });
+          }
+        } catch (syncError: any) {
+          console.error('Failed to sync Vesuviano lead:', syncError);
+          // Don't block the lead creation if sync fails
+        }
+      }
+
       toast({
         title: "Lead creato",
         description: `Lead creato con successo${pendingFiles.length > 0 ? ` con ${pendingFiles.length} file` : ''}`,
