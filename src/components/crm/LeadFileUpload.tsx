@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, File, Image as ImageIcon, Video, Trash2, Download, FileText, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageSlideshow from "./ImageSlideshow";
 
 interface LeadFile {
@@ -26,6 +27,8 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [slideshowStartIndex, setSlideshowStartIndex] = useState(0);
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<{ url: string; name: string } | null>(null);
   const { toast } = useToast();
 
   const loadFiles = useCallback(async () => {
@@ -234,6 +237,13 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
   };
 
   const isImageFile = (fileType: string) => fileType.startsWith("image/");
+  const isVideoFile = (fileType: string) => fileType.startsWith("video/");
+
+  const openVideoPlayer = (file: LeadFile) => {
+    const videoUrl = supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl;
+    setSelectedVideo({ url: videoUrl, name: file.file_name });
+    setVideoDialogOpen(true);
+  };
 
   const getImageFiles = () => {
     return files
@@ -394,6 +404,16 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
                         <Eye className="w-4 h-4" />
                       </Button>
                     )}
+                    {isVideoFile(file.file_type) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openVideoPlayer(file)}
+                        title="Riproduci"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -438,6 +458,27 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
           onOpenChange={setSlideshowOpen}
           onDownload={handleSlideshowDownload}
         />
+
+        {/* Video Player Dialog */}
+        <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>{selectedVideo?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="w-full">
+              {selectedVideo && (
+                <video
+                  controls
+                  autoPlay
+                  className="w-full rounded-lg"
+                  src={selectedVideo.url}
+                >
+                  Il tuo browser non supporta la riproduzione video.
+                </video>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
