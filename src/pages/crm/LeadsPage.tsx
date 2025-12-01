@@ -2177,7 +2177,7 @@ export default function LeadsPage() {
               )}
 
               {/* Configurator Status for Vesuviano */}
-              {selectedLead.pipeline === "Vesuviano" && selectedLead.configurator_session_id && (
+              {selectedLead.pipeline === "Vesuviano" && (
                 <div className="border-t pt-4">
                   <ConfiguratorStatus lead={selectedLead} />
                 </div>
