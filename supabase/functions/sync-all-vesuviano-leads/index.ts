@@ -84,16 +84,14 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Prepare API data
+        // Prepare API data (matching sync-vesuviano-lead format)
         const apiData = {
-          contact_name: lead.contact_name || lead.company_name,
-          email: lead.email,
-          phone: lead.phone,
-          company_name: lead.company_name || '',
-          pipeline_id: lead.pipeline || 'vesuviano',
-          price_list: 'standard',
-          erp_webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/configurator-webhook`,
-          erp_lead_id: lead.id
+          name: lead.contact_name || lead.company_name || 'Nome non specificato',
+          email: lead.email || '',
+          phone: lead.phone || '',
+          pipeline_id: lead.id,
+          price_list: 'A',
+          erp_webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/configurator-webhook`
         }
 
         // Call external API
