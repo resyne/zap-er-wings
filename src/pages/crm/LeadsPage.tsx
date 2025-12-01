@@ -14,6 +14,7 @@ import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
 import { GenerateConfiguratorLink } from "@/components/crm/GenerateConfiguratorLink";
+import { ConfiguratorStatus } from "@/components/crm/ConfiguratorStatus";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -48,6 +49,16 @@ interface Lead {
   updated_at: string;
   created_by?: string;
   external_configurator_link?: string | null;
+  configurator_session_id?: string | null;
+  configurator_link?: string | null;
+  configurator_opened?: boolean;
+  configurator_opened_at?: string | null;
+  configurator_last_updated?: string | null;
+  configurator_status?: string | null;
+  configurator_model?: string | null;
+  configurator_has_quote?: boolean;
+  configurator_quote_price?: number | null;
+  configurator_history?: any[] | null;
   custom_fields?: {
     // ZAPPER fields
     tipo_attivita?: string;
@@ -2162,6 +2173,13 @@ export default function LeadsPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Configurator Status for Vesuviano */}
+              {selectedLead.pipeline === "Vesuviano" && selectedLead.configurator_session_id && (
+                <div className="border-t pt-4">
+                  <ConfiguratorStatus lead={selectedLead} />
                 </div>
               )}
 
