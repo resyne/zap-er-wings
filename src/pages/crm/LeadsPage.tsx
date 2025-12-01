@@ -15,7 +15,6 @@ import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
 import { GenerateConfiguratorLink } from "@/components/crm/GenerateConfiguratorLink";
 import { ConfiguratorStatus } from "@/components/crm/ConfiguratorStatus";
-import { SyncAllVesuvianoLeads } from "@/components/crm/SyncAllVesuvianoLeads";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -1414,9 +1413,6 @@ export default function LeadsPage() {
             <Archive className="h-4 w-4 mr-2" />
             {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
           </Button>
-          {selectedPipeline === "Vesuviano" && (
-            <SyncAllVesuvianoLeads />
-          )}
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
