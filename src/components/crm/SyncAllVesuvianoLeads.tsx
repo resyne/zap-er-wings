@@ -67,24 +67,52 @@ export const SyncAllVesuvianoLeads = () => {
 
         {syncResult && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>Lead sincronizzati: <strong>{syncResult.synced}</strong> / {syncResult.total}</span>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="flex flex-col items-center p-3 bg-green-50 rounded-md">
+                <CheckCircle className="w-5 h-5 text-green-600 mb-1" />
+                <span className="text-xs text-muted-foreground">Sincronizzati</span>
+                <strong className="text-lg">{syncResult.synced}</strong>
+              </div>
+              
+              {syncResult.skipped > 0 && (
+                <div className="flex flex-col items-center p-3 bg-yellow-50 rounded-md">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 mb-1" />
+                  <span className="text-xs text-muted-foreground">Saltati</span>
+                  <strong className="text-lg">{syncResult.skipped}</strong>
+                </div>
+              )}
+              
+              {syncResult.failed > 0 && (
+                <div className="flex flex-col items-center p-3 bg-red-50 rounded-md">
+                  <XCircle className="w-5 h-5 text-destructive mb-1" />
+                  <span className="text-xs text-muted-foreground">Falliti</span>
+                  <strong className="text-lg">{syncResult.failed}</strong>
+                </div>
+              )}
             </div>
-            
-            {syncResult.failed > 0 && (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <XCircle className="w-4 h-4" />
-                <span>Lead falliti: <strong>{syncResult.failed}</strong></span>
+
+            {syncResult.skipped_leads && syncResult.skipped_leads.length > 0 && (
+              <div className="mt-3 p-3 bg-yellow-50 rounded-md max-h-48 overflow-y-auto">
+                <p className="text-sm font-medium mb-2 text-yellow-800">
+                  Lead saltati (dati incompleti):
+                </p>
+                <div className="space-y-1">
+                  {syncResult.skipped_leads.map((lead: any, idx: number) => (
+                    <div key={idx} className="text-xs text-yellow-900">
+                      <span className="font-medium">{lead.lead_name}</span>
+                      <span className="text-yellow-700"> - Mancano: {lead.missing_fields.join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {syncResult.errors && syncResult.errors.length > 0 && (
-              <div className="mt-3 p-3 bg-muted rounded-md max-h-48 overflow-y-auto">
-                <p className="text-sm font-medium mb-2">Errori:</p>
+              <div className="mt-3 p-3 bg-red-50 rounded-md max-h-48 overflow-y-auto">
+                <p className="text-sm font-medium mb-2 text-destructive">Errori di sincronizzazione:</p>
                 <div className="space-y-1">
                   {syncResult.errors.map((err: any, idx: number) => (
-                    <div key={idx} className="text-xs">
+                    <div key={idx} className="text-xs text-destructive">
                       <span className="font-medium">{err.lead_name}:</span> {err.error}
                     </div>
                   ))}

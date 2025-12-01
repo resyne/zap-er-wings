@@ -53,19 +53,42 @@ Deno.serve(async (req) => {
       total: leads.length,
       synced: 0,
       failed: 0,
-      errors: [] as any[]
+      skipped: 0,
+      errors: [] as any[],
+      skipped_leads: [] as any[]
     }
 
     // Process each lead one by one
     for (const lead of leads) {
       try {
-        console.log(`[SYNC-ALL-VESUVIANO] Syncing lead ${lead.id} - ${lead.company_name || lead.contact_name}`)
+        const leadName = lead.company_name || lead.contact_name || 'Unknown';
+        console.log(`[SYNC-ALL-VESUVIANO] Processing lead ${lead.id} - ${leadName}`)
+
+        // Check if lead has required fields
+        const hasName = !!(lead.contact_name || lead.company_name);
+        const hasEmail = !!lead.email;
+        const hasPhone = !!lead.phone;
+
+        if (!hasName || !hasEmail || !hasPhone) {
+          console.log(`[SYNC-ALL-VESUVIANO] Skipping lead ${lead.id} - Missing required fields (name: ${hasName}, email: ${hasEmail}, phone: ${hasPhone})`)
+          results.skipped++
+          results.skipped_leads.push({
+            lead_id: lead.id,
+            lead_name: leadName,
+            missing_fields: [
+              !hasName && 'name',
+              !hasEmail && 'email',
+              !hasPhone && 'phone'
+            ].filter(Boolean)
+          })
+          continue
+        }
 
         // Prepare API data
         const apiData = {
-          contact_name: lead.contact_name || lead.company_name || 'Cliente',
-          email: lead.email || '',
-          phone: lead.phone || '',
+          contact_name: lead.contact_name || lead.company_name,
+          email: lead.email,
+          phone: lead.phone,
           company_name: lead.company_name || '',
           pipeline_id: lead.pipeline || 'vesuviano',
           price_list: 'standard',
@@ -131,7 +154,12 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      ...results
+      total: results.total,
+      synced: results.synced,
+      failed: results.failed,
+      skipped: results.skipped,
+      errors: results.errors,
+      skipped_leads: results.skipped_leads
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
