@@ -18,12 +18,25 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get all Vesuviano leads without external_configurator_link
-    const { data: leads, error: fetchError } = await supabase
+    // Parse request body for optional filters
+    const { hours } = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
+    
+    // Build query for Vesuviano leads without external_configurator_link
+    let query = supabase
       .from('leads')
       .select('*')
       .eq('pipeline', 'Vesuviano')
       .is('external_configurator_link', null)
+    
+    // If hours parameter is provided, filter by creation date
+    if (hours && typeof hours === 'number') {
+      const cutoffDate = new Date()
+      cutoffDate.setHours(cutoffDate.getHours() - hours)
+      query = query.gte('created_at', cutoffDate.toISOString())
+      console.log(`[SYNC-ALL-VESUVIANO] Filtering for leads created in last ${hours} hours (since ${cutoffDate.toISOString()})`)
+    }
+
+    const { data: leads, error: fetchError } = await query
 
     if (fetchError) {
       console.error('[SYNC-ALL-VESUVIANO] Error fetching leads:', fetchError)
