@@ -63,11 +63,10 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
 
   const performSearch = async (query: string) => {
     setLoading(true);
+    console.log('[GlobalSearch] Starting search for:', query);
     try {
       const searchTerm = `%${query}%`;
       const allResults: SearchResult[] = [];
-
-      console.log('Starting search for:', query);
 
       // Search Customers
       const { data: customers, error: customersError } = await supabase
@@ -77,11 +76,14 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         .limit(5);
 
       if (customersError) {
-        console.error('Customers search error:', customersError);
-      }
-
-      if (customers) {
-        console.log('Found customers:', customers.length);
+        console.error('[GlobalSearch] Customers error:', customersError);
+        toast({
+          title: "Errore Ricerca Clienti",
+          description: customersError.message,
+          variant: "destructive",
+        });
+      } else if (customers) {
+        console.log('[GlobalSearch] Found customers:', customers.length);
         allResults.push(...customers.map(c => ({
           id: c.id,
           type: 'customer',
@@ -99,15 +101,13 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         .limit(5);
 
       if (leadsError) {
-        console.error('Leads search error:', leadsError);
-      }
-
-      if (leads) {
-        console.log('Found leads:', leads.length);
+        console.error('[GlobalSearch] Leads error:', leadsError);
+      } else if (leads) {
+        console.log('[GlobalSearch] Found leads:', leads.length);
         allResults.push(...leads.map(l => ({
           id: l.id,
           type: 'lead',
-          title: l.company_name,
+          title: l.company_name || l.contact_name || 'Lead senza nome',
           subtitle: l.contact_name || l.email,
           url: `/crm/leads?lead=${l.id}`
         })));
@@ -198,13 +198,13 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         })));
       }
 
-      console.log('Total results found:', allResults.length);
+      console.log('[GlobalSearch] Total results found:', allResults.length);
       setResults(allResults);
-    } catch (error) {
-      console.error('Search error:', error);
+    } catch (error: any) {
+      console.error('[GlobalSearch] Search error:', error);
       toast({
         title: "Errore di Ricerca",
-        description: "Si è verificato un errore durante la ricerca",
+        description: error?.message || "Si è verificato un errore durante la ricerca",
         variant: "destructive",
       });
     } finally {
