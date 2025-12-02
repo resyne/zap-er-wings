@@ -211,21 +211,81 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         `;
       } else {
+        // Professional HTML template with company logo
         emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
-              Comunicazione Clienti
-            </h2>
-            <div style="line-height: 1.6; color: #374151;">
-              ${personalizedMessage.replace(/\n/g, '<br>')}
-            </div>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
-              <p>Cordiali saluti,<br>Il Team Customer Service</p>
-              <p style="font-size: 12px; color: #9ca3af;">
-                Questa email è stata inviata automaticamente dal sistema di gestione clienti.
-              </p>
-            </div>
-          </div>
+          <!DOCTYPE html>
+          <html lang="it">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${subject}</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: 'Arial', 'Helvetica', sans-serif; background-color: #f4f4f4;">
+            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 40px 20px;">
+                  <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <!-- Header with Logo -->
+                    <tr>
+                      <td style="background: linear-gradient(135deg, #D84315 0%, #FF6F00 100%); padding: 30px; text-align: center;">
+                        <img src="https://rucjkoleodtwrbftwgsm.supabase.co/storage/v1/object/public/brand-assets/logo-vesuviano.png" 
+                             alt="Vesuviano Logo" 
+                             style="max-width: 200px; height: auto; margin-bottom: 15px;">
+                        <h2 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                          Vesuviano Forni
+                        </h2>
+                        <p style="color: #ffffff; margin: 5px 0 0 0; font-size: 14px; opacity: 0.95;">
+                          L'autenticità del gusto italiano
+                        </p>
+                      </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                      <td style="padding: 40px 30px;">
+                        <div style="color: #333333; font-size: 15px; line-height: 1.6;">
+                          ${personalizedMessage.replace(/\n/g, '<br>')}
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                      <td style="background-color: #f8f8f8; padding: 30px; border-top: 3px solid #D84315;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                          <p style="margin: 0 0 10px 0; color: #555555; font-size: 14px; font-weight: 600;">
+                            Cordiali saluti,<br>
+                            Il Team Vesuviano Forni
+                          </p>
+                        </div>
+                        
+                        <table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                          <tr>
+                            <td style="text-align: center; padding: 15px 0; border-top: 1px solid #e0e0e0;">
+                              <p style="margin: 0; font-size: 12px; color: #888888; line-height: 1.5;">
+                                <strong>Vesuviano Forni</strong><br>
+                                Via Piaia 44, 67034 Pettorano sul Gizio (AQ), Italia<br>
+                                📧 <a href="mailto:info@vesuvianoforni.it" style="color: #D84315; text-decoration: none;">info@vesuvianoforni.it</a> | 
+                                📞 +39 081 19968436<br>
+                                🌐 <a href="https://www.vesuvianoforni.it" style="color: #D84315; text-decoration: none;">www.vesuvianoforni.it</a>
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                          <p style="margin: 0; font-size: 11px; color: #999999;">
+                            Questa email è stata inviata dal sistema CRM Vesuviano Forni.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>
         `;
       }
 
