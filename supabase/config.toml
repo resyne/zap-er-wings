@@ -63,6 +63,9 @@ verify_jwt = false
 [functions.sync-all-vesuviano-leads]
 verify_jwt = false
 
+[functions.resend-purchase-order-email]
+verify_jwt = true
+
 # Cron Jobs - Scheduled tasks
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
