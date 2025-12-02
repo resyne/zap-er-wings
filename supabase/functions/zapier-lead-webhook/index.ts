@@ -155,6 +155,24 @@ serve(async (req) => {
 
       console.log('Lead created successfully:', data[0])
 
+      // If it's a Vesuviano lead, automatically sync with external configurator
+      if (data[0].pipeline?.toLowerCase() === 'vesuviano') {
+        console.log('Syncing Vesuviano lead with external configurator...')
+        try {
+          const syncResponse = await supabase.functions.invoke('sync-vesuviano-lead', {
+            body: { leadId: data[0].id }
+          })
+          
+          if (syncResponse.error) {
+            console.error('Error syncing with Vesuviano:', syncResponse.error)
+          } else {
+            console.log('Vesuviano sync successful:', syncResponse.data)
+          }
+        } catch (syncError) {
+          console.error('Exception during Vesuviano sync:', syncError)
+        }
+      }
+
       return new Response(
         JSON.stringify({ 
           success: true, 
