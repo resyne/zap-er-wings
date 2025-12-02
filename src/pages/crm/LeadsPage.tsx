@@ -900,9 +900,9 @@ export default function LeadsPage() {
   const totalLeads = filteredLeads.length;
   const recentLeads = filteredLeads.filter(lead => {
     const createdDate = new Date(lead.created_at);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return createdDate > weekAgo;
+    const last24Hours = new Date();
+    last24Hours.setHours(last24Hours.getHours() - 24);
+    return createdDate > last24Hours;
   }).length;
 
   const totalValue = filteredLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
@@ -1342,7 +1342,7 @@ export default function LeadsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nuovi questa settimana</CardTitle>
+            <CardTitle className="text-sm font-medium">Ultimi 24 ore</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
