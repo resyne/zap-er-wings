@@ -7,14 +7,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface CreatePurchaseOrderRequest {
-  materialId: string;
+interface OrderItem {
+  material_id: string;
   quantity: number;
-  supplierId: string;
-  deliveryTimeframe: string;
-  priority: string;
+  unit_price: number;
+}
+
+interface CreatePurchaseOrderRequest {
+  supplier_id: string;
+  order_date: string;
+  expected_delivery_date?: string;
   notes?: string;
-  additionalEmailNotes?: string;
+  items: OrderItem[];
 }
 
 interface Material {
@@ -92,28 +96,19 @@ const handler = async (req: Request): Promise<Response> => {
     const requestData: CreatePurchaseOrderRequest = await req.json();
     console.log("Request data parsed successfully:", requestData);
     
-    const { materialId, quantity, supplierId, deliveryTimeframe, priority, notes, additionalEmailNotes } = requestData;
+    const { supplier_id, order_date, expected_delivery_date, notes, items } = requestData;
 
-    console.log("Creating purchase order with data:", requestData);
-
-    // Fetch material details
-    const { data: material, error: materialError } = await supabase
-      .from('materials')
-      .select('*')
-      .eq('id', materialId)
-      .single();
-
-    if (materialError || !material) {
-      throw new Error("Material not found");
+    if (!items || items.length === 0) {
+      throw new Error("Order must contain at least one item");
     }
 
-    console.log("Material found:", material);
+    console.log("Creating purchase order with data:", requestData);
 
     // Fetch supplier details
     const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('id', supplierId)
+      .eq('id', supplier_id)
       .single();
 
     if (supplierError || !supplier) {
@@ -122,43 +117,37 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Supplier found:", supplier);
 
-    // Calculate expected delivery date based on timeframe
-    const currentDate = new Date();
-    const deliveryDays = deliveryTimeframe && deliveryTimeframe.trim() !== '' ? parseInt(deliveryTimeframe) : 7; // Default to 7 days if empty
-    const expectedDeliveryDate = new Date(currentDate);
-    
-    if (isNaN(deliveryDays)) {
-      console.error("Invalid delivery timeframe provided:", deliveryTimeframe);
-      throw new Error("Invalid delivery timeframe");
-    }
-    
-    expectedDeliveryDate.setDate(currentDate.getDate() + deliveryDays);
-    
-    console.log("Date calculation:", {
-      currentDate: currentDate.toISOString(),
-      deliveryTimeframe,
-      deliveryDays,
-      expectedDeliveryDate: expectedDeliveryDate.toISOString(),
-      formattedDate: expectedDeliveryDate.toISOString().split('T')[0]
-    });
+    // Fetch all materials for the order items
+    const materialIds = items.map(item => item.material_id);
+    const { data: materials, error: materialsError } = await supabase
+      .from('materials')
+      .select('*')
+      .in('id', materialIds);
 
-    // Calculate pricing (use material cost as placeholder)
-    const estimatedUnitPrice = material.cost || 0;
-    const totalPrice = quantity * estimatedUnitPrice;
+    if (materialsError || !materials || materials.length === 0) {
+      throw new Error("Materials not found");
+    }
+
+    console.log("Materials found:", materials);
+
+    // Calculate total amount
+    const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    
+    // Generate order number
+    const orderNumber = `PO-${Date.now()}`;
 
     // Create purchase order
     const { data: purchaseOrder, error: poError } = await supabase
       .from('purchase_orders')
       .insert({
-        supplier_id: supplierId,
-        status: 'pending',
-        expected_delivery_date: expectedDeliveryDate.toISOString().split('T')[0],
-        priority: priority,
-        delivery_timeframe_days: deliveryDays,
-        subtotal: totalPrice,
-        tax_amount: totalPrice * 0.22, // 22% VAT
-        total_amount: totalPrice * 1.22,
-        notes: notes || `Riordino ${material.name} - Priorità: ${priority}`,
+        number: orderNumber,
+        supplier_id: supplier_id,
+        order_date: order_date,
+        expected_delivery_date: expected_delivery_date || null,
+        estimated_delivery_date: expected_delivery_date || null,
+        total_amount: totalAmount,
+        production_status: 'pending',
+        notes: notes || null,
         created_by: userData.user.id
       })
       .select()
@@ -171,26 +160,26 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Purchase order created:", purchaseOrder);
 
-    // Create purchase order item
-    const { data: orderItem, error: itemError } = await supabase
-      .from('purchase_order_items')
-      .insert({
-        purchase_order_id: purchaseOrder.id,
-        material_id: materialId,
-        quantity: quantity,
-        unit_price: estimatedUnitPrice,
-        total_price: totalPrice,
-        notes: notes || null
-      })
-      .select()
-      .single();
+    // Create purchase order items
+    const itemsToInsert = items.map(item => ({
+      purchase_order_id: purchaseOrder.id,
+      material_id: item.material_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.quantity * item.unit_price
+    }));
 
-    if (itemError) {
-      console.error("Error creating order item:", itemError);
-      throw new Error("Failed to create order item");
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('purchase_order_items')
+      .insert(itemsToInsert)
+      .select();
+
+    if (itemsError) {
+      console.error("Error creating order items:", itemsError);
+      throw new Error("Failed to create order items");
     }
 
-    console.log("Order item created:", orderItem);
+    console.log("Order items created:", orderItems);
 
     // Create confirmation token for supplier
     const confirmationToken = crypto.randomUUID();
@@ -218,13 +207,30 @@ const handler = async (req: Request): Promise<Response> => {
     const recipientName = supplier.contact_name || supplier.name;
     
     if (recipientEmail) {
-      const deliveryDateText = expectedDeliveryDate 
-        ? new Date(expectedDeliveryDate).toLocaleDateString('it-IT')
+      const deliveryDateText = expected_delivery_date 
+        ? new Date(expected_delivery_date).toLocaleDateString('it-IT')
         : "Da concordare";
 
       const confirmationUrl = confirmation 
-        ? `https://927bac44-432a-46fc-b33f-adc680e49394.sandbox.lovable.dev/procurement/purchase-order-confirm?token=${confirmationToken}`
+        ? `https://erp.abbattitorizapper.it/procurement/purchase-order-confirm?token=${confirmationToken}`
         : null;
+
+      // Build items table HTML
+      const itemsHtml = materials.map(material => {
+        const item = items.find(i => i.material_id === material.id);
+        if (!item) return '';
+        
+        return `
+          <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${material.code}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+              <strong>${material.name}</strong><br>
+              <small style="color: #666;">${material.description || ''}</small>
+            </td>
+            <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${item.quantity} ${material.unit}</td>
+          </tr>
+        `;
+      }).join('');
 
       const emailHtml = `
         <html>
@@ -237,8 +243,7 @@ const handler = async (req: Request): Promise<Response> => {
               <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Dettagli Ordine</h3>
                 <p><strong>Data Ordine:</strong> ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}</p>
-                <p><strong>Data Consegna Richiesta:</strong> ${deliveryDateText} (${deliveryDays} giorni)</p>
-                <p><strong>Priorità:</strong> ${priority.toUpperCase()}</p>
+                <p><strong>Data Consegna Richiesta:</strong> ${deliveryDateText}</p>
                 <p><strong>Fornitore:</strong> ${supplier.name}</p>
               </div>
 
@@ -253,30 +258,15 @@ const handler = async (req: Request): Promise<Response> => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${material.code}</td>
-                      <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                        <strong>${material.name}</strong><br>
-                        <small style="color: #666;">${material.description || ''}</small>
-                      </td>
-                      <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${quantity} ${material.unit}</td>
-                    </tr>
+                    ${itemsHtml}
                   </tbody>
                 </table>
               </div>
-
 
               ${notes ? `
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Note e Richieste</h3>
                   <p>${notes}</p>
-                </div>
-              ` : ''}
-
-              ${additionalEmailNotes ? `
-                <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
-                  <h3 style="color: #004085; border-bottom: 2px solid #b3d7ff; padding-bottom: 10px; margin-top: 0;">Comunicazioni Aggiuntive</h3>
-                  <p style="color: #004085; margin: 10px 0;">${additionalEmailNotes}</p>
                 </div>
               ` : ''}
 
@@ -351,7 +341,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         purchaseOrder: purchaseOrder,
-        orderItem: orderItem,
+        orderItems: orderItems,
         emailSent: !!recipientEmail
       }),
       {

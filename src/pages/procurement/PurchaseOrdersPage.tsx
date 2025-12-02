@@ -353,49 +353,24 @@ export default function PurchaseOrdersPage() {
 
     setIsCreatingOrder(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Calculate total amount
-      const totalAmount = newOrder.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-      
-      // Generate order number
-      const orderNumber = `PO-${Date.now()}`;
-      
-      // Create purchase order
-      const { data: order, error: orderError } = await supabase
-        .from('purchase_orders')
-        .insert({
-          number: orderNumber,
+      // Call edge function to create order and send email
+      const { data, error } = await supabase.functions.invoke('create-purchase-order', {
+        body: {
           supplier_id: newOrder.supplier_id,
           order_date: newOrder.order_date,
           expected_delivery_date: newOrder.expected_delivery_date || null,
-          estimated_delivery_date: newOrder.expected_delivery_date || null,
-          total_amount: totalAmount,
-          production_status: 'pending',
           notes: newOrder.notes || null,
-          created_by: user?.id
-        })
-        .select()
-        .single();
+          items: newOrder.items
+        }
+      });
 
-      if (orderError) throw orderError;
+      if (error) throw error;
 
-      // Create order items
-      const itemsToInsert = newOrder.items.map(item => ({
-        purchase_order_id: order.id,
-        material_id: item.material_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.quantity * item.unit_price
-      }));
+      if (!data.success) {
+        throw new Error(data.error || "Failed to create order");
+      }
 
-      const { error: itemsError } = await supabase
-        .from('purchase_order_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) throw itemsError;
-
-      toast.success("Ordine di acquisto creato con successo");
+      toast.success("Ordine di acquisto creato e email inviata al fornitore");
       setNewOrderDialogOpen(false);
       setNewOrder({
         supplier_id: "",
@@ -407,7 +382,7 @@ export default function PurchaseOrdersPage() {
       fetchOrders();
     } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error("Errore nella creazione dell'ordine");
+      toast.error(error.message || "Errore nella creazione dell'ordine");
     } finally {
       setIsCreatingOrder(false);
     }
