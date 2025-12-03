@@ -72,18 +72,43 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange }: ServiceOrder
         .select(`
           id, number, title, description, status, priority, scheduled_date,
           estimated_hours, location, equipment_needed, notes, article, created_at,
-          lead_id, sales_order_id, production_work_order_id,
+          lead_id, sales_order_id, production_work_order_id, assigned_to,
           customers(name, code),
           leads(id, company_name),
-          sales_orders(number),
-          technician:technicians!service_work_orders_assigned_to_fkey(first_name, last_name),
-          production_work_order:work_orders!service_work_orders_production_work_order_id_fkey(number)
+          sales_orders(number)
         `)
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      setOrder(data as any);
+
+      // Load technician and production work order separately
+      let technicianData = null;
+      let productionWoData = null;
+
+      if (data?.assigned_to) {
+        const { data: tech } = await supabase
+          .from('technicians')
+          .select('first_name, last_name')
+          .eq('id', data.assigned_to)
+          .single();
+        technicianData = tech;
+      }
+
+      if (data?.production_work_order_id) {
+        const { data: pwo } = await supabase
+          .from('work_orders')
+          .select('number')
+          .eq('id', data.production_work_order_id)
+          .single();
+        productionWoData = pwo;
+      }
+
+      setOrder({
+        ...data,
+        technician: technicianData,
+        production_work_order: productionWoData,
+      } as any);
 
       // Load lead photos
       if (data?.lead_id) {
