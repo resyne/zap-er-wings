@@ -17,6 +17,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
 
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  product_type?: string;
+}
+
 interface BOM {
   id: string;
   name: string;
@@ -35,6 +43,7 @@ interface BOM {
   level: number;
   machinery_model?: string; // Deprecated
   material_id?: string;
+  product_id?: string;
   children?: BOM[];
   variants?: BOM[]; // For model families (parent BOMs)
   material?: {
@@ -45,6 +54,7 @@ interface BOM {
     unit: string;
     cost?: number;
   };
+  product?: Product;
   totalCost?: number;
   bom_inclusions?: BOMInclusion[];
 }
@@ -118,6 +128,7 @@ export default function BomPage() {
   const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("all");
   const [bomDetails, setBomDetails] = useState<any>(null);
   const { toast } = useToast();
@@ -131,7 +142,8 @@ export default function BomPage() {
     description: "",
     notes: "",
     level: 0,
-    material_id: ""
+    material_id: "",
+    product_id: ""
   });
 
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
@@ -151,7 +163,8 @@ export default function BomPage() {
       description: "",
       notes: "",
       level: 0,
-      material_id: ""
+      material_id: "",
+      product_id: ""
     });
     setSelectedLevel(0);
     setSelectedSupplierId("all");
@@ -162,6 +175,7 @@ export default function BomPage() {
     fetchBoms();
     fetchMaterials();
     fetchSuppliers();
+    fetchProducts();
 
     // Real-time updates for materials changes
     const materialsChannel = supabase
@@ -205,6 +219,25 @@ export default function BomPage() {
 
       if (error) throw error;
       setSuppliers(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, code, name, description, product_type')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setProducts(data || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -267,6 +300,7 @@ export default function BomPage() {
           *,
           bom_items(count),
           material:materials(id, name, code, current_stock, unit, cost),
+          product:products(id, code, name, description, product_type),
           parent_bom:boms!parent_id(id, name, version),
           bom_inclusions!parent_bom_id(
             id,
@@ -431,7 +465,8 @@ export default function BomPage() {
         description: formData.description,
         notes: formData.notes,
         level: selectedLevel,
-        material_id: selectedLevel === 2 && formData.material_id ? formData.material_id : null
+        material_id: selectedLevel === 2 && formData.material_id ? formData.material_id : null,
+        product_id: selectedLevel === 0 && !formData.parent_id && formData.product_id ? formData.product_id : null
       };
 
       let bomId: string;
@@ -520,7 +555,8 @@ export default function BomPage() {
       description: bom.description || "",
       notes: bom.notes || "",
       level: bom.level,
-      material_id: bom.material_id || ""
+      material_id: bom.material_id || "",
+      product_id: bom.product_id || ""
     });
 
     // Fetch existing inclusions for this BOM (per Level 0 e 1)
@@ -1026,19 +1062,58 @@ export default function BomPage() {
                   </div>
 
                   {!formData.parent_id ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="model_name">Nome Modello *</Label>
-                      <Input
-                        id="model_name"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="es. ZPZ, ZBR MAX, ecc."
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Nome del modello base (famiglia)
-                      </p>
-                    </div>
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="model_name">Nome Modello *</Label>
+                        <Input
+                          id="model_name"
+                          value={formData.name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="es. ZPZ, ZBR MAX, ecc."
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Nome del modello base (famiglia)
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="product_id">Prodotto Collegato</Label>
+                        <Select
+                          value={formData.product_id || "NO_PRODUCT"}
+                          onValueChange={(value) => {
+                            const newProductId = value === "NO_PRODUCT" ? "" : value;
+                            const selectedProduct = products.find(p => p.id === value);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              product_id: newProductId,
+                              name: selectedProduct ? selectedProduct.name : prev.name,
+                              description: selectedProduct?.description || prev.description
+                            }));
+                          }}
+                        >
+                          <SelectTrigger id="product_id">
+                            <SelectValue placeholder="Seleziona un prodotto dall'anagrafica" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px]">
+                            <SelectItem value="NO_PRODUCT">Nessun prodotto</SelectItem>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{product.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {product.code} {product.product_type && `| ${product.product_type}`}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Collega questo modello a un prodotto dell'anagrafica (opzionale)
+                        </p>
+                      </div>
+                    </>
                   ) : (
                     <div className="space-y-2">
                       <Label htmlFor="variant_name">Nome Variante *</Label>
@@ -1313,6 +1388,25 @@ export default function BomPage() {
                     <p className="text-sm text-muted-foreground">{bomDetails.machinery_model}</p>
                   </div>
                 )}
+                {bomDetails.level === 0 && !bomDetails.parent_id && (
+                  <div className="col-span-2">
+                    <Label className="text-sm font-medium">Prodotto Collegato</Label>
+                    {viewingBom?.product ? (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge variant="secondary">
+                          {viewingBom.product.name} ({viewingBom.product.code})
+                        </Badge>
+                        {viewingBom.product.product_type && (
+                          <span className="text-sm text-muted-foreground">
+                            {viewingBom.product.product_type}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-1 italic">Nessun prodotto collegato</p>
+                    )}
+                  </div>
+                )}
                  {bomDetails.material && (
                    <div className="col-span-2">
                      <Label className="text-sm font-medium">Warehouse Material</Label>
@@ -1551,6 +1645,7 @@ export default function BomPage() {
                           <TableHead>Version</TableHead>
                           <TableHead>Description</TableHead>
                           {level === 0 && <TableHead>Variante</TableHead>}
+                          {level === 0 && <TableHead>Prodotto</TableHead>}
                           {level === 2 && <TableHead>Material</TableHead>}
                           {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
                           <TableHead>Components</TableHead>
@@ -1572,7 +1667,7 @@ export default function BomPage() {
                               {/* Riga del modello base */}
                               {!model.parent_id && (
                                 <TableRow key={model.id} className="bg-accent/50 border-b-2 border-border">
-                                  <TableCell className="font-bold text-base py-3" colSpan={10}>
+                                  <TableCell className="font-bold text-base py-3" colSpan={2}>
                                     <div className="flex items-center gap-3">
                                       <Factory className="h-5 w-5 text-primary" />
                                       <span className="text-lg">{model.name}</span>
@@ -1581,6 +1676,17 @@ export default function BomPage() {
                                       </Badge>
                                     </div>
                                   </TableCell>
+                                  <TableCell colSpan={2}>
+                                    {model.product ? (
+                                      <div className="flex flex-col">
+                                        <span className="font-medium text-sm">{model.product.name}</span>
+                                        <span className="text-xs text-muted-foreground">{model.product.code}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm italic">Nessun prodotto collegato</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell colSpan={5} />
                                 </TableRow>
                               )}
                               
@@ -1600,6 +1706,9 @@ export default function BomPage() {
                                   </TableCell>
                                   <TableCell>
                                     <span className="font-medium">{variant.name}</span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-muted-foreground">-</span>
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="secondary">
@@ -1648,7 +1757,7 @@ export default function BomPage() {
                           ))
                         ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={level === 0 ? 10 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
+                            <TableCell colSpan={level === 0 ? 11 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
                               No Level {level} BOMs found
                             </TableCell>
                           </TableRow>
