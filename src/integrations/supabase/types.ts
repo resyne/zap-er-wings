@@ -241,6 +241,7 @@ export type Database = {
           name: string
           notes: string | null
           parent_id: string | null
+          product_id: string | null
           updated_at: string
           version: string
         }
@@ -255,6 +256,7 @@ export type Database = {
           name: string
           notes?: string | null
           parent_id?: string | null
+          product_id?: string | null
           updated_at?: string
           version: string
         }
@@ -269,6 +271,7 @@ export type Database = {
           name?: string
           notes?: string | null
           parent_id?: string | null
+          product_id?: string | null
           updated_at?: string
           version?: string
         }
@@ -285,6 +288,13 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boms_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
