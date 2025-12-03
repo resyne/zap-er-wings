@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon, Download, Building2 } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon, Download, Building2, Image as ImageIcon } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Link } from "react-router-dom";
@@ -103,6 +103,8 @@ export default function WorkOrdersServicePage() {
   const [workOrderToSchedule, setWorkOrderToSchedule] = useState<ServiceWorkOrder | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -124,6 +126,49 @@ export default function WorkOrdersServicePage() {
     loadContacts();
     loadTechnicians();
   }, [showArchivedOrders]);
+
+  // Load lead photos when selectedWorkOrder changes
+  useEffect(() => {
+    const loadLeadPhotos = async () => {
+      if (!selectedWorkOrder?.lead_id) {
+        setLeadPhotos([]);
+        return;
+      }
+      
+      setLoadingPhotos(true);
+      try {
+        const { data: leadFiles, error } = await supabase
+          .from('lead_files')
+          .select('*')
+          .eq('lead_id', selectedWorkOrder.lead_id);
+
+        if (error) throw error;
+
+        const mediaFiles = (leadFiles || []).filter(file => 
+          file.file_type?.startsWith('image/') || 
+          file.file_type?.startsWith('video/') ||
+          /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
+        );
+
+        const photos = mediaFiles.map(file => ({
+          url: supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl,
+          name: file.file_name,
+          type: file.file_type || ''
+        }));
+
+        setLeadPhotos(photos);
+      } catch (error) {
+        console.error('Error loading lead photos:', error);
+        setLeadPhotos([]);
+      } finally {
+        setLoadingPhotos(false);
+      }
+    };
+
+    if (showDetailsDialog && selectedWorkOrder) {
+      loadLeadPhotos();
+    }
+  }, [selectedWorkOrder, showDetailsDialog]);
 
   const loadServiceWorkOrders = async () => {
     try {
@@ -1390,6 +1435,38 @@ export default function WorkOrdersServicePage() {
                   <p className="text-base">{selectedWorkOrder.notes}</p>
                 </div>
               )}
+              
+              {/* Lead Photos Section */}
+              {leadPhotos.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Foto/Video Cliente</Label>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {leadPhotos.map((photo, index) => (
+                      <div key={index} className="relative group">
+                        {photo.type.startsWith('video/') ? (
+                          <video 
+                            src={photo.url}
+                            className="w-full h-24 object-cover rounded-md border"
+                            controls
+                          />
+                        ) : (
+                          <a href={photo.url} target="_blank" rel="noopener noreferrer">
+                            <img 
+                              src={photo.url} 
+                              alt={photo.name}
+                              className="w-full h-24 object-cover rounded-md border hover:opacity-80 transition-opacity cursor-pointer"
+                            />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {loadingPhotos && (
+                <div className="text-sm text-muted-foreground">Caricamento foto...</div>
+              )}
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Data Creazione</Label>
