@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2, Wrench, Factory, Package, Component, Layers, Package2 } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Copy, Trash2, Wrench, Factory, Package, Component, Layers, Package2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -147,6 +147,9 @@ export default function BomPage() {
   });
 
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
+  const [linkProductDialogOpen, setLinkProductDialogOpen] = useState(false);
+  const [linkingModelId, setLinkingModelId] = useState<string | null>(null);
+  const [selectedProductForLink, setSelectedProductForLink] = useState<string>("");
 
   const [machineryFormData, setMachineryFormData] = useState({
     name: "",
@@ -697,6 +700,41 @@ export default function BomPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleLinkProduct = async () => {
+    if (!linkingModelId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('boms')
+        .update({ product_id: selectedProductForLink || null })
+        .eq('id', linkingModelId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: selectedProductForLink ? "Prodotto collegato con successo" : "Collegamento prodotto rimosso",
+      });
+      
+      setLinkProductDialogOpen(false);
+      setLinkingModelId(null);
+      setSelectedProductForLink("");
+      fetchBoms();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openLinkProductDialog = (modelId: string, currentProductId?: string) => {
+    setLinkingModelId(modelId);
+    setSelectedProductForLink(currentProductId || "");
+    setLinkProductDialogOpen(true);
   };
 
   const handleDuplicate = async (bom: BOM) => {
@@ -1573,6 +1611,47 @@ export default function BomPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Link Product Dialog */}
+      <Dialog open={linkProductDialogOpen} onOpenChange={setLinkProductDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Collega Prodotto al Modello</DialogTitle>
+            <DialogDescription>
+              Seleziona un prodotto da collegare a questo modello BOM.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Prodotto</Label>
+              <Select
+                value={selectedProductForLink}
+                onValueChange={setSelectedProductForLink}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona prodotto..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessun prodotto</SelectItem>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setLinkProductDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleLinkProduct}>
+                Salva
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Level Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map((level) => {
@@ -1690,26 +1769,42 @@ export default function BomPage() {
                               {/* Riga del modello base */}
                               {!model.parent_id && (
                                 <TableRow key={model.id} className="bg-accent/50 border-b-2 border-border">
-                                  <TableCell className="font-bold text-base py-3" colSpan={2}>
+                                  <TableCell className="font-bold text-base py-3">
                                     <div className="flex items-center gap-3">
                                       <Factory className="h-5 w-5 text-primary" />
-                                      <span className="text-lg">{model.name}</span>
+                                      <span className="text-lg">{model.name || 'Modello senza nome'}</span>
                                       <Badge variant="default" className="ml-2">
                                         {variants.length} {variants.length === 1 ? 'variante' : 'varianti'}
                                       </Badge>
                                     </div>
                                   </TableCell>
-                                  <TableCell colSpan={2}>
-                                    {model.product ? (
-                                      <div className="flex flex-col">
-                                        <span className="font-medium text-sm">{model.product.name}</span>
-                                        <span className="text-xs text-muted-foreground">{model.product.code}</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted-foreground text-sm italic">Nessun prodotto collegato</span>
-                                    )}
+                                  <TableCell />
+                                  <TableCell />
+                                  <TableCell />
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {model.product ? (
+                                        <div className="flex flex-col">
+                                          <span className="font-medium text-sm">{model.product.name}</span>
+                                          <span className="text-xs text-muted-foreground">{model.product.code}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted-foreground text-sm italic">Nessun prodotto</span>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openLinkProductDialog(model.id, model.product?.id)}
+                                        className="ml-2"
+                                      >
+                                        <LinkIcon className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
-                                  <TableCell colSpan={5} />
+                                  <TableCell />
+                                  <TableCell />
+                                  <TableCell />
+                                  <TableCell />
                                 </TableRow>
                               )}
                               
