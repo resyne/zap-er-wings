@@ -113,6 +113,8 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [parentOrderFiles, setParentOrderFiles] = useState<any[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
 
@@ -139,6 +141,49 @@ export default function WorkOrdersPage() {
     fetchUsers();
     fetchTechnicians();
   }, [showArchivedOrders]);
+
+  // Load lead photos when selectedWO changes
+  useEffect(() => {
+    const loadLeadPhotos = async () => {
+      if (!selectedWO?.lead_id) {
+        setLeadPhotos([]);
+        return;
+      }
+      
+      setLoadingPhotos(true);
+      try {
+        const { data: leadFiles, error } = await supabase
+          .from('lead_files')
+          .select('*')
+          .eq('lead_id', selectedWO.lead_id);
+
+        if (error) throw error;
+
+        const mediaFiles = (leadFiles || []).filter(file => 
+          file.file_type?.startsWith('image/') || 
+          file.file_type?.startsWith('video/') ||
+          /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
+        );
+
+        const photos = mediaFiles.map(file => ({
+          url: supabase.storage.from("lead-files").getPublicUrl(file.file_path).data.publicUrl,
+          name: file.file_name,
+          type: file.file_type || ''
+        }));
+
+        setLeadPhotos(photos);
+      } catch (error) {
+        console.error('Error loading lead photos:', error);
+        setLeadPhotos([]);
+      } finally {
+        setLoadingPhotos(false);
+      }
+    };
+
+    if (showDetailsDialog && selectedWO) {
+      loadLeadPhotos();
+    }
+  }, [selectedWO, showDetailsDialog]);
 
   const fetchWorkOrders = async () => {
     try {
@@ -2752,6 +2797,37 @@ ${allOrdersHTML}
                     label="File e Foto"
                   />
                 </div>
+              )}
+              
+              {/* Lead Photos Section */}
+              {leadPhotos.length > 0 && (
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium mb-2 block">Foto/Video Cliente</Label>
+                  <div className="grid grid-cols-4 gap-2 mt-2">
+                    {leadPhotos.map((photo, index) => (
+                      <div key={index} className="relative group">
+                        {photo.type.startsWith('video/') ? (
+                          <video 
+                            src={photo.url}
+                            className="w-full h-20 object-cover rounded-md border"
+                            controls
+                          />
+                        ) : (
+                          <a href={photo.url} target="_blank" rel="noopener noreferrer">
+                            <img 
+                              src={photo.url} 
+                              alt={photo.name}
+                              className="w-full h-20 object-cover rounded-md border hover:opacity-80 transition-opacity cursor-pointer"
+                            />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {loadingPhotos && (
+                <div className="text-sm text-muted-foreground">Caricamento foto...</div>
               )}
 
               {(selectedWO.planned_start_date || selectedWO.planned_end_date) && (
