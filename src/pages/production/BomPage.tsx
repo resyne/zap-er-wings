@@ -1033,7 +1033,7 @@ export default function BomPage() {
                     <Label htmlFor="parent_model">Modello</Label>
                     <Select
                       value={formData.parent_id || "NO_PARENT"}
-                      onValueChange={(value) => {
+                      onValueChange={async (value) => {
                         const newParentId = value === "NO_PARENT" ? "" : value;
                         const selectedModel = boms.find(b => b.id === value);
                         setFormData(prev => ({ 
@@ -1042,6 +1042,29 @@ export default function BomPage() {
                           variant_name: "",
                           name: selectedModel ? selectedModel.name : prev.name
                         }));
+                        
+                        // Fetch Level 1 BOMs when selecting a parent model
+                        if (newParentId) {
+                          try {
+                            const { data: availableBoms, error } = await supabase
+                              .from('boms')
+                              .select('id, name, version')
+                              .eq('level', 1)
+                              .order('name');
+                            
+                            if (error) throw error;
+                            
+                            setIncludableBoms(availableBoms?.map(bom => ({
+                              ...bom,
+                              selected: false,
+                              quantity: 1
+                            })) || []);
+                          } catch (error: any) {
+                            console.error('Error fetching Level 1 BOMs:', error);
+                          }
+                        } else {
+                          setIncludableBoms([]);
+                        }
                       }}
                     >
                       <SelectTrigger id="parent_model">
