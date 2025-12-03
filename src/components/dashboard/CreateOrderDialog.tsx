@@ -75,6 +75,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string }>>([]);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [slideshowStartIndex, setSlideshowStartIndex] = useState(0);
+  
+  // Lead notes state
+  const [leadNotes, setLeadNotes] = useState<string>('');
 
   // Products state
   const [currentProductId, setCurrentProductId] = useState<string>('');
@@ -227,18 +230,33 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     loadOfferData();
   }, [newOrder.offer_id]);
 
-  // Load lead photos when lead_id changes
+  // Load lead photos and notes when lead_id changes
   useEffect(() => {
-    const loadLeadPhotos = async () => {
+    const loadLeadData = async () => {
       const effectiveLeadId = newOrder.lead_id || leadId;
-      console.log('Loading lead photos for lead_id:', effectiveLeadId);
+      console.log('Loading lead data for lead_id:', effectiveLeadId);
       
       if (!effectiveLeadId) {
         setLeadPhotos([]);
+        setLeadNotes('');
         return;
       }
 
       try {
+        // Load lead notes
+        const { data: leadData, error: leadError } = await supabase
+          .from('leads')
+          .select('notes')
+          .eq('id', effectiveLeadId)
+          .single();
+
+        if (!leadError && leadData?.notes) {
+          setLeadNotes(leadData.notes);
+        } else {
+          setLeadNotes('');
+        }
+
+        // Load lead files
         const { data: leadFiles, error } = await supabase
           .from('lead_files')
           .select('*')
@@ -269,12 +287,13 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         console.log('Lead photos loaded:', photos);
         setLeadPhotos(photos);
       } catch (error) {
-        console.error('Error loading lead photos:', error);
+        console.error('Error loading lead data:', error);
         setLeadPhotos([]);
+        setLeadNotes('');
       }
     };
 
-    loadLeadPhotos();
+    loadLeadData();
   }, [newOrder.lead_id, leadId]);
 
   // Close dropdowns when clicking outside
@@ -433,6 +452,13 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     // Imposta lo status in base all'assegnazione
     const workOrderStatus = assignedTo ? 'in_lavorazione' as const : 'da_fare' as const;
     
+    // Build notes combining offer reference, order notes, and lead notes
+    let combinedNotes = '';
+    if (offerReference) combinedNotes += offerReference + '\n\n';
+    if (newOrder.notes) combinedNotes += newOrder.notes + '\n\n';
+    if (leadNotes) combinedNotes += `Note Cliente:\n${leadNotes}`;
+    combinedNotes = combinedNotes.trim();
+    
     const productionData = {
       number: '',
       title: newOrder.title || `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
@@ -442,7 +468,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       lead_id: effectiveLeadId,
       production_responsible_id: assignedTo,
       priority: newOrder.priority,
-      notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
+      notes: combinedNotes || null,
       article: newOrder.articles.join('\n') || null,
       payment_on_delivery: newOrder.payment_on_delivery,
       payment_amount: newOrder.payment_amount ? Number(newOrder.payment_amount) : null,
@@ -459,6 +485,26 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       .single();
 
     if (error) throw error;
+    
+    // Create work_order_article_items from selectedProducts
+    if (productionWO && selectedProducts.length > 0) {
+      const articleItems = selectedProducts.map((item, index) => ({
+        work_order_id: productionWO.id,
+        description: `${item.quantity}x ${item.product_name}${item.description ? ` - ${item.description}` : ''}`,
+        is_completed: false,
+        position: index + 1
+      }));
+      
+      const { error: articlesError } = await supabase
+        .from('work_order_article_items')
+        .insert(articleItems);
+      
+      if (articlesError) {
+        console.error('Error creating work order article items:', articlesError);
+        // Don't throw - we don't want to block work order creation
+      }
+    }
+    
     return productionWO;
   };
 
@@ -477,17 +523,29 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     // Converti stringhe vuote in null per i campi foreign key
     const serviceResponsible = commission.responsible?.trim() !== '' ? commission.responsible : null;
     
+    // Build notes combining offer reference, order notes, and lead notes
+    let combinedNotes = '';
+    if (offerReference) combinedNotes += offerReference + '\n\n';
+    if (newOrder.notes) combinedNotes += newOrder.notes + '\n\n';
+    if (leadNotes) combinedNotes += `Note Cliente:\n${leadNotes}`;
+    combinedNotes = combinedNotes.trim();
+    
+    // Build articles string from selectedProducts
+    const articlesString = selectedProducts.length > 0
+      ? selectedProducts.map(item => `${item.quantity}x ${item.product_name}`).join('\n')
+      : newOrder.articles.join('\n') || null;
+    
     const serviceData = {
       number: '',
       title: newOrder.title || `Lavoro per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.description || newOrder.notes || '',
       status: 'da_programmare' as const,
       customer_id: newOrder.customer_id,
-      lead_id: newOrder.lead_id || null,
+      lead_id: newOrder.lead_id || leadId || null,
       service_responsible_id: serviceResponsible,
       priority: newOrder.priority,
-      notes: offerReference ? `${offerReference}\n\n${newOrder.notes || ''}`.trim() : newOrder.notes,
-      article: newOrder.articles.join('\n') || null,
+      notes: combinedNotes || null,
+      article: articlesString,
       production_work_order_id: productionWOId || null,
       sales_order_id: orderId,
       attachments: orderData.attachments || []
@@ -669,7 +727,56 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     }
   };
 
-  const handleCreateOrder = async () => {
+  const copyLeadPhotosToServiceWorkOrder = async (leadId: string, serviceWorkOrderId: string) => {
+    try {
+      // Get all files from the lead
+      const { data: leadFiles, error: leadFilesError } = await supabase
+        .from('lead_files')
+        .select('*')
+        .eq('lead_id', leadId);
+
+      if (leadFilesError) throw leadFilesError;
+      if (!leadFiles || leadFiles.length === 0) return;
+
+      // Filter image and video files
+      const mediaFiles = leadFiles.filter(file => 
+        file.file_type?.startsWith('image/') || 
+        file.file_type?.startsWith('video/') ||
+        /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
+      );
+
+      if (mediaFiles.length === 0) return;
+
+      // Copy each media file to service-files bucket
+      for (const file of mediaFiles) {
+        // Download file from lead-files bucket
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('lead-files')
+          .download(file.file_path);
+
+        if (downloadError) {
+          console.error(`Error downloading file ${file.file_name}:`, downloadError);
+          continue;
+        }
+
+        // Upload to service-files bucket
+        const fileExt = file.file_name.split('.').pop();
+        const newFileName = `${serviceWorkOrderId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('service-files')
+          .upload(newFileName, fileData, {
+            contentType: file.file_type || 'application/octet-stream'
+          });
+
+        if (uploadError) {
+          console.error(`Error uploading file to service work order ${file.file_name}:`, uploadError);
+        }
+      }
+    } catch (error) {
+      console.error('Error copying lead photos to service work order:', error);
+    }
+  };
     const { production, service, shipping } = newOrder.commissions;
     const hasAtLeastOneCommission = production.enabled || service.enabled || shipping.enabled;
 
@@ -807,6 +914,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         if (service.enabled) {
           serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO?.id);
           console.log('Service work order created:', serviceWO);
+          
+          // Copy photos from lead to service work order if lead is connected
+          if (effectiveLeadId && serviceWO) {
+            await copyLeadPhotosToServiceWorkOrder(effectiveLeadId, serviceWO.id);
+          }
         }
       } catch (error: any) {
         console.error('Error creating service work order:', error);
