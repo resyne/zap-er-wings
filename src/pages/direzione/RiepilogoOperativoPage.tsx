@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Kanban, Factory, Wrench } from "lucide-react";
+import { ChevronLeft, ChevronRight, Factory, Wrench } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -50,18 +50,27 @@ const generateColor = (id: string): string => {
 };
 
 const statusConfig: Record<string, { title: string; bgColor: string; borderColor: string }> = {
-  'da_fare': { title: 'Da Fare', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' },
-  'in_corso': { title: 'In Corso', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-  'in_attesa': { title: 'In Attesa', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
-  'completato': { title: 'Completato', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
+  'da_fare': { title: 'Da Fare', bgColor: 'bg-gray-50 dark:bg-gray-900/50', borderColor: 'border-gray-200 dark:border-gray-700' },
+  'in_corso': { title: 'In Corso', bgColor: 'bg-blue-50 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-700' },
+  'in_attesa': { title: 'In Attesa', bgColor: 'bg-yellow-50 dark:bg-yellow-900/30', borderColor: 'border-yellow-200 dark:border-yellow-700' },
+  'completato': { title: 'Completato', bgColor: 'bg-green-50 dark:bg-green-900/30', borderColor: 'border-green-200 dark:border-green-700' },
 };
 
 const RiepilogoOperativoPage = () => {
+  const navigate = useNavigate();
   const [productionOrders, setProductionOrders] = useState<WorkOrder[]>([]);
   const [serviceOrders, setServiceOrders] = useState<ServiceWorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { toast } = useToast();
+
+  const handleProductionOrderClick = (orderId: string) => {
+    navigate(`/mfg/work-orders?orderId=${orderId}`);
+  };
+
+  const handleServiceOrderClick = (orderId: string) => {
+    navigate(`/support/service-orders?orderId=${orderId}`);
+  };
 
   // Create a color map for production orders
   const productionColorMap = useMemo(() => {
@@ -200,7 +209,8 @@ const RiepilogoOperativoPage = () => {
                         return (
                           <div
                             key={wo.id}
-                            className="bg-background rounded-md p-2 shadow-sm border relative"
+                            className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => handleProductionOrderClick(wo.id)}
                           >
                             {/* Color indicator */}
                             <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
@@ -311,8 +321,9 @@ const RiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[9px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80`}
+                              className={`${linkedColor} text-white text-[9px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:scale-105 transition-transform`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
+                              onClick={() => handleServiceOrderClick(so.id)}
                             >
                               {so.number}
                             </div>
