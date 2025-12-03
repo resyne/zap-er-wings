@@ -173,113 +173,119 @@ const RiepilogoOperativoPage = () => {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-[600px]" />
-          <Skeleton className="h-[600px]" />
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+        <Skeleton className="h-8 md:h-10 w-48 md:w-64" />
+        <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-6">
+          <Skeleton className="h-[400px] md:h-[600px]" />
+          <Skeleton className="h-[400px] md:h-[600px]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Riepilogo Operativo</h1>
-          <p className="text-muted-foreground">
-            Visione integrata commesse di produzione e commesse di lavoro
-          </p>
-        </div>
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">Riepilogo Operativo</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
+          Visione integrata commesse
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-6">
         {/* Production Orders Kanban */}
         <Card className="h-fit">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Factory className="h-5 w-5" />
+          <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <Factory className="h-4 w-4 md:h-5 md:w-5" />
               Commesse di Produzione
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {Object.entries(statusConfig).map(([status, config]) => (
-                <div key={status} className={`${config.bgColor} ${config.borderColor} border rounded-lg p-3`}>
-                  <h3 className="font-medium text-sm mb-2 text-foreground">{config.title}</h3>
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-2 pr-2">
-                      {getOrdersByStatus(status).map(wo => {
-                        const colorClass = productionColorMap[wo.id];
-                        return (
-                          <div
-                            key={wo.id}
-                            className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => handleProductionOrderClick(wo.id)}
-                          >
-                            {/* Color indicator */}
-                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
-                            <div className="pl-2">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-medium text-xs">{wo.number}</span>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-[10px] px-1 py-0 ${
-                                    wo.priority === 'high' ? 'border-red-500 text-red-600' :
-                                    wo.priority === 'medium' ? 'border-yellow-500 text-yellow-600' :
-                                    'border-gray-400 text-gray-500'
-                                  }`}
-                                >
-                                  {wo.priority === 'high' ? 'Alta' : wo.priority === 'medium' ? 'Media' : 'Bassa'}
-                                </Badge>
+          <CardContent className="px-3 md:px-6">
+            {/* Horizontal scroll on mobile */}
+            <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
+              <div className="flex md:grid md:grid-cols-4 gap-2 md:gap-3 min-w-max md:min-w-0">
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <div 
+                    key={status} 
+                    className={`${config.bgColor} ${config.borderColor} border rounded-lg p-2 md:p-3 w-[160px] md:w-auto flex-shrink-0 md:flex-shrink`}
+                  >
+                    <h3 className="font-medium text-xs md:text-sm mb-2 text-foreground">{config.title}</h3>
+                    <ScrollArea className="h-[250px] md:h-[350px]">
+                      <div className="space-y-2 pr-2">
+                        {getOrdersByStatus(status).map(wo => {
+                          const colorClass = productionColorMap[wo.id];
+                          return (
+                            <div
+                              key={wo.id}
+                              className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
+                              onClick={() => handleProductionOrderClick(wo.id)}
+                            >
+                              {/* Color indicator */}
+                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
+                              <div className="pl-2">
+                                <div className="flex items-center justify-between mb-1 gap-1">
+                                  <span className="font-medium text-[10px] md:text-xs">{wo.number}</span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-[8px] md:text-[10px] px-1 py-0 ${
+                                      wo.priority === 'high' ? 'border-red-500 text-red-600' :
+                                      wo.priority === 'medium' ? 'border-yellow-500 text-yellow-600' :
+                                      'border-gray-400 text-gray-500'
+                                    }`}
+                                  >
+                                    {wo.priority === 'high' ? 'Alta' : wo.priority === 'medium' ? 'Media' : 'Bassa'}
+                                  </Badge>
+                                </div>
+                                {wo.customer_name && (
+                                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+                                    {wo.customer_name}
+                                  </p>
+                                )}
                               </div>
-                              {wo.customer_name && (
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {wo.customer_name}
-                                </p>
-                              )}
                             </div>
-                          </div>
-                        );
-                      })}
-                      {getOrdersByStatus(status).length === 0 && (
-                        <p className="text-xs text-muted-foreground text-center py-4">
-                          Nessuna commessa
-                        </p>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
-              ))}
+                          );
+                        })}
+                        {getOrdersByStatus(status).length === 0 && (
+                          <p className="text-[10px] md:text-xs text-muted-foreground text-center py-4">
+                            Nessuna commessa
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Service Orders Calendar */}
         <Card className="h-fit">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wrench className="h-5 w-5" />
+          <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <Wrench className="h-4 w-4 md:h-5 md:w-5" />
               Commesse di Lavoro
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 md:px-6">
             {/* Calendar navigation */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 w-8 p-0 md:h-9 md:w-auto md:px-3"
                 onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h3 className="font-medium">
-                {format(currentMonth, 'MMMM yyyy', { locale: it })}
+              <h3 className="font-medium text-sm md:text-base capitalize">
+                {format(currentMonth, 'MMM yyyy', { locale: it })}
               </h3>
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 w-8 p-0 md:h-9 md:w-auto md:px-3"
                 onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -290,9 +296,10 @@ const RiepilogoOperativoPage = () => {
             <div className="border rounded-lg overflow-hidden">
               {/* Week days header */}
               <div className="grid grid-cols-7 bg-muted">
-                {weekDays.map(day => (
-                  <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground border-b">
-                    {day}
+                {weekDays.map((day, i) => (
+                  <div key={day} className="p-1 md:p-2 text-center text-[10px] md:text-xs font-medium text-muted-foreground border-b">
+                    <span className="hidden md:inline">{day}</span>
+                    <span className="md:hidden">{day.charAt(0)}</span>
                   </div>
                 ))}
               </div>
@@ -307,18 +314,18 @@ const RiepilogoOperativoPage = () => {
                   return (
                     <div
                       key={index}
-                      className={`min-h-[80px] p-1 border-b border-r ${
+                      className={`min-h-[50px] md:min-h-[80px] p-0.5 md:p-1 border-b border-r ${
                         !isCurrentMonth ? 'bg-muted/50' : 'bg-background'
-                      } ${isToday ? 'bg-blue-50' : ''}`}
+                      } ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                     >
-                      <div className={`text-xs mb-1 ${
+                      <div className={`text-[10px] md:text-xs mb-0.5 md:mb-1 ${
                         isToday ? 'font-bold text-blue-600' : 
                         !isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'
                       }`}>
                         {format(day, 'd')}
                       </div>
                       <div className="space-y-0.5">
-                        {dayServiceOrders.slice(0, 3).map(so => {
+                        {dayServiceOrders.slice(0, 2).map(so => {
                           // Get color from linked production order
                           const linkedColor = so.production_work_order_id 
                             ? productionColorMap[so.production_work_order_id]
@@ -327,17 +334,18 @@ const RiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[9px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:scale-105 transition-transform`}
+                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 active:scale-95 transition-transform`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
                               onClick={() => handleServiceOrderClick(so.id)}
                             >
-                              {so.number}
+                              <span className="hidden md:inline">{so.number}</span>
+                              <span className="md:hidden">{so.number.split('-').pop()}</span>
                             </div>
                           );
                         })}
-                        {dayServiceOrders.length > 3 && (
-                          <div className="text-[9px] text-muted-foreground text-center">
-                            +{dayServiceOrders.length - 3} altri
+                        {dayServiceOrders.length > 2 && (
+                          <div className="text-[7px] md:text-[9px] text-muted-foreground text-center">
+                            +{dayServiceOrders.length - 2}
                           </div>
                         )}
                       </div>
@@ -347,27 +355,31 @@ const RiepilogoOperativoPage = () => {
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-              <h4 className="text-xs font-medium mb-2">Legenda colori</h4>
-              <div className="flex flex-wrap gap-2">
-                  {productionOrders.slice(0, 8).map(wo => (
-                  <div key={wo.id} className="flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded ${productionColorMap[wo.id]}`} />
-                    <span className="text-[10px] text-muted-foreground">{wo.number}</span>
+            {/* Legend - collapsible on mobile */}
+            <details className="mt-3 md:mt-4">
+              <summary className="text-xs font-medium cursor-pointer p-2 md:p-3 bg-muted/50 rounded-lg">
+                Legenda colori ({productionOrders.length})
+              </summary>
+              <div className="p-2 md:p-3 bg-muted/50 rounded-b-lg border-t">
+                <div className="flex flex-wrap gap-1.5 md:gap-2">
+                  {productionOrders.slice(0, 6).map(wo => (
+                    <div key={wo.id} className="flex items-center gap-1">
+                      <div className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded ${productionColorMap[wo.id]}`} />
+                      <span className="text-[9px] md:text-[10px] text-muted-foreground">{wo.number}</span>
+                    </div>
+                  ))}
+                  {productionOrders.length > 6 && (
+                    <span className="text-[9px] md:text-[10px] text-muted-foreground">
+                      +{productionOrders.length - 6} altri
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1 ml-1 md:ml-2 border-l pl-1 md:pl-2">
+                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-gray-400" />
+                    <span className="text-[9px] md:text-[10px] text-muted-foreground">Non collegato</span>
                   </div>
-                ))}
-                {productionOrders.length > 8 && (
-                  <span className="text-[10px] text-muted-foreground">
-                    +{productionOrders.length - 8} altri
-                  </span>
-                )}
-                <div className="flex items-center gap-1 ml-2 border-l pl-2">
-                  <div className="w-3 h-3 rounded bg-gray-400" />
-                  <span className="text-[10px] text-muted-foreground">Non collegato</span>
                 </div>
               </div>
-            </div>
+            </details>
           </CardContent>
         </Card>
       </div>
