@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format, parseISO, differenceInDays } from "date-fns";
@@ -96,6 +96,7 @@ interface WorkOrder {
 export default function WorkOrdersPage() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
   const [accessori, setAccessori] = useState<any[]>([]);
@@ -133,6 +134,20 @@ export default function WorkOrdersPage() {
     serviceOrderTitle: "",
     serviceOrderNotes: ""
   });
+
+  // Handle URL param to auto-open order details
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId && workOrders.length > 0) {
+      const order = workOrders.find(wo => wo.id === orderId);
+      if (order) {
+        setSelectedWO(order);
+        setShowDetailsDialog(true);
+        // Clear the URL param after opening
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, workOrders]);
 
   useEffect(() => {
     fetchWorkOrders();

@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Calendar as CalendarIcon, User, Wrench, Eye, Edit, Factory, Trash2, ExternalLink, Archive, FileText, CalendarCheck, UserPlus, TableIcon, Download, Building2, Image as ImageIcon } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUndoableAction } from "@/hooks/useUndoableAction";
 import { ScheduleInstallationDialog } from "@/components/support/ScheduleInstallationDialog";
@@ -86,6 +86,7 @@ const statusLabels = {
 };
 
 export default function WorkOrdersServicePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [serviceWorkOrders, setServiceWorkOrders] = useState<ServiceWorkOrder[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -126,6 +127,20 @@ export default function WorkOrdersServicePage() {
   });
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
+
+  // Handle URL param to auto-open order details
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId && serviceWorkOrders.length > 0) {
+      const order = serviceWorkOrders.find(wo => wo.id === orderId);
+      if (order) {
+        setSelectedWorkOrder(order);
+        setShowDetailsDialog(true);
+        // Clear the URL param after opening
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, serviceWorkOrders]);
 
   useEffect(() => {
     loadServiceWorkOrders();
