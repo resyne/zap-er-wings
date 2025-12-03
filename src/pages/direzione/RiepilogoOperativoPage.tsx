@@ -289,9 +289,12 @@ const RiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded cursor-pointer hover:opacity-80 active:scale-95 transition-transform`}
+                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded cursor-pointer hover:opacity-80 active:scale-95 transition-transform pointer-events-auto`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
-                              onClick={() => handleServiceOrderClick(so.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleServiceOrderClick(so.id);
+                              }}
                             >
                               <div className="truncate">
                                 <span className="hidden md:inline">{so.number}</span>
@@ -375,8 +378,11 @@ const RiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={wo.id}
-                              className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
-                              onClick={() => handleProductionOrderClick(wo.id)}
+                              className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98] pointer-events-auto"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleProductionOrderClick(wo.id);
+                              }}
                             >
                               {/* Color indicator */}
                               <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
