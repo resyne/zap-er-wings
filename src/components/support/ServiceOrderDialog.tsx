@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, Wrench, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
 
 interface ServiceOrderDialogProps {
   orderId: string | null;
@@ -58,6 +59,7 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange, hideAmounts = 
   const [order, setOrder] = useState<ServiceWorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; name: string; isVideo: boolean } | null>(null);
   const [salesOrderItems, setSalesOrderItems] = useState<Array<{
     id: string;
     product_name: string;
@@ -317,7 +319,11 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange, hideAmounts = 
                   {leadPhotos.map((photo, index) => {
                     const isVideo = /\.(mp4|mov|avi|webm|mkv|ogg)$/i.test(photo.name);
                     return isVideo ? (
-                      <a key={index} href={photo.url} target="_blank" rel="noopener noreferrer" className="relative group">
+                      <button 
+                        key={index} 
+                        onClick={() => setPreviewMedia({ url: photo.url, name: photo.name, isVideo: true })}
+                        className="relative group cursor-pointer"
+                      >
                         <video
                           src={photo.url}
                           className="w-full h-20 object-cover rounded-md border group-hover:opacity-80 transition-opacity"
@@ -331,20 +337,32 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange, hideAmounts = 
                             </svg>
                           </div>
                         </div>
-                      </a>
+                      </button>
                     ) : (
-                      <a key={index} href={photo.url} target="_blank" rel="noopener noreferrer">
+                      <button 
+                        key={index} 
+                        onClick={() => setPreviewMedia({ url: photo.url, name: photo.name, isVideo: false })}
+                        className="cursor-pointer"
+                      >
                         <img
                           src={photo.url}
                           alt={photo.name}
                           className="w-full h-20 object-cover rounded-md border hover:opacity-80 transition-opacity"
                         />
-                      </a>
+                      </button>
                     );
                   })}
                 </div>
               </div>
             )}
+
+            <MediaPreviewModal
+              open={!!previewMedia}
+              onOpenChange={(open) => !open && setPreviewMedia(null)}
+              url={previewMedia?.url || ''}
+              name={previewMedia?.name || ''}
+              isVideo={previewMedia?.isVideo || false}
+            />
 
             <div className="flex justify-end pt-4 border-t">
               <Button variant="outline" asChild>
