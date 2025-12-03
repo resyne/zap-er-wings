@@ -299,8 +299,8 @@ export default function BomPage() {
         .select(`
           *,
           bom_items(count),
-          material:materials(id, name, code, current_stock, unit, cost),
-          product:products(id, code, name, description, product_type),
+          material:materials!left(id, name, code, current_stock, unit, cost),
+          product:products!left(id, code, name, description, product_type),
           parent_bom:boms!parent_id(id, name, version),
           bom_inclusions!parent_bom_id(
             id,
@@ -309,7 +309,7 @@ export default function BomPage() {
             notes,
             included_bom:boms!included_bom_id(
               *,
-              material:materials(id, name, code, current_stock, unit, cost),
+              material:materials!left(id, name, code, current_stock, unit, cost),
               bom_inclusions!parent_bom_id(
                 id,
                 included_bom_id,
@@ -317,7 +317,7 @@ export default function BomPage() {
                 notes,
                 included_bom:boms!included_bom_id(
                   *,
-                  material:materials(id, name, code, current_stock, unit, cost)
+                  material:materials!left(id, name, code, current_stock, unit, cost)
                 )
               )
             )
