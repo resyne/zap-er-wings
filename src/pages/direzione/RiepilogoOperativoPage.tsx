@@ -34,6 +34,8 @@ interface ServiceWorkOrder {
   scheduled_date?: string;
   customer_name?: string;
   production_work_order_id?: string;
+  sales_order_id?: string;
+  articles?: string;
 }
 
 // Generate consistent colors for work orders based on ID
@@ -120,7 +122,7 @@ const RiepilogoOperativoPage = () => {
         .from('service_work_orders')
         .select(`
           id, number, title, status, scheduled_date,
-          production_work_order_id,
+          production_work_order_id, sales_order_id,
           leads(company_name, contact_name)
         `)
         .eq('archived', false)
@@ -129,10 +131,30 @@ const RiepilogoOperativoPage = () => {
         .order('scheduled_date', { ascending: true });
 
       if (serviceError) throw serviceError;
-      setServiceOrders((serviceData || []).map((so: any) => ({
-        ...so,
-        customer_name: so.leads?.company_name || so.leads?.contact_name || so.title
-      })));
+
+      // Load articles for service orders that have sales_order_id
+      const serviceOrdersWithArticles = await Promise.all(
+        (serviceData || []).map(async (so: any) => {
+          let articles = '';
+          if (so.sales_order_id) {
+            const { data: items } = await supabase
+              .from('sales_order_items')
+              .select('product_name, quantity')
+              .eq('sales_order_id', so.sales_order_id);
+            
+            if (items && items.length > 0) {
+              articles = items.map(i => `${i.quantity}x ${i.product_name}`).join(', ');
+            }
+          }
+          return {
+            ...so,
+            customer_name: so.leads?.company_name || so.leads?.contact_name || so.title,
+            articles
+          };
+        })
+      );
+      
+      setServiceOrders(serviceOrdersWithArticles);
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -278,6 +300,11 @@ const RiepilogoOperativoPage = () => {
                               {so.customer_name && (
                                 <div className="truncate text-white/80 text-[6px] md:text-[8px]">
                                   {so.customer_name}
+                                </div>
+                              )}
+                              {so.articles && (
+                                <div className="truncate text-white/90 text-[5px] md:text-[7px] font-medium">
+                                  {so.articles}
                                 </div>
                               )}
                             </div>
