@@ -66,6 +66,7 @@ import ManualsPage from "./pages/documentation/ManualsPage";
 import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import CalendarioAziendale from "./pages/direzione/CalendarioAziendaleNew";
+import RiepilogoOperativoPage from "./pages/direzione/RiepilogoOperativoPage";
 
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
@@ -115,6 +116,7 @@ const App = () => (
                 <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
                 <Route path="direzione/calendario" element={<CalendarioAziendale />} />
                 <Route path="direzione/task-kpi" element={<TaskKpiPage />} />
+                <Route path="direzione/riepilogo-operativo" element={<RiepilogoOperativoPage />} />
                 <Route path="direzione/orders" element={<OrdersPage />} />
                 <Route path="personal-area" element={<DashboardPage />} />
                 

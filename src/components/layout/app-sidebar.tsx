@@ -77,6 +77,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Dashboard Direzionale", url: "/direzione/dashboard", icon: LayoutDashboard },
       { title: "Calendario Aziendale", url: "/direzione/calendario", icon: Calendar },
+      { title: "Riepilogo Operativo", url: "/direzione/riepilogo-operativo", icon: Wrench },
       { title: "Task Management", url: "/tasks", icon: CheckSquare },
       { title: "Task KPI", url: "/direzione/task-kpi", icon: TrendingUp },
     ]
