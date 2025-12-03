@@ -449,8 +449,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     const assignedTo = commission.responsible?.trim() !== '' ? commission.responsible : null;
     const effectiveLeadId = newOrder.lead_id || leadId || null;
     
-    // Imposta lo status in base all'assegnazione
-    const workOrderStatus = assignedTo ? 'in_lavorazione' as const : 'da_fare' as const;
+    // Lo stato iniziale è sempre 'da_fare'
+    const workOrderStatus = 'da_fare' as const;
     
     // Build notes combining offer reference, order notes, and lead notes
     let combinedNotes = '';
