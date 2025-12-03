@@ -32,12 +32,15 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [priceLists, setPriceLists] = useState<any[]>([]);
   const [selectedGlobalPriceListId, setSelectedGlobalPriceListId] = useState<string>('');
   const [currentProductPrice, setCurrentProductPrice] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [selectionType, setSelectionType] = useState<'customer' | 'lead'>('customer');
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [includeCertificazione, setIncludeCertificazione] = useState(true);
   const [includeGaranzia, setIncludeGaranzia] = useState(true);
   const [inclusoCustom, setInclusoCustom] = useState('');
@@ -78,6 +81,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   useEffect(() => {
     if (open) {
       loadCustomers();
+      loadLeads();
       loadPriceLists();
       // Precompila i dati dal lead se forniti
       if (leadData) {
@@ -104,6 +108,15 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       .order('name');
     
     setCustomers(data || []);
+  };
+
+  const loadLeads = async () => {
+    const { data } = await supabase
+      .from('leads')
+      .select('id, name, email, phone, company, pipeline')
+      .order('name');
+    
+    setLeads(data || []);
   };
 
   const loadProducts = async (priceListId?: string) => {
@@ -178,14 +191,34 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
 
   const handleCreateOffer = async () => {
     try {
-      const customer = customers.find(c => c.id === newOffer.customer_id);
-      if (!customer) {
-        toast({
-          title: "Errore",
-          description: "Seleziona un cliente valido",
-          variant: "destructive",
-        });
-        return;
+      let customerName = '';
+      let customerId = newOffer.customer_id;
+      let leadId = leadData?.leadId || null;
+
+      if (selectionType === 'customer') {
+        const customer = customers.find(c => c.id === newOffer.customer_id);
+        if (!customer) {
+          toast({
+            title: "Errore",
+            description: "Seleziona un cliente valido",
+            variant: "destructive",
+          });
+          return;
+        }
+        customerName = customer.name;
+      } else {
+        const lead = leads.find(l => l.id === selectedLeadId);
+        if (!lead) {
+          toast({
+            title: "Errore",
+            description: "Seleziona un lead valido",
+            variant: "destructive",
+          });
+          return;
+        }
+        customerName = lead.company || lead.name;
+        customerId = null;
+        leadId = selectedLeadId;
       }
 
       if (!newOffer.title) {
@@ -222,8 +255,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
         .from('offers')
         .insert([{
           number: offerNumber,
-          customer_id: newOffer.customer_id,
-          customer_name: customer.name,
+          customer_id: customerId,
+          customer_name: customerName,
           title: newOffer.title,
           description: newOffer.description,
           amount: calculatedAmount || newOffer.amount,
@@ -241,7 +274,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           payment_agreement: newOffer.payment_agreement || null,
           vat_regime: newOffer.vat_regime,
           company_entity: newOffer.company_entity,
-          lead_id: leadData?.leadId || null
+          lead_id: leadId
         }])
         .select('id, unique_code')
         .single();
@@ -327,6 +360,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setCurrentProductId('');
     setSelectedGlobalPriceListId('');
     setCurrentProductPrice(0);
+    setSelectionType('customer');
+    setSelectedLeadId('');
   };
 
   const formContent = (
@@ -335,55 +370,141 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       isMobile ? "h-[calc(100vh-180px)]" : "max-h-[calc(90vh-120px)]"
     )}>
       <div className="space-y-4 pb-4">
-        <div>
-          <Label htmlFor="customer">Azienda *</Label>
-          <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={customerSearchOpen}
-                className="w-full justify-between text-sm"
-              >
-                {newOffer.customer_id
-                  ? (() => {
-                      const customer = customers.find((c) => c.id === newOffer.customer_id);
-                      return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona azienda";
-                    })()
-                  : "Seleziona azienda"}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className={cn("p-0", isMobile ? "w-[calc(100vw-2rem)]" : "w-[400px]")} align="start">
-              <Command>
-                <CommandInput placeholder="Cerca azienda..." />
-                <CommandList>
-                  <CommandEmpty>Nessuna azienda trovata.</CommandEmpty>
-                  <CommandGroup>
-                    {customers.map((customer) => (
-                      <CommandItem
-                        key={customer.id}
-                        value={`${customer.code} ${customer.company_name || customer.name}`}
-                        onSelect={() => {
-                          setNewOffer({ ...newOffer, customer_id: customer.id });
-                          setCustomerSearchOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {customer.code} - {customer.company_name || customer.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+        {/* Selection type toggle */}
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={selectionType === 'customer' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setSelectionType('customer');
+              setSelectedLeadId('');
+            }}
+            className="flex-1"
+          >
+            Cliente
+          </Button>
+          <Button
+            type="button"
+            variant={selectionType === 'lead' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setSelectionType('lead');
+              setNewOffer({ ...newOffer, customer_id: '' });
+            }}
+            className="flex-1"
+          >
+            Lead
+          </Button>
         </div>
+
+        {selectionType === 'customer' ? (
+          <div>
+            <Label htmlFor="customer">Azienda *</Label>
+            <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={customerSearchOpen}
+                  className="w-full justify-between text-sm"
+                >
+                  {newOffer.customer_id
+                    ? (() => {
+                        const customer = customers.find((c) => c.id === newOffer.customer_id);
+                        return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona azienda";
+                      })()
+                    : "Seleziona azienda"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className={cn("p-0", isMobile ? "w-[calc(100vw-2rem)]" : "w-[400px]")} align="start">
+                <Command>
+                  <CommandInput placeholder="Cerca azienda..." />
+                  <CommandList>
+                    <CommandEmpty>Nessuna azienda trovata.</CommandEmpty>
+                    <CommandGroup>
+                      {customers.map((customer) => (
+                        <CommandItem
+                          key={customer.id}
+                          value={`${customer.code} ${customer.company_name || customer.name}`}
+                          onSelect={() => {
+                            setNewOffer({ ...newOffer, customer_id: customer.id });
+                            setCustomerSearchOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {customer.code} - {customer.company_name || customer.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        ) : (
+          <div>
+            <Label htmlFor="lead">Lead *</Label>
+            <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={customerSearchOpen}
+                  className="w-full justify-between text-sm"
+                >
+                  {selectedLeadId
+                    ? (() => {
+                        const lead = leads.find((l) => l.id === selectedLeadId);
+                        return lead ? (lead.company || lead.name) : "Seleziona lead";
+                      })()
+                    : "Seleziona lead"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className={cn("p-0", isMobile ? "w-[calc(100vw-2rem)]" : "w-[400px]")} align="start">
+                <Command>
+                  <CommandInput placeholder="Cerca lead..." />
+                  <CommandList>
+                    <CommandEmpty>Nessun lead trovato.</CommandEmpty>
+                    <CommandGroup>
+                      {leads.map((lead) => (
+                        <CommandItem
+                          key={lead.id}
+                          value={`${lead.company || ''} ${lead.name}`}
+                          onSelect={() => {
+                            setSelectedLeadId(lead.id);
+                            setCustomerSearchOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedLeadId === lead.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex flex-col">
+                            <span>{lead.company || lead.name}</span>
+                            {lead.company && <span className="text-xs text-muted-foreground">{lead.name}</span>}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground mt-1">
+              Seleziona un lead se l'azienda non è ancora in anagrafica clienti
+            </p>
+          </div>
+        )}
 
         <div>
           <Label htmlFor="priceList">Listino di Riferimento (opzionale)</Label>
