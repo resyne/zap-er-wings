@@ -74,19 +74,45 @@ export function ProductionOrderDialog({ orderId, open, onOpenChange }: Productio
         .select(`
           id, number, title, status, priority, notes, article,
           planned_start_date, planned_end_date, created_at, lead_id, offer_id,
+          assigned_to, back_office_manager,
           customers(name, code),
           leads(id, company_name),
           sales_orders(number),
           offers(number),
-          boms(name, version),
-          technician:profiles!work_orders_assigned_to_fkey(first_name, last_name),
-          back_office:profiles!work_orders_back_office_manager_fkey(first_name, last_name)
+          boms(name, version)
         `)
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      setOrder(data as any);
+
+      // Load technician and back office info separately if needed
+      let technicianData = null;
+      let backOfficeData = null;
+
+      if (data?.assigned_to) {
+        const { data: tech } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', data.assigned_to)
+          .single();
+        technicianData = tech;
+      }
+
+      if (data?.back_office_manager) {
+        const { data: bo } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', data.back_office_manager)
+          .single();
+        backOfficeData = bo;
+      }
+
+      setOrder({
+        ...data,
+        technician: technicianData,
+        back_office: backOfficeData,
+      } as any);
 
       // Load lead photos
       if (data?.lead_id) {
