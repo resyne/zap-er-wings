@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Factory, Wrench } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { it } from "date-fns/locale";
+import { ProductionOrderDialog } from "@/components/production/ProductionOrderDialog";
+import { ServiceOrderDialog } from "@/components/support/ServiceOrderDialog";
 
 interface WorkOrder {
   id: string;
@@ -57,19 +58,24 @@ const statusConfig: Record<string, { title: string; bgColor: string; borderColor
 };
 
 const RiepilogoOperativoPage = () => {
-  const navigate = useNavigate();
   const [productionOrders, setProductionOrders] = useState<WorkOrder[]>([]);
   const [serviceOrders, setServiceOrders] = useState<ServiceWorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedProductionOrderId, setSelectedProductionOrderId] = useState<string | null>(null);
+  const [selectedServiceOrderId, setSelectedServiceOrderId] = useState<string | null>(null);
+  const [showProductionDialog, setShowProductionDialog] = useState(false);
+  const [showServiceDialog, setShowServiceDialog] = useState(false);
   const { toast } = useToast();
 
   const handleProductionOrderClick = (orderId: string) => {
-    navigate(`/mfg/work-orders?orderId=${orderId}`);
+    setSelectedProductionOrderId(orderId);
+    setShowProductionDialog(true);
   };
 
   const handleServiceOrderClick = (orderId: string) => {
-    navigate(`/support/service-orders?orderId=${orderId}`);
+    setSelectedServiceOrderId(orderId);
+    setShowServiceDialog(true);
   };
 
   // Create a color map for production orders
@@ -345,7 +351,7 @@ const RiepilogoOperativoPage = () => {
             <div className="mt-4 p-3 bg-muted/50 rounded-lg">
               <h4 className="text-xs font-medium mb-2">Legenda colori</h4>
               <div className="flex flex-wrap gap-2">
-                {productionOrders.slice(0, 8).map(wo => (
+                  {productionOrders.slice(0, 8).map(wo => (
                   <div key={wo.id} className="flex items-center gap-1">
                     <div className={`w-3 h-3 rounded ${productionColorMap[wo.id]}`} />
                     <span className="text-[10px] text-muted-foreground">{wo.number}</span>
@@ -365,6 +371,18 @@ const RiepilogoOperativoPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogs */}
+      <ProductionOrderDialog
+        orderId={selectedProductionOrderId}
+        open={showProductionDialog}
+        onOpenChange={setShowProductionDialog}
+      />
+      <ServiceOrderDialog
+        orderId={selectedServiceOrderId}
+        open={showServiceDialog}
+        onOpenChange={setShowServiceDialog}
+      />
     </div>
   );
 };
