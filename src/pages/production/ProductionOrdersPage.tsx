@@ -1898,31 +1898,27 @@ ${allOrdersHTML}
         <CardContent>
           {viewMode === "table" ? (
           <div className="rounded-md border overflow-x-auto">
-            <div className="min-w-[900px]">
+            <div className="min-w-[700px]">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[120px]">Ordine</TableHead>
                     <TableHead className="min-w-[150px]">Cliente</TableHead>
-                    <TableHead className="min-w-[200px]">Articoli</TableHead>
-                    <TableHead className="min-w-[140px]">Assegnato a</TableHead>
+                    <TableHead className="min-w-[110px]">Data Inserimento</TableHead>
+                    <TableHead className="min-w-[250px]">Articoli</TableHead>
                     <TableHead className="min-w-[100px]">Priorità</TableHead>
-                    <TableHead className="min-w-[110px]">Data Ordine</TableHead>
-                    <TableHead className="min-w-[90px]">Aging</TableHead>
-                    <TableHead className="min-w-[140px]">Stato</TableHead>
-                    <TableHead className="text-right min-w-[100px]">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       Caricamento commesse di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       Nessuna commessa di produzione trovata
                     </TableCell>
                   </TableRow>
@@ -1934,27 +1930,26 @@ ${allOrdersHTML}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       <TableCell className="font-medium">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">
-                              {wo.sales_orders?.number || wo.number}
-                            </span>
-                            {wo.service_work_orders && wo.service_work_orders.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Wrench className="w-3 h-3 mr-1" />
-                                Installazione
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-xs text-muted-foreground">CdP: {wo.number}</span>
-                        </div>
+                        <span className="font-semibold">
+                          {wo.sales_orders?.number || wo.number}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {wo.customers ? (
-                          <div>
-                            <div className="font-medium">{wo.customers.name}</div>
-                            <div className="text-sm text-muted-foreground">({wo.customers.code})</div>
-                          </div>
+                          <span className="font-medium">{wo.customers.name}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wo.sales_orders?.order_date ? (
+                          <span className="text-sm">
+                            {new Date(wo.sales_orders.order_date).toLocaleDateString('it-IT')}
+                          </span>
+                        ) : wo.created_at ? (
+                          <span className="text-sm">
+                            {new Date(wo.created_at).toLocaleDateString('it-IT')}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -1985,30 +1980,6 @@ ${allOrdersHTML}
                         )}
                       </TableCell>
                       <TableCell>
-                        {wo.technician ? (
-                          <div>
-                            <div className="font-medium">
-                              {wo.technician.first_name} {wo.technician.last_name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {wo.technician.employee_code}
-                            </div>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTakeOwnership(wo.id);
-                            }}
-                          >
-                            <UserPlus className="h-3 w-3 mr-1" />
-                            Prendi in carico
-                          </Button>
-                        )}
-                      </TableCell>
-                      <TableCell>
                         <Badge variant={
                           wo.priority === 'urgent' ? 'destructive' :
                           wo.priority === 'high' ? 'default' :
@@ -2019,114 +1990,6 @@ ${allOrdersHTML}
                            wo.priority === 'medium' ? 'Media' : 'Bassa'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {wo.sales_orders?.order_date ? (
-                          <span className="text-sm">
-                            {new Date(wo.sales_orders.order_date).toLocaleDateString('it-IT')}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {wo.sales_orders?.order_date ? (
-                          <span className={`text-sm font-semibold ${getAgingColor(calculateAgingDays(wo.sales_orders.order_date))}`}>
-                            {calculateAgingDays(wo.sales_orders.order_date)}gg
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <Select 
-                                value={wo.status} 
-                                onValueChange={(value: 'da_fare' | 'in_lavorazione' | 'in_test' | 'pronto' | 'completato' | 'standby' | 'bloccato') => 
-                                  handleStatusChange(wo.id, value)
-                                }
-                              >
-                                <SelectTrigger className="w-40">
-                                  <SelectValue>
-                                    <StatusBadge status={wo.status} />
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="da_fare">
-                                    <Badge className="bg-muted text-muted-foreground">Da Fare</Badge>
-                                  </SelectItem>
-                                  <SelectItem value="in_lavorazione">
-                                    <Badge className="bg-amber-500 text-white">In Lavorazione</Badge>
-                                  </SelectItem>
-                                  <SelectItem value="in_test">
-                                    <Badge className="bg-orange-500 text-white">In Test</Badge>
-                                  </SelectItem>
-                                  <SelectItem value="pronto">
-                                    <Badge className="bg-blue-500 text-white">Pronto</Badge>
-                                  </SelectItem>
-                                  <SelectItem value="completato">
-                                    <Badge className="bg-success text-success-foreground">Completato</Badge>
-                                  </SelectItem>
-                                  <SelectItem value="standby">
-                                    <Badge className="bg-purple-500 text-white">Standby</Badge>
-                                  </SelectItem>
-                                  <SelectItem value="bloccato">
-                                    <Badge className="bg-destructive text-destructive-foreground">Bloccato</Badge>
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {wo.status === 'completato' && !wo.archived && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleArchive(wo.id, wo.archived || false);
-                                }}
-                                className="gap-1"
-                              >
-                                <Archive className="h-3 w-3" />
-                                Archivia
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                       <TableCell className="text-right">
-                         <div className="flex items-center justify-end space-x-2">
-                           <Button 
-                             variant="ghost" 
-                             size="sm" 
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleEdit(wo);
-                             }}
-                           >
-                             <Edit className="h-4 w-4" />
-                           </Button>
-                           <Button 
-                             variant="ghost" 
-                             size="sm" 
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleArchive(wo.id, wo.archived || false);
-                             }}
-                             title={wo.archived ? "Ripristina" : "Archivia"}
-                           >
-                             <Archive className="h-4 w-4" />
-                           </Button>
-                           <Button 
-                             variant="ghost" 
-                             size="sm" 
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleDelete(wo.id);
-                             }}
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </Button>
-                         </div>
-                       </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -2175,19 +2038,11 @@ ${allOrdersHTML}
                                          snapshot.isDragging ? 'shadow-lg opacity-90 ring-2 ring-primary' : ''
                                        }`}
                                       >
-                                       <div className="space-y-2 md:space-y-2.5">
+                                       <div className="space-y-2">
                                          {/* Header con numero ordine e priorità */}
                                          <div className="flex items-start justify-between gap-2">
-                                           <div className="flex-1 min-w-0">
-                                             <div className="font-semibold text-sm md:text-base text-foreground">
-                                               {wo.sales_orders?.number || wo.number}
-                                             </div>
-                                             <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
-                                               CdP: {wo.number}
-                                             </div>
-                                             <div className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                                               {wo.title}
-                                             </div>
+                                           <div className="font-semibold text-sm md:text-base text-foreground">
+                                             {wo.sales_orders?.number || wo.number}
                                            </div>
                                           {wo.priority && (
                                             <Badge 
@@ -2205,109 +2060,48 @@ ${allOrdersHTML}
                                           )}
                                         </div>
                                          
-                                         {/* Cliente, Data Ordine e Aging */}
-                                         <div className="space-y-1.5">
+                                         {/* Cliente e Data */}
+                                         <div className="space-y-1">
                                            {wo.customers && (
-                                             <div className="flex items-start gap-1.5 text-[11px] md:text-xs">
-                                               <span className="text-muted-foreground shrink-0">Cliente:</span>
-                                               <span className="font-medium text-foreground line-clamp-1">{wo.customers.name}</span>
+                                             <div className="text-xs font-medium text-foreground line-clamp-1">
+                                               {wo.customers.name}
                                              </div>
                                            )}
                                            
-                                           {wo.sales_orders?.order_date && (
-                                             <div className="flex items-center gap-2 text-[10px] md:text-xs">
-                                               <CalendarIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-                                               <span className="text-muted-foreground">
-                                                 {new Date(wo.sales_orders.order_date).toLocaleDateString('it-IT')}
-                                               </span>
-                                               <span className={`font-semibold ${getAgingColor(calculateAgingDays(wo.sales_orders.order_date))}`}>
-                                                 • {calculateAgingDays(wo.sales_orders.order_date)}gg
-                                               </span>
-                                             </div>
-                                           )}
-                                           
-                                            {wo.boms && (
-                                              <div className="flex items-center gap-1">
-                                                <Badge variant="outline" className="text-[10px] md:text-xs">
-                                                  {wo.boms.name}
-                                                </Badge>
-                                              </div>
-                                            )}
-                                            
-                                            {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
-                                              <div className="space-y-1 pt-1">
-                                                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Articoli:</div>
-                                                {wo.work_order_article_items.slice(0, 2).map((item: any) => (
-                                                  <div key={item.id} className="text-[10px] md:text-xs flex items-start gap-1.5">
-                                                    <Checkbox 
-                                                      checked={item.is_completed} 
-                                                      disabled
-                                                      className="h-3 w-3 mt-0.5"
-                                                    />
-                                                    <span className={item.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                                                      {item.description.split('\n')[0]}
-                                                    </span>
-                                                  </div>
-                                                ))}
-                                                {wo.work_order_article_items.length > 2 && (
-                                                  <div className="text-[10px] text-muted-foreground pl-5">
-                                                    +{wo.work_order_article_items.length - 2} altri
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                         
-                                         {/* Responsabile e info aggiuntive */}
-                                         <div className="pt-2 border-t space-y-1.5">
-                                           {wo.technician ? (
-                                             <div className="flex items-center gap-1.5 text-[11px] md:text-xs bg-primary/5 rounded px-2 py-1.5">
-                                               <UserPlus className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
-                                               <div className="flex-1 min-w-0">
-                                                 <span className="text-muted-foreground text-[9px] md:text-[10px] uppercase tracking-wider">Responsabile</span>
-                                                 <div className="font-medium text-foreground truncate">
-                                                   {wo.technician.first_name} {wo.technician.last_name}
-                                                 </div>
-                                               </div>
-                                             </div>
-                                           ) : (
-                                             <Button
-                                               size="sm"
-                                               variant="outline"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 handleTakeOwnership(wo.id);
-                                               }}
-                                               className="w-full text-[11px] md:text-xs h-7 md:h-8"
-                                             >
-                                               <UserPlus className="h-3 w-3 mr-1.5" />
-                                               Prendi in carico
-                                             </Button>
-                                           )}
-                                           
-                                           {wo.planned_start_date && (
-                                             <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground">
-                                               <CalendarIcon className="h-3 w-3 shrink-0" />
-                                               <span>Inizio: {new Date(wo.planned_start_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
-                                             </div>
-                                           )}
-                                           
-                                           {/* Bottone Archivia per ordini completati */}
-                                           {wo.status === 'completato' && !wo.archived && (
-                                             <Button
-                                               size="sm"
-                                               variant="outline"
-                                               onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 handleArchive(wo.id, wo.archived || false);
-                                               }}
-                                               className="w-full text-[11px] md:text-xs h-7 md:h-8 gap-1 mt-1"
-                                             >
-                                               <Archive className="h-3 w-3" />
-                                               Archivia
-                                             </Button>
-                                           )}
+                                           <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground">
+                                             <CalendarIcon className="h-3 w-3 shrink-0" />
+                                             <span>
+                                               {wo.sales_orders?.order_date 
+                                                 ? new Date(wo.sales_orders.order_date).toLocaleDateString('it-IT')
+                                                 : wo.created_at 
+                                                   ? new Date(wo.created_at).toLocaleDateString('it-IT')
+                                                   : '—'}
+                                             </span>
+                                           </div>
                                          </div>
+                                            
+                                         {/* Articoli */}
+                                         {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
+                                           <div className="space-y-1 pt-1 border-t">
+                                             {wo.work_order_article_items.slice(0, 2).map((item: any) => (
+                                               <div key={item.id} className="text-[10px] md:text-xs flex items-start gap-1.5">
+                                                 <Checkbox 
+                                                   checked={item.is_completed} 
+                                                   disabled
+                                                   className="h-3 w-3 mt-0.5"
+                                                 />
+                                                 <span className={item.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}>
+                                                   {item.description.split('\n')[0]}
+                                                 </span>
+                                               </div>
+                                             ))}
+                                             {wo.work_order_article_items.length > 2 && (
+                                               <div className="text-[10px] text-muted-foreground pl-5">
+                                                 +{wo.work_order_article_items.length - 2} altri
+                                               </div>
+                                             )}
+                                           </div>
+                                         )}
                                        </div>
                                      </div>
                                   )}
