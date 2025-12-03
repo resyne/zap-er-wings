@@ -12,7 +12,14 @@ interface ServiceOrderDialogProps {
   orderId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  hideAmounts?: boolean;
 }
+
+// Function to hide € amounts from text
+const sanitizeAmounts = (text: string | null | undefined): string => {
+  if (!text) return '';
+  return text.replace(/€\s*[\d.,]+|\d+[\d.,]*\s*€/g, '€ ***');
+};
 
 interface ServiceWorkOrder {
   id: string;
@@ -47,7 +54,7 @@ const statusColors: Record<string, string> = {
   completata: "bg-green-100 text-green-800",
 };
 
-export function ServiceOrderDialog({ orderId, open, onOpenChange }: ServiceOrderDialogProps) {
+export function ServiceOrderDialog({ orderId, open, onOpenChange, hideAmounts = false }: ServiceOrderDialogProps) {
   const [order, setOrder] = useState<ServiceWorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
@@ -284,7 +291,9 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange }: ServiceOrder
                     <div key={item.id} className="bg-muted/50 p-2 rounded-md">
                       <div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>
                       {item.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {hideAmounts ? sanitizeAmounts(item.description) : item.description}
+                        </p>
                       )}
                     </div>
                   ))}
@@ -295,7 +304,9 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange }: ServiceOrder
             {order.notes && (
               <div>
                 <Label className="text-sm text-muted-foreground">Note</Label>
-                <p className="text-sm whitespace-pre-wrap bg-muted/50 p-2 rounded-md mt-1">{order.notes}</p>
+                <p className="text-sm whitespace-pre-wrap bg-muted/50 p-2 rounded-md mt-1">
+                  {hideAmounts ? sanitizeAmounts(order.notes) : order.notes}
+                </p>
               </div>
             )}
 

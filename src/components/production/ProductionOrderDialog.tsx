@@ -13,7 +13,15 @@ interface ProductionOrderDialogProps {
   orderId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  hideAmounts?: boolean;
 }
+
+// Function to hide € amounts from text
+const sanitizeAmounts = (text: string | null | undefined): string => {
+  if (!text) return '';
+  // Hide patterns like €1.000,00 or € 1000 or 1.000€ etc.
+  return text.replace(/€\s*[\d.,]+|\d+[\d.,]*\s*€/g, '€ ***');
+};
 
 interface WorkOrder {
   id: string;
@@ -55,7 +63,7 @@ const statusColors: Record<string, string> = {
   bloccato: "bg-destructive",
 };
 
-export function ProductionOrderDialog({ orderId, open, onOpenChange }: ProductionOrderDialogProps) {
+export function ProductionOrderDialog({ orderId, open, onOpenChange, hideAmounts = false }: ProductionOrderDialogProps) {
   const [order, setOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
@@ -262,14 +270,16 @@ export function ProductionOrderDialog({ orderId, open, onOpenChange }: Productio
             {order.article && (
               <div className="border-t pt-4">
                 <Label className="text-sm text-muted-foreground mb-2 block">Articoli</Label>
-                <WorkOrderArticles workOrderId={order.id} articleText={order.article} />
+                <WorkOrderArticles workOrderId={order.id} articleText={order.article} hideAmounts={hideAmounts} />
               </div>
             )}
 
             {order.notes && (
               <div>
                 <Label className="text-sm text-muted-foreground">Note</Label>
-                <p className="text-sm whitespace-pre-wrap bg-muted/50 p-2 rounded-md mt-1">{order.notes}</p>
+                <p className="text-sm whitespace-pre-wrap bg-muted/50 p-2 rounded-md mt-1">
+                  {hideAmounts ? sanitizeAmounts(order.notes) : order.notes}
+                </p>
               </div>
             )}
 

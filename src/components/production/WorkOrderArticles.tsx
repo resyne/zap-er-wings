@@ -16,9 +16,16 @@ interface ArticleItem {
 interface WorkOrderArticlesProps {
   workOrderId: string;
   articleText: string;
+  hideAmounts?: boolean;
 }
 
-export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticlesProps) {
+// Function to hide € amounts from text
+const sanitizeAmounts = (text: string | null | undefined): string => {
+  if (!text) return '';
+  return text.replace(/€\s*[\d.,]+|\d+[\d.,]*\s*€/g, '€ ***');
+};
+
+export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = false }: WorkOrderArticlesProps) {
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -215,7 +222,7 @@ export function WorkOrderArticles({ workOrderId, articleText }: WorkOrderArticle
                 article.is_completed ? "line-through text-muted-foreground" : ""
               }`}
             >
-              {article.description}
+              {hideAmounts ? sanitizeAmounts(article.description) : article.description}
             </Label>
             {article.completed_at && (
               <p className="text-xs text-muted-foreground mt-1">
