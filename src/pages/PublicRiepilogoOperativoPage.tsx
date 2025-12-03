@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Factory, Wrench } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { it } from "date-fns/locale";
+import { ProductionOrderDialog } from "@/components/production/ProductionOrderDialog";
+import { ServiceOrderDialog } from "@/components/support/ServiceOrderDialog";
 
 interface WorkOrder {
   id: string;
@@ -61,6 +63,8 @@ const PublicRiepilogoOperativoPage = () => {
   const [serviceOrders, setServiceOrders] = useState<ServiceWorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedProductionOrderId, setSelectedProductionOrderId] = useState<string | null>(null);
+  const [selectedServiceOrderId, setSelectedServiceOrderId] = useState<string | null>(null);
 
   // Create a color map for production orders
   const productionColorMap = useMemo(() => {
@@ -266,8 +270,9 @@ const PublicRiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded`}
+                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
+                              onClick={() => setSelectedServiceOrderId(so.id)}
                             >
                               <div className="truncate">
                                 <span className="hidden md:inline">{so.number}</span>
@@ -351,7 +356,8 @@ const PublicRiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={wo.id}
-                              className="bg-background rounded-md p-2 shadow-sm border relative"
+                              className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => setSelectedProductionOrderId(wo.id)}
                             >
                               {/* Color indicator */}
                               <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
@@ -392,6 +398,18 @@ const PublicRiepilogoOperativoPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogs */}
+      <ProductionOrderDialog
+        orderId={selectedProductionOrderId}
+        open={!!selectedProductionOrderId}
+        onOpenChange={(open) => !open && setSelectedProductionOrderId(null)}
+      />
+      <ServiceOrderDialog
+        orderId={selectedServiceOrderId}
+        open={!!selectedServiceOrderId}
+        onOpenChange={(open) => !open && setSelectedServiceOrderId(null)}
+      />
     </div>
   );
 };
