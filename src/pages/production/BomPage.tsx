@@ -300,7 +300,7 @@ export default function BomPage() {
           *,
           bom_items(count),
           material:materials!left(id, name, code, current_stock, unit, cost),
-          product:products!left(id, code, name, description, product_type),
+          product:products!boms_product_id_fkey(id, code, name, description, product_type),
           parent_bom:boms!parent_id(id, name, version),
           bom_inclusions!parent_bom_id(
             id,
