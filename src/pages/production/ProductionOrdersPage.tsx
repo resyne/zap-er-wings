@@ -1907,18 +1907,19 @@ ${allOrdersHTML}
                     <TableHead className="min-w-[110px]">Data Inserimento</TableHead>
                     <TableHead className="min-w-[250px]">Articoli</TableHead>
                     <TableHead className="min-w-[100px]">Priorità</TableHead>
+                    <TableHead className="min-w-[120px]">Stato</TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Caricamento commesse di produzione...
                     </TableCell>
                   </TableRow>
                 ) : filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Nessuna commessa di produzione trovata
                     </TableCell>
                   </TableRow>
@@ -1989,6 +1990,9 @@ ${allOrdersHTML}
                            wo.priority === 'high' ? 'Alta' :
                            wo.priority === 'medium' ? 'Media' : 'Bassa'}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={wo.status} />
                       </TableCell>
                     </TableRow>
                   ))
