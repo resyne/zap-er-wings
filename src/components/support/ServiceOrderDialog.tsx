@@ -303,15 +303,34 @@ export function ServiceOrderDialog({ orderId, open, onOpenChange }: ServiceOrder
               <div className="border-t pt-4">
                 <Label className="text-sm text-muted-foreground mb-2 block">Foto Cliente</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {leadPhotos.map((photo, index) => (
-                    <a key={index} href={photo.url} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={photo.url}
-                        alt={photo.name}
-                        className="w-full h-20 object-cover rounded-md border hover:opacity-80 transition-opacity"
-                      />
-                    </a>
-                  ))}
+                  {leadPhotos.map((photo, index) => {
+                    const isVideo = /\.(mp4|mov|avi|webm|mkv|ogg)$/i.test(photo.name);
+                    return isVideo ? (
+                      <a key={index} href={photo.url} target="_blank" rel="noopener noreferrer" className="relative group">
+                        <video
+                          src={photo.url}
+                          className="w-full h-20 object-cover rounded-md border group-hover:opacity-80 transition-opacity"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="bg-black/50 rounded-full p-1">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </a>
+                    ) : (
+                      <a key={index} href={photo.url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={photo.url}
+                          alt={photo.name}
+                          className="w-full h-20 object-cover rounded-md border hover:opacity-80 transition-opacity"
+                        />
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}
