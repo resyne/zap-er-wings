@@ -193,73 +193,6 @@ const RiepilogoOperativoPage = () => {
       </div>
 
       <div className="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-6">
-        {/* Production Orders Kanban */}
-        <Card className="h-fit">
-          <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
-            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-              <Factory className="h-4 w-4 md:h-5 md:w-5" />
-              Commesse di Produzione
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 md:px-6">
-            {/* Horizontal scroll on mobile */}
-            <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
-              <div className="flex md:grid md:grid-cols-4 gap-2 md:gap-3 min-w-max md:min-w-0">
-                {Object.entries(statusConfig).map(([status, config]) => (
-                  <div 
-                    key={status} 
-                    className={`${config.bgColor} ${config.borderColor} border rounded-lg p-2 md:p-3 w-[160px] md:w-auto flex-shrink-0 md:flex-shrink`}
-                  >
-                    <h3 className="font-medium text-xs md:text-sm mb-2 text-foreground">{config.title}</h3>
-                    <ScrollArea className="h-[250px] md:h-[350px]">
-                      <div className="space-y-2 pr-2">
-                        {getOrdersByStatus(status).map(wo => {
-                          const colorClass = productionColorMap[wo.id];
-                          return (
-                            <div
-                              key={wo.id}
-                              className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
-                              onClick={() => handleProductionOrderClick(wo.id)}
-                            >
-                              {/* Color indicator */}
-                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
-                              <div className="pl-2">
-                                <div className="flex items-center justify-between mb-1 gap-1">
-                                  <span className="font-medium text-[10px] md:text-xs">{wo.number}</span>
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`text-[8px] md:text-[10px] px-1 py-0 ${
-                                      wo.priority === 'high' ? 'border-red-500 text-red-600' :
-                                      wo.priority === 'medium' ? 'border-yellow-500 text-yellow-600' :
-                                      'border-gray-400 text-gray-500'
-                                    }`}
-                                  >
-                                    {wo.priority === 'high' ? 'Alta' : wo.priority === 'medium' ? 'Media' : 'Bassa'}
-                                  </Badge>
-                                </div>
-                                {wo.customer_name && (
-                                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">
-                                    {wo.customer_name}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {getOrdersByStatus(status).length === 0 && (
-                          <p className="text-[10px] md:text-xs text-muted-foreground text-center py-4">
-                            Nessuna commessa
-                          </p>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Service Orders Calendar */}
         <Card className="h-fit">
           <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
@@ -380,6 +313,73 @@ const RiepilogoOperativoPage = () => {
                 </div>
               </div>
             </details>
+          </CardContent>
+        </Card>
+
+        {/* Production Orders Kanban */}
+        <Card className="h-fit">
+          <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <Factory className="h-4 w-4 md:h-5 md:w-5" />
+              Commesse di Produzione
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 md:px-6">
+            {/* Horizontal scroll on mobile */}
+            <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
+              <div className="flex md:grid md:grid-cols-4 gap-2 md:gap-3 min-w-max md:min-w-0">
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <div 
+                    key={status} 
+                    className={`${config.bgColor} ${config.borderColor} border rounded-lg p-2 md:p-3 w-[160px] md:w-auto flex-shrink-0 md:flex-shrink`}
+                  >
+                    <h3 className="font-medium text-xs md:text-sm mb-2 text-foreground">{config.title}</h3>
+                    <ScrollArea className="h-[250px] md:h-[350px]">
+                      <div className="space-y-2 pr-2">
+                        {getOrdersByStatus(status).map(wo => {
+                          const colorClass = productionColorMap[wo.id];
+                          return (
+                            <div
+                              key={wo.id}
+                              className="bg-background rounded-md p-2 shadow-sm border relative cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
+                              onClick={() => handleProductionOrderClick(wo.id)}
+                            >
+                              {/* Color indicator */}
+                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} rounded-l-md`} />
+                              <div className="pl-2">
+                                <div className="flex items-center justify-between mb-1 gap-1">
+                                  <span className="font-medium text-[10px] md:text-xs">{wo.number}</span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-[8px] md:text-[10px] px-1 py-0 ${
+                                      wo.priority === 'high' ? 'border-red-500 text-red-600' :
+                                      wo.priority === 'medium' ? 'border-yellow-500 text-yellow-600' :
+                                      'border-gray-400 text-gray-500'
+                                    }`}
+                                  >
+                                    {wo.priority === 'high' ? 'Alta' : wo.priority === 'medium' ? 'Media' : 'Bassa'}
+                                  </Badge>
+                                </div>
+                                {wo.customer_name && (
+                                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+                                    {wo.customer_name}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {getOrdersByStatus(status).length === 0 && (
+                          <p className="text-[10px] md:text-xs text-muted-foreground text-center py-4">
+                            Nessuna commessa
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
