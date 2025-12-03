@@ -67,6 +67,7 @@ import PriceListsPage from "./pages/documentation/PriceListsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import CalendarioAziendale from "./pages/direzione/CalendarioAziendaleNew";
 import RiepilogoOperativoPage from "./pages/direzione/RiepilogoOperativoPage";
+import PublicRiepilogoOperativoPage from "./pages/PublicRiepilogoOperativoPage";
 
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
@@ -107,6 +108,7 @@ const App = () => (
               <Route path="/configurator/:code" element={<PublicConfiguratorPage />} />
               <Route path="/supplier/:supplierId" element={<SupplierPortalPage />} />
               <Route path="/procurement/purchase-order-confirm" element={<PurchaseOrderConfirmPage />} />
+              <Route path="/riepilogo-operativo" element={<PublicRiepilogoOperativoPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>
                   <AppLayout />
