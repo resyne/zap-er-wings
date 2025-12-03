@@ -267,12 +267,19 @@ const RiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 active:scale-95 transition-transform`}
+                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded cursor-pointer hover:opacity-80 active:scale-95 transition-transform`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
                               onClick={() => handleServiceOrderClick(so.id)}
                             >
-                              <span className="hidden md:inline">{so.number}</span>
-                              <span className="md:hidden">{so.number.split('-').pop()}</span>
+                              <div className="truncate">
+                                <span className="hidden md:inline">{so.number}</span>
+                                <span className="md:hidden">{so.number.split('-').pop()}</span>
+                              </div>
+                              {so.customer_name && (
+                                <div className="truncate text-white/80 text-[6px] md:text-[8px]">
+                                  {so.customer_name}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
