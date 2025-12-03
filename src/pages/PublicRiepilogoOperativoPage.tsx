@@ -404,11 +404,13 @@ const PublicRiepilogoOperativoPage = () => {
         orderId={selectedProductionOrderId}
         open={!!selectedProductionOrderId}
         onOpenChange={(open) => !open && setSelectedProductionOrderId(null)}
+        hideAmounts={true}
       />
       <ServiceOrderDialog
         orderId={selectedServiceOrderId}
         open={!!selectedServiceOrderId}
         onOpenChange={(open) => !open && setSelectedServiceOrderId(null)}
+        hideAmounts={true}
       />
     </div>
   );
