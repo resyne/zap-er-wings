@@ -270,9 +270,8 @@ const PublicRiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity`}
+                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
-                              onClick={() => setSelectedServiceOrderId(so.id)}
                             >
                               <div className="truncate">
                                 <span className="hidden md:inline">{so.number}</span>
