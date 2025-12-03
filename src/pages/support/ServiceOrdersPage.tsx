@@ -105,6 +105,13 @@ export default function WorkOrdersServicePage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [salesOrderItems, setSalesOrderItems] = useState<Array<{
+    id: string;
+    product_name: string;
+    description: string | null;
+    quantity: number;
+    unit_price: number;
+  }>>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -127,7 +134,7 @@ export default function WorkOrdersServicePage() {
     loadTechnicians();
   }, [showArchivedOrders]);
 
-  // Load lead photos when selectedWorkOrder changes
+  // Load lead photos and sales order items when selectedWorkOrder changes
   useEffect(() => {
     const loadLeadPhotos = async () => {
       if (!selectedWorkOrder?.lead_id) {
@@ -165,8 +172,29 @@ export default function WorkOrdersServicePage() {
       }
     };
 
+    const loadSalesOrderItems = async () => {
+      if (!selectedWorkOrder?.sales_order_id) {
+        setSalesOrderItems([]);
+        return;
+      }
+      
+      try {
+        const { data: items, error } = await supabase
+          .from('sales_order_items')
+          .select('id, product_name, description, quantity, unit_price')
+          .eq('sales_order_id', selectedWorkOrder.sales_order_id);
+
+        if (error) throw error;
+        setSalesOrderItems(items || []);
+      } catch (error) {
+        console.error('Error loading sales order items:', error);
+        setSalesOrderItems([]);
+      }
+    };
+
     if (showDetailsDialog && selectedWorkOrder) {
       loadLeadPhotos();
+      loadSalesOrderItems();
     }
   }, [selectedWorkOrder, showDetailsDialog]);
 
@@ -1419,8 +1447,30 @@ export default function WorkOrdersServicePage() {
                 </div>
               </div>
               
-              {/* Articles */}
-              {selectedWorkOrder.article && (
+              {/* Articles from Sales Order Items */}
+              {salesOrderItems.length > 0 ? (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Articoli</Label>
+                  <div className="space-y-3 mt-2">
+                    {salesOrderItems.map((item) => (
+                      <div key={item.id} className="bg-muted/50 p-3 rounded-lg border">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">
+                              {item.quantity}x {item.product_name}
+                            </div>
+                            {item.description && (
+                              <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : selectedWorkOrder.article && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Articoli</Label>
                   <div className="bg-muted/50 p-3 rounded-lg mt-1">
