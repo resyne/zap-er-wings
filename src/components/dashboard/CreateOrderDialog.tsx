@@ -777,6 +777,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       console.error('Error copying lead photos to service work order:', error);
     }
   };
+
+  const handleCreateOrder = async () => {
     const { production, service, shipping } = newOrder.commissions;
     const hasAtLeastOneCommission = production.enabled || service.enabled || shipping.enabled;
 
