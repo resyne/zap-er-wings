@@ -289,12 +289,8 @@ const RiepilogoOperativoPage = () => {
                           return (
                             <div
                               key={so.id}
-                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded cursor-pointer hover:opacity-80 active:scale-95 transition-transform pointer-events-auto`}
+                              className={`${linkedColor} text-white text-[7px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded`}
                               title={`${so.number} - ${so.customer_name || so.title}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleServiceOrderClick(so.id);
-                              }}
                             >
                               <div className="truncate">
                                 <span className="hidden md:inline">{so.number}</span>
