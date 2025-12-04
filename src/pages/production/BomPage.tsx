@@ -151,6 +151,8 @@ export default function BomPage() {
   const [linkProductDialogOpen, setLinkProductDialogOpen] = useState(false);
   const [linkingModelId, setLinkingModelId] = useState<string | null>(null);
   const [selectedProductForLink, setSelectedProductForLink] = useState<string>("");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [bomProducts, setBomProducts] = useState<{ bom_id: string; product_id: string }[]>([]);
 
   const [machineryFormData, setMachineryFormData] = useState({
     name: "",
@@ -173,6 +175,7 @@ export default function BomPage() {
     setSelectedLevel(1);
     setSelectedSupplierId("all");
     setIncludableBoms([]);
+    setSelectedProductIds([]);
   };
 
   useEffect(() => {
@@ -180,6 +183,7 @@ export default function BomPage() {
     fetchMaterials();
     fetchSuppliers();
     fetchProducts();
+    fetchBomProducts();
 
     // Real-time updates for materials changes
     const materialsChannel = supabase
@@ -248,6 +252,19 @@ export default function BomPage() {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchBomProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bom_products')
+        .select('bom_id, product_id');
+
+      if (error) throw error;
+      setBomProducts(data || []);
+    } catch (error: any) {
+      console.error('Error fetching bom_products:', error);
     }
   };
 
@@ -460,7 +477,7 @@ export default function BomPage() {
         notes: formData.notes,
         level: selectedLevel,
         material_id: selectedLevel === 2 && formData.material_id ? formData.material_id : null,
-        product_id: selectedLevel === 1 && formData.product_id ? formData.product_id : null
+        product_id: null // Now using bom_products junction table
       };
 
       let bomId: string;
@@ -525,10 +542,25 @@ export default function BomPage() {
         }
       }
 
+      // Handle product links for Level 1 BOMs
+      if (selectedLevel === 1 && selectedProductIds.length > 0) {
+        const productLinks = selectedProductIds.map(productId => ({
+          bom_id: bomId,
+          product_id: productId
+        }));
+
+        const { error: productLinkError } = await supabase
+          .from('bom_products')
+          .insert(productLinks);
+
+        if (productLinkError) throw productLinkError;
+      }
+
       setIsDialogOpen(false);
       setSelectedBom(null);
       resetForm();
       fetchBoms();
+      fetchBomProducts();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -550,8 +582,18 @@ export default function BomPage() {
       notes: bom.notes || "",
       level: bom.level,
       material_id: bom.material_id || "",
-      product_id: bom.product_id || ""
+      product_id: ""
     });
+
+    // Load linked products for Level 1 BOMs
+    if (bom.level === 1) {
+      const linkedProductIds = bomProducts
+        .filter(bp => bp.bom_id === bom.id)
+        .map(bp => bp.product_id);
+      setSelectedProductIds(linkedProductIds);
+    } else {
+      setSelectedProductIds([]);
+    }
 
     // Fetch existing inclusions for this BOM (per Level 0 e 1)
     if (bom.level < 2) {
@@ -1049,39 +1091,66 @@ export default function BomPage() {
               {selectedLevel === 1 && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="product_id">Prodotto Collegato</Label>
-                    <Select
-                      value={formData.product_id || "NO_PRODUCT"}
-                      onValueChange={(value) => {
-                        const newProductId = value === "NO_PRODUCT" ? "" : value;
-                        const selectedProduct = products.find(p => p.id === value);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          product_id: newProductId,
-                          name: selectedProduct ? `${selectedProduct.name} - Gruppo` : prev.name
-                        }));
-                      }}
-                    >
-                      <SelectTrigger id="product_id">
-                        <SelectValue placeholder="Seleziona un prodotto dall'anagrafica" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        <SelectItem value="NO_PRODUCT">Nessun prodotto</SelectItem>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{product.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {product.code} {product.product_type && `| ${product.product_type}`}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Collega questo BOM Level 1 a un prodotto dell'anagrafica (opzionale)
+                    <Label>Prodotti Collegati</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Seleziona uno o più prodotti da collegare a questo BOM Level 1
                     </p>
+                    <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
+                      {products.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nessun prodotto disponibile</p>
+                      ) : (
+                        products.map((product) => (
+                          <div key={product.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`product-${product.id}`}
+                              checked={selectedProductIds.includes(product.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedProductIds(prev => [...prev, product.id]);
+                                  // Auto-suggest name from first selected product
+                                  if (selectedProductIds.length === 0 && !formData.name) {
+                                    setFormData(prev => ({ 
+                                      ...prev, 
+                                      name: `${product.name} - Gruppo`
+                                    }));
+                                  }
+                                } else {
+                                  setSelectedProductIds(prev => prev.filter(id => id !== product.id));
+                                }
+                              }}
+                            />
+                            <label 
+                              htmlFor={`product-${product.id}`} 
+                              className="text-sm flex-1 cursor-pointer"
+                            >
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-muted-foreground ml-2">
+                                ({product.code}){product.product_type && ` - ${product.product_type}`}
+                              </span>
+                            </label>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {selectedProductIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedProductIds.map(id => {
+                          const product = products.find(p => p.id === id);
+                          return product ? (
+                            <Badge key={id} variant="secondary" className="gap-1">
+                              {product.name}
+                              <button 
+                                type="button"
+                                onClick={() => setSelectedProductIds(prev => prev.filter(pid => pid !== id))}
+                                className="ml-1 hover:text-destructive"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1653,8 +1722,9 @@ export default function BomPage() {
                       products
                         .filter(p => selectedProductType === "all" || p.product_type === selectedProductType)
                         .map((product) => {
-                        // Find Level 1 BOMs linked to this product
-                        const linkedBoms = boms.filter(b => b.level === 1 && b.product_id === product.id);
+                        // Find Level 1 BOMs linked to this product via bom_products junction table
+                        const linkedBomIds = bomProducts.filter(bp => bp.product_id === product.id).map(bp => bp.bom_id);
+                        const linkedBoms = boms.filter(b => b.level === 1 && linkedBomIds.includes(b.id));
                         return (
                           <TableRow key={product.id} className="hover:bg-muted/50">
                             <TableCell className="font-mono text-sm">
@@ -1717,7 +1787,7 @@ export default function BomPage() {
                         <TableHead>Nome</TableHead>
                         <TableHead>Version</TableHead>
                         <TableHead>Description</TableHead>
-                        {level === 1 && <TableHead>Prodotto</TableHead>}
+                        {level === 1 && <TableHead>Prodotti</TableHead>}
                         {level === 2 && <TableHead>Material</TableHead>}
                         {level === 1 && <TableHead>Includes</TableHead>}
                         <TableHead>Components</TableHead>
@@ -1755,14 +1825,21 @@ export default function BomPage() {
                             </TableCell>
                             {level === 1 && (
                               <TableCell>
-                                {bom.product ? (
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-medium">{bom.product.name}</span>
-                                    <span className="text-xs text-muted-foreground">{bom.product.code}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground italic">Non collegato</span>
-                                )}
+                                {(() => {
+                                  const linkedProductIds = bomProducts.filter(bp => bp.bom_id === bom.id).map(bp => bp.product_id);
+                                  const linkedProducts = products.filter(p => linkedProductIds.includes(p.id));
+                                  return linkedProducts.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {linkedProducts.map(product => (
+                                        <Badge key={product.id} variant="outline" className="text-xs">
+                                          {product.name}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground italic">Non collegato</span>
+                                  );
+                                })()}
                               </TableCell>
                             )}
                             {level === 2 && (
