@@ -2442,32 +2442,6 @@ ${allOrdersHTML}
                 <div className="text-sm text-muted-foreground">Caricamento foto...</div>
               )}
 
-              {(selectedWO.planned_start_date || selectedWO.planned_end_date) && (
-                <div className="border-t pt-4">
-                  <Label className="text-sm font-medium text-muted-foreground mb-2 block">Date Pianificate</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Inizio</Label>
-                      <p className="text-sm">
-                        {selectedWO.planned_start_date ? new Date(selectedWO.planned_start_date).toLocaleString('it-IT') : 'Non impostato'}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Fine</Label>
-                      <p className="text-sm">
-                        {selectedWO.planned_end_date ? new Date(selectedWO.planned_end_date).toLocaleString('it-IT') : 'Non impostato'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedWO.notes && (
-                <div className="border-t pt-4">
-                  <Label className="text-sm font-medium text-muted-foreground">Note</Label>
-                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedWO.notes}</p>
-                </div>
-              )}
 
               {/* Comments Section */}
               <div className="border-t pt-4">
