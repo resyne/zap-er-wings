@@ -81,11 +81,31 @@ export default function ProductCatalogPage() {
 
   const handleDuplicateProduct = async (product: any) => {
     try {
+      // Find next available progressive number for the code
+      const baseCode = product.code.replace(/-\d+$/, ''); // Remove existing suffix if any
+      const { data: existingProducts } = await supabase
+        .from("products")
+        .select("code")
+        .like("code", `${baseCode}-%`);
+      
+      let nextNum = 1;
+      if (existingProducts && existingProducts.length > 0) {
+        const numbers = existingProducts
+          .map(p => {
+            const match = p.code.match(/-(\d+)$/);
+            return match ? parseInt(match[1]) : 0;
+          })
+          .filter(n => n > 0);
+        if (numbers.length > 0) {
+          nextNum = Math.max(...numbers) + 1;
+        }
+      }
+
       const { data, error } = await supabase
         .from("products")
         .insert({
           name: `${product.name} (copia)`,
-          code: `${product.code}-COPY`,
+          code: `${baseCode}-${nextNum}`,
           description: product.description,
           product_type: product.product_type,
           base_price: product.base_price,
