@@ -2270,29 +2270,7 @@ ${allOrdersHTML}
                 </div>
               </div>
               
-              {/* Customer Info - Display Only */}
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <Label className="text-sm font-medium">Dati Cliente</Label>
-                {selectedWO.customers ? (
-                  <div className="space-y-1 text-sm">
-                    {selectedWO.customers.company_name && (
-                      <p className="font-medium">{selectedWO.customers.company_name}</p>
-                    )}
-                    <p>{selectedWO.customers.name} ({selectedWO.customers.code})</p>
-                    {selectedWO.customers.phone && (
-                      <p className="text-muted-foreground">{selectedWO.customers.phone}</p>
-                    )}
-                    {(selectedWO.customers.address || selectedWO.customers.city) && (
-                      <p className="text-muted-foreground">
-                        {[selectedWO.customers.address, selectedWO.customers.city].filter(Boolean).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nessun cliente associato</p>
-                )}
-              </div>
-
+              {/* Priority and BOM Selection */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Priorità</Label>
@@ -2361,22 +2339,7 @@ ${allOrdersHTML}
                 </div>
               </div>
 
-              {selectedWO.offer_id && selectedWO.offers && (
-                <div>
-                  <Label className="text-sm font-medium">Offerta Collegata</Label>
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 text-sm mt-1 text-primary hover:underline flex items-center gap-1"
-                    onClick={() => {
-                      navigate(`/crm/offers?offer=${selectedWO.offer_id}`);
-                    }}
-                  >
-                    {selectedWO.offers.number}
-                    <ExternalLink className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-
+              {/* Planned Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Data Inizio Pianificata</Label>
@@ -2417,6 +2380,45 @@ ${allOrdersHTML}
                   />
                 </div>
               </div>
+
+              {/* Customer Info - Display Only */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <Label className="text-sm font-medium">Dati Cliente</Label>
+                {selectedWO.customers ? (
+                  <div className="space-y-1 text-sm">
+                    {selectedWO.customers.company_name && (
+                      <p className="font-medium">{selectedWO.customers.company_name}</p>
+                    )}
+                    <p>{selectedWO.customers.name} ({selectedWO.customers.code})</p>
+                    {selectedWO.customers.phone && (
+                      <p className="text-muted-foreground">{selectedWO.customers.phone}</p>
+                    )}
+                    {(selectedWO.customers.address || selectedWO.customers.city) && (
+                      <p className="text-muted-foreground">
+                        {[selectedWO.customers.address, selectedWO.customers.city].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nessun cliente associato</p>
+                )}
+              </div>
+
+              {selectedWO.offer_id && selectedWO.offers && (
+                <div>
+                  <Label className="text-sm font-medium">Offerta Collegata</Label>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-sm mt-1 text-primary hover:underline flex items-center gap-1"
+                    onClick={() => {
+                      navigate(`/crm/offers?offer=${selectedWO.offer_id}`);
+                    }}
+                  >
+                    {selectedWO.offers.number}
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
 
 
 
