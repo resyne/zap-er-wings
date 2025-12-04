@@ -1952,7 +1952,12 @@ ${allOrdersHTML}
                       </TableCell>
                       <TableCell>
                         {wo.customers ? (
-                          <span className="font-medium">{wo.customers.name}</span>
+                          <div className="space-y-0.5">
+                            <span className="font-medium">{wo.customers.name}</span>
+                            {wo.customers.code && (
+                              <div className="text-xs text-muted-foreground">{wo.customers.code}</div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -2082,8 +2087,11 @@ ${allOrdersHTML}
                                          {/* Cliente e Data */}
                                          <div className="space-y-1">
                                            {wo.customers && (
-                                             <div className="text-xs font-medium text-foreground line-clamp-1">
-                                               {wo.customers.name}
+                                             <div className="text-xs font-medium text-foreground">
+                                               <div className="line-clamp-1">{wo.customers.name}</div>
+                                               {wo.customers.code && (
+                                                 <div className="text-[10px] text-muted-foreground">{wo.customers.code}</div>
+                                               )}
                                              </div>
                                            )}
                                            
