@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown } from "lucide-react";
+import { Plus, Search, Filter, Download, Eye, Edit, Wrench, Trash2, LayoutGrid, List, ExternalLink, Calendar as CalendarIcon, Archive, UserPlus, FileDown, ChevronDown, History } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
@@ -2208,6 +2209,19 @@ ${allOrdersHTML}
           </DialogHeader>
           {selectedWO && (
             <div className="space-y-6">
+              {/* Activity Log - Collapsible at top */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                  <div className="flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    <span className="font-medium text-sm">Storico Attività</span>
+                  </div>
+                  <ChevronDown className="w-4 h-4 transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <WorkOrderActivityLog workOrderId={selectedWO.id} />
+                </CollapsibleContent>
+              </Collapsible>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Numero</Label>
@@ -2472,10 +2486,6 @@ ${allOrdersHTML}
                 <WorkOrderComments workOrderId={selectedWO.id} />
               </div>
 
-              {/* Activity Log */}
-              <div className="border-t pt-4">
-                <WorkOrderActivityLog workOrderId={selectedWO.id} />
-              </div>
 
               {/* Actions */}
               <div className={isMobile ? "border-t pt-3 flex flex-col gap-2" : "border-t pt-4 flex gap-2"}>
