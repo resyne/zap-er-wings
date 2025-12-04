@@ -1145,10 +1145,23 @@ export default function BomPage() {
                       className="mb-2"
                     />
                     <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
-                      {products.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Nessun prodotto disponibile</p>
-                      ) : (
-                        products
+                      {(() => {
+                        // Get products already linked to OTHER Level 1 BOMs (not the current one)
+                        const productsLinkedToOtherBoms = bomProducts
+                          .filter(bp => !selectedBom || bp.bom_id !== selectedBom.id)
+                          .map(bp => bp.product_id);
+                        
+                        // Filter available products: only show unlinked or linked to current BOM
+                        const availableProducts = products.filter(product => 
+                          !productsLinkedToOtherBoms.includes(product.id) ||
+                          selectedProductIds.includes(product.id)
+                        );
+                        
+                        if (availableProducts.length === 0) {
+                          return <p className="text-sm text-muted-foreground">Nessun prodotto disponibile</p>;
+                        }
+                        
+                        return availableProducts
                           .filter(product => 
                             !productsSearch || 
                             product.name.toLowerCase().includes(productsSearch.toLowerCase()) ||
@@ -1184,8 +1197,8 @@ export default function BomPage() {
                               </span>
                             </label>
                           </div>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </div>
                     {selectedProductIds.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
