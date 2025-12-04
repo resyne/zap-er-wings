@@ -130,6 +130,7 @@ export default function BomPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("all");
+  const [selectedProductType, setSelectedProductType] = useState<string>("all");
   const [bomDetails, setBomDetails] = useState<any>(null);
   const { toast } = useToast();
   const { hideAmounts } = useHideAmounts();
@@ -1593,6 +1594,37 @@ export default function BomPage() {
             
             {/* Products Tab */}
             <TabsContent value="0">
+              {/* Product Type Filter */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm">Filtra per tipo:</Label>
+                </div>
+                <Select value={selectedProductType} onValueChange={setSelectedProductType}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Tutti i tipi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i tipi</SelectItem>
+                    {[...new Set(products.map(p => p.product_type).filter(Boolean))].sort().map((type) => (
+                      <SelectItem key={type} value={type as string}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedProductType !== "all" && (
+                  <Badge variant="secondary" className="gap-1">
+                    {selectedProductType}
+                    <button 
+                      onClick={() => setSelectedProductType("all")}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                )}
+              </div>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -1618,7 +1650,9 @@ export default function BomPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      products.map((product) => {
+                      products
+                        .filter(p => selectedProductType === "all" || p.product_type === selectedProductType)
+                        .map((product) => {
                         // Find Level 1 BOMs linked to this product
                         const linkedBoms = boms.filter(b => b.level === 1 && b.product_id === product.id);
                         return (
