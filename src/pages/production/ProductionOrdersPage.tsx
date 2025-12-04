@@ -762,15 +762,20 @@ export default function WorkOrdersPage() {
 
       if (error) throw error;
       
-      // Log activity
+      // Log activity in work_order_logs table
       if (user) {
-        await (supabase as any)
-          .from('work_order_activities')
+        await supabase
+          .from('work_order_logs')
           .insert({
             work_order_id: woId,
             user_id: user.id,
-            activity_type: 'status_change',
-            description: `Stato modificato da "${getStatusLabel(previousStatus)}" a "${getStatusLabel(newStatus)}"`
+            action: 'status_changed',
+            details: {
+              message: `Stato modificato da "${getStatusLabel(previousStatus)}" a "${getStatusLabel(newStatus)}"`,
+              changes: {
+                status: { old: previousStatus, new: newStatus }
+              }
+            }
           });
       }
       
