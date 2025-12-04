@@ -459,6 +459,20 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     if (leadNotes) combinedNotes += `Note Cliente:\n${leadNotes}`;
     combinedNotes = combinedNotes.trim();
     
+    // Fetch bom_id from the first product if available
+    let bomId: string | null = null;
+    if (selectedProducts.length > 0 && selectedProducts[0].product_id) {
+      const { data: productData } = await supabase
+        .from('products')
+        .select('bom_id')
+        .eq('id', selectedProducts[0].product_id)
+        .single();
+      
+      if (productData?.bom_id) {
+        bomId = productData.bom_id;
+      }
+    }
+    
     const productionData = {
       number: '',
       title: newOrder.title || `Produzione per ordine ${orderData.customers?.name || 'Cliente'}`,
@@ -475,7 +489,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       sales_order_id: orderId,
       diameter: commission.diameter || null,
       smoke_inlet: commission.smoke_inlet || null,
-      attachments: orderData.attachments || []
+      attachments: orderData.attachments || [],
+      bom_id: bomId  // Auto-assign BOM from product
     };
 
     const { data: productionWO, error } = await supabase
