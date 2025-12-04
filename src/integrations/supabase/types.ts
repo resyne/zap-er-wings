@@ -229,6 +229,42 @@ export type Database = {
           },
         ]
       }
+      bom_products: {
+        Row: {
+          bom_id: string
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          bom_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          bom_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_products_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       boms: {
         Row: {
           created_at: string
