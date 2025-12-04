@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 
 interface ArticleItem {
   id: string;
@@ -26,6 +25,8 @@ interface BomLevel2 {
   name: string;
   version: string;
   quantity: number;
+  material_id?: string;
+  current_stock?: number;
 }
 
 interface WorkOrderArticlesProps {
@@ -44,7 +45,6 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [bomData, setBomData] = useState<Record<string, { level1: BomLevel1[]; level2: BomLevel2[] }>>({});
-  const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadArticles();
@@ -225,7 +225,7 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
                 .select(`
                   quantity,
                   included_bom_id,
-                  boms!bom_inclusions_included_bom_id_fkey(id, name, version, level)
+                  boms!bom_inclusions_included_bom_id_fkey(id, name, version, level, material_id)
                 `)
                 .eq("parent_bom_id", bom.id);
 
@@ -233,11 +233,28 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
                 for (const inc of inclusions) {
                   const includedBom = inc.boms as any;
                   if (includedBom && includedBom.level === 2) {
+                    let stockInfo: number | undefined = undefined;
+
+                    // Fetch material stock if material_id exists
+                    if (includedBom.material_id) {
+                      const { data: material } = await supabase
+                        .from("materials")
+                        .select("current_stock")
+                        .eq("id", includedBom.material_id)
+                        .single();
+                      
+                      if (material) {
+                        stockInfo = material.current_stock;
+                      }
+                    }
+
                     level2Boms.push({
                       id: includedBom.id,
                       name: includedBom.name,
                       version: includedBom.version,
-                      quantity: inc.quantity
+                      quantity: inc.quantity,
+                      material_id: includedBom.material_id,
+                      current_stock: stockInfo
                     });
                   }
                 }
@@ -253,57 +270,6 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
     } catch (error) {
       console.error("Error loading BOM data:", error);
     }
-  };
-
-  const handleToggleArticle = async (articleId: string, currentStatus: boolean) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const updateData: any = {
-        is_completed: !currentStatus,
-      };
-
-      if (!currentStatus) {
-        // Marking as completed
-        updateData.completed_at = new Date().toISOString();
-        updateData.completed_by = user?.id;
-      } else {
-        // Marking as not completed
-        updateData.completed_at = null;
-        updateData.completed_by = null;
-      }
-
-      const { error } = await supabase
-        .from("work_order_article_items")
-        .update(updateData)
-        .eq("id", articleId);
-
-      if (error) throw error;
-
-      // Update local state
-      setArticles(articles.map(article =>
-        article.id === articleId
-          ? { ...article, is_completed: !currentStatus, completed_at: updateData.completed_at }
-          : article
-      ));
-
-      toast.success(!currentStatus ? "Articolo completato" : "Articolo ripristinato");
-    } catch (error: any) {
-      console.error("Error toggling article:", error);
-      toast.error("Errore nell'aggiornamento dell'articolo");
-    }
-  };
-
-  const toggleExpanded = (articleId: string) => {
-    setExpandedArticles(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(articleId)) {
-        newSet.delete(articleId);
-      } else {
-        newSet.add(articleId);
-      }
-      return newSet;
-    });
   };
 
   if (loading) {
@@ -325,62 +291,23 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
       {articles.map((article) => {
         const articleBoms = bomData[article.id];
         const hasBomsToShow = articleBoms && (articleBoms.level1.length > 0 || articleBoms.level2.length > 0);
-        const isExpanded = expandedArticles.has(article.id);
 
         return (
           <div
             key={article.id}
             className="rounded-lg border bg-card"
           >
-            <div className="flex items-start gap-3 p-3 hover:bg-accent/50 transition-colors">
-              <Checkbox
-                id={article.id}
-                checked={article.is_completed}
-                onCheckedChange={() => handleToggleArticle(article.id, article.is_completed)}
-                className="mt-1"
-              />
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <Label
-                    htmlFor={article.id}
-                    className={`cursor-pointer text-sm whitespace-pre-wrap ${
-                      article.is_completed ? "line-through text-muted-foreground" : ""
-                    }`}
-                  >
-                    {hideAmounts ? sanitizeAmounts(article.description) : article.description}
-                  </Label>
-                  {hasBomsToShow && (
-                    <button
-                      onClick={() => toggleExpanded(article.id)}
-                      className="ml-2 p-1 hover:bg-accent rounded"
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </button>
-                  )}
-                </div>
-                {article.completed_at && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Completato il {new Date(article.completed_at).toLocaleDateString('it-IT', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                )}
-              </div>
+            <div className="p-3">
+              <Label className="text-sm font-medium whitespace-pre-wrap">
+                {hideAmounts ? sanitizeAmounts(article.description) : article.description}
+              </Label>
             </div>
 
-            {/* BOM Hierarchy */}
-            {hasBomsToShow && isExpanded && (
-              <div className="px-3 pb-3 pt-0 ml-8 space-y-2">
+            {/* BOM Hierarchy - Always visible */}
+            {hasBomsToShow && (
+              <div className="px-3 pb-3 pt-0 ml-4 space-y-2 border-t">
                 {articleBoms.level1.length > 0 && (
-                  <div className="space-y-1">
+                  <div className="space-y-1 pt-2">
                     <p className="text-xs font-medium text-muted-foreground">BOM Livello 1:</p>
                     {articleBoms.level1.map(bom => (
                       <div key={bom.id} className="text-sm pl-2 border-l-2 border-primary/30">
@@ -393,8 +320,23 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground">BOM Livello 2:</p>
                     {articleBoms.level2.map(bom => (
-                      <div key={bom.id} className="text-sm pl-2 border-l-2 border-amber-500/30">
-                        {bom.quantity}x {bom.name} <span className="text-muted-foreground">(v{bom.version})</span>
+                      <div key={bom.id} className="text-sm pl-2 border-l-2 border-amber-500/30 flex items-center justify-between">
+                        <span>
+                          {bom.quantity}x {bom.name} <span className="text-muted-foreground">(v{bom.version})</span>
+                        </span>
+                        {bom.current_stock !== undefined && (
+                          <Badge 
+                            variant="outline" 
+                            className={`ml-2 gap-1 ${
+                              bom.current_stock >= bom.quantity 
+                                ? 'border-green-500 text-green-600' 
+                                : 'border-red-500 text-red-600'
+                            }`}
+                          >
+                            <Package className="h-3 w-3" />
+                            {bom.current_stock}
+                          </Badge>
+                        )}
                       </div>
                     ))}
                   </div>
