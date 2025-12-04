@@ -483,15 +483,33 @@ export default function BomPage() {
       let bomId: string;
 
       if (selectedBom) {
-        // When editing, create a new version instead of updating
-        const { data, error } = await supabase
-          .from('boms')
-          .insert([submitData])
-          .select()
-          .single();
+        // For Level 1 BOMs: update in place without creating new versions
+        if (selectedLevel === 1) {
+          const { data, error } = await supabase
+            .from('boms')
+            .update({
+              name: submitData.name,
+              description: submitData.description,
+              notes: submitData.notes,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', selectedBom.id)
+            .select()
+            .single();
 
-        if (error) throw error;
-        bomId = data.id;
+          if (error) throw error;
+          bomId = data.id;
+        } else {
+          // For other levels: create a new version
+          const { data, error } = await supabase
+            .from('boms')
+            .insert([submitData])
+            .select()
+            .single();
+
+          if (error) throw error;
+          bomId = data.id;
+        }
 
         toast({
           title: "Success",
@@ -543,30 +561,36 @@ export default function BomPage() {
       }
 
       // Handle product links for Level 1 BOMs
-      if (selectedLevel === 1 && selectedProductIds.length > 0) {
-        console.log('Saving product links for BOM:', bomId, 'Products:', selectedProductIds);
-        
-        const productLinks = selectedProductIds.map(productId => ({
-          bom_id: bomId,
-          product_id: productId
-        }));
-
-        const { data: insertedLinks, error: productLinkError } = await supabase
-          .from('bom_products')
-          .insert(productLinks)
-          .select();
-
-        if (productLinkError) {
-          console.error('Error saving product links:', productLinkError);
-          throw productLinkError;
+      if (selectedLevel === 1) {
+        // Delete existing product links if editing
+        if (selectedBom) {
+          await supabase
+            .from('bom_products')
+            .delete()
+            .eq('bom_id', bomId);
         }
-        
-        console.log('Product links saved successfully:', insertedLinks);
-        
-        toast({
-          title: "Successo",
-          description: `BOM collegato a ${selectedProductIds.length} prodotto/i`,
-        });
+
+        // Insert new product links
+        if (selectedProductIds.length > 0) {
+          console.log('Saving product links for BOM:', bomId, 'Products:', selectedProductIds);
+          
+          const productLinks = selectedProductIds.map(productId => ({
+            bom_id: bomId,
+            product_id: productId
+          }));
+
+          const { data: insertedLinks, error: productLinkError } = await supabase
+            .from('bom_products')
+            .insert(productLinks)
+            .select();
+
+          if (productLinkError) {
+            console.error('Error saving product links:', productLinkError);
+            throw productLinkError;
+          }
+          
+          console.log('Product links saved successfully:', insertedLinks);
+        }
       }
 
       setIsDialogOpen(false);
