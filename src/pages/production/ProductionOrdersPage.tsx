@@ -611,10 +611,6 @@ export default function WorkOrdersPage() {
                         <div class="info-value ${!wo.back_office ? 'empty' : ''}">${wo.back_office ? `${wo.back_office.first_name} ${wo.back_office.last_name}` : 'Nessun back office'}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Distinta Base</div>
-                        <div class="info-value ${!wo.boms ? 'empty' : ''}">${wo.boms ? `${wo.boms.name} (${wo.boms.version})` : 'Nessuna BOM'}</div>
-                    </div>
-                    <div class="info-item">
                         <div class="info-label">Offerta Collegata</div>
                         <div class="info-value ${!wo.offers?.number ? 'empty' : ''}">${wo.offers?.number || 'Nessuna offerta collegata'}</div>
                     </div>
@@ -2281,44 +2277,6 @@ ${allOrdersHTML}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Distinta Base</Label>
-                  <Select 
-                    value={selectedWO.bom_id || "none"} 
-                    onValueChange={async (value) => {
-                      const newBomId = value === "none" ? null : value;
-                      const { error } = await supabase
-                        .from('work_orders')
-                        .update({ bom_id: newBomId })
-                        .eq('id', selectedWO.id);
-                      if (!error) {
-                        toast({ 
-                          title: "Successo",
-                          description: "Distinta base aggiornata" 
-                        });
-                        fetchWorkOrders();
-                        const bom = boms.find(b => b.id === value);
-                        setSelectedWO({ 
-                          ...selectedWO, 
-                          bom_id: newBomId,
-                          boms: bom ? { name: bom.name, version: bom.version } : undefined
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Nessuna BOM" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna BOM</SelectItem>
-                      {boms.map((bom) => (
-                        <SelectItem key={bom.id} value={bom.id}>
-                          {bom.name} (v{bom.version})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               {/* Planned Dates */}
@@ -2549,22 +2507,6 @@ ${allOrdersHTML}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bom_id">Distinta Base</Label>
-                <Select value={formData.bom_id} onValueChange={(value) => setFormData({ ...formData, bom_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona BOM" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {boms.map((bom) => (
-                      <SelectItem key={bom.id} value={bom.id}>
-                        {bom.name} (v{bom.version})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="customer_id">Cliente</Label>
                 <div className="flex gap-2">
