@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 interface ArticleItem {
   id: string;
@@ -272,6 +274,66 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
     }
   };
 
+  const handleToggleComplete = async (article: ArticleItem) => {
+    try {
+      const newCompleted = !article.is_completed;
+      
+      const { error } = await supabase
+        .from("work_order_article_items")
+        .update({ 
+          is_completed: newCompleted,
+          completed_at: newCompleted ? new Date().toISOString() : null
+        })
+        .eq("id", article.id);
+
+      if (error) throw error;
+
+      // Log activity
+      await (supabase as any).from("work_order_activities").insert({
+        work_order_id: workOrderId,
+        activity_type: newCompleted ? "article_completed" : "article_uncompleted",
+        description: newCompleted 
+          ? `Articolo completato: ${article.description.substring(0, 100)}` 
+          : `Articolo riaperto: ${article.description.substring(0, 100)}`
+      });
+
+      setArticles(prev => prev.map(a => 
+        a.id === article.id 
+          ? { ...a, is_completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null }
+          : a
+      ));
+
+      toast.success(newCompleted ? "Articolo completato" : "Articolo riaperto");
+    } catch (error) {
+      console.error("Error toggling article:", error);
+      toast.error("Errore nell'aggiornamento");
+    }
+  };
+
+  const handleDeleteArticle = async (article: ArticleItem) => {
+    try {
+      const { error } = await supabase
+        .from("work_order_article_items")
+        .delete()
+        .eq("id", article.id);
+
+      if (error) throw error;
+
+      // Log activity
+      await (supabase as any).from("work_order_activities").insert({
+        work_order_id: workOrderId,
+        activity_type: "article_deleted",
+        description: `Articolo eliminato: ${article.description.substring(0, 100)}`
+      });
+
+      setArticles(prev => prev.filter(a => a.id !== article.id));
+      toast.success("Articolo eliminato");
+    } catch (error) {
+      console.error("Error deleting article:", error);
+      toast.error("Errore nell'eliminazione");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -295,17 +357,30 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
         return (
           <div
             key={article.id}
-            className="rounded-lg border bg-card"
+            className={`rounded-lg border bg-card ${article.is_completed ? 'opacity-60' : ''}`}
           >
-            <div className="p-3">
-              <Label className="text-sm font-medium whitespace-pre-wrap">
+            <div className="p-3 flex items-start gap-3">
+              <Checkbox
+                checked={article.is_completed}
+                onCheckedChange={() => handleToggleComplete(article)}
+                className="mt-1"
+              />
+              <Label className={`text-sm font-medium whitespace-pre-wrap flex-1 ${article.is_completed ? 'line-through text-muted-foreground' : ''}`}>
                 {hideAmounts ? sanitizeAmounts(article.description) : article.description}
               </Label>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                onClick={() => handleDeleteArticle(article)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
             {/* BOM Hierarchy - Always visible */}
             {hasBomsToShow && (
-              <div className="px-3 pb-3 pt-0 ml-4 space-y-2 border-t">
+              <div className="px-3 pb-3 pt-0 ml-10 space-y-2 border-t">
                 {articleBoms.level1.length > 0 && (
                   <div className="space-y-1 pt-2">
                     <p className="text-xs font-medium text-muted-foreground">BOM Livello 1:</p>
