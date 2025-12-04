@@ -2010,15 +2010,8 @@ ${allOrdersHTML}
                         {wo.work_order_article_items && wo.work_order_article_items.length > 0 ? (
                           <div className="space-y-1">
                             {wo.work_order_article_items.slice(0, 3).map((item: any) => (
-                              <div key={item.id} className="text-xs flex items-start gap-1">
-                                <Checkbox 
-                                  checked={item.is_completed} 
-                                  disabled
-                                  className="mt-0.5"
-                                />
-                                <span className={item.is_completed ? 'line-through text-muted-foreground' : ''}>
-                                  {item.description.split('\n')[0]}
-                                </span>
+                              <div key={item.id} className="text-xs">
+                                <span>{item.description.split('\n')[0]}</span>
                               </div>
                             ))}
                             {wo.work_order_article_items.length > 3 && (
@@ -2142,19 +2135,14 @@ ${allOrdersHTML}
                                          {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
                                            <div className="space-y-1 pt-1 border-t">
                                              {wo.work_order_article_items.slice(0, 2).map((item: any) => (
-                                               <div key={item.id} className="text-[10px] md:text-xs flex items-start gap-1.5">
-                                                 <Checkbox 
-                                                   checked={item.is_completed} 
-                                                   disabled
-                                                   className="h-3 w-3 mt-0.5"
-                                                 />
-                                                 <span className={item.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}>
+                                               <div key={item.id} className="text-[10px] md:text-xs">
+                                                 <span className="text-foreground">
                                                    {item.description.split('\n')[0]}
                                                  </span>
                                                </div>
                                              ))}
                                              {wo.work_order_article_items.length > 2 && (
-                                               <div className="text-[10px] text-muted-foreground pl-5">
+                                               <div className="text-[10px] text-muted-foreground">
                                                  +{wo.work_order_article_items.length - 2} altri
                                                </div>
                                              )}
