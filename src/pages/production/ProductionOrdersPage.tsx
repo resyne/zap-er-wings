@@ -62,6 +62,10 @@ interface WorkOrder {
   customers?: {
     name: string;
     code: string;
+    company_name?: string;
+    address?: string;
+    city?: string;
+    phone?: string;
   };
   technician?: {
     id: string;
@@ -207,7 +211,7 @@ export default function WorkOrdersPage() {
         .select(`
           *,
           boms(name, version),
-          customers(name, code),
+          customers(name, code, company_name, address, city, phone),
           sales_orders(number, order_date),
           leads(id, company_name),
           offers(number),
@@ -2226,83 +2230,30 @@ ${allOrdersHTML}
                 </div>
               </div>
               
-              <div>
-                <Label className="text-sm font-medium">Titolo</Label>
-                <Input
-                  value={selectedWO.title}
-                  onChange={(e) => setSelectedWO({ ...selectedWO, title: e.target.value })}
-                  onBlur={async () => {
-                    try {
-                      const { error } = await supabase
-                        .from('work_orders')
-                        .update({ title: selectedWO.title })
-                        .eq('id', selectedWO.id);
-                      if (error) throw error;
-                      toast({ 
-                        title: "Successo",
-                        description: "Titolo aggiornato" 
-                      });
-                      fetchWorkOrders();
-                    } catch (error: any) {
-                      console.error('Error updating title:', error);
-                      toast({ 
-                        title: "Errore",
-                        description: error.message,
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                  className="mt-1"
-                />
+              {/* Customer Info - Display Only */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <Label className="text-sm font-medium">Dati Cliente</Label>
+                {selectedWO.customers ? (
+                  <div className="space-y-1 text-sm">
+                    {selectedWO.customers.company_name && (
+                      <p className="font-medium">{selectedWO.customers.company_name}</p>
+                    )}
+                    <p>{selectedWO.customers.name} ({selectedWO.customers.code})</p>
+                    {selectedWO.customers.phone && (
+                      <p className="text-muted-foreground">{selectedWO.customers.phone}</p>
+                    )}
+                    {(selectedWO.customers.address || selectedWO.customers.city) && (
+                      <p className="text-muted-foreground">
+                        {[selectedWO.customers.address, selectedWO.customers.city].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nessun cliente associato</p>
+                )}
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Cliente</Label>
-                  <Select 
-                    value={selectedWO.customer_id || "none"} 
-                    onValueChange={async (value) => {
-                      try {
-                        const newCustomerId = value === "none" ? null : value;
-                        const { error } = await supabase
-                          .from('work_orders')
-                          .update({ customer_id: newCustomerId })
-                          .eq('id', selectedWO.id);
-                        if (error) throw error;
-                        toast({ 
-                          title: "Successo",
-                          description: "Cliente aggiornato" 
-                        });
-                        fetchWorkOrders();
-                        const customer = customers.find(c => c.id === value);
-                        setSelectedWO({ 
-                          ...selectedWO, 
-                          customer_id: newCustomerId,
-                          customers: customer ? { name: customer.name, code: customer.code } : undefined
-                        });
-                      } catch (error: any) {
-                        console.error('Error updating customer:', error);
-                        toast({ 
-                          title: "Errore",
-                          description: error.message,
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Seleziona cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessun cliente</SelectItem>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name} ({customer.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div>
                   <Label className="text-sm font-medium">Priorità</Label>
                   <Select 
@@ -2327,98 +2278,6 @@ ${allOrdersHTML}
                       <SelectItem value="medium">Media</SelectItem>
                       <SelectItem value="high">Alta</SelectItem>
                       <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Lead</Label>
-                  {selectedWO.leads ? (
-                    <Link 
-                      to={`/crm/leads?lead=${selectedWO.lead_id}`}
-                      className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
-                    >
-                      {selectedWO.leads.company_name}
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mt-1">Non collegato</p>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Ordine di Vendita</Label>
-                  <p className="text-sm mt-1">
-                    {selectedWO.sales_orders ? selectedWO.sales_orders.number : 'Non collegato'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Offerta Collegata</Label>
-                  {selectedWO.offer_id && selectedWO.offers ? (
-                    <Button
-                      variant="link"
-                      className="h-auto p-0 text-sm mt-1 text-primary hover:underline flex items-center gap-1"
-                      onClick={() => {
-                        navigate(`/crm/offers?offer=${selectedWO.offer_id}`);
-                      }}
-                    >
-                      {selectedWO.offers.number}
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mt-1">Nessuna offerta collegata</p>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Cliente</Label>
-                  <p className="text-sm mt-1">
-                    {selectedWO.customers ? `${selectedWO.customers.name} (${selectedWO.customers.code})` : 'Non collegato'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Tecnico Assegnato</Label>
-                  <Select 
-                    value={selectedWO.assigned_to || "none"} 
-                    onValueChange={async (value) => {
-                      const newAssignedTo = value === "none" ? null : value;
-                      const { error } = await supabase
-                        .from('work_orders')
-                        .update({ assigned_to: newAssignedTo })
-                        .eq('id', selectedWO.id);
-                      if (!error) {
-                        toast({ title: "Assegnazione aggiornata" });
-                        fetchWorkOrders();
-                        const user = users.find(u => u.id === value);
-                        setSelectedWO({ 
-                          ...selectedWO, 
-                          assigned_to: newAssignedTo,
-                          technician: user ? {
-                            id: user.id,
-                            first_name: user.first_name,
-                            last_name: user.last_name,
-                            employee_code: user.email?.split('@')[0] || ''
-                          } : undefined
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Nessun assegnato" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessun assegnato</SelectItem>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.first_name} {user.last_name}
-                        </SelectItem>
-                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2462,67 +2321,21 @@ ${allOrdersHTML}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {selectedWO.offer_id && selectedWO.offers && (
                 <div>
-                  <Label className="text-sm font-medium">Back Office Manager</Label>
-                  <Select 
-                    value={selectedWO.back_office_manager || "none"} 
-                    onValueChange={async (value) => {
-                      try {
-                        const newBackOfficeManager = value === "none" ? null : value;
-                        const { error } = await supabase
-                          .from('work_orders')
-                          .update({ back_office_manager: newBackOfficeManager })
-                          .eq('id', selectedWO.id);
-                        if (error) throw error;
-                        toast({ 
-                          title: "Successo",
-                          description: "Back Office Manager aggiornato" 
-                        });
-                        fetchWorkOrders();
-                        const user = users.find(u => u.id === value);
-                        setSelectedWO({ 
-                          ...selectedWO, 
-                          back_office_manager: newBackOfficeManager,
-                          back_office: user ? {
-                            id: user.id,
-                            first_name: user.first_name,
-                            last_name: user.last_name
-                          } : undefined
-                        });
-                      } catch (error: any) {
-                        console.error('Error updating back office manager:', error);
-                        toast({ 
-                          title: "Errore",
-                          description: error.message,
-                          variant: "destructive"
-                        });
-                      }
+                  <Label className="text-sm font-medium">Offerta Collegata</Label>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-sm mt-1 text-primary hover:underline flex items-center gap-1"
+                    onClick={() => {
+                      navigate(`/crm/offers?offer=${selectedWO.offer_id}`);
                     }}
                   >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Nessun back office" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessun back office</SelectItem>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.first_name} {user.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    {selectedWO.offers.number}
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Accessori</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {selectedWO.accessori_ids && selectedWO.accessori_ids.length > 0 
-                      ? `${selectedWO.accessori_ids.length} accessori selezionati`
-                      : 'Nessun accessorio'
-                    }
-                  </p>
-                </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -2566,28 +2379,6 @@ ${allOrdersHTML}
               </div>
 
 
-              {selectedWO.notes !== undefined && (
-                <div>
-                  <Label className="text-sm font-medium">Note</Label>
-                  <Textarea
-                    value={selectedWO.notes || ""}
-                    onChange={(e) => setSelectedWO({ ...selectedWO, notes: e.target.value })}
-                    onBlur={async () => {
-                      const { error } = await supabase
-                        .from('work_orders')
-                        .update({ notes: selectedWO.notes })
-                        .eq('id', selectedWO.id);
-                      if (!error) {
-                        toast({ title: "Note aggiornate" });
-                        fetchWorkOrders();
-                      }
-                    }}
-                    placeholder="Aggiungi note..."
-                    rows={3}
-                    className="mt-1"
-                  />
-                </div>
-              )}
 
               {/* Articles */}
               {selectedWO.article && (
