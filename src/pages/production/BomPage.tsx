@@ -101,14 +101,14 @@ interface Supplier {
 }
 
 const levelLabels = {
-  0: "Modelli / Varianti",
+  0: "Prodotti",
   1: "Parent Groups", 
   2: "Child Elements",
   3: "Accessories"
 };
 
 const levelIcons = {
-  0: Factory,
+  0: Package2,
   1: Package,
   2: Component,
   3: Wrench
@@ -122,7 +122,7 @@ export default function BomPage() {
   const [selectedBom, setSelectedBom] = useState<BOM | null>(null);
   const [viewingBom, setViewingBom] = useState<BOM | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState<number>(0);
+  const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [activeTab, setActiveTab] = useState("0");
   const [includableBoms, setIncludableBoms] = useState<IncludableBOM[]>([]);
   const [bomInclusions, setBomInclusions] = useState<BOMInclusion[]>([]);
@@ -165,11 +165,11 @@ export default function BomPage() {
       version: "",
       description: "",
       notes: "",
-      level: 0,
+      level: 1,
       material_id: "",
       product_id: ""
     });
-    setSelectedLevel(0);
+    setSelectedLevel(1);
     setSelectedSupplierId("all");
     setIncludableBoms([]);
   };
@@ -438,17 +438,7 @@ export default function BomPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Per le varianti (Level 0 con parent_id), usa variant_name come nome del BOM
-      const bomName = selectedLevel === 0 && formData.parent_id ? formData.variant_name : formData.name;
-      
-      if (selectedLevel === 0 && formData.parent_id && !formData.variant_name) {
-        toast({
-          title: "Errore",
-          description: "Inserisci il nome della variante",
-          variant: "destructive",
-        });
-        return;
-      }
+      const bomName = formData.name;
 
       // Get next version automatically
       const { data: nextVersion, error: versionError } = await supabase
@@ -456,20 +446,20 @@ export default function BomPage() {
           p_name: bomName,
           p_variant: null,
           p_level: selectedLevel,
-          p_parent_id: formData.parent_id || null
+          p_parent_id: null
         });
 
       if (versionError) throw versionError;
 
       const submitData = {
         name: bomName,
-        parent_id: formData.parent_id || null,
+        parent_id: null,
         version: nextVersion,
         description: formData.description,
         notes: formData.notes,
         level: selectedLevel,
         material_id: selectedLevel === 2 && formData.material_id ? formData.material_id : null,
-        product_id: selectedLevel === 0 && !formData.parent_id && formData.product_id ? formData.product_id : null
+        product_id: selectedLevel === 1 && formData.product_id ? formData.product_id : null
       };
 
       let bomId: string;
@@ -502,7 +492,7 @@ export default function BomPage() {
 
         toast({
           title: "Success",
-          description: formData.parent_id ? "Variante creata con successo" : "Modello creato con successo",
+          description: "BOM creato con successo",
         });
       }
 
@@ -1049,7 +1039,6 @@ export default function BomPage() {
                     <SelectValue placeholder="Select BOM level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Level 0 - Machinery Model</SelectItem>
                     <SelectItem value="1">Level 1 - Parent Group</SelectItem>
                     <SelectItem value="2">Level 2 - Child Element</SelectItem>
                   </SelectContent>
@@ -1057,139 +1046,42 @@ export default function BomPage() {
               </div>
 
               {selectedLevel === 1 && (
-                <div className="space-y-2">
-                  <Label>Questo Level 1 BOM fa parte di:</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Verrà collegato tramite le Inclusions BOMs di Level 0
-                  </p>
-                </div>
-              )}
-
-              {selectedLevel === 0 && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="parent_model">Modello</Label>
+                    <Label htmlFor="product_id">Prodotto Collegato</Label>
                     <Select
-                      value={formData.parent_id || "NO_PARENT"}
-                      onValueChange={async (value) => {
-                        const newParentId = value === "NO_PARENT" ? "" : value;
-                        const selectedModel = boms.find(b => b.id === value);
+                      value={formData.product_id || "NO_PRODUCT"}
+                      onValueChange={(value) => {
+                        const newProductId = value === "NO_PRODUCT" ? "" : value;
+                        const selectedProduct = products.find(p => p.id === value);
                         setFormData(prev => ({ 
                           ...prev, 
-                          parent_id: newParentId, 
-                          variant_name: "",
-                          name: selectedModel ? selectedModel.name : prev.name
+                          product_id: newProductId,
+                          name: selectedProduct ? `${selectedProduct.name} - Gruppo` : prev.name
                         }));
-                        
-                        // Fetch Level 1 BOMs when selecting a parent model
-                        if (newParentId) {
-                          try {
-                            const { data: availableBoms, error } = await supabase
-                              .from('boms')
-                              .select('id, name, version')
-                              .eq('level', 1)
-                              .order('name');
-                            
-                            if (error) throw error;
-                            
-                            setIncludableBoms(availableBoms?.map(bom => ({
-                              ...bom,
-                              selected: false,
-                              quantity: 1
-                            })) || []);
-                          } catch (error: any) {
-                            console.error('Error fetching Level 1 BOMs:', error);
-                          }
-                        } else {
-                          setIncludableBoms([]);
-                        }
                       }}
                     >
-                      <SelectTrigger id="parent_model">
-                        <SelectValue placeholder="Seleziona o crea nuovo modello" />
+                      <SelectTrigger id="product_id">
+                        <SelectValue placeholder="Seleziona un prodotto dall'anagrafica" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NO_PARENT">+ Nuovo Modello</SelectItem>
-                        {boms.filter(b => b.level === 0 && !b.parent_id).map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.name}
+                      <SelectContent className="max-h-[300px]">
+                        <SelectItem value="NO_PRODUCT">Nessun prodotto</SelectItem>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {product.code} {product.product_type && `| ${product.product_type}`}
+                              </span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Seleziona un modello esistente per aggiungere una variante, o crea un nuovo modello
+                      Collega questo BOM Level 1 a un prodotto dell'anagrafica (opzionale)
                     </p>
                   </div>
-
-                  {!formData.parent_id ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="model_name">Nome Modello *</Label>
-                        <Input
-                          id="model_name"
-                          value={formData.name}
-                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="es. ZPZ, ZBR MAX, ecc."
-                          required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Nome del modello base (famiglia)
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="product_id">Prodotto Collegato</Label>
-                        <Select
-                          value={formData.product_id || "NO_PRODUCT"}
-                          onValueChange={(value) => {
-                            const newProductId = value === "NO_PRODUCT" ? "" : value;
-                            const selectedProduct = products.find(p => p.id === value);
-                            setFormData(prev => ({ 
-                              ...prev, 
-                              product_id: newProductId,
-                              name: selectedProduct ? selectedProduct.name : prev.name,
-                              description: selectedProduct?.description || prev.description
-                            }));
-                          }}
-                        >
-                          <SelectTrigger id="product_id">
-                            <SelectValue placeholder="Seleziona un prodotto dall'anagrafica" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[300px]">
-                            <SelectItem value="NO_PRODUCT">Nessun prodotto</SelectItem>
-                            {products.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{product.name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {product.code} {product.product_type && `| ${product.product_type}`}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Collega questo modello a un prodotto dell'anagrafica (opzionale)
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label htmlFor="variant_name">Nome Variante *</Label>
-                      <Input
-                        id="variant_name"
-                        value={formData.variant_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, variant_name: e.target.value }))}
-                        placeholder="es. 200mm, 300mm, Standard, ecc."
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Nome specifico di questa variante del modello {formData.name || 'selezionato'}
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1267,18 +1159,16 @@ export default function BomPage() {
                 </div>
               )}
 
-              {selectedLevel !== 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter BOM name"
-                    required
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter BOM name"
+                  required
+                />
+              </div>
               
               <div className="rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4">
                 <div className="flex items-start gap-2">
@@ -1315,57 +1205,11 @@ export default function BomPage() {
                 />
               </div>
 
-              {selectedLevel === 0 && formData.parent_id && includableBoms.length >= 0 && (
+              {selectedLevel === 1 && includableBoms.length > 0 && (
                 <div className="space-y-2">
-                  <Label>BOMs Level 1 per questa variante *</Label>
+                  <Label>Include BOMs di Level 2</Label>
                   <p className="text-xs text-muted-foreground">
-                    Seleziona i componenti Level 1 che compongono questa variante del modello
-                  </p>
-                  <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
-                    {includableBoms.length === 0 ? (
-                      <div className="text-center py-6">
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Nessun BOM Level 1 disponibile
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Crea prima i BOM Level 1 per poterli collegare a questa variante
-                        </p>
-                      </div>
-                    ) : (
-                      includableBoms.map((bom) => (
-                        <div key={bom.id} className="flex items-center justify-between space-x-2 p-2 hover:bg-muted/50 rounded">
-                          <div className="flex items-center space-x-2 flex-1">
-                            <Checkbox
-                              checked={bom.selected}
-                              onCheckedChange={(checked) => handleInclusionToggle(bom.id, checked as boolean)}
-                            />
-                            <span className="text-sm font-medium">{bom.name}</span>
-                            <Badge variant="outline" className="text-xs">{bom.version}</Badge>
-                          </div>
-                          {bom.selected && (
-                            <div className="flex items-center space-x-2">
-                              <Label className="text-xs">Quantità:</Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={bom.quantity}
-                                onChange={(e) => handleQuantityChange(bom.id, parseInt(e.target.value) || 1)}
-                                className="w-20 text-xs"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {selectedLevel > 0 && selectedLevel < 3 && includableBoms.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Include BOMs di Level {selectedLevel + 1}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Seleziona i BOM di livello inferiore che compongono questo elemento
+                    Seleziona i BOM di livello 2 che compongono questo gruppo
                   </p>
                   <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
                     {includableBoms.map((bom) => (
@@ -1401,7 +1245,7 @@ export default function BomPage() {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {selectedBom ? "Crea Nuova Versione" : formData.parent_id ? "Crea Variante" : "Crea Modello"}
+                  {selectedBom ? "Crea Nuova Versione" : "Crea BOM"}
                 </Button>
               </div>
             </form>
@@ -1654,7 +1498,19 @@ export default function BomPage() {
 
       {/* Level Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((level) => {
+        {/* Products Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Prodotti</CardTitle>
+            <Package2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{products.length}</div>
+            <p className="text-xs text-muted-foreground">Anagrafica Prodotti</p>
+          </CardContent>
+        </Card>
+        {/* Level 1, 2, 3 Cards */}
+        {[1, 2, 3].map((level) => {
           const Icon = levelIcons[level as keyof typeof levelIcons];
           const count = groupedBoms[level]?.length || 0;
           return (
@@ -1667,9 +1523,7 @@ export default function BomPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{count}</div>
-                <p className="text-xs text-muted-foreground">
-                  Level {level} BOMs
-                </p>
+                <p className="text-xs text-muted-foreground">Level {level} BOMs</p>
               </CardContent>
             </Card>
           );
@@ -1716,9 +1570,9 @@ export default function BomPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="0" className="flex items-center space-x-2">
-                <Factory className="h-4 w-4" />
-                <span>Level 0 - Machinery</span>
-                <Badge variant="outline">{groupedBoms[0]?.length || 0}</Badge>
+                <Package2 className="h-4 w-4" />
+                <span>Prodotti</span>
+                <Badge variant="outline">{products.length}</Badge>
               </TabsTrigger>
               <TabsTrigger value="1" className="flex items-center space-x-2">
                 <Package className="h-4 w-4" />
@@ -1737,166 +1591,146 @@ export default function BomPage() {
               </TabsTrigger>
             </TabsList>
             
-            {[0, 1, 2, 3].map((level) => (
+            {/* Products Tab */}
+            <TabsContent value="0">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Codice</TableHead>
+                      <TableHead>Nome Prodotto</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Descrizione</TableHead>
+                      <TableHead>BOM Level 1 Collegati</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          Caricamento...
+                        </TableCell>
+                      </TableRow>
+                    ) : products.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          Nessun prodotto in anagrafica. Vai alla sezione Prodotti per aggiungerne.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      products.map((product) => {
+                        // Find Level 1 BOMs linked to this product
+                        const linkedBoms = boms.filter(b => b.level === 1 && b.product_id === product.id);
+                        return (
+                          <TableRow key={product.id} className="hover:bg-muted/50">
+                            <TableCell className="font-mono text-sm">
+                              {product.code}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Package2 className="h-4 w-4 text-primary" />
+                                {product.name}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {product.product_type ? (
+                                <Badge variant="outline">{product.product_type}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {product.description || (
+                                <span className="text-muted-foreground italic">Nessuna descrizione</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {linkedBoms.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {linkedBoms.map(bom => (
+                                    <Badge 
+                                      key={bom.id} 
+                                      variant="secondary"
+                                      className="cursor-pointer hover:bg-primary/20"
+                                      onClick={() => handleView(bom)}
+                                    >
+                                      {bom.name} ({bom.version})
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm italic">
+                                  Nessun BOM collegato
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* Level 1, 2, 3 BOMs Tabs */}
+            {[1, 2, 3].map((level) => (
               <TabsContent key={level} value={level.toString()}>
                 <div className="rounded-md border">
                   <Table>
-                     <TableHeader>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Version</TableHead>
+                        <TableHead>Description</TableHead>
+                        {level === 1 && <TableHead>Prodotto</TableHead>}
+                        {level === 2 && <TableHead>Material</TableHead>}
+                        {level === 1 && <TableHead>Includes</TableHead>}
+                        <TableHead>Components</TableHead>
+                        <TableHead>Total Cost</TableHead>
+                        <TableHead>Last Modified</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
                         <TableRow>
-                          <TableHead>Modello</TableHead>
-                          <TableHead>Version</TableHead>
-                          <TableHead>Description</TableHead>
-                          {level === 0 && <TableHead>Variante</TableHead>}
-                          {level === 0 && <TableHead>Prodotto</TableHead>}
-                          {level === 2 && <TableHead>Material</TableHead>}
-                          {level > 0 && level < 2 && <TableHead>Includes</TableHead>}
-                          <TableHead>Components</TableHead>
-                          <TableHead>Total Cost</TableHead>
-                          <TableHead>Last Modified</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableCell colSpan={10} className="text-center py-8">
+                            Loading BOMs...
+                          </TableCell>
                         </TableRow>
-                     </TableHeader>
-                     <TableBody>
-                        {loading ? (
-                          <TableRow>
-                            <TableCell colSpan={10} className="text-center py-8">
-                              Loading BOMs...
-                            </TableCell>
-                          </TableRow>
-                        ) : level === 0 && groupedLevel0Boms ? (
-                          Object.values(groupedLevel0Boms).map(({ model, variants }) => (
-                            <>
-                              {/* Riga del modello base */}
-                              {!model.parent_id && (
-                                <TableRow key={model.id} className="bg-accent/50 border-b-2 border-border">
-                                  <TableCell className="font-bold text-base py-3">
-                                    <div className="flex items-center gap-3">
-                                      <Factory className="h-5 w-5 text-primary" />
-                                      <span className="text-lg">{model.name || 'Modello senza nome'}</span>
-                                      <Badge variant="default" className="ml-2">
-                                        {variants.length} {variants.length === 1 ? 'variante' : 'varianti'}
-                                      </Badge>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell />
-                                  <TableCell />
-                                  <TableCell />
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      {model.product ? (
-                                        <div className="flex flex-col">
-                                          <span className="font-medium text-sm">{model.product.name}</span>
-                                          <span className="text-xs text-muted-foreground">{model.product.code}</span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground text-sm italic">Nessun prodotto</span>
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openLinkProductDialog(model.id, model.product?.id)}
-                                        className="ml-2"
-                                      >
-                                        <LinkIcon className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell />
-                                  <TableCell />
-                                  <TableCell />
-                                  <TableCell />
-                                </TableRow>
-                              )}
-                              
-                              {/* Righe delle varianti */}
-                              {variants.map((variant) => (
-                                <TableRow key={variant.id} className="hover:bg-muted/50">
-                                  <TableCell className="font-medium pl-8 text-muted-foreground">
-                                    <span className="text-xs">↳</span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">{variant.version}</Badge>
-                                  </TableCell>
-                                  <TableCell className="max-w-xs truncate">
-                                    {variant.description || (
-                                      <span className="text-muted-foreground italic">Nessuna descrizione</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="font-medium">{variant.name}</span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="text-muted-foreground">-</span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="secondary">
-                                      {variant.component_count} items
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {variant.totalCost && variant.totalCost > 0 ? (
-                                      <div className="flex flex-col">
-                                        <span className="font-medium text-green-600">
-                                          {formatAmount(variant.totalCost, hideAmounts)}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                          Total BOM cost
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted-foreground">-</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {new Date(variant.updated_at).toLocaleDateString()}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end space-x-2">
-                                      <Button variant="ghost" size="sm" onClick={() => handleView(variant)}>
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="sm" onClick={() => handleEdit(variant)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="sm" onClick={() => handleDuplicate(variant)}>
-                                        <Copy className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="sm">
-                                        <Wrench className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="sm" onClick={() => handleDelete(variant.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </>
-                          ))
-                        ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={level === 0 ? 11 : level === 2 ? 8 : level > 0 && level < 2 ? 8 : 7} className="text-center py-8">
-                              No Level {level} BOMs found
-                            </TableCell>
-                          </TableRow>
-                      ) : level > 0 ? (
+                      ) : !groupedBoms[level] || groupedBoms[level].length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center py-8">
+                            No Level {level} BOMs found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
                         groupedBoms[level].map((bom) => (
-                           <TableRow key={bom.id}>
-                             <TableCell className="font-medium">
-                               {level === 2 && bom.material ? (
-                                 bom.material.name
-                               ) : (
-                                 bom.name
-                               )}
-                             </TableCell>
-                             <TableCell>
-                               <Badge variant="outline">{bom.version}</Badge>
-                             </TableCell>
-                             <TableCell className="max-w-xs truncate">
-                               {bom.description || (
-                                 <span className="text-muted-foreground italic">Nessuna descrizione</span>
-                               )}
-                             </TableCell>
+                          <TableRow key={bom.id}>
+                            <TableCell className="font-medium">
+                              {level === 2 && bom.material ? bom.material.name : bom.name}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{bom.version}</Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {bom.description || (
+                                <span className="text-muted-foreground italic">Nessuna descrizione</span>
+                              )}
+                            </TableCell>
+                            {level === 1 && (
+                              <TableCell>
+                                {bom.product ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium">{bom.product.name}</span>
+                                    <span className="text-xs text-muted-foreground">{bom.product.code}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground italic">Non collegato</span>
+                                )}
+                              </TableCell>
+                            )}
                             {level === 2 && (
                               <TableCell>
                                 {bom.material ? (
@@ -1911,35 +1745,35 @@ export default function BomPage() {
                                 )}
                               </TableCell>
                             )}
-                            {level > 0 && level < 2 && (
+                            {level === 1 && (
                               <TableCell>
                                 <Badge variant="secondary">
-                                  {(bom as any).inclusions?.length || 0} included
+                                  {bom.bom_inclusions?.length || 0} included
                                 </Badge>
                               </TableCell>
                             )}
-                             <TableCell>
-                               <Badge variant="secondary">
-                                 {bom.component_count} items
-                               </Badge>
-                             </TableCell>
-                             <TableCell>
-                               {bom.totalCost && bom.totalCost > 0 ? (
-                                 <div className="flex flex-col">
-                                   <span className="font-medium text-green-600">
-                                     {formatAmount(bom.totalCost, hideAmounts)}
-                                   </span>
-                                   <span className="text-xs text-muted-foreground">
-                                     Total BOM cost
-                                   </span>
-                                 </div>
-                               ) : (
-                                 <span className="text-muted-foreground">-</span>
-                               )}
-                             </TableCell>
-                             <TableCell>
-                               {new Date(bom.updated_at).toLocaleDateString()}
-                             </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {bom.component_count} items
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {bom.totalCost && bom.totalCost > 0 ? (
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-green-600">
+                                    {formatAmount(bom.totalCost, hideAmounts)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Total BOM cost
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(bom.updated_at).toLocaleDateString()}
+                            </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end space-x-2">
                                 <Button variant="ghost" size="sm" onClick={() => handleView(bom)}>
@@ -1951,9 +1785,6 @@ export default function BomPage() {
                                 <Button variant="ghost" size="sm" onClick={() => handleDuplicate(bom)}>
                                   <Copy className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm">
-                                  <Wrench className="h-4 w-4" />
-                                </Button>
                                 <Button variant="ghost" size="sm" onClick={() => handleDelete(bom.id)}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1961,7 +1792,7 @@ export default function BomPage() {
                             </TableCell>
                           </TableRow>
                         ))
-                      ) : null}
+                      )}
                     </TableBody>
                   </Table>
                 </div>
