@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Package, ListChecks, Pencil, Trash2, Copy } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, Package, ListChecks, Pencil, Trash2, Copy, LayoutGrid, List } from "lucide-react";
 import { CreateProductDialog } from "@/components/crm/CreateProductDialog";
 import { EditProductDialog } from "@/components/crm/EditProductDialog";
 import { ProductPriceListDialog } from "@/components/crm/ProductPriceListDialog";
@@ -19,6 +20,7 @@ export default function ProductCatalogPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [priceListDialogOpen, setPriceListDialogOpen] = useState(false);
@@ -172,130 +174,241 @@ export default function ProductCatalogPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2 flex-wrap">
-                {productTypes.map((type) => (
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex gap-2 flex-wrap">
+                  {productTypes.map((type) => (
+                    <Button
+                      key={type.value}
+                      variant={selectedType === type.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedType(type.value)}
+                    >
+                      {type.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex gap-1 border rounded-md p-1">
                   <Button
-                    key={type.value}
-                    variant={selectedType === type.value ? "default" : "outline"}
+                    variant={viewMode === "card" ? "secondary" : "ghost"}
                     size="sm"
-                    onClick={() => setSelectedType(type.value)}
+                    onClick={() => setViewMode("card")}
                   >
-                    {type.label}
+                    <LayoutGrid className="h-4 w-4" />
                   </Button>
-                ))}
+                  <Button
+                    variant={viewMode === "list" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading ? (
-              <div className="col-span-full text-center py-12">
-                <p className="text-muted-foreground">Caricamento...</p>
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Caricamento...</p>
+            </div>
+          ) : products && products.length > 0 ? (
+            viewMode === "card" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {products.map((product) => (
+                  <Card key={product.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg mb-1 truncate">{product.name}</CardTitle>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="font-mono">{product.code}</span>
+                            <Badge variant="secondary" className={typeColors[product.product_type]}>
+                              {typeLabels[product.product_type]}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {product.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {product.description}
+                        </p>
+                      )}
+
+                      {(product.materials || product.bom) && (
+                        <div className="space-y-2 pt-2 border-t">
+                          {product.materials && (
+                            <div className="flex items-start gap-2 text-sm min-w-0">
+                              <span className="text-muted-foreground shrink-0">Materiale:</span>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-left text-primary hover:underline font-mono truncate min-w-0"
+                                onClick={() => navigate(`/warehouse/materials?search=${product.materials.code}`)}
+                              >
+                                <span className="truncate">
+                                  {product.materials.code} - {product.materials.name}
+                                </span>
+                              </Button>
+                            </div>
+                          )}
+                          {product.bom && (
+                            <div className="flex items-start gap-2 text-sm">
+                              <span className="text-muted-foreground shrink-0">BOM:</span>
+                              <span className="font-medium">{product.bom.name} (v{product.bom.version})</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Modifica
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDuplicateProduct(product)}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Duplica
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setPriceListDialogOpen(true);
+                          }}
+                        >
+                          <ListChecks className="h-4 w-4 mr-1" />
+                          Listini
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            ) : products && products.length > 0 ? (
-              products.map((product) => (
-                <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg mb-1 truncate">{product.name}</CardTitle>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="font-mono">{product.code}</span>
+            ) : (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Codice</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Materiale</TableHead>
+                      <TableHead>BOM</TableHead>
+                      <TableHead className="text-right">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-mono">{product.code}</TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>
                           <Badge variant="secondary" className={typeColors[product.product_type]}>
                             {typeLabels[product.product_type]}
                           </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {product.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {product.description}
-                      </p>
-                    )}
-
-                    {(product.materials || product.bom) && (
-                      <div className="space-y-2 pt-2 border-t">
-                        {product.materials && (
-                          <div className="flex items-start gap-2 text-sm min-w-0">
-                            <span className="text-muted-foreground shrink-0">Materiale:</span>
+                        </TableCell>
+                        <TableCell>
+                          {product.materials ? (
                             <Button
                               variant="link"
                               size="sm"
-                              className="h-auto p-0 text-left text-primary hover:underline font-mono truncate min-w-0"
+                              className="h-auto p-0 text-primary hover:underline font-mono"
                               onClick={() => navigate(`/warehouse/materials?search=${product.materials.code}`)}
                             >
-                              <span className="truncate">
-                                {product.materials.code} - {product.materials.name}
-                              </span>
+                              {product.materials.code}
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {product.bom ? (
+                            <span className="font-medium">{product.bom.name} (v{product.bom.version})</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                setEditDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDuplicateProduct(product)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                setPriceListDialogOpen(true);
+                              }}
+                            >
+                              <ListChecks className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        )}
-                        {product.bom && (
-                          <div className="flex items-start gap-2 text-sm">
-                            <span className="text-muted-foreground shrink-0">BOM:</span>
-                            <span className="font-medium">{product.bom.name} (v{product.bom.version})</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Modifica
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDuplicateProduct(product)}
-                      >
-                        <Copy className="h-4 w-4 mr-1" />
-                        Duplica
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setPriceListDialogOpen(true);
-                        }}
-                      >
-                        <ListChecks className="h-4 w-4 mr-1" />
-                        Listini
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  Nessun prodotto trovato
-                </p>
-              </div>
-            )}
-          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )
+          ) : (
+            <div className="text-center py-12">
+              <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                Nessun prodotto trovato
+              </p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="pricelists">
