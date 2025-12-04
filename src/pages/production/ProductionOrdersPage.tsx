@@ -2010,18 +2010,13 @@ ${allOrdersHTML}
                       <TableCell>
                         {wo.work_order_article_items && wo.work_order_article_items.length > 0 ? (
                           <div className="space-y-2">
-                            {wo.work_order_article_items.slice(0, 2).map((item: any) => (
+                            {wo.work_order_article_items.map((item: any) => (
                               <ArticleBomDisplay 
                                 key={item.id}
                                 articleDescription={item.description}
                                 showStock={true}
                               />
                             ))}
-                            {wo.work_order_article_items.length > 2 && (
-                              <div className="text-xs text-muted-foreground">
-                                +{wo.work_order_article_items.length - 2} altri articoli
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">Nessun articolo</span>
@@ -2138,18 +2133,13 @@ ${allOrdersHTML}
                                          {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
                                            <div className="space-y-1.5 pt-1 border-t">
                                              <div className="text-[10px] font-medium text-muted-foreground">Da produrre:</div>
-                                             {wo.work_order_article_items.slice(0, 1).map((item: any) => (
+                                             {wo.work_order_article_items.map((item: any) => (
                                                <ArticleBomDisplay 
                                                  key={item.id}
                                                  articleDescription={item.description}
                                                  compact={true}
                                                />
                                              ))}
-                                             {wo.work_order_article_items.length > 1 && (
-                                               <div className="text-[10px] text-muted-foreground">
-                                                 +{wo.work_order_article_items.length - 1} altri articoli
-                                               </div>
-                                             )}
                                            </div>
                                          )}
                                        </div>

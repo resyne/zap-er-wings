@@ -135,14 +135,9 @@ export function ArticleBomDisplay({ articleDescription, compact = false, showSto
     return (
       <div className="space-y-0.5">
         <div className="font-medium text-xs">{articleLine}</div>
-        {!loading && bomData && (
+        {!loading && bomData && bomData.level2.length > 0 && (
           <>
-            {bomData.level1.map(bom => (
-              <div key={bom.id} className="text-[10px] text-muted-foreground pl-2 border-l border-primary/30">
-                {bom.name} <span className="opacity-70">(v{bom.version})</span>
-              </div>
-            ))}
-            {bomData.level2.slice(0, 2).map(bom => (
+            {bomData.level2.map(bom => (
               <div key={bom.id} className="text-[10px] text-muted-foreground pl-2 border-l border-amber-500/30 flex items-center gap-1">
                 <span>{bom.quantity}x {bom.name}</span>
                 {showStock && bom.current_stock !== undefined && (
@@ -160,11 +155,6 @@ export function ArticleBomDisplay({ articleDescription, compact = false, showSto
                 )}
               </div>
             ))}
-            {bomData.level2.length > 2 && (
-              <div className="text-[10px] text-muted-foreground pl-2">
-                +{bomData.level2.length - 2} altri componenti
-              </div>
-            )}
           </>
         )}
       </div>
@@ -174,16 +164,11 @@ export function ArticleBomDisplay({ articleDescription, compact = false, showSto
   return (
     <div className="space-y-1">
       <div className="font-medium text-xs">{articleLine}</div>
-      {!loading && bomData && (
+      {!loading && bomData && bomData.level2.length > 0 && (
         <>
-          {bomData.level1.map(bom => (
-            <div key={bom.id} className="text-xs text-muted-foreground pl-2 border-l-2 border-primary/30">
-              BOM L1: {bom.name} <span className="opacity-70">(v{bom.version})</span>
-            </div>
-          ))}
           {bomData.level2.map(bom => (
             <div key={bom.id} className="text-xs text-muted-foreground pl-2 border-l-2 border-amber-500/30 flex items-center justify-between">
-              <span>BOM L2: {bom.quantity}x {bom.name} <span className="opacity-70">(v{bom.version})</span></span>
+              <span>{bom.quantity}x {bom.name} <span className="opacity-70">(v{bom.version})</span></span>
               {showStock && bom.current_stock !== undefined && (
                 <Badge 
                   variant="outline" 
