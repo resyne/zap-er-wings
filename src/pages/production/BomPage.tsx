@@ -544,16 +544,29 @@ export default function BomPage() {
 
       // Handle product links for Level 1 BOMs
       if (selectedLevel === 1 && selectedProductIds.length > 0) {
+        console.log('Saving product links for BOM:', bomId, 'Products:', selectedProductIds);
+        
         const productLinks = selectedProductIds.map(productId => ({
           bom_id: bomId,
           product_id: productId
         }));
 
-        const { error: productLinkError } = await supabase
+        const { data: insertedLinks, error: productLinkError } = await supabase
           .from('bom_products')
-          .insert(productLinks);
+          .insert(productLinks)
+          .select();
 
-        if (productLinkError) throw productLinkError;
+        if (productLinkError) {
+          console.error('Error saving product links:', productLinkError);
+          throw productLinkError;
+        }
+        
+        console.log('Product links saved successfully:', insertedLinks);
+        
+        toast({
+          title: "Successo",
+          description: `BOM collegato a ${selectedProductIds.length} prodotto/i`,
+        });
       }
 
       setIsDialogOpen(false);
