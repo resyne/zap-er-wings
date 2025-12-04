@@ -31,6 +31,7 @@ import { OrderFileManager } from "@/components/orders/OrderFileManager";
 import { WorkOrderComments } from "@/components/production/WorkOrderComments";
 import { WorkOrderArticles } from "@/components/production/WorkOrderArticles";
 import { WorkOrderActivityLog } from "@/components/production/WorkOrderActivityLog";
+import { ArticleBomDisplay } from "@/components/production/ArticleBomDisplay";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductionTimeline } from "@/components/production/ProductionTimeline";
 import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
@@ -1951,7 +1952,7 @@ ${allOrdersHTML}
                     <TableHead className="min-w-[120px]">Ordine</TableHead>
                     <TableHead className="min-w-[150px]">Cliente</TableHead>
                     <TableHead className="min-w-[110px]">Data Inserimento</TableHead>
-                    <TableHead className="min-w-[250px]">Articoli</TableHead>
+                    <TableHead className="min-w-[300px]">Da Produrre</TableHead>
                     <TableHead className="min-w-[100px]">Priorità</TableHead>
                     <TableHead className="min-w-[120px]">Stato</TableHead>
                   </TableRow>
@@ -2008,15 +2009,17 @@ ${allOrdersHTML}
                       </TableCell>
                       <TableCell>
                         {wo.work_order_article_items && wo.work_order_article_items.length > 0 ? (
-                          <div className="space-y-1">
-                            {wo.work_order_article_items.slice(0, 3).map((item: any) => (
-                              <div key={item.id} className="text-xs">
-                                <span>{item.description.split('\n')[0]}</span>
-                              </div>
+                          <div className="space-y-2">
+                            {wo.work_order_article_items.slice(0, 2).map((item: any) => (
+                              <ArticleBomDisplay 
+                                key={item.id}
+                                articleDescription={item.description}
+                                showStock={true}
+                              />
                             ))}
-                            {wo.work_order_article_items.length > 3 && (
+                            {wo.work_order_article_items.length > 2 && (
                               <div className="text-xs text-muted-foreground">
-                                +{wo.work_order_article_items.length - 3} altri
+                                +{wo.work_order_article_items.length - 2} altri articoli
                               </div>
                             )}
                           </div>
@@ -2131,19 +2134,20 @@ ${allOrdersHTML}
                                            </div>
                                          </div>
                                             
-                                         {/* Articoli */}
+                                         {/* Da Produrre */}
                                          {wo.work_order_article_items && wo.work_order_article_items.length > 0 && (
-                                           <div className="space-y-1 pt-1 border-t">
-                                             {wo.work_order_article_items.slice(0, 2).map((item: any) => (
-                                               <div key={item.id} className="text-[10px] md:text-xs">
-                                                 <span className="text-foreground">
-                                                   {item.description.split('\n')[0]}
-                                                 </span>
-                                               </div>
+                                           <div className="space-y-1.5 pt-1 border-t">
+                                             <div className="text-[10px] font-medium text-muted-foreground">Da produrre:</div>
+                                             {wo.work_order_article_items.slice(0, 1).map((item: any) => (
+                                               <ArticleBomDisplay 
+                                                 key={item.id}
+                                                 articleDescription={item.description}
+                                                 compact={true}
+                                               />
                                              ))}
-                                             {wo.work_order_article_items.length > 2 && (
+                                             {wo.work_order_article_items.length > 1 && (
                                                <div className="text-[10px] text-muted-foreground">
-                                                 +{wo.work_order_article_items.length - 2} altri
+                                                 +{wo.work_order_article_items.length - 1} altri articoli
                                                </div>
                                              )}
                                            </div>
