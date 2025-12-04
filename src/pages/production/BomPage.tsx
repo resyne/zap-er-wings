@@ -132,6 +132,8 @@ export default function BomPage() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("all");
   const [selectedProductType, setSelectedProductType] = useState<string>("all");
   const [bomDetails, setBomDetails] = useState<any>(null);
+  const [includableBomsSearch, setIncludableBomsSearch] = useState("");
+  const [productsSearch, setProductsSearch] = useState("");
   const { toast } = useToast();
   const { hideAmounts } = useHideAmounts();
 
@@ -176,6 +178,8 @@ export default function BomPage() {
     setSelectedSupplierId("all");
     setIncludableBoms([]);
     setSelectedProductIds([]);
+    setIncludableBomsSearch("");
+    setProductsSearch("");
   };
 
   useEffect(() => {
@@ -1132,11 +1136,23 @@ export default function BomPage() {
                     <p className="text-xs text-muted-foreground mb-2">
                       Seleziona uno o più prodotti da collegare a questo BOM Level 1
                     </p>
+                    <Input
+                      placeholder="Cerca prodotto..."
+                      value={productsSearch}
+                      onChange={(e) => setProductsSearch(e.target.value)}
+                      className="mb-2"
+                    />
                     <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
                       {products.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nessun prodotto disponibile</p>
                       ) : (
-                        products.map((product) => (
+                        products
+                          .filter(product => 
+                            !productsSearch || 
+                            product.name.toLowerCase().includes(productsSearch.toLowerCase()) ||
+                            product.code.toLowerCase().includes(productsSearch.toLowerCase())
+                          )
+                          .map((product) => (
                           <div key={product.id} className="flex items-center space-x-2">
                             <Checkbox
                               id={`product-${product.id}`}
@@ -1322,8 +1338,19 @@ export default function BomPage() {
                   <p className="text-xs text-muted-foreground">
                     Seleziona i BOM di livello 2 che compongono questo gruppo
                   </p>
+                  <Input
+                    placeholder="Cerca elemento..."
+                    value={includableBomsSearch}
+                    onChange={(e) => setIncludableBomsSearch(e.target.value)}
+                    className="mb-2"
+                  />
                   <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
-                    {includableBoms.map((bom) => (
+                    {includableBoms
+                      .filter(bom => 
+                        !includableBomsSearch || 
+                        bom.name.toLowerCase().includes(includableBomsSearch.toLowerCase())
+                      )
+                      .map((bom) => (
                       <div key={bom.id} className="flex items-center justify-between space-x-2 p-2 hover:bg-muted/50 rounded">
                         <div className="flex items-center space-x-2 flex-1">
                           <Checkbox
