@@ -208,10 +208,10 @@ export default function BomPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedLevel < 2) {
+    if (isDialogOpen && selectedLevel < 2) {
       fetchIncludableBoms();
     }
-  }, [selectedLevel, formData.parent_id]);
+  }, [selectedLevel, formData.parent_id, isDialogOpen]);
 
   useEffect(() => {
     fetchMaterials();
@@ -1285,10 +1285,14 @@ export default function BomPage() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Versionamento Automatico</h4>
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      {selectedLevel === 1 ? 'Modifica Diretta' : 'Versionamento Automatico'}
+                    </h4>
                     <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      La versione verrà generata automaticamente (v.01, v.02, ecc.). 
-                      {selectedBom ? ' Salvando, verrà creata una nuova versione di questo BOM.' : ' Una nuova versione si crea ad ogni modifica.'}
+                      {selectedLevel === 1 
+                        ? (selectedBom ? 'Le modifiche verranno salvate direttamente sul BOM esistente.' : 'La versione verrà generata automaticamente (v.01, v.02, ecc.).')
+                        : (selectedBom ? 'Salvando, verrà creata una nuova versione di questo BOM.' : 'La versione verrà generata automaticamente (v.01, v.02, ecc.).')
+                      }
                     </p>
                   </div>
                 </div>
@@ -1352,7 +1356,7 @@ export default function BomPage() {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {selectedBom ? "Crea Nuova Versione" : "Crea BOM"}
+                  {selectedBom ? (selectedLevel === 1 ? "Salva" : "Crea Nuova Versione") : "Crea BOM"}
                 </Button>
               </div>
             </form>
