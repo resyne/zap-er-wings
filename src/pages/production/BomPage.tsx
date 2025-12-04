@@ -212,10 +212,12 @@ export default function BomPage() {
   }, []);
 
   useEffect(() => {
-    if (isDialogOpen && selectedLevel < 2) {
+    // Only fetch includable BOMs when creating new (not editing)
+    // When editing, handleEdit already loads the correct data with selection state
+    if (isDialogOpen && selectedLevel < 2 && !selectedBom) {
       fetchIncludableBoms();
     }
-  }, [selectedLevel, formData.parent_id, isDialogOpen]);
+  }, [selectedLevel, formData.parent_id, isDialogOpen, selectedBom]);
 
   useEffect(() => {
     fetchMaterials();
