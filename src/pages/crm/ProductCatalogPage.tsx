@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Package, ListChecks, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Package, ListChecks, Pencil, Trash2, Copy } from "lucide-react";
 import { CreateProductDialog } from "@/components/crm/CreateProductDialog";
 import { EditProductDialog } from "@/components/crm/EditProductDialog";
 import { ProductPriceListDialog } from "@/components/crm/ProductPriceListDialog";
@@ -75,6 +75,33 @@ export default function ProductCatalogPage() {
     component: "Componente",
     spare_part: "Ricambio",
     service: "Servizio",
+  };
+
+  const handleDuplicateProduct = async (product: any) => {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .insert({
+          name: `${product.name} (copia)`,
+          code: `${product.code}-COPY`,
+          description: product.description,
+          product_type: product.product_type,
+          base_price: product.base_price,
+          material_id: product.material_id,
+          bom_id: product.bom_id,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Prodotto duplicato con successo");
+      refetch();
+    } catch (error: any) {
+      console.error("Error duplicating product:", error);
+      toast.error(error.message || "Errore nella duplicazione del prodotto");
+    }
   };
 
   const handleDeleteProduct = async () => {
@@ -229,7 +256,14 @@ export default function ProductCatalogPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-1"
+                        onClick={() => handleDuplicateProduct(product)}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Duplica
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setSelectedProduct(product);
                           setPriceListDialogOpen(true);
