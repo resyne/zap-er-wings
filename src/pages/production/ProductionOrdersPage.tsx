@@ -2342,7 +2342,7 @@ ${allOrdersHTML}
                   <Label className="text-sm font-medium">Data Inizio Pianificata</Label>
                   <Input
                     type="datetime-local"
-                    value={selectedWO.planned_start_date || ""}
+                    value={selectedWO.planned_start_date ? selectedWO.planned_start_date.slice(0, 16) : ""}
                     onChange={(e) => setSelectedWO({ ...selectedWO, planned_start_date: e.target.value })}
                     onBlur={async () => {
                       const { error } = await supabase
@@ -2361,7 +2361,7 @@ ${allOrdersHTML}
                   <Label className="text-sm font-medium">Data Fine Pianificata</Label>
                   <Input
                     type="datetime-local"
-                    value={selectedWO.planned_end_date || ""}
+                    value={selectedWO.planned_end_date ? selectedWO.planned_end_date.slice(0, 16) : ""}
                     onChange={(e) => setSelectedWO({ ...selectedWO, planned_end_date: e.target.value })}
                     onBlur={async () => {
                       const { error } = await supabase
