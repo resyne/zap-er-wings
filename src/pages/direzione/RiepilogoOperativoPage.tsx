@@ -54,7 +54,9 @@ const generateColor = (id: string): string => {
 
 const statusConfig: Record<string, { title: string; bgColor: string; borderColor: string }> = {
   'da_fare': { title: 'Da Fare', bgColor: 'bg-gray-50 dark:bg-gray-900/50', borderColor: 'border-gray-200 dark:border-gray-700' },
-  'in_corso': { title: 'In Corso', bgColor: 'bg-blue-50 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-700' },
+  'in_lavorazione': { title: 'In Lavorazione', bgColor: 'bg-blue-50 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-700' },
+  'in_test': { title: 'In Test', bgColor: 'bg-purple-50 dark:bg-purple-900/30', borderColor: 'border-purple-200 dark:border-purple-700' },
+  'pronto': { title: 'Pronto', bgColor: 'bg-orange-50 dark:bg-orange-900/30', borderColor: 'border-orange-200 dark:border-orange-700' },
   'in_attesa': { title: 'In Attesa', bgColor: 'bg-yellow-50 dark:bg-yellow-900/30', borderColor: 'border-yellow-200 dark:border-yellow-700' },
   'completato': { title: 'Completato', bgColor: 'bg-green-50 dark:bg-green-900/30', borderColor: 'border-green-200 dark:border-green-700' },
 };
@@ -360,7 +362,7 @@ const RiepilogoOperativoPage = () => {
           <CardContent className="px-3 md:px-6">
             {/* Horizontal scroll on mobile */}
             <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
-              <div className="flex md:grid md:grid-cols-4 gap-2 md:gap-3 min-w-max md:min-w-0">
+              <div className="flex md:grid md:grid-cols-6 gap-2 md:gap-3 min-w-max md:min-w-0">
                 {Object.entries(statusConfig).map(([status, config]) => (
                   <div 
                     key={status} 
