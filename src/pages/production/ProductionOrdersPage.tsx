@@ -738,14 +738,41 @@ export default function WorkOrdersPage() {
     
     const previousStatus = currentWO.status as string;
     
+    const getStatusLabel = (status: string) => {
+      switch(status) {
+        case 'da_fare': return 'Da Fare';
+        case 'in_lavorazione': return 'In Lavorazione';
+        case 'in_test': return 'In Test';
+        case 'pronto': return 'Pronto';
+        case 'completato': return 'Completato';
+        case 'standby': return 'Standby';
+        case 'bloccato': return 'Bloccato';
+        default: return status;
+      }
+    };
+    
     // Funzione per cambiare lo stato
     const changeStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('work_orders')
         .update({ status: newStatus })
         .eq('id', woId);
 
       if (error) throw error;
+      
+      // Log activity
+      if (user) {
+        await (supabase as any)
+          .from('work_order_activities')
+          .insert({
+            work_order_id: woId,
+            user_id: user.id,
+            activity_type: 'status_change',
+            description: `Stato modificato da "${getStatusLabel(previousStatus)}" a "${getStatusLabel(newStatus)}"`
+          });
+      }
       
       await fetchWorkOrders();
       return { woId, previousStatus, newStatus };
@@ -768,15 +795,7 @@ export default function WorkOrdersPage() {
         changeStatus,
         undoStatusChange,
         {
-          successMessage: `Stato aggiornato a: ${
-            newStatus === 'da_fare' ? 'Da Fare' :
-            newStatus === 'in_lavorazione' ? 'In Lavorazione' :
-            newStatus === 'in_test' ? 'In Test' :
-            newStatus === 'pronto' ? 'Pronto' :
-            newStatus === 'completato' ? 'Completato' :
-            newStatus === 'standby' ? 'Standby' :
-            'Bloccato'
-          }`,
+          successMessage: `Stato aggiornato a: ${getStatusLabel(newStatus)}`,
           errorMessage: 'Impossibile aggiornare lo stato',
           duration: 10000 // 10 secondi
         }
