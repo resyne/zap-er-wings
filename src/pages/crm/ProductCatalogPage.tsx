@@ -33,7 +33,7 @@ export default function ProductCatalogPage() {
         .select(`
           *,
           materials(code, name, cost),
-          boms(name, code:name)
+          bom:boms!bom_id(id, name, version)
         `)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -188,7 +188,7 @@ export default function ProductCatalogPage() {
                       </p>
                     )}
 
-                    {(product.materials || product.boms) && (
+                    {(product.materials || product.bom) && (
                       <div className="space-y-2 pt-2 border-t">
                         {product.materials && (
                           <div className="flex items-start gap-2 text-sm min-w-0">
@@ -205,10 +205,10 @@ export default function ProductCatalogPage() {
                             </Button>
                           </div>
                         )}
-                        {product.boms && (
+                        {product.bom && (
                           <div className="flex items-start gap-2 text-sm">
                             <span className="text-muted-foreground shrink-0">BOM:</span>
-                            <span className="font-medium">{product.boms.name}</span>
+                            <span className="font-medium">{product.bom.name} (v{product.bom.version})</span>
                           </div>
                         )}
                       </div>
