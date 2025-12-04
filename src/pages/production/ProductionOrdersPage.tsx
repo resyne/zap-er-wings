@@ -33,6 +33,7 @@ import { WorkOrderArticles } from "@/components/production/WorkOrderArticles";
 import { WorkOrderActivityLog } from "@/components/production/WorkOrderActivityLog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductionTimeline } from "@/components/production/ProductionTimeline";
+import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
 
 interface WorkOrder {
   id: string;
@@ -121,6 +122,7 @@ export default function WorkOrdersPage() {
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const [leadPhotos, setLeadPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<{ url: string; name: string; isVideo: boolean } | null>(null);
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
 
@@ -2455,21 +2457,34 @@ ${allOrdersHTML}
                   <Label className="text-sm font-medium mb-2 block">Foto/Video Cliente</Label>
                   <div className="grid grid-cols-4 gap-2 mt-2">
                     {leadPhotos.map((photo, index) => (
-                      <div key={index} className="relative group">
+                      <div 
+                        key={index} 
+                        className="relative group cursor-pointer"
+                        onClick={() => setSelectedMedia({
+                          url: photo.url,
+                          name: photo.name,
+                          isVideo: photo.type.startsWith('video/')
+                        })}
+                      >
                         {photo.type.startsWith('video/') ? (
-                          <video 
-                            src={photo.url}
-                            className="w-full h-20 object-cover rounded-md border"
-                            controls
-                          />
-                        ) : (
-                          <a href={photo.url} target="_blank" rel="noopener noreferrer">
-                            <img 
-                              src={photo.url} 
-                              alt={photo.name}
-                              className="w-full h-20 object-cover rounded-md border hover:opacity-80 transition-opacity cursor-pointer"
+                          <div className="relative w-full h-20">
+                            <video 
+                              src={photo.url}
+                              className="w-full h-20 object-cover rounded-md border"
+                              muted
                             />
-                          </a>
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
+                              <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center">
+                                <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-black border-b-[6px] border-b-transparent ml-1" />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <img 
+                            src={photo.url} 
+                            alt={photo.name}
+                            className="w-full h-20 object-cover rounded-md border hover:opacity-80 transition-opacity"
+                          />
                         )}
                       </div>
                     ))}
@@ -2518,6 +2533,15 @@ ${allOrdersHTML}
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Media Preview Modal */}
+      <MediaPreviewModal
+        open={!!selectedMedia}
+        onOpenChange={(open) => !open && setSelectedMedia(null)}
+        url={selectedMedia?.url || ''}
+        name={selectedMedia?.name || ''}
+        isVideo={selectedMedia?.isVideo || false}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
