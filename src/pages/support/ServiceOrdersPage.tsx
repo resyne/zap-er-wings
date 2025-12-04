@@ -1455,10 +1455,24 @@ export default function WorkOrdersServicePage() {
               )}
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Stato</Label>
-                <div className="mt-1">
+                <div className="mt-1 flex items-center gap-2">
                   <Badge className={statusColors[selectedWorkOrder.status as keyof typeof statusColors]}>
                     {statusLabels[selectedWorkOrder.status as keyof typeof statusLabels]}
                   </Badge>
+                  {selectedWorkOrder.status === 'programmata' && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => {
+                        updateWorkOrderStatus(selectedWorkOrder.id, 'completata');
+                        setShowDetailsDialog(false);
+                      }}
+                      className="gap-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <CalendarCheck className="w-4 h-4" />
+                      Segna come Completata
+                    </Button>
+                  )}
                 </div>
               </div>
               
