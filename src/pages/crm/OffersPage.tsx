@@ -989,11 +989,10 @@ export default function OffersPage() {
           payment_method: offer.payment_method,
           payment_agreement: offer.payment_agreement,
           vat_regime: offer.vat_regime,
-          archived: false,
-          approved: false
+          archived: false
         }])
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
