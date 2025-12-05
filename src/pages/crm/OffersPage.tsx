@@ -953,6 +953,81 @@ export default function OffersPage() {
     }
   };
 
+  const handleDuplicateOffer = async (offer: Offer) => {
+    try {
+      // Generate new offer number
+      const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      
+      // Fetch offer items
+      const { data: offerItems } = await supabase
+        .from('offer_items')
+        .select('*')
+        .eq('offer_id', offer.id);
+      
+      // Create duplicated offer
+      const { data: newOfferData, error } = await supabase
+        .from('offers')
+        .insert([{
+          number: offerNumber,
+          customer_id: offer.customer_id,
+          customer_name: offer.customer_name,
+          title: `${offer.title} (Copia)`,
+          description: offer.description,
+          amount: offer.amount,
+          status: 'offerta_pronta',
+          valid_until: offer.valid_until,
+          lead_id: offer.lead_id,
+          priority: offer.priority,
+          template: offer.template,
+          timeline_produzione: (offer as any).timeline_produzione,
+          timeline_consegna: (offer as any).timeline_consegna,
+          timeline_installazione: (offer as any).timeline_installazione,
+          timeline_collaudo: (offer as any).timeline_collaudo,
+          incluso_fornitura: (offer as any).incluso_fornitura,
+          escluso_fornitura: (offer as any).escluso_fornitura,
+          metodi_pagamento: (offer as any).metodi_pagamento,
+          payment_method: offer.payment_method,
+          payment_agreement: offer.payment_agreement,
+          vat_regime: offer.vat_regime,
+          archived: false,
+          approved: false
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Duplicate offer items if any
+      if (offerItems && offerItems.length > 0 && newOfferData) {
+        const duplicatedItems = offerItems.map(item => ({
+          offer_id: newOfferData.id,
+          product_id: item.product_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          notes: item.notes
+        }));
+
+        await supabase.from('offer_items').insert(duplicatedItems);
+      }
+
+      await loadData();
+      
+      toast({
+        title: "Offerta Duplicata",
+        description: `Offerta ${offerNumber} creata con successo`,
+      });
+    } catch (error: any) {
+      console.error('Error duplicating offer:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella duplicazione dell'offerta",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredOffers = offers.filter(offer => {
     // Filter by archived status
     if (showArchived && !offer.archived) return false;
@@ -2557,6 +2632,14 @@ export default function OffersPage() {
                           <Eye className="w-3 h-3 mr-1" />
                           Dettagli
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDuplicateOffer(offer)}
+                          className="h-7 text-xs"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
                         {offer.status === 'offerta_pronta' && !offer.approved && (
                           <Button
                             size="sm"
@@ -2679,14 +2762,24 @@ export default function OffersPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => openDetails(offer)}
+                          title="Dettagli"
                         >
                           <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDuplicateOffer(offer)}
+                          title="Duplica"
+                        >
+                          <Copy className="w-3 h-3" />
                         </Button>
                         {offer.status === 'accettata' && (
                           <Button
                             size="sm"
                             variant="default"
                             onClick={() => handleCreateOrderFromOffer(offer)}
+                            title="Crea Ordine"
                           >
                             <ClipboardList className="w-3 h-3" />
                           </Button>
@@ -3168,6 +3261,16 @@ export default function OffersPage() {
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     Modifica
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      handleDuplicateOffer(selectedOffer);
+                      setIsDetailsDialogOpen(false);
+                    }}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplica
                   </Button>
                   {selectedOffer.status === 'accettata' && (
                     <Button
