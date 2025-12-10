@@ -56,6 +56,9 @@ export default function PublicOfferPage() {
         return;
       }
 
+      // Set document title to offer number for PDF download
+      document.title = `Offerta ${offer.number || code}`;
+
       // Get the language of the offer (default to Italian)
       const offerLanguage = (offer as any).language || 'it';
 

@@ -7920,16 +7920,16 @@ export type Database = {
       generate_ticket_number: { Args: never; Returns: string }
       get_next_bom_version:
         | {
+            Args: { p_level?: number; p_name: string; p_variant?: string }
+            Returns: string
+          }
+        | {
             Args: {
               p_level?: number
               p_name: string
               p_parent_id?: string
               p_variant?: string
             }
-            Returns: string
-          }
-        | {
-            Args: { p_level?: number; p_name: string; p_variant?: string }
             Returns: string
           }
       get_quote_by_code: {
