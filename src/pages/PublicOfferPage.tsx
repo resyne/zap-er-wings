@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -6,13 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function PublicOfferPage() {
   const { code } = useParams<{ code: string }>();
+  const [searchParams] = useSearchParams();
   const [htmlContent, setHtmlContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [offerNumber, setOfferNumber] = useState<string>("");
+
+  const shouldAutoPrint = searchParams.get('print') === 'true';
 
   useEffect(() => {
     loadAndGenerateOffer();
   }, [code]);
+
+  // Auto-print when page is loaded and print param is present
+  useEffect(() => {
+    if (!loading && htmlContent && shouldAutoPrint && offerNumber) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, htmlContent, shouldAutoPrint, offerNumber]);
 
   const translateText = async (text: string, language: string): Promise<string> => {
     if (!text || language === 'it') return text;
@@ -56,8 +70,10 @@ export default function PublicOfferPage() {
         return;
       }
 
-      // Set document title to offer number for PDF download
-      document.title = `Offerta ${offer.number || code}`;
+      // Set document title and state for PDF download
+      const offerNum = offer.number || code || '';
+      document.title = `Offerta ${offerNum}`;
+      setOfferNumber(offerNum);
 
       // Get the language of the offer (default to Italian)
       const offerLanguage = (offer as any).language || 'it';
