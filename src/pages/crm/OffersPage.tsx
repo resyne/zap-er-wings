@@ -545,27 +545,14 @@ export default function OffersPage() {
         return;
       }
 
-      // Open the public offer link in a new window
-      const offerUrl = `https://www.erp.abbattitorizapper.it/offerta/${offer.unique_code}`;
-      const printWindow = window.open(offerUrl, '_blank');
+      // Open the public offer link with print parameter - the page will auto-print
+      const offerUrl = `https://www.erp.abbattitorizapper.it/offerta/${offer.unique_code}?print=true`;
+      window.open(offerUrl, '_blank');
       
-      if (printWindow) {
-        // Wait for the page to fully load (5 seconds to ensure all content is rendered)
-        setTimeout(() => {
-          printWindow.print();
-        }, 5000);
-        
-        toast({
-          title: "Stampa in corso",
-          description: "Attendi 5 secondi per il caricamento, poi usa 'Salva come PDF' nella finestra di stampa",
-        });
-      } else {
-        toast({
-          title: "Errore",
-          description: "Non è possibile aprire la finestra di stampa. Verifica le impostazioni del popup.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Stampa in corso",
+        description: "La finestra di stampa si aprirà automaticamente",
+      });
     } catch (error) {
       console.error('Error opening print dialog:', error);
       toast({
