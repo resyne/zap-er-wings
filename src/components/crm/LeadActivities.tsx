@@ -486,15 +486,6 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
       return;
     }
 
-    if (!completionData.next_activity_type || !completionData.next_activity_date) {
-      toast({
-        title: "Prossima attività obbligatoria",
-        description: "Devi pianificare la prossima attività",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
@@ -528,50 +519,55 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
         }
       } catch (statusError) {
         console.error("Error updating lead status:", statusError);
-        // Non bloccare il completamento dell'attività se l'aggiornamento dello status fallisce
       }
 
-      // Crea la prossima attività
-      const { error: insertError } = await supabase
-        .from("lead_activities")
-        .insert([{
-          lead_id: leadId,
-          activity_type: completionData.next_activity_type,
-          activity_date: new Date(completionData.next_activity_date).toISOString(),
-          assigned_to: completionData.next_activity_assigned_to || null,
-          notes: completionData.next_activity_notes || null,
-          status: "scheduled",
-          created_by: user.id
-        }]);
+      // Crea la prossima attività solo se i campi sono compilati
+      const hasNextActivity = completionData.next_activity_type && completionData.next_activity_date;
+      
+      if (hasNextActivity) {
+        const { error: insertError } = await supabase
+          .from("lead_activities")
+          .insert([{
+            lead_id: leadId,
+            activity_type: completionData.next_activity_type,
+            activity_date: new Date(completionData.next_activity_date).toISOString(),
+            assigned_to: completionData.next_activity_assigned_to || null,
+            notes: completionData.next_activity_notes || null,
+            status: "scheduled",
+            created_by: user.id
+          }]);
 
-      if (insertError) throw insertError;
+        if (insertError) throw insertError;
 
-      // Aggiorna il lead con la prossima attività
-      await supabase
-        .from("leads")
-        .update({
-          next_activity_type: completionData.next_activity_type,
-          next_activity_date: new Date(completionData.next_activity_date).toISOString(),
-          next_activity_assigned_to: completionData.next_activity_assigned_to || null,
-          next_activity_notes: completionData.next_activity_notes || null
-        })
-        .eq("id", leadId);
+        // Aggiorna il lead con la prossima attività
+        await supabase
+          .from("leads")
+          .update({
+            next_activity_type: completionData.next_activity_type,
+            next_activity_date: new Date(completionData.next_activity_date).toISOString(),
+            next_activity_assigned_to: completionData.next_activity_assigned_to || null,
+            next_activity_notes: completionData.next_activity_notes || null
+          })
+          .eq("id", leadId);
 
-      // Aggiungi al calendario se assegnata
-      if (completionData.next_activity_assigned_to) {
-        await supabase.from("calendar_events").insert([{
-          user_id: completionData.next_activity_assigned_to,
-          title: `Lead Activity: ${completionData.next_activity_type}`,
-          description: completionData.next_activity_notes || "",
-          event_date: new Date(completionData.next_activity_date).toISOString(),
-          event_type: "lead_activity",
-          color: "blue"
-        }]);
+        // Aggiungi al calendario se assegnata
+        if (completionData.next_activity_assigned_to) {
+          await supabase.from("calendar_events").insert([{
+            user_id: completionData.next_activity_assigned_to,
+            title: `Lead Activity: ${completionData.next_activity_type}`,
+            description: completionData.next_activity_notes || "",
+            event_date: new Date(completionData.next_activity_date).toISOString(),
+            event_type: "lead_activity",
+            color: "blue"
+          }]);
+        }
       }
 
       toast({
         title: "Attività completata",
-        description: "L'attività è stata completata e la prossima attività è stata pianificata",
+        description: hasNextActivity 
+          ? "L'attività è stata completata e la prossima attività è stata pianificata"
+          : "L'attività è stata completata",
       });
 
       setIsCompleteDialogOpen(false);
@@ -1033,11 +1029,11 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
             </div>
 
             <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">Prossima Attività *</h4>
+              <h4 className="font-medium mb-3">Prossima Attività <span className="text-muted-foreground font-normal text-sm">(opzionale)</span></h4>
               
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="next_type">Tipo Attività *</Label>
+                  <Label htmlFor="next_type">Tipo Attività</Label>
                   <Select
                     value={completionData.next_activity_type}
                     onValueChange={(value) => setCompletionData({ ...completionData, next_activity_type: value })}
@@ -1056,7 +1052,7 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
                 </div>
 
                 <div>
-                  <Label htmlFor="next_date">Data e Ora *</Label>
+                  <Label htmlFor="next_date">Data e Ora</Label>
                   <div className="flex gap-2 mb-2">
                     <Button
                       type="button"
@@ -1088,7 +1084,6 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
                     type="datetime-local"
                     value={completionData.next_activity_date}
                     onChange={(e) => setCompletionData({ ...completionData, next_activity_date: e.target.value })}
-                    required
                   />
                 </div>
 
@@ -1130,7 +1125,7 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
               Annulla
             </Button>
             <Button onClick={confirmCompleteActivity}>
-              Completa e Pianifica
+              Completa
             </Button>
           </DialogFooter>
         </DialogContent>
