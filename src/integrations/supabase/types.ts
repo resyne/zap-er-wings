@@ -2864,6 +2864,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           custom_fields: Json | null
+          customer_id: string | null
           email: string | null
           external_configurator_link: string | null
           id: string
@@ -2899,6 +2900,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           custom_fields?: Json | null
+          customer_id?: string | null
           email?: string | null
           external_configurator_link?: string | null
           id?: string
@@ -2934,6 +2936,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           custom_fields?: Json | null
+          customer_id?: string | null
           email?: string | null
           external_configurator_link?: string | null
           id?: string
@@ -2950,7 +2953,15 @@ export type Database = {
           updated_at?: string | null
           value?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ledger_entries: {
         Row: {
