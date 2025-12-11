@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Check, ChevronsUpDown, Plus, X, User, FileText, Clock, Package, CreditCard, ChevronDown, ChevronRight, Building2, ListChecks } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, X, User, FileText, Clock, Package, CreditCard, ChevronDown, ChevronRight, Building2, ListChecks, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { OfferLivePreview } from "./OfferLivePreview";
 
 interface CreateOfferDialogProps {
   open: boolean;
@@ -80,6 +81,7 @@ function FormSection({
 export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus = 'richiesta_offerta', leadData }: CreateOfferDialogProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [showPreview, setShowPreview] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -1114,16 +1116,41 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     </ScrollArea>
   );
 
+  // Compute customer name for preview
+  const previewCustomerName = useMemo(() => {
+    if (selectionType === 'customer') {
+      const customer = customers.find(c => c.id === newOffer.customer_id);
+      return customer ? (customer.company_name || customer.name) : '';
+    } else {
+      const lead = leads.find(l => l.id === selectedLeadId);
+      return lead ? (lead.company_name || lead.contact_name) : '';
+    }
+  }, [selectionType, newOffer.customer_id, selectedLeadId, customers, leads]);
+
   const actionButtons = (
     <div className={cn(
       "flex gap-2 pt-4 border-t",
       isMobile ? "flex-col" : "justify-between items-center"
     )}>
-      {selectedProducts.length > 0 && (
-        <div className="text-sm text-muted-foreground">
-          Totale: <span className="font-semibold text-foreground">€{calculatedTotal.toFixed(2)}</span>
-        </div>
-      )}
+      <div className="flex items-center gap-4">
+        {selectedProducts.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+            Totale: <span className="font-semibold text-foreground">€{calculatedTotal.toFixed(2)}</span>
+          </div>
+        )}
+        {!isMobile && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowPreview(!showPreview)}
+            className="gap-2"
+          >
+            {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPreview ? 'Nascondi Preview' : 'Mostra Preview'}
+          </Button>
+        )}
+      </div>
       <div className={cn("flex gap-2", isMobile ? "flex-col" : "")}>
         <Button variant="outline" onClick={() => onOpenChange(false)} className={isMobile ? "w-full" : ""}>
           Annulla
@@ -1133,6 +1160,31 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
         </Button>
       </div>
     </div>
+  );
+
+  const previewComponent = (
+    <OfferLivePreview
+      customerName={previewCustomerName}
+      title={newOffer.title}
+      description={newOffer.description}
+      template={newOffer.template}
+      language={newOffer.language}
+      companyEntity={newOffer.company_entity}
+      validUntil={newOffer.valid_until}
+      products={selectedProducts}
+      timelineProduzione={newOffer.timeline_produzione}
+      timelineConsegna={newOffer.timeline_consegna}
+      timelineInstallazione={newOffer.timeline_installazione}
+      timelineCollaudo={newOffer.timeline_collaudo}
+      inclusoFornitura={newOffer.incluso_fornitura}
+      esclusoFornitura={newOffer.escluso_fornitura}
+      paymentMethod={newOffer.payment_method}
+      paymentAgreement={newOffer.payment_agreement}
+      vatRegime={newOffer.vat_regime}
+      includeCertificazione={includeCertificazione}
+      includeGaranzia={includeGaranzia}
+      inclusoCustom={inclusoCustom}
+    />
   );
 
   if (isMobile) {
@@ -1155,13 +1207,31 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className={cn(
+        "max-h-[90vh] transition-all duration-300",
+        showPreview ? "max-w-5xl" : "max-w-2xl"
+      )}>
         <DialogHeader className="pb-2">
           <DialogTitle>
             {defaultStatus === 'richiesta_offerta' ? 'Nuova Richiesta di Offerta' : 'Nuova Offerta'}
           </DialogTitle>
         </DialogHeader>
-        {formContent}
+        <div className={cn(
+          "flex gap-4",
+          showPreview ? "flex-row" : "flex-col"
+        )}>
+          <div className={cn(
+            "flex-1 min-w-0",
+            showPreview && "max-w-[55%]"
+          )}>
+            {formContent}
+          </div>
+          {showPreview && (
+            <div className="w-[300px] flex-shrink-0">
+              {previewComponent}
+            </div>
+          )}
+        </div>
         {actionButtons}
       </DialogContent>
     </Dialog>
