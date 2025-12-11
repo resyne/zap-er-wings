@@ -293,7 +293,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{oggetto_offerta\}\}/g, translatedTitle || '')
         .replace(/\{\{tabella_prodotti\}\}/g, productsTable)
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
-        .replace(/\{\{escluso_fornitura\}\}/g, translatedEsclusoFornitura || '')
+        .replace(/\{\{escluso_fornitura\}\}/g, (translatedEsclusoFornitura || '').replace(/\n/g, '<br>'))
         .replace(/\{\{totale_imponibile\}\}/g, totalImponibile.toFixed(2))
         .replace(/\{\{totale_iva\}\}/g, ivaDisplayWithNote)
         .replace(/\{\{iva_percent\}\}/g, ivaPercentDisplay)
