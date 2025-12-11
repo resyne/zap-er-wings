@@ -492,8 +492,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
 
   const formContent = (
     <ScrollArea className={cn(
-      "pr-4",
-      isMobile ? "h-[calc(100vh-180px)]" : "max-h-[calc(90vh-160px)]"
+      "pr-4 h-full",
+      isMobile ? "h-[calc(100vh-180px)]" : "h-[calc(90vh-180px)]"
     )}>
       <div className="space-y-3 pb-4">
         {/* Section 1: Cliente/Lead */}
@@ -1217,11 +1217,12 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           </DialogTitle>
         </DialogHeader>
         <div className={cn(
-          "flex gap-4",
-          showPreview ? "flex-row" : "flex-col"
+          "flex gap-4 overflow-hidden",
+          showPreview ? "flex-row" : "flex-col",
+          "max-h-[calc(90vh-140px)]"
         )}>
           <div className={cn(
-            "flex-1 min-w-0",
+            "flex-1 min-w-0 overflow-hidden",
             showPreview && "max-w-[55%]"
           )}>
             {formContent}
