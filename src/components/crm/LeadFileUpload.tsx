@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
   const [videoDialogOpen, setVideoDialogOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ url: string; name: string } | null>(null);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = useCallback(async () => {
     try {
@@ -302,10 +303,11 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
             dragActive
               ? "border-primary bg-primary/5"
-              : "border-gray-300 hover:border-primary/50"
+              : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
           }`}
         >
           <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -316,6 +318,7 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
             Foto, video, documenti (max 20MB per file)
           </p>
           <input
+            ref={fileInputRef}
             type="file"
             multiple
             onChange={handleFileInput}
@@ -323,11 +326,16 @@ export default function LeadFileUpload({ leadId }: LeadFileUploadProps) {
             id="file-upload"
             accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
           />
-          <label htmlFor="file-upload">
-            <Button variant="outline" asChild disabled={uploading}>
-              <span>{uploading ? "Caricamento..." : "Seleziona File"}</span>
-            </Button>
-          </label>
+          <Button 
+            variant="outline" 
+            disabled={uploading}
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+          >
+            {uploading ? "Caricamento..." : "Seleziona File"}
+          </Button>
         </div>
 
         {/* Files List */}
