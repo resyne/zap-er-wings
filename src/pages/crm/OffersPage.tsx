@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, FileText, Mail, Download, Eye, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search, ClipboardList, Edit } from "lucide-react";
+import { Plus, FileText, Mail, Download, Eye, EyeOff, Upload, X, ExternalLink, Send, FileCheck, MessageSquare, CheckCircle2, XCircle, Clock, Archive, Trash2, ArchiveRestore, Link2, Copy, ChevronsUpDown, Check, LayoutGrid, List, Search, ClipboardList, Edit, User, Package, CreditCard, ChevronDown, ChevronRight, Building2, ListChecks } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
@@ -24,6 +24,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { OfferLivePreview } from "@/components/dashboard/OfferLivePreview";
 
 interface Offer {
   id: string;
@@ -123,7 +125,8 @@ export default function OffersPage() {
   const [includeGaranzia, setIncludeGaranzia] = useState(true);
   const [inclusoCustom, setInclusoCustom] = useState('');
   const [esclusoCaricoPredisposizione, setEsclusoCaricoPredisposizione] = useState(false);
-  
+  const [esclusoPuliziaCanna, setEsclusoPuliziaCanna] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [newOffer, setNewOffer] = useState<{
     id?: string;
     customer_id: string;
@@ -1493,605 +1496,427 @@ export default function OffersPage() {
                 {!isMobile && <span className="ml-2">Nuova Offerta</span>}
               </Button>
             </DialogTrigger>
-            <DialogContent className={isMobile ? "max-w-[95vw] max-h-[90vh] p-4" : "max-w-2xl max-h-[90vh]"}>
-            <DialogHeader>
+            <DialogContent className={cn(
+              "max-h-[90vh] transition-all duration-300",
+              isMobile ? "max-w-[95vw] p-4" : showPreview ? "max-w-6xl" : "max-w-2xl"
+            )}>
+            <DialogHeader className="pb-2">
               <DialogTitle>{newOffer.id ? 'Modifica Offerta' : 'Crea Nuova Offerta'}</DialogTitle>
-              <DialogDescription>
-                {newOffer.id ? 'Modifica i dettagli dell\'offerta commerciale' : 'Inserisci i dettagli dell\'offerta commerciale'}
-              </DialogDescription>
             </DialogHeader>
             
-            <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Azienda</label>
-                <div className="flex gap-2">
-                  <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={customerSearchOpen}
-                        className="flex-1 justify-between"
-                      >
-                        {newOffer.customer_id
-                          ? (() => {
-                              const customer = customers.find((c) => c.id === newOffer.customer_id);
-                              return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona azienda";
-                            })()
-                          : "Seleziona azienda"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Cerca azienda..." />
-                        <CommandList>
-                          <CommandEmpty>Nessuna azienda trovata.</CommandEmpty>
-                          <CommandGroup>
-                            {customers.map((customer) => (
-                              <CommandItem
-                                key={customer.id}
-                                value={`${customer.code} ${customer.company_name || customer.name}`}
-                                onSelect={() => {
-                                  setNewOffer(prev => ({ ...prev, customer_id: customer.id }));
-                                  setCustomerSearchOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {customer.code} - {customer.company_name || customer.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsCreateCustomerDialogOpen(true)}
-                    title="Aggiungi nuovo cliente"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+            <div className={cn("flex gap-4", showPreview && !isMobile ? "flex-row" : "flex-col")}>
+              {/* Form Section */}
+              <div className={cn("flex-1 min-w-0", showPreview && !isMobile && "max-w-[60%]")}>
+                <ScrollArea className={isMobile ? "h-[calc(100vh-200px)]" : "max-h-[calc(90vh-180px)]"}>
+                  <div className="space-y-3 pr-4">
+                    {/* Sezione Cliente */}
+                    <Collapsible defaultOpen={true}>
+                      <div className="rounded-lg border bg-card overflow-hidden">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Cliente</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Separator />
+                          <div className="p-4 space-y-3">
+                            <div className="flex gap-2">
+                              <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" role="combobox" className="flex-1 justify-between h-9 text-sm">
+                                    {newOffer.customer_id
+                                      ? (() => {
+                                          const customer = customers.find((c) => c.id === newOffer.customer_id);
+                                          return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona azienda";
+                                        })()
+                                      : "Seleziona azienda"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Cerca azienda..." />
+                                    <CommandList>
+                                      <CommandEmpty>Nessuna azienda trovata.</CommandEmpty>
+                                      <CommandGroup>
+                                        {customers.map((customer) => (
+                                          <CommandItem
+                                            key={customer.id}
+                                            value={`${customer.code} ${customer.company_name || customer.name}`}
+                                            onSelect={() => {
+                                              setNewOffer(prev => ({ ...prev, customer_id: customer.id }));
+                                              setCustomerSearchOpen(false);
+                                            }}
+                                          >
+                                            <Check className={cn("mr-2 h-4 w-4", newOffer.customer_id === customer.id ? "opacity-100" : "opacity-0")} />
+                                            {customer.code} - {customer.company_name || customer.name}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              <Button type="button" variant="outline" size="icon" onClick={() => setIsCreateCustomerDialogOpen(true)} className="h-9 w-9">
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+
+                    {/* Sezione Dettagli Offerta */}
+                    <Collapsible defaultOpen={true}>
+                      <div className="rounded-lg border bg-card overflow-hidden">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Dettagli Offerta</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Separator />
+                          <div className="p-4 space-y-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium">Titolo Offerta *</label>
+                              <Input value={newOffer.title} onChange={(e) => setNewOffer(prev => ({ ...prev, title: e.target.value }))} placeholder="Es: Forno professionale per ristorante" className="h-9" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium">Descrizione</label>
+                              <Textarea value={newOffer.description} onChange={(e) => setNewOffer(prev => ({ ...prev, description: e.target.value }))} placeholder="Descrizione dettagliata..." rows={2} className="resize-none" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Template</label>
+                                <Select value={newOffer.template} onValueChange={(value: 'zapper' | 'vesuviano' | 'zapperpro') => setNewOffer(prev => ({ ...prev, template: value }))}>
+                                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="zapper">ZAPPER</SelectItem>
+                                    <SelectItem value="vesuviano">Vesuviano</SelectItem>
+                                    <SelectItem value="zapperpro">ZAPPER PRO</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Lingua</label>
+                                <Select value={newOffer.language || 'it'} onValueChange={(value: 'it' | 'en' | 'fr') => setNewOffer(prev => ({ ...prev, language: value }))}>
+                                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="it">🇮🇹 Italiano</SelectItem>
+                                    <SelectItem value="en">🇬🇧 Inglese</SelectItem>
+                                    <SelectItem value="fr">🇫🇷 Francese</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium">Intestazione e Coordinate Bancarie</label>
+                              <Select value={newOffer.company_entity || 'climatel'} onValueChange={(value: 'climatel' | 'unita1') => setNewOffer(prev => ({ ...prev, company_entity: value }))}>
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent className="z-[100] bg-background">
+                                  <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
+                                  <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium">Valida Fino al</label>
+                              <Input type="date" value={newOffer.valid_until} onChange={(e) => setNewOffer(prev => ({ ...prev, valid_until: e.target.value }))} className="h-9" />
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+
+                    {/* Sezione Prodotti */}
+                    <Collapsible defaultOpen={true}>
+                      <div className="rounded-lg border bg-card overflow-hidden">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Prodotti e Servizi</span>
+                            {selectedProducts.length > 0 && <Badge variant="secondary" className="text-xs">{selectedProducts.length}</Badge>}
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Separator />
+                          <div className="p-4 space-y-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium">Listino di Riferimento</label>
+                              <Select value={selectedGlobalPriceListId || 'none'} onValueChange={(value) => { setSelectedGlobalPriceListId(value === 'none' ? '' : value); setCurrentProductId(''); }}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Nessun listino" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Nessun listino - Tutti i prodotti</SelectItem>
+                                  {priceLists.map((priceList) => (<SelectItem key={priceList.id} value={priceList.id}>{priceList.code} - {priceList.name}</SelectItem>))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex gap-2">
+                              <Select value={currentProductId} onValueChange={setCurrentProductId}>
+                                <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Seleziona prodotto" /></SelectTrigger>
+                                <SelectContent>
+                                  {products.map((product) => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.code} - {product.name} - €{(product.price_from_list || product.base_price)?.toFixed(2) || '0.00'}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button type="button" size="sm" onClick={() => {
+                                const product = products.find(p => p.id === currentProductId);
+                                if (product) {
+                                  const priceToUse = selectedGlobalPriceListId && product.price_from_list ? product.price_from_list : product.base_price || 0;
+                                  setSelectedProducts([...selectedProducts, { product_id: product.id, product_name: product.name, description: product.description || '', quantity: 1, unit_price: priceToUse, discount_percent: 0, vat_rate: 22, notes: selectedGlobalPriceListId ? `Listino: ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code}` : '' }]);
+                                  setCurrentProductId('');
+                                }
+                              }} disabled={!currentProductId} className="h-9">
+                                <Plus className="h-4 w-4 mr-1" />Aggiungi
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" onClick={() => setSelectedProducts([...selectedProducts, { product_id: `manual-${Date.now()}`, product_name: '', description: '', quantity: 1, unit_price: 0, discount_percent: 0, vat_rate: 22, notes: '' }])} className="h-9">
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {selectedProducts.length > 0 && (
+                              <div className="space-y-2 pt-2">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground">{selectedProducts.length} articoli</span>
+                                  <span className="font-semibold text-primary">
+                                    Totale: €{selectedProducts.reduce((sum, item) => sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                {selectedProducts.map((item, index) => (
+                                  <div key={index} className="border rounded-lg p-3 space-y-2 bg-background">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <Input placeholder="Nome prodotto/servizio" value={item.product_name} onChange={(e) => { const updated = [...selectedProducts]; updated[index].product_name = e.target.value; setSelectedProducts(updated); }} className="flex-1 h-8 text-sm" />
+                                      <Button type="button" variant="ghost" size="icon" onClick={() => setSelectedProducts(selectedProducts.filter((_, i) => i !== index))} className="h-8 w-8"><X className="h-4 w-4" /></Button>
+                                    </div>
+                                    <Textarea placeholder="Descrizione" value={item.description} onChange={(e) => { const updated = [...selectedProducts]; updated[index].description = e.target.value; setSelectedProducts(updated); }} rows={2} className="resize-none text-sm" />
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Qtà</label>
+                                        <Input type="number" value={item.quantity} onChange={(e) => { const updated = [...selectedProducts]; updated[index].quantity = parseFloat(e.target.value) || 1; setSelectedProducts(updated); }} min="1" className="h-8 text-sm" />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Prezzo €</label>
+                                        <Input type="number" value={item.unit_price} onChange={(e) => { const updated = [...selectedProducts]; updated[index].unit_price = parseFloat(e.target.value) || 0; setSelectedProducts(updated); }} min="0" step="0.01" className="h-8 text-sm" />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Sconto %</label>
+                                        <Input type="number" value={item.discount_percent} onChange={(e) => { const updated = [...selectedProducts]; updated[index].discount_percent = parseFloat(e.target.value) || 0; setSelectedProducts(updated); }} min="0" max="100" className="h-8 text-sm" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+
+                    {/* Sezione Tempistiche */}
+                    <Collapsible defaultOpen={false}>
+                      <div className="rounded-lg border bg-card overflow-hidden">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Tempistiche</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Separator />
+                          <div className="p-4">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Tempi di Produzione</label>
+                                <Input value={newOffer.timeline_produzione} onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_produzione: e.target.value }))} placeholder="Es: 2-3 settimane" className="h-9" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Tempi di Consegna</label>
+                                <Input value={newOffer.timeline_consegna} onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_consegna: e.target.value }))} placeholder="Es: 3-5 giorni" className="h-9" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Tempi di Installazione</label>
+                                <Input value={newOffer.timeline_installazione} onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_installazione: e.target.value }))} placeholder="Es: 1 giorno" className="h-9" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Tempi di Collaudo</label>
+                                <Input value={newOffer.timeline_collaudo} onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_collaudo: e.target.value }))} placeholder="Es: 2 ore" className="h-9" />
+                              </div>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+
+                    {/* Sezione Fornitura */}
+                    <Collapsible defaultOpen={false}>
+                      <div className="rounded-lg border bg-card overflow-hidden">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <ListChecks className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Incluso / Escluso dalla Fornitura</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Separator />
+                          <div className="p-4 space-y-4">
+                            <div>
+                              <label className="text-xs font-medium mb-2 block">Cosa Include</label>
+                              <div className="space-y-2 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox id="cert" checked={includeCertificazione} onCheckedChange={(checked) => setIncludeCertificazione(checked === true)} />
+                                  <label htmlFor="cert" className="text-sm cursor-pointer">Certificazione di conformità</label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Checkbox id="gar" checked={includeGaranzia} onCheckedChange={(checked) => setIncludeGaranzia(checked === true)} />
+                                  <label htmlFor="gar" className="text-sm cursor-pointer">1 anno di garanzia</label>
+                                </div>
+                              </div>
+                              <Textarea value={inclusoCustom} onChange={(e) => setInclusoCustom(e.target.value)} placeholder="Altre voci incluse (una per riga)" rows={2} className="resize-none text-sm" />
+                            </div>
+                            <Separator />
+                            <div>
+                              <label className="text-xs font-medium mb-2 block">Cosa Esclude</label>
+                              <div className="space-y-2 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox id="esc-carico" checked={esclusoCaricoPredisposizione} onCheckedChange={(checked) => {
+                                    setEsclusoCaricoPredisposizione(checked === true);
+                                    const testoEsclusione = "Si richiede al cliente di predisporre prima del ns. arrivo di punti di carico/scarico acqua e una presa elettrica. N.B. qualora in fase di installazione non vi è stata fatta predisposizione, l'allaccio elettrico ha un costo supplementare di 200,00 € e l'allaccio idrico ha un costo supplementare di 200,00 €.";
+                                    if (checked) { setNewOffer(prev => ({ ...prev, escluso_fornitura: prev.escluso_fornitura ? `${prev.escluso_fornitura}\n${testoEsclusione}` : testoEsclusione })); }
+                                    else { setNewOffer(prev => ({ ...prev, escluso_fornitura: prev.escluso_fornitura?.replace(testoEsclusione, '').replace(/\n\n+/g, '\n').trim() || '' })); }
+                                  }} />
+                                  <label htmlFor="esc-carico" className="text-sm cursor-pointer">Predisposizione impianti</label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Checkbox id="esc-pulizia" checked={esclusoPuliziaCanna} onCheckedChange={(checked) => {
+                                    setEsclusoPuliziaCanna(checked === true);
+                                    const testoPulizia = "È obbligatoria la pulizia della canna fumaria prima del nostro intervento, a meno che non sia già pulita da massimo 45 giorni.";
+                                    if (checked) { setNewOffer(prev => ({ ...prev, escluso_fornitura: prev.escluso_fornitura ? `${prev.escluso_fornitura}\n${testoPulizia}` : testoPulizia })); }
+                                    else { setNewOffer(prev => ({ ...prev, escluso_fornitura: prev.escluso_fornitura?.replace(testoPulizia, '').replace(/\n\n+/g, '\n').trim() || '' })); }
+                                  }} />
+                                  <label htmlFor="esc-pulizia" className="text-sm cursor-pointer">Pulizia canna fumaria obbligatoria</label>
+                                </div>
+                              </div>
+                              <Textarea value={newOffer.escluso_fornitura} onChange={(e) => setNewOffer(prev => ({ ...prev, escluso_fornitura: e.target.value }))} placeholder="Altre esclusioni..." rows={2} className="resize-none text-sm" />
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+
+                    {/* Sezione Pagamento */}
+                    <Collapsible defaultOpen={false}>
+                      <div className="rounded-lg border bg-card overflow-hidden">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-sm">Pagamento e IVA</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Separator />
+                          <div className="p-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Metodo di Pagamento</label>
+                                <Select value={newOffer.payment_method} onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_method: value }))}>
+                                  <SelectTrigger className="h-9"><SelectValue placeholder="Seleziona metodo" /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="bonifico">Bonifico bancario</SelectItem>
+                                    <SelectItem value="contrassegno">Contrassegno</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium">Accordi di Pagamento</label>
+                                <Select value={newOffer.payment_agreement === '50% acconto - 50% a consegna' || newOffer.payment_agreement === 'Pagamento anticipato' || !newOffer.payment_agreement ? newOffer.payment_agreement : 'altro'} onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_agreement: value }))}>
+                                  <SelectTrigger className="h-9"><SelectValue placeholder="Seleziona accordo" /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
+                                    <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
+                                    <SelectItem value="altro">Altro (personalizzato)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium">Regime IVA</label>
+                              <Select value={newOffer.vat_regime} onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => setNewOffer(prev => ({ ...prev, vat_regime: value }))}>
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
+                                  <SelectItem value="reverse_charge">Reverse Charge (N.6.7)</SelectItem>
+                                  <SelectItem value="intra_ue">Cessione Intra UE (N.3.2)</SelectItem>
+                                  <SelectItem value="extra_ue">Cessione Extra UE (N.3.1)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+                  </div>
+                </ScrollArea>
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Listino di Riferimento (opzionale)</label>
-                <Select
-                  value={selectedGlobalPriceListId || 'none'}
-                  onValueChange={(value) => {
-                    setSelectedGlobalPriceListId(value === 'none' ? '' : value);
-                    setCurrentProductId('');
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Nessun listino - Mostra tutti i prodotti" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nessun listino - Mostra tutti i prodotti</SelectItem>
-                    {priceLists.map((priceList) => (
-                      <SelectItem key={priceList.id} value={priceList.id}>
-                        {priceList.code} - {priceList.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Selezionando un listino verranno mostrati solo i prodotti presenti in quel listino
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Titolo Offerta</label>
-                <Input
-                  value={newOffer.title}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Es: Forno professionale per ristorante"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Descrizione</label>
-                <Textarea
-                  value={newOffer.description}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Descrizione dettagliata dell'offerta..."
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Template Offerta</label>
-                <Select 
-                  value={newOffer.template} 
-                  onValueChange={(value: 'zapper' | 'vesuviano' | 'zapperpro') => 
-                    setNewOffer(prev => ({ ...prev, template: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="zapper">ZAPPER - Renewed Air</SelectItem>
-                    <SelectItem value="vesuviano">Vesuviano - Tradizione e Qualità</SelectItem>
-                    <SelectItem value="zapperpro">ZAPPER PRO - Professional Solutions</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Lingua Offerta</label>
-                <Select 
-                  value={newOffer.language || 'it'} 
-                  onValueChange={(value: 'it' | 'en' | 'fr') => 
-                    setNewOffer(prev => ({ ...prev, language: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona lingua" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="it">🇮🇹 Italiano</SelectItem>
-                    <SelectItem value="en">🇬🇧 Inglese</SelectItem>
-                    <SelectItem value="fr">🇫🇷 Francese</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Il contenuto verrà tradotto automaticamente
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Intestazione e Coordinate Bancarie</label>
-                <Select 
-                  value={newOffer.company_entity || 'climatel'} 
-                  onValueChange={(value: 'climatel' | 'unita1') => 
-                    setNewOffer(prev => ({ ...prev, company_entity: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona entità" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[100] bg-background">
-                    <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
-                    <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Seleziona quale intestazione e coordinate bancarie utilizzare nell'offerta
-                </p>
-              </div>
-              
-              {/* Timeline Operativa */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Tempi di Produzione</label>
-                  <Input
-                    value={newOffer.timeline_produzione}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_produzione: e.target.value }))}
-                    placeholder="Es: 2-3 settimane (lascia vuoto per non includere)"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Tempi di Consegna</label>
-                  <Input
-                    value={newOffer.timeline_consegna}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_consegna: e.target.value }))}
-                    placeholder="Es: 3-5 giorni (lascia vuoto per non includere)"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Tempi di Installazione</label>
-                  <Input
-                    value={newOffer.timeline_installazione}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_installazione: e.target.value }))}
-                    placeholder="Es: 1 giorno (lascia vuoto per non includere)"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Tempi di Collaudo</label>
-                  <Input
-                    value={newOffer.timeline_collaudo}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, timeline_collaudo: e.target.value }))}
-                    placeholder="Es: 2 ore (lascia vuoto per non includere)"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Cosa Include la Fornitura</label>
-                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="certificazione"
-                      checked={includeCertificazione}
-                      onCheckedChange={(checked) => setIncludeCertificazione(checked === true)}
-                    />
-                    <label htmlFor="certificazione" className="text-sm cursor-pointer">
-                      ✓ Certificazione di conformità
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="garanzia"
-                      checked={includeGaranzia}
-                      onCheckedChange={(checked) => setIncludeGaranzia(checked === true)}
-                    />
-                    <label htmlFor="garanzia" className="text-sm cursor-pointer">
-                      ✓ 1 anno di garanzia
-                    </label>
-                  </div>
-                </div>
-                <Textarea
-                  value={inclusoCustom}
-                  onChange={(e) => setInclusoCustom(e.target.value)}
-                  placeholder="Una voce per riga (usa ✓ per le spunte)"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Cosa Esclude la Fornitura</label>
-                <div className="flex items-center gap-2 mb-2">
-                  <Checkbox
-                    id="escluso-carico"
-                    checked={esclusoCaricoPredisposizione}
-                    onCheckedChange={(checked) => {
-                      setEsclusoCaricoPredisposizione(checked === true);
-                      const testoEsclusione = "Si richiede al cliente di predisporre prima del ns. arrivo di punti di carico/scarico acqua e una presa elettrica. N.B. qualora in fase di installazione non vi è stata fatta predisposizione, l'allaccio elettrico ha un costo supplementare di 200,00 € e l'allaccio idrico ha un costo supplementare di 200,00 €.";
-                      if (checked) {
-                        setNewOffer(prev => ({ 
-                          ...prev, 
-                          escluso_fornitura: prev.escluso_fornitura 
-                            ? `${prev.escluso_fornitura}\n${testoEsclusione}`
-                            : testoEsclusione
-                        }));
-                      } else {
-                        setNewOffer(prev => ({ 
-                          ...prev, 
-                          escluso_fornitura: prev.escluso_fornitura?.replace(testoEsclusione, '').replace(/\n\n+/g, '\n').trim() || ''
-                        }));
-                      }
-                    }}
-                  />
-                  <label htmlFor="escluso-carico" className="text-sm cursor-pointer">
-                    Carico e scarico acqua / collegamento elettrico
-                  </label>
-                </div>
-                <Textarea
-                  value={newOffer.escluso_fornitura}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, escluso_fornitura: e.target.value }))}
-                  placeholder="Es: Non sono inclusi lavori di muratura, predisposizioni elettriche o idrauliche, pratiche amministrative..."
-                  rows={3}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Metodo di Pagamento</label>
-                  <Select 
-                    value={newOffer.payment_method} 
-                    onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_method: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona metodo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bonifico">Bonifico bancario</SelectItem>
-                      <SelectItem value="contrassegno">Contrassegno</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Accordi di Pagamento</label>
-                  <Select 
-                    value={
-                      newOffer.payment_agreement === '50% acconto - 50% a consegna' || 
-                      newOffer.payment_agreement === 'Pagamento anticipato' ||
-                      !newOffer.payment_agreement
-                        ? newOffer.payment_agreement 
-                        : 'altro'
-                    } 
-                    onValueChange={(value) => setNewOffer(prev => ({ ...prev, payment_agreement: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona accordo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
-                      <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
-                      <SelectItem value="altro">Altro (personalizzato)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              
-              <div>
-                <label className="text-sm font-medium">Regime IVA</label>
-                <Select 
-                  value={newOffer.vat_regime} 
-                  onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => 
-                    setNewOffer(prev => ({ ...prev, vat_regime: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona regime IVA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
-                    <SelectItem value="reverse_charge">Reverse Charge (IVA 0% - Inversione contabile)</SelectItem>
-                    <SelectItem value="intra_ue">Intra UE (IVA 0% - Art. 41 DL 331/93)</SelectItem>
-                    <SelectItem value="extra_ue">Extra UE (IVA 0% - Art. 8 DPR 633/72)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {(newOffer.payment_agreement && 
-                newOffer.payment_agreement !== '50% acconto - 50% a consegna' && 
-                newOffer.payment_agreement !== 'Pagamento anticipato') && (
-                <div>
-                  <label className="text-sm font-medium">Accordo Personalizzato</label>
-                  <Textarea
-                    value={newOffer.payment_agreement === 'altro' ? '' : newOffer.payment_agreement}
-                    onChange={(e) => setNewOffer(prev => ({ ...prev, payment_agreement: e.target.value }))}
-                    placeholder="Descrivi l'accordo di pagamento personalizzato..."
-                    rows={2}
+              {/* Preview Section */}
+              {showPreview && !isMobile && (
+                <div className="w-[320px] flex-shrink-0">
+                  <OfferLivePreview
+                    customerName={(() => { const customer = customers.find(c => c.id === newOffer.customer_id); return customer ? (customer.company_name || customer.name) : ''; })()}
+                    title={newOffer.title}
+                    description={newOffer.description}
+                    template={newOffer.template}
+                    language={newOffer.language || 'it'}
+                    companyEntity={newOffer.company_entity || 'climatel'}
+                    validUntil={newOffer.valid_until}
+                    products={selectedProducts}
+                    timelineProduzione={newOffer.timeline_produzione || ''}
+                    timelineConsegna={newOffer.timeline_consegna || ''}
+                    timelineInstallazione={newOffer.timeline_installazione || ''}
+                    timelineCollaudo={newOffer.timeline_collaudo || ''}
+                    inclusoFornitura={newOffer.incluso_fornitura || ''}
+                    esclusoFornitura={newOffer.escluso_fornitura || ''}
+                    paymentMethod={newOffer.payment_method || ''}
+                    paymentAgreement={newOffer.payment_agreement || ''}
+                    vatRegime={newOffer.vat_regime}
+                    includeCertificazione={includeCertificazione}
+                    includeGaranzia={includeGaranzia}
+                    inclusoCustom={inclusoCustom}
                   />
                 </div>
               )}
-              
-              {/* Sezione Prodotti */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Prodotti e Servizi</label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedProducts([...selectedProducts, {
-                        product_id: `manual-${Date.now()}`,
-                        product_name: '',
-                        description: '',
-                        quantity: 1,
-                        unit_price: 0,
-                        discount_percent: 0,
-                        vat_rate: 22,
-                        notes: ''
-                      }]);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Aggiungi Voce Manuale
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Select
-                    value={currentProductId}
-                    onValueChange={setCurrentProductId}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Seleziona prodotto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.code} - {product.name} - €{(product.price_from_list || product.base_price)?.toFixed(2) || '0.00'}
-                          {selectedGlobalPriceListId && product.price_from_list && (
-                            <span className="text-xs text-muted-foreground ml-1">(da listino)</span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      const product = products.find(p => p.id === currentProductId);
-                      if (product) {
-                        const priceToUse = selectedGlobalPriceListId && product.price_from_list 
-                          ? product.price_from_list 
-                          : product.base_price || 0;
-                        
-                        const notes = selectedGlobalPriceListId 
-                          ? `Listino: ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code}`
-                          : '';
-                        
-                        setSelectedProducts([...selectedProducts, {
-                          product_id: product.id,
-                          product_name: product.name,
-                          description: product.description || '',
-                          quantity: 1,
-                          unit_price: priceToUse,
-                          discount_percent: 0,
-                          vat_rate: 22,
-                          notes: notes
-                        }]);
-                        setCurrentProductId('');
-                      }
-                    }}
-                    disabled={!currentProductId}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Aggiungi
-                  </Button>
-                </div>
+            </div>
 
-                {/* Lista articoli selezionati */}
+            {/* Footer Actions */}
+            <div className="flex gap-2 pt-4 border-t justify-between items-center">
+              <div className="flex items-center gap-4">
                 {selectedProducts.length > 0 && (
-                  <div className="border rounded-lg p-3 space-y-2">
-                    {selectedProducts.map((item, index) => (
-                        <div key={index} className="border rounded p-4 space-y-3 bg-muted/50">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 space-y-2">
-                              {item.product_id?.startsWith('manual-') ? (
-                              <Input
-                                value={item.product_name}
-                                onChange={(e) => {
-                                  const updated = [...selectedProducts];
-                                  updated[index].product_name = e.target.value;
-                                  setSelectedProducts(updated);
-                                }}
-                                placeholder="Nome prodotto/servizio"
-                                className="font-medium text-sm"
-                              />
-                            ) : (
-                              <div className="font-medium text-sm mb-1">{item.product_name}</div>
-                            )}
-                            <Textarea
-                              value={item.description}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].description = e.target.value;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="Descrizione articolo"
-                              className="text-sm min-h-[60px]"
-                              rows={2}
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedProducts(selectedProducts.filter((_, i) => i !== index))}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-xs text-muted-foreground">Quantità</label>
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].quantity = parseFloat(e.target.value) || 1;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="Qtà"
-                              min="1"
-                              className="text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Prezzo Unitario</label>
-                            <Input
-                              type="number"
-                              value={item.unit_price}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].unit_price = parseFloat(e.target.value) || 0;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="Prezzo"
-                              min="0"
-                              step="0.01"
-                              className="text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Sconto %</label>
-                            <Input
-                              type="number"
-                              value={item.discount_percent}
-                              onChange={(e) => {
-                                const updated = [...selectedProducts];
-                                updated[index].discount_percent = parseFloat(e.target.value) || 0;
-                                setSelectedProducts(updated);
-                              }}
-                              placeholder="Sconto"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              className="text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        {item.unit_price > 0 && (
-                          <div className="flex justify-end gap-4 text-sm pt-2 border-t">
-                            <div className="text-right">
-                              <div className="text-xs text-muted-foreground">Netto</div>
-                              <div className="font-medium">
-                                €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-muted-foreground">IVA</div>
-                              <div className="font-medium">
-                                €{(newOffer.vat_regime === 'standard' ? (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100)) : 0).toFixed(2)}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-muted-foreground">Totale</div>
-                              <div className="font-semibold">
-                                €{(
-                                  item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * 
-                                  (1 + (newOffer.vat_regime === 'standard' ? item.vat_rate / 100 : 0))
-                                ).toFixed(2)}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    <div className="text-right space-y-1 pt-2 border-t">
-                      <div className="text-sm">
-                        Totale Netto: €{selectedProducts.reduce((sum, item) => 
-                          sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0
-                        ).toFixed(2)}
-                      </div>
-                      <div className="text-sm">
-                        Totale IVA: €{selectedProducts.reduce((sum, item) => 
-                          sum + (newOffer.vat_regime === 'standard' ? (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (item.vat_rate / 100)) : 0), 0
-                        ).toFixed(2)}
-                      </div>
-                      <div className="text-lg font-bold">
-                        Totale Lordo: €{selectedProducts.reduce((sum, item) => 
-                          sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (1 + (newOffer.vat_regime === 'standard' ? item.vat_rate / 100 : 0))), 0
-                        ).toFixed(2)}
-                      </div>
-                    </div>
+                  <div className="text-sm text-muted-foreground">
+                    Totale: <span className="font-semibold text-foreground">€{selectedProducts.reduce((sum, item) => sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0).toFixed(2)}</span>
                   </div>
                 )}
+                {!isMobile && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowPreview(!showPreview)} className="gap-2">
+                    {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPreview ? 'Nascondi Preview' : 'Mostra Preview'}
+                  </Button>
+                )}
               </div>
-
-              <div>
-                <label className="text-sm font-medium">Valida fino al</label>
-                <Input
-                  type="date"
-                  value={newOffer.valid_until}
-                  onChange={(e) => setNewOffer(prev => ({ ...prev, valid_until: e.target.value }))}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => {
-                  setIsCreateDialogOpen(false);
-                  setSelectedGlobalPriceListId('');
-                }}>
-                  Annulla
-                </Button>
-                <Button onClick={handleCreateOffer}>
-                  {newOffer.id ? 'Salva Modifiche' : 'Crea Offerta'}
-                </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); setSelectedGlobalPriceListId(''); }}>Annulla</Button>
+                <Button onClick={handleCreateOffer}>{newOffer.id ? 'Salva Modifiche' : 'Crea Offerta'}</Button>
               </div>
             </div>
-            </ScrollArea>
           </DialogContent>
         </Dialog>
         </div>
