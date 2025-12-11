@@ -90,6 +90,11 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           title: leadData.customerName ? `Offerta per ${leadData.customerName}` : prev.title,
           amount: leadData.amount || prev.amount,
         }));
+        // Auto-select lead if coming from lead page
+        if (leadData.leadId) {
+          setSelectionType('lead');
+          setSelectedLeadId(leadData.leadId);
+        }
       }
     }
   }, [open, leadData]);
