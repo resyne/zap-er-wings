@@ -35,7 +35,7 @@ interface Offer {
   title: string;
   description?: string;
   amount: number;
-  status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'accettata' | 'rifiutata';
+  status: 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'accettata' | 'rifiutata';
   created_at: string;
   valid_until?: string;
   attachments?: string[];
@@ -134,7 +134,7 @@ export default function OffersPage() {
     description: string;
     amount: number;
     valid_until: string;
-    status: 'richiesta_offerta' | 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
+    status: 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
     template: 'zapper' | 'vesuviano' | 'zapperpro';
     language?: 'it' | 'en' | 'fr';
     timeline_produzione?: string;
@@ -901,7 +901,6 @@ export default function OffersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'richiesta_offerta': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100';
       case 'offerta_pronta': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
       case 'offerta_inviata': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
       case 'negoziazione': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100';
@@ -913,7 +912,6 @@ export default function OffersPage() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'richiesta_offerta': return 'Richiesta';
       case 'offerta_pronta': return 'Pronta';
       case 'offerta_inviata': return 'Inviata';
       case 'negoziazione': return 'Negoziazione';
@@ -1043,7 +1041,6 @@ export default function OffersPage() {
 
   const statusCounts = {
     all: filteredOffers.length,
-    richiesta_offerta: filteredOffers.filter(o => o.status === 'richiesta_offerta').length,
     offerta_pronta: filteredOffers.filter(o => o.status === 'offerta_pronta').length,
     offerta_inviata: filteredOffers.filter(o => o.status === 'offerta_inviata').length,
     negoziazione: filteredOffers.filter(o => o.status === 'negoziazione').length,
@@ -1928,98 +1925,6 @@ export default function OffersPage() {
         onCustomerCreated={handleCustomerCreated}
       />
 
-      {/* Sezione Richieste di Offerta - Vista Orizzontale */}
-      <Card className="mb-4 sm:mb-6">
-        <CardHeader className={isMobile ? "p-4" : ""}>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
-              <CardTitle className={isMobile ? "text-base" : ""}>Richieste di Offerta</CardTitle>
-              <Badge variant="secondary">{statusCounts.richiesta_offerta}</Badge>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className={isMobile ? "p-2" : ""}>
-          <ScrollArea className="w-full">
-            <div className="flex gap-3 sm:gap-4 pb-4">
-              {offers.filter(o => o.status === 'richiesta_offerta').length === 0 ? (
-                <div className="text-muted-foreground text-xs sm:text-sm w-full text-center py-6 sm:py-8">
-                  Nessuna richiesta di offerta in sospeso
-                </div>
-              ) : (
-                offers.filter(o => o.status === 'richiesta_offerta').map(offer => (
-                  <Card key={offer.id} className="min-w-[260px] sm:min-w-[300px] hover:shadow-md transition-shadow">
-                    <CardContent className={isMobile ? "p-3" : "p-4"}>
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className={isMobile ? "text-sm font-medium" : "font-medium"}>{offer.number}</div>
-                            <div className="text-xs sm:text-sm text-muted-foreground">{offer.customer_name}</div>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Richiesta
-                          </Badge>
-                        </div>
-                        
-                        <div className="text-xs sm:text-sm line-clamp-2">{offer.title}</div>
-                        
-                        <div className={isMobile ? "text-base font-bold text-primary" : "text-lg font-bold text-primary"}>
-                          € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1" 
-                            onClick={() => openDetails(offer)}
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            {!isMobile && "Vedi"}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            className="flex-1" 
-                            onClick={() => {
-                              setNewOffer({
-                                id: offer.id,
-                                customer_id: offer.customer_id,
-                                title: offer.title,
-                                description: offer.description || `Richiesta:\n${offer.title}\n\nDettagli:\n- Cliente: ${offer.customer_name}\n- Importo stimato: € ${offer.amount.toFixed(2)}`,
-                                amount: offer.amount,
-                                valid_until: '',
-                                status: 'offerta_pronta',
-                                template: 'zapper',
-                                language: (offer as any).language || 'it',
-                                timeline_produzione: offer.timeline_produzione || '',
-                                timeline_consegna: offer.timeline_consegna || '',
-                                timeline_installazione: offer.timeline_installazione || '',
-                                timeline_collaudo: offer.timeline_collaudo || '',
-                                incluso_fornitura: offer.incluso_fornitura || '',
-                                escluso_fornitura: offer.escluso_fornitura || '',
-                                metodi_pagamento: offer.metodi_pagamento || '',
-                                payment_method: offer.payment_method || '',
-                                payment_agreement: offer.payment_agreement || '',
-                                vat_regime: (offer as any).vat_regime || 'standard'
-                              });
-                              setSelectedProducts([]);
-                              setIsCreateDialogOpen(true);
-                            }}
-                          >
-                            <FileCheck className="w-3 h-3 mr-1" />
-                            {!isMobile && "Prepara"}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
 
 
       {/* Controlli di Ricerca e Filtro */}
@@ -2062,7 +1967,7 @@ export default function OffersPage() {
           </div>
           {(searchTerm || selectedStatus !== 'all' || selectedTemplate !== 'all') && (
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Risultati: {filteredOffers.filter(o => o.status !== 'richiesta_offerta').length}</span>
+              <span>Risultati: {filteredOffers.length}</span>
               {(searchTerm || selectedStatus !== 'all' || selectedTemplate !== 'all') && (
                 <Button
                   variant="ghost"
@@ -2388,7 +2293,7 @@ export default function OffersPage() {
           <CardContent className="p-0">
             {isMobile ? (
               <div className="p-2 space-y-2">
-                {filteredOffers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
+                {filteredOffers.map(offer => (
                   <Card key={offer.id} className="p-3 hover:shadow-sm transition-shadow">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
@@ -2492,7 +2397,7 @@ export default function OffersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOffers.filter(o => o.status !== 'richiesta_offerta').map(offer => (
+                {filteredOffers.map(offer => (
                   <TableRow key={offer.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{offer.number}</TableCell>
                     <TableCell>{offer.customer_name}</TableCell>
