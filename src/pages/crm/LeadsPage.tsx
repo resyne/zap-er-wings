@@ -2607,12 +2607,39 @@ export default function LeadsPage() {
                               size="sm"
                               variant="ghost"
                               className="h-7 w-7 p-0"
+                              title="Apri offerta"
                               onClick={() => {
                                 setIsDetailsDialogOpen(false);
                                 navigate(`/crm/offers?offer=${linkedOffer.id}`);
                               }}
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              title="Scarica PDF"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                let code = linkedOffer.unique_code;
+                                if (!code) {
+                                  const { data: codeData } = await supabase.rpc('generate_offer_code');
+                                  if (codeData) {
+                                    await supabase
+                                      .from('offers')
+                                      .update({ unique_code: codeData })
+                                      .eq('id', linkedOffer.id);
+                                    code = codeData;
+                                    loadOffers();
+                                  }
+                                }
+                                if (code) {
+                                  window.open(`https://www.erp.abbattitorizapper.it/offerta/${code}?print=true`, '_blank');
+                                }
+                              }}
+                            >
+                              <Download className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
