@@ -1507,7 +1507,7 @@ export default function OffersPage() {
             <div className={cn("flex gap-4", showPreview && !isMobile ? "flex-row" : "flex-col")}>
               {/* Form Section */}
               <div className={cn("flex-1 min-w-0", showPreview && !isMobile && "max-w-[60%]")}>
-                <ScrollArea className={isMobile ? "h-[calc(100vh-200px)]" : "max-h-[calc(90vh-180px)]"}>
+                <ScrollArea className={isMobile ? "h-[calc(100vh-200px)]" : "h-[calc(80vh-150px)]"}>
                   <div className="space-y-3 pr-4">
                     {/* Sezione Cliente */}
                     <Collapsible defaultOpen={true}>
