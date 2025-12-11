@@ -889,6 +889,8 @@ export default function LeadsPage() {
     });
   }, []);
 
+  const priorityOrder: Record<string, number> = { urgente: 0, alta: 1, media: 2, bassa: 3 };
+
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
       .toLowerCase()
@@ -897,6 +899,10 @@ export default function LeadsPage() {
     const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
     const matchesArchived = showArchived ? lead.archived : !lead.archived;
     return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
+  }).sort((a, b) => {
+    const priorityA = priorityOrder[a.priority || 'media'] ?? 2;
+    const priorityB = priorityOrder[b.priority || 'media'] ?? 2;
+    return priorityA - priorityB;
   });
 
   // Group leads by status (solo per le fasi kanban)
@@ -1537,16 +1543,14 @@ export default function LeadsPage() {
                                           NUOVO
                                         </Badge>
                                       )}
-                                      {lead.priority && lead.priority !== "media" && (
-                                        <Badge 
-                                          className={cn(
-                                            leadPriorities.find(p => p.id === lead.priority)?.color || "bg-gray-100 text-gray-800",
-                                            isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
-                                          )}
-                                        >
-                                          {leadPriorities.find(p => p.id === lead.priority)?.title || lead.priority}
-                                        </Badge>
-                                      )}
+                                      <Badge 
+                                        className={cn(
+                                          leadPriorities.find(p => p.id === (lead.priority || 'media'))?.color || "bg-gray-100 text-gray-800",
+                                          isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
+                                        )}
+                                      >
+                                        {leadPriorities.find(p => p.id === (lead.priority || 'media'))?.title || lead.priority || 'Media'}
+                                      </Badge>
                                     </div>
                                     {lead.contact_name && (
                                       <p className={cn(
