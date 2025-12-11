@@ -334,6 +334,13 @@ function OrderCard({ order, getStatusBadge }: any) {
     }
   };
 
+  const priorityConfig = {
+    urgente: { label: "Urgente", color: "bg-red-500 text-white" },
+    alta: { label: "Alta", color: "bg-orange-500 text-white" },
+    media: { label: "Media", color: "bg-yellow-500 text-white" },
+    bassa: { label: "Bassa", color: "bg-blue-500 text-white" },
+  };
+
   return (
     <>
       <Card>
@@ -343,6 +350,11 @@ function OrderCard({ order, getStatusBadge }: any) {
             <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-xl">{order.number}</CardTitle>
               {getStatusBadge(order.production_status)}
+              {order.priority && priorityConfig[order.priority as keyof typeof priorityConfig] && (
+                <Badge className={priorityConfig[order.priority as keyof typeof priorityConfig].color}>
+                  {priorityConfig[order.priority as keyof typeof priorityConfig].label}
+                </Badge>
+              )}
             </div>
             <CardDescription className="mt-2 space-y-1">
               <div>Ordinato il {new Date(order.created_at).toLocaleDateString('it-IT')}</div>

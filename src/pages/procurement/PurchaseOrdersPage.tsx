@@ -87,12 +87,20 @@ interface PurchaseOrder {
   estimated_delivery_date?: string;
   total_amount: number;
   production_status: string;
+  priority?: string;
   supplier_confirmed_at?: string;
   purchase_order_items?: any[];
   purchase_order_comments?: any[];
   purchase_order_attachments?: any[];
   purchase_order_change_requests?: any[];
 }
+
+const priorityConfig = {
+  urgente: { label: "Urgente", color: "bg-red-500 text-white" },
+  alta: { label: "Alta", color: "bg-orange-500 text-white" },
+  media: { label: "Media", color: "bg-yellow-500 text-white" },
+  bassa: { label: "Bassa", color: "bg-blue-500 text-white" },
+};
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -111,6 +119,7 @@ export default function PurchaseOrdersPage() {
     order_date: new Date().toISOString().split('T')[0],
     expected_delivery_date: "",
     notes: "",
+    priority: "media",
     items: [] as Array<{ material_id: string; quantity: number; unit_price: number }>
   });
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -360,6 +369,7 @@ export default function PurchaseOrdersPage() {
           order_date: newOrder.order_date,
           expected_delivery_date: newOrder.expected_delivery_date || null,
           notes: newOrder.notes || null,
+          priority: newOrder.priority,
           items: newOrder.items
         }
       });
@@ -377,6 +387,7 @@ export default function PurchaseOrdersPage() {
         order_date: new Date().toISOString().split('T')[0],
         expected_delivery_date: "",
         notes: "",
+        priority: "media",
         items: []
       });
       fetchOrders();
@@ -587,6 +598,7 @@ export default function PurchaseOrdersPage() {
                   <TableHead>Fornitore</TableHead>
                   <TableHead>Data Ordine</TableHead>
                   <TableHead>Consegna</TableHead>
+                  <TableHead>Priorità</TableHead>
                   <TableHead>Articoli</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
                   <TableHead>Stato</TableHead>
@@ -596,7 +608,7 @@ export default function PurchaseOrdersPage() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Nessun ordine trovato
                     </TableCell>
                   </TableRow>
@@ -614,6 +626,13 @@ export default function PurchaseOrdersPage() {
                           : order.estimated_delivery_date
                           ? new Date(order.estimated_delivery_date).toLocaleDateString('it-IT')
                           : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {order.priority && priorityConfig[order.priority as keyof typeof priorityConfig] && (
+                          <Badge className={priorityConfig[order.priority as keyof typeof priorityConfig].color}>
+                            {priorityConfig[order.priority as keyof typeof priorityConfig].label}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>{order.purchase_order_items?.length || 0}</TableCell>
                       <TableCell className="text-right font-medium">
@@ -740,6 +759,16 @@ export default function PurchaseOrdersPage() {
                         ? new Date(selectedOrder.supplier_confirmed_at).toLocaleDateString('it-IT')
                         : 'Non ancora confermato'}
                     </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Priorità</label>
+                    <div className="mt-1">
+                      {selectedOrder?.priority && priorityConfig[selectedOrder.priority as keyof typeof priorityConfig] && (
+                        <Badge className={priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].color}>
+                          {priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].label}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -918,6 +947,25 @@ export default function PurchaseOrdersPage() {
                     onChange={(e) => setNewOrder(prev => ({ ...prev, expected_delivery_date: e.target.value }))}
                   />
                 </div>
+              </div>
+
+              {/* Priority */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Priorità</label>
+                <Select
+                  value={newOrder.priority}
+                  onValueChange={(value) => setNewOrder(prev => ({ ...prev, priority: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona priorità" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                    <SelectItem value="alta">🟠 Alta</SelectItem>
+                    <SelectItem value="media">🟡 Media</SelectItem>
+                    <SelectItem value="bassa">🔵 Bassa</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Notes */}

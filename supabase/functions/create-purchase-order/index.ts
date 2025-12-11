@@ -18,6 +18,7 @@ interface CreatePurchaseOrderRequest {
   order_date: string;
   expected_delivery_date?: string;
   notes?: string;
+  priority?: string;
   items: OrderItem[];
 }
 
@@ -96,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
     const requestData: CreatePurchaseOrderRequest = await req.json();
     console.log("Request data parsed successfully:", requestData);
     
-    const { supplier_id, order_date, expected_delivery_date, notes, items } = requestData;
+    const { supplier_id, order_date, expected_delivery_date, notes, priority, items } = requestData;
 
     if (!items || items.length === 0) {
       throw new Error("Order must contain at least one item");
@@ -147,6 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
         estimated_delivery_date: expected_delivery_date || null,
         total_amount: totalAmount,
         production_status: 'pending',
+        priority: priority || 'media',
         notes: notes || null,
         created_by: userData.user.id
       })
