@@ -41,6 +41,7 @@ interface Lead {
   archived?: boolean;
   notes?: string;
   assigned_to?: string;
+  priority?: string;
   next_activity_type?: string;
   next_activity_date?: string;
   next_activity_notes?: string;
@@ -71,6 +72,13 @@ interface Lead {
     pronta_consegna?: boolean;
   };
 }
+
+const leadPriorities = [
+  { id: "bassa", title: "Bassa", color: "bg-gray-100 text-gray-800" },
+  { id: "media", title: "Media", color: "bg-blue-100 text-blue-800" },
+  { id: "alta", title: "Alta", color: "bg-orange-100 text-orange-800" },
+  { id: "urgente", title: "Urgente", color: "bg-red-100 text-red-800" },
+];
 
 interface Offer {
   id: string;
@@ -127,6 +135,7 @@ export default function LeadsPage() {
     status: "new",
     pipeline: "Zapper",
     country: "Italia",
+    priority: "media",
     notes: "",
     next_activity_type: "",
     next_activity_date: "",
@@ -310,6 +319,7 @@ export default function LeadsPage() {
         status: newLead.status,
         pipeline: newLead.pipeline || selectedPipeline,
         country: newLead.country,
+        priority: newLead.priority,
         notes: newLead.notes,
         next_activity_type: newLead.next_activity_type,
         next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null,
@@ -487,6 +497,7 @@ export default function LeadsPage() {
       status: lead.status,
       pipeline: lead.pipeline || "",
       country: lead.country || "Italia",
+      priority: lead.priority || "media",
       notes: lead.notes || "",
       next_activity_type: lead.next_activity_type || "",
       next_activity_date: lead.next_activity_date ? new Date(lead.next_activity_date).toISOString().slice(0, 16) : "",
@@ -534,6 +545,7 @@ export default function LeadsPage() {
         status: newLead.status,
         pipeline: newLead.pipeline,
         country: newLead.country,
+        priority: newLead.priority,
         notes: newLead.notes,
         next_activity_type: newLead.next_activity_type,
         next_activity_date: newLead.next_activity_date ? new Date(newLead.next_activity_date).toISOString() : null,
@@ -649,6 +661,7 @@ export default function LeadsPage() {
       status: "new",
       pipeline: selectedPipeline,
       country: "Italia",
+      priority: "media",
       notes: "",
       next_activity_type: "",
       next_activity_date: "",
@@ -1021,6 +1034,21 @@ export default function LeadsPage() {
                       {allStatuses.map(status => (
                         <SelectItem key={status.id} value={status.id}>
                           {status.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="priority">Priorità</Label>
+                  <Select value={newLead.priority} onValueChange={(value) => setNewLead({...newLead, priority: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona priorità" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadPriorities.map(priority => (
+                        <SelectItem key={priority.id} value={priority.id}>
+                          {priority.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1507,6 +1535,16 @@ export default function LeadsPage() {
                                           )}
                                         >
                                           NUOVO
+                                        </Badge>
+                                      )}
+                                      {lead.priority && lead.priority !== "media" && (
+                                        <Badge 
+                                          className={cn(
+                                            leadPriorities.find(p => p.id === lead.priority)?.color || "bg-gray-100 text-gray-800",
+                                            isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
+                                          )}
+                                        >
+                                          {leadPriorities.find(p => p.id === lead.priority)?.title || lead.priority}
                                         </Badge>
                                       )}
                                     </div>
@@ -2333,6 +2371,21 @@ export default function LeadsPage() {
                   {allStatuses.map(status => (
                     <SelectItem key={status.id} value={status.id}>
                       {status.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit_priority">Priorità</Label>
+              <Select value={newLead.priority} onValueChange={(value) => setNewLead({...newLead, priority: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona priorità" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leadPriorities.map(priority => (
+                    <SelectItem key={priority.id} value={priority.id}>
+                      {priority.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
