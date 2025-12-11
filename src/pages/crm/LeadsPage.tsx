@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
@@ -2295,63 +2296,66 @@ export default function LeadsPage() {
           
           {selectedLead && (
             <div className="space-y-6">
-              {/* Contact Info */}
-              <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Contatto</label>
-                  <p className="text-sm">{selectedLead.contact_name || '-'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Pipeline</label>
-                  <p className="text-sm">{selectedLead.pipeline || '-'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Email</label>
-                  <p className="text-sm flex items-center gap-2">
-                    {selectedLead.email ? (
-                      <>
-                        <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="truncate">{selectedLead.email}</span>
-                      </>
-                    ) : '-'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Telefono</label>
-                  <p className="text-sm flex items-center gap-2">
-                    {selectedLead.phone ? (
-                      <>
-                        <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="truncate">{selectedLead.phone}</span>
-                      </>
-                    ) : '-'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Valore Stimato</label>
-                  <p className="text-sm font-semibold text-green-600">
-                    {selectedLead.value ? formatAmount(selectedLead.value, hideAmounts) : '-'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Fonte</label>
-                  <p className="text-sm">
-                    {selectedLead.source === "zapier" ? "Zapier" :
-                     selectedLead.source === "social_media" ? "Social Media" :
-                     selectedLead.source === "website" ? "Sito Web" :
-                     selectedLead.source === "referral" ? "Referral" :
-                     selectedLead.source === "cold_call" ? "Cold Call" :
-                     selectedLead.source === "trade_show" ? "Fiera" :
-                     selectedLead.source || '-'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Stato</label>
-                  <Badge className={allStatuses.find(s => s.id === selectedLead.status)?.color || ''}>
-                    {allStatuses.find(s => s.id === selectedLead.status)?.title || selectedLead.status}
+              {/* Quick Status Badge */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge className={allStatuses.find(s => s.id === selectedLead.status)?.color || ''}>
+                  {allStatuses.find(s => s.id === selectedLead.status)?.title || selectedLead.status}
+                </Badge>
+                <Badge variant="outline">{selectedLead.pipeline || 'N/A'}</Badge>
+                {selectedLead.value && (
+                  <Badge variant="secondary" className="text-green-600">
+                    {formatAmount(selectedLead.value, hideAmounts)}
                   </Badge>
-                </div>
+                )}
               </div>
+
+              {/* Customer Details - Collapsible */}
+              <Collapsible defaultOpen={false} className="border rounded-lg">
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold">Dettagli Cliente</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className={cn("grid gap-4 p-4 pt-0 border-t", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contatto</label>
+                      <p className="text-sm font-medium">{selectedLead.contact_name || '-'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Telefono</label>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {selectedLead.phone ? (
+                          <>
+                            <Phone className="h-3 w-3 text-muted-foreground" />
+                            <a href={`tel:${selectedLead.phone}`} className="hover:underline">{selectedLead.phone}</a>
+                          </>
+                        ) : '-'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</label>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {selectedLead.email ? (
+                          <>
+                            <Mail className="h-3 w-3 text-muted-foreground" />
+                            <a href={`mailto:${selectedLead.email}`} className="hover:underline truncate">{selectedLead.email}</a>
+                          </>
+                        ) : '-'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Luogo</label>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {selectedLead.country || '-'}
+                      </p>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Description */}
               {selectedLead.notes && (
