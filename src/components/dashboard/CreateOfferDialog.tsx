@@ -746,7 +746,65 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           </div>
         </FormSection>
 
-        {/* Section 3: Prodotti */}
+        {/* Section 3: Pagamento - moved before products */}
+        <FormSection title="Pagamento e IVA" icon={CreditCard} defaultOpen={false}>
+          <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Metodo di Pagamento</Label>
+              <Select 
+                value={newOffer.payment_method} 
+                onValueChange={(value) => setNewOffer({ ...newOffer, payment_method: value })}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Seleziona metodo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bonifico">Bonifico bancario</SelectItem>
+                  <SelectItem value="contrassegno">Contrassegno</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label className="text-xs">Accordi di Pagamento</Label>
+              <Select 
+                value={newOffer.payment_agreement || ''} 
+                onValueChange={(value) => setNewOffer({ ...newOffer, payment_agreement: value })}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Seleziona accordo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
+                  <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
+                  <SelectItem value="altro - personalizzato">Altro - personalizzato</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Regime IVA</Label>
+            <Select 
+              value={newOffer.vat_regime} 
+              onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => 
+                setNewOffer({ ...newOffer, vat_regime: value })
+              }
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Seleziona regime IVA" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
+                <SelectItem value="reverse_charge">Reverse Charge - N.6.7 (IVA 0%)</SelectItem>
+                <SelectItem value="intra_ue">Cessione Intra UE - N.3.2 (IVA 0%)</SelectItem>
+                <SelectItem value="extra_ue">Cessione Extra UE - N.3.1 (IVA 0%)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </FormSection>
+
+        {/* Section 4: Prodotti */}
         <FormSection 
           title="Prodotti e Servizi" 
           icon={Package} 
@@ -1052,64 +1110,6 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                 className="resize-none text-sm"
               />
             </div>
-          </div>
-        </FormSection>
-
-        {/* Section 6: Pagamento */}
-        <FormSection title="Pagamento e IVA" icon={CreditCard} defaultOpen={false}>
-          <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Metodo di Pagamento</Label>
-              <Select 
-                value={newOffer.payment_method} 
-                onValueChange={(value) => setNewOffer({ ...newOffer, payment_method: value })}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Seleziona metodo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bonifico">Bonifico bancario</SelectItem>
-                  <SelectItem value="contrassegno">Contrassegno</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-1.5">
-              <Label className="text-xs">Accordi di Pagamento</Label>
-              <Select 
-                value={newOffer.payment_agreement || ''} 
-                onValueChange={(value) => setNewOffer({ ...newOffer, payment_agreement: value })}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Seleziona accordo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="50% acconto - 50% a consegna">50% acconto - 50% a consegna</SelectItem>
-                  <SelectItem value="Pagamento anticipato">Pagamento anticipato</SelectItem>
-                  <SelectItem value="altro - personalizzato">Altro - personalizzato</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">Regime IVA</Label>
-            <Select 
-              value={newOffer.vat_regime} 
-              onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => 
-                setNewOffer({ ...newOffer, vat_regime: value })
-              }
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Seleziona regime IVA" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
-                <SelectItem value="reverse_charge">Reverse Charge - N.6.7 (IVA 0%)</SelectItem>
-                <SelectItem value="intra_ue">Cessione Intra UE - N.3.2 (IVA 0%)</SelectItem>
-                <SelectItem value="extra_ue">Cessione Extra UE - N.3.1 (IVA 0%)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </FormSection>
       </div>
