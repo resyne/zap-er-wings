@@ -3599,6 +3599,7 @@ export type Database = {
           notes: string | null
           offer_id: string
           product_id: string | null
+          product_name: string | null
           quantity: number
           total_price: number | null
           unit_price: number
@@ -3612,6 +3613,7 @@ export type Database = {
           notes?: string | null
           offer_id: string
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           total_price?: number | null
           unit_price?: number
@@ -3625,6 +3627,7 @@ export type Database = {
           notes?: string | null
           offer_id?: string
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           total_price?: number | null
           unit_price?: number
