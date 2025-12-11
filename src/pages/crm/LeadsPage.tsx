@@ -63,10 +63,10 @@ interface Lead {
   configurator_history?: any[] | null;
   custom_fields?: {
     // ZAPPER fields
-    tipo_attivita?: string;
+    tipologia_cliente?: string;
     diametro_canna_fumaria?: string;
-    luogo?: string;
-    installazione?: boolean;
+    montaggio?: string;
+    ingresso_fumi?: string;
     // VESUVIANO fields
     dimensioni_forno?: string;
     alimentazione?: string;
@@ -153,11 +153,14 @@ export default function LeadsPage() {
     next_activity_date: "",
     next_activity_notes: "",
     next_activity_assigned_to: null as string | null,
-    // Custom fields
-    tipo_attivita: "",
+    // Custom fields ZAPPER
+    tipologia_cliente: "",
+    tipologia_cliente_altro: "",
     diametro_canna_fumaria: "",
-    luogo: "",
-    installazione: false,
+    diametro_canna_fumaria_altro: "",
+    montaggio: "",
+    ingresso_fumi: "",
+    // Custom fields VESUVIANO
     dimensioni_forno: "",
     alimentazione: "",
     pronta_consegna: false,
@@ -338,10 +341,14 @@ export default function LeadsPage() {
       // Prepare custom fields based on pipeline
       const custom_fields: any = {};
       if (newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") {
-        custom_fields.tipo_attivita = newLead.tipo_attivita;
-        custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria;
-        custom_fields.luogo = newLead.luogo;
-        custom_fields.installazione = newLead.installazione;
+        custom_fields.tipologia_cliente = newLead.tipologia_cliente === "altro" 
+          ? newLead.tipologia_cliente_altro 
+          : newLead.tipologia_cliente;
+        custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria === "altro"
+          ? newLead.diametro_canna_fumaria_altro
+          : newLead.diametro_canna_fumaria;
+        custom_fields.montaggio = newLead.montaggio;
+        custom_fields.ingresso_fumi = newLead.ingresso_fumi;
       } else if (newLead.pipeline === "Vesuviano") {
         custom_fields.dimensioni_forno = newLead.dimensioni_forno;
         custom_fields.alimentazione = newLead.alimentazione;
@@ -552,11 +559,14 @@ export default function LeadsPage() {
       next_activity_date: lead.next_activity_date ? new Date(lead.next_activity_date).toISOString().slice(0, 16) : "",
       next_activity_notes: lead.next_activity_notes || "",
       next_activity_assigned_to: lead.next_activity_assigned_to || null,
-      // Custom fields
-      tipo_attivita: lead.custom_fields?.tipo_attivita || "",
+      // Custom fields ZAPPER
+      tipologia_cliente: lead.custom_fields?.tipologia_cliente || "",
+      tipologia_cliente_altro: "",
       diametro_canna_fumaria: lead.custom_fields?.diametro_canna_fumaria || "",
-      luogo: lead.custom_fields?.luogo || "",
-      installazione: lead.custom_fields?.installazione || false,
+      diametro_canna_fumaria_altro: "",
+      montaggio: lead.custom_fields?.montaggio || "",
+      ingresso_fumi: lead.custom_fields?.ingresso_fumi || "",
+      // Custom fields VESUVIANO
       dimensioni_forno: lead.custom_fields?.dimensioni_forno || "",
       alimentazione: lead.custom_fields?.alimentazione || "",
       pronta_consegna: lead.custom_fields?.pronta_consegna || false,
@@ -574,10 +584,14 @@ export default function LeadsPage() {
       // Prepare custom fields based on pipeline
       const custom_fields: any = {};
       if (newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") {
-        custom_fields.tipo_attivita = newLead.tipo_attivita;
-        custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria;
-        custom_fields.luogo = newLead.luogo;
-        custom_fields.installazione = newLead.installazione;
+        custom_fields.tipologia_cliente = newLead.tipologia_cliente === "altro" 
+          ? newLead.tipologia_cliente_altro 
+          : newLead.tipologia_cliente;
+        custom_fields.diametro_canna_fumaria = newLead.diametro_canna_fumaria === "altro"
+          ? newLead.diametro_canna_fumaria_altro
+          : newLead.diametro_canna_fumaria;
+        custom_fields.montaggio = newLead.montaggio;
+        custom_fields.ingresso_fumi = newLead.ingresso_fumi;
       } else if (newLead.pipeline === "Vesuviano") {
         custom_fields.dimensioni_forno = newLead.dimensioni_forno;
         custom_fields.alimentazione = newLead.alimentazione;
@@ -725,11 +739,14 @@ export default function LeadsPage() {
       next_activity_date: "",
       next_activity_notes: "",
       next_activity_assigned_to: null,
-      // Custom fields
-      tipo_attivita: "",
+      // Custom fields ZAPPER
+      tipologia_cliente: "",
+      tipologia_cliente_altro: "",
       diametro_canna_fumaria: "",
-      luogo: "",
-      installazione: false,
+      diametro_canna_fumaria_altro: "",
+      montaggio: "",
+      ingresso_fumi: "",
+      // Custom fields VESUVIANO
       dimensioni_forno: "",
       alimentazione: "",
       pronta_consegna: false,
@@ -1261,47 +1278,123 @@ export default function LeadsPage() {
 
                 {/* Custom fields based on pipeline */}
                 {(newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") && (
-                  <div className="col-span-2 border-t pt-4">
-                    <h4 className="font-medium mb-3">Informazioni ZAPPER</h4>
+                  <div className="col-span-2 border rounded-lg p-4 bg-primary/5">
+                    <h4 className="font-semibold mb-4 text-primary flex items-center gap-2">
+                      <span className="h-2 w-2 bg-primary rounded-full"></span>
+                      Configurazione ZAPPER
+                    </h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="tipo_attivita">Tipo di attività</Label>
-                        <Input
-                          id="tipo_attivita"
-                          value={newLead.tipo_attivita}
-                          onChange={(e) => setNewLead({...newLead, tipo_attivita: e.target.value})}
-                          placeholder="Es. Ristorante, Pizzeria..."
-                        />
+                      {/* Tipologia Cliente */}
+                      <div className="col-span-2 md:col-span-1">
+                        <Label htmlFor="tipologia_cliente" className="text-sm font-medium">Tipologia Cliente *</Label>
+                        <Select 
+                          value={newLead.tipologia_cliente} 
+                          onValueChange={(value) => setNewLead({...newLead, tipologia_cliente: value, tipologia_cliente_altro: value === "altro" ? newLead.tipologia_cliente_altro : ""})}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Seleziona tipologia" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pizzeria">🍕 Pizzeria</SelectItem>
+                            <SelectItem value="cucina_professionale">👨‍🍳 Cucina professionale</SelectItem>
+                            <SelectItem value="panificio">🥖 Panificio</SelectItem>
+                            <SelectItem value="braceria">🥩 Braceria</SelectItem>
+                            <SelectItem value="girarrosto">🍗 Girarrosto</SelectItem>
+                            <SelectItem value="industriale">🏭 Industriale</SelectItem>
+                            <SelectItem value="domestico">🏠 Domestico</SelectItem>
+                            <SelectItem value="altro">✏️ Altro...</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {newLead.tipologia_cliente === "altro" && (
+                          <Input
+                            className="mt-2"
+                            value={newLead.tipologia_cliente_altro}
+                            onChange={(e) => setNewLead({...newLead, tipologia_cliente_altro: e.target.value})}
+                            placeholder="Specifica tipologia..."
+                          />
+                        )}
                       </div>
-                      <div>
-                        <Label htmlFor="diametro_canna_fumaria">Diametro canna fumaria</Label>
-                        <Input
-                          id="diametro_canna_fumaria"
-                          value={newLead.diametro_canna_fumaria}
-                          onChange={(e) => setNewLead({...newLead, diametro_canna_fumaria: e.target.value})}
-                          placeholder="Es. 250mm"
-                        />
+
+                      {/* Diametro Canna Fumaria */}
+                      <div className="col-span-2 md:col-span-1">
+                        <Label htmlFor="diametro_canna_fumaria" className="text-sm font-medium">Diametro Canna Fumaria *</Label>
+                        <Select 
+                          value={newLead.diametro_canna_fumaria} 
+                          onValueChange={(value) => setNewLead({...newLead, diametro_canna_fumaria: value, diametro_canna_fumaria_altro: value === "altro" ? newLead.diametro_canna_fumaria_altro : ""})}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Seleziona diametro" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="100">⌀ 100 mm</SelectItem>
+                            <SelectItem value="150">⌀ 150 mm</SelectItem>
+                            <SelectItem value="200">⌀ 200 mm</SelectItem>
+                            <SelectItem value="250">⌀ 250 mm</SelectItem>
+                            <SelectItem value="300">⌀ 300 mm</SelectItem>
+                            <SelectItem value="350">⌀ 350 mm</SelectItem>
+                            <SelectItem value="400">⌀ 400 mm</SelectItem>
+                            <SelectItem value="450">⌀ 450 mm</SelectItem>
+                            <SelectItem value="altro">✏️ Altro...</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {newLead.diametro_canna_fumaria === "altro" && (
+                          <Input
+                            className="mt-2"
+                            value={newLead.diametro_canna_fumaria_altro}
+                            onChange={(e) => setNewLead({...newLead, diametro_canna_fumaria_altro: e.target.value})}
+                            placeholder="Specifica diametro (es. 500mm)..."
+                          />
+                        )}
                       </div>
+
+                      {/* Montaggio */}
                       <div>
-                        <Label htmlFor="luogo">Luogo</Label>
-                        <Input
-                          id="luogo"
-                          value={newLead.luogo}
-                          onChange={(e) => setNewLead({...newLead, luogo: e.target.value})}
-                          placeholder="Indirizzo di installazione"
-                        />
+                        <Label className="text-sm font-medium">Montaggio *</Label>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            type="button"
+                            variant={newLead.montaggio === "interno" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setNewLead({...newLead, montaggio: "interno"})}
+                          >
+                            🏠 Interno
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={newLead.montaggio === "esterno" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setNewLead({...newLead, montaggio: "esterno"})}
+                          >
+                            🌤️ Esterno
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="installazione"
-                          checked={newLead.installazione}
-                          onChange={(e) => setNewLead({...newLead, installazione: e.target.checked})}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="installazione" className="cursor-pointer">
-                          Richiede installazione
-                        </Label>
+
+                      {/* Ingresso Fumi */}
+                      <div>
+                        <Label className="text-sm font-medium">Ingresso Fumi *</Label>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            type="button"
+                            variant={newLead.ingresso_fumi === "dx" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setNewLead({...newLead, ingresso_fumi: "dx"})}
+                          >
+                            ➡️ DX
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={newLead.ingresso_fumi === "sx" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setNewLead({...newLead, ingresso_fumi: "sx"})}
+                          >
+                            ⬅️ SX
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2226,36 +2319,43 @@ export default function LeadsPage() {
 
               {/* Custom Fields - ZAPPER */}
               {(selectedLead.pipeline === "Zapper" || selectedLead.pipeline === "Zapper Pro") && (
-                selectedLead.custom_fields?.tipo_attivita || 
+                selectedLead.custom_fields?.tipologia_cliente || 
                 selectedLead.custom_fields?.diametro_canna_fumaria || 
-                selectedLead.custom_fields?.luogo || 
-                selectedLead.custom_fields?.installazione
+                selectedLead.custom_fields?.montaggio || 
+                selectedLead.custom_fields?.ingresso_fumi
               ) && (
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Informazioni ZAPPER</h4>
-                  <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    {selectedLead.custom_fields?.tipo_attivita && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Tipo di attività</label>
-                        <p className="text-sm mt-1">{selectedLead.custom_fields.tipo_attivita}</p>
+                <div className="border rounded-lg p-4 bg-primary/5">
+                  <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                    <span className="h-2 w-2 bg-primary rounded-full"></span>
+                    Configurazione ZAPPER
+                  </h4>
+                  <div className={cn("grid gap-4", isMobile ? "grid-cols-2" : "grid-cols-4")}>
+                    {selectedLead.custom_fields?.tipologia_cliente && (
+                      <div className="bg-background rounded-lg p-3 border">
+                        <label className="text-xs font-medium text-muted-foreground">Tipologia Cliente</label>
+                        <p className="text-sm font-medium mt-1 capitalize">{selectedLead.custom_fields.tipologia_cliente.replace(/_/g, ' ')}</p>
                       </div>
                     )}
                     {selectedLead.custom_fields?.diametro_canna_fumaria && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Diametro canna fumaria</label>
-                        <p className="text-sm mt-1">{selectedLead.custom_fields.diametro_canna_fumaria}</p>
+                      <div className="bg-background rounded-lg p-3 border">
+                        <label className="text-xs font-medium text-muted-foreground">Diametro Canna</label>
+                        <p className="text-sm font-medium mt-1">⌀ {selectedLead.custom_fields.diametro_canna_fumaria} mm</p>
                       </div>
                     )}
-                    {selectedLead.custom_fields?.luogo && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Luogo</label>
-                        <p className="text-sm mt-1">{selectedLead.custom_fields.luogo}</p>
+                    {selectedLead.custom_fields?.montaggio && (
+                      <div className="bg-background rounded-lg p-3 border">
+                        <label className="text-xs font-medium text-muted-foreground">Montaggio</label>
+                        <p className="text-sm font-medium mt-1 capitalize">
+                          {selectedLead.custom_fields.montaggio === "interno" ? "🏠 Interno" : "🌤️ Esterno"}
+                        </p>
                       </div>
                     )}
-                    {selectedLead.custom_fields?.installazione && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Installazione</label>
-                        <p className="text-sm mt-1">✓ Richiesta</p>
+                    {selectedLead.custom_fields?.ingresso_fumi && (
+                      <div className="bg-background rounded-lg p-3 border">
+                        <label className="text-xs font-medium text-muted-foreground">Ingresso Fumi</label>
+                        <p className="text-sm font-medium mt-1">
+                          {selectedLead.custom_fields.ingresso_fumi === "dx" ? "➡️ DX" : "⬅️ SX"}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -2627,47 +2727,123 @@ export default function LeadsPage() {
 
             {/* Custom fields based on pipeline - EDIT MODE */}
             {(newLead.pipeline === "Zapper" || newLead.pipeline === "Zapper Pro") && (
-              <div className="col-span-2 border-t pt-4">
-                <h4 className="font-medium mb-3">Informazioni ZAPPER</h4>
+              <div className="col-span-2 border rounded-lg p-4 bg-primary/5">
+                <h4 className="font-semibold mb-4 text-primary flex items-center gap-2">
+                  <span className="h-2 w-2 bg-primary rounded-full"></span>
+                  Configurazione ZAPPER
+                </h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit_tipo_attivita">Tipo di attività</Label>
-                    <Input
-                      id="edit_tipo_attivita"
-                      value={newLead.tipo_attivita}
-                      onChange={(e) => setNewLead({...newLead, tipo_attivita: e.target.value})}
-                      placeholder="Es. Ristorante, Pizzeria..."
-                    />
+                  {/* Tipologia Cliente */}
+                  <div className="col-span-2 md:col-span-1">
+                    <Label htmlFor="edit_tipologia_cliente" className="text-sm font-medium">Tipologia Cliente *</Label>
+                    <Select 
+                      value={newLead.tipologia_cliente} 
+                      onValueChange={(value) => setNewLead({...newLead, tipologia_cliente: value, tipologia_cliente_altro: value === "altro" ? newLead.tipologia_cliente_altro : ""})}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Seleziona tipologia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pizzeria">🍕 Pizzeria</SelectItem>
+                        <SelectItem value="cucina_professionale">👨‍🍳 Cucina professionale</SelectItem>
+                        <SelectItem value="panificio">🥖 Panificio</SelectItem>
+                        <SelectItem value="braceria">🥩 Braceria</SelectItem>
+                        <SelectItem value="girarrosto">🍗 Girarrosto</SelectItem>
+                        <SelectItem value="industriale">🏭 Industriale</SelectItem>
+                        <SelectItem value="domestico">🏠 Domestico</SelectItem>
+                        <SelectItem value="altro">✏️ Altro...</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {newLead.tipologia_cliente === "altro" && (
+                      <Input
+                        className="mt-2"
+                        value={newLead.tipologia_cliente_altro}
+                        onChange={(e) => setNewLead({...newLead, tipologia_cliente_altro: e.target.value})}
+                        placeholder="Specifica tipologia..."
+                      />
+                    )}
                   </div>
-                  <div>
-                    <Label htmlFor="edit_diametro_canna_fumaria">Diametro canna fumaria</Label>
-                    <Input
-                      id="edit_diametro_canna_fumaria"
-                      value={newLead.diametro_canna_fumaria}
-                      onChange={(e) => setNewLead({...newLead, diametro_canna_fumaria: e.target.value})}
-                      placeholder="Es. 250mm"
-                    />
+
+                  {/* Diametro Canna Fumaria */}
+                  <div className="col-span-2 md:col-span-1">
+                    <Label htmlFor="edit_diametro_canna_fumaria" className="text-sm font-medium">Diametro Canna Fumaria *</Label>
+                    <Select 
+                      value={newLead.diametro_canna_fumaria} 
+                      onValueChange={(value) => setNewLead({...newLead, diametro_canna_fumaria: value, diametro_canna_fumaria_altro: value === "altro" ? newLead.diametro_canna_fumaria_altro : ""})}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Seleziona diametro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="100">⌀ 100 mm</SelectItem>
+                        <SelectItem value="150">⌀ 150 mm</SelectItem>
+                        <SelectItem value="200">⌀ 200 mm</SelectItem>
+                        <SelectItem value="250">⌀ 250 mm</SelectItem>
+                        <SelectItem value="300">⌀ 300 mm</SelectItem>
+                        <SelectItem value="350">⌀ 350 mm</SelectItem>
+                        <SelectItem value="400">⌀ 400 mm</SelectItem>
+                        <SelectItem value="450">⌀ 450 mm</SelectItem>
+                        <SelectItem value="altro">✏️ Altro...</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {newLead.diametro_canna_fumaria === "altro" && (
+                      <Input
+                        className="mt-2"
+                        value={newLead.diametro_canna_fumaria_altro}
+                        onChange={(e) => setNewLead({...newLead, diametro_canna_fumaria_altro: e.target.value})}
+                        placeholder="Specifica diametro (es. 500mm)..."
+                      />
+                    )}
                   </div>
+
+                  {/* Montaggio */}
                   <div>
-                    <Label htmlFor="edit_luogo">Luogo</Label>
-                    <Input
-                      id="edit_luogo"
-                      value={newLead.luogo}
-                      onChange={(e) => setNewLead({...newLead, luogo: e.target.value})}
-                      placeholder="Indirizzo di installazione"
-                    />
+                    <Label className="text-sm font-medium">Montaggio *</Label>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant={newLead.montaggio === "interno" ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setNewLead({...newLead, montaggio: "interno"})}
+                      >
+                        🏠 Interno
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={newLead.montaggio === "esterno" ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setNewLead({...newLead, montaggio: "esterno"})}
+                      >
+                        🌤️ Esterno
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="edit_installazione"
-                      checked={newLead.installazione}
-                      onChange={(e) => setNewLead({...newLead, installazione: e.target.checked})}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="edit_installazione" className="cursor-pointer">
-                      Richiede installazione
-                    </Label>
+
+                  {/* Ingresso Fumi */}
+                  <div>
+                    <Label className="text-sm font-medium">Ingresso Fumi *</Label>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant={newLead.ingresso_fumi === "dx" ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setNewLead({...newLead, ingresso_fumi: "dx"})}
+                      >
+                        ➡️ DX
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={newLead.ingresso_fumi === "sx" ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setNewLead({...newLead, ingresso_fumi: "sx"})}
+                      >
+                        ⬅️ SX
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
