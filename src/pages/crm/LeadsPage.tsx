@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
@@ -89,6 +89,7 @@ interface Offer {
   status: string;
   customer_name: string;
   lead_id?: string;
+  unique_code?: string;
 }
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
@@ -297,7 +298,7 @@ export default function LeadsPage() {
     try {
       const { data, error } = await supabase
         .from('offers')
-        .select('id, number, title, amount, status, customer_name, lead_id')
+        .select('id, number, title, amount, status, customer_name, lead_id, unique_code')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -2064,10 +2065,34 @@ export default function LeadsPage() {
                                                 <span className="text-xs text-green-600 font-medium">
                                                   €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                                                 </span>
+                                                <Select
+                                                  value={linkedOffer.status}
+                                                  onValueChange={(value) => {
+                                                    // Update offer status
+                                                    supabase
+                                                      .from('offers')
+                                                      .update({ status: value })
+                                                      .eq('id', linkedOffer.id)
+                                                      .then(() => loadOffers());
+                                                  }}
+                                                >
+                                                  <SelectTrigger className="h-6 text-xs w-[90px]">
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="richiesta_offerta">Richiesta</SelectItem>
+                                                    <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                                                    <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                                                    <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                                                    <SelectItem value="accettata">Accettata</SelectItem>
+                                                    <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
                                                 <Button
                                                    size="sm"
                                                    variant="ghost"
-                                                   className="h-6 px-2"
+                                                   className="h-6 w-6 p-0"
+                                                   title="Apri offerta"
                                                    onClick={(e) => {
                                                      e.stopPropagation();
                                                      navigate(`/crm/offers?offer=${linkedOffer.id}`);
@@ -2075,6 +2100,20 @@ export default function LeadsPage() {
                                                  >
                                                    <ExternalLink className="h-3 w-3" />
                                                  </Button>
+                                                 {linkedOffer.unique_code && (
+                                                   <Button
+                                                     size="sm"
+                                                     variant="ghost"
+                                                     className="h-6 w-6 p-0"
+                                                     title="Scarica PDF"
+                                                     onClick={(e) => {
+                                                       e.stopPropagation();
+                                                       window.open(`https://www.erp.abbattitorizapper.it/offerta/${linkedOffer.unique_code}?print=true`, '_blank');
+                                                     }}
+                                                   >
+                                                     <Download className="h-3 w-3" />
+                                                   </Button>
+                                                 )}
                                               </div>
                                             </div>
                                           ))}
