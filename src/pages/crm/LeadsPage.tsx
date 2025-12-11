@@ -2498,62 +2498,6 @@ export default function LeadsPage() {
                 </div>
               )}
 
-              {/* Next Activity */}
-              {(selectedLead.next_activity_type || selectedLead.next_activity_date) && (
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                      <label className="text-sm font-medium text-blue-600">Prossima Attività</label>
-                      {selectedLead.next_activity_date && new Date(selectedLead.next_activity_date) < new Date() && (
-                        <Badge variant="destructive" className="animate-pulse">Scaduta</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="ml-6 space-y-2">
-                    {selectedLead.next_activity_type && (
-                      <div>
-                        <span className="text-sm font-medium">Tipo: </span>
-                        <span className="text-sm text-muted-foreground">
-                          {selectedLead.next_activity_type === "call" ? "Chiamata" :
-                           selectedLead.next_activity_type === "email" ? "Email" :
-                           selectedLead.next_activity_type === "meeting" ? "Incontro" :
-                           selectedLead.next_activity_type === "demo" ? "Demo" :
-                           selectedLead.next_activity_type === "follow_up" ? "Follow-up" :
-                           selectedLead.next_activity_type === "quote" ? "Preventivo" :
-                           selectedLead.next_activity_type}
-                        </span>
-                      </div>
-                    )}
-                    {selectedLead.next_activity_date && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm">
-                          {new Date(selectedLead.next_activity_date).toLocaleDateString('it-IT', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                    )}
-                    {selectedLead.next_activity_notes && (
-                      <p className="text-sm text-muted-foreground italic">{selectedLead.next_activity_notes}</p>
-                    )}
-                    {selectedLead.next_activity_assigned_to && (
-                      <div className="flex items-center gap-2">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm">
-                          {users.find(u => u.id === selectedLead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === selectedLead.next_activity_assigned_to)?.last_name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Linked Offers */}
               {offers.filter(o => o.lead_id === selectedLead.id).length > 0 && (
                 <div className="border-t pt-4">
