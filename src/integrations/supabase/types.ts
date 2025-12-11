@@ -3653,6 +3653,10 @@ export type Database = {
       offers: {
         Row: {
           amount: number
+          approved: boolean | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
           archived: boolean | null
           assigned_to: string | null
           attachments: string[] | null
@@ -3686,6 +3690,10 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          approved?: boolean | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           archived?: boolean | null
           assigned_to?: string | null
           attachments?: string[] | null
@@ -3719,6 +3727,10 @@ export type Database = {
         }
         Update: {
           amount?: number
+          approved?: boolean | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           archived?: boolean | null
           assigned_to?: string | null
           attachments?: string[] | null

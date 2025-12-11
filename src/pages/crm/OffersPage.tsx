@@ -35,7 +35,6 @@ interface Offer {
   title: string;
   description?: string;
   amount: number;
-  status: 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'accettata' | 'rifiutata';
   created_at: string;
   valid_until?: string;
   attachments?: string[];
@@ -59,6 +58,7 @@ interface Offer {
   approved?: boolean;
   approved_by?: string;
   approved_by_name?: string;
+  approved_at?: string;
 }
 
 interface Lead {
@@ -102,7 +102,6 @@ export default function OffersPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('all');
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -1020,9 +1019,6 @@ export default function OffersPage() {
     if (showArchived && !offer.archived) return false;
     if (!showArchived && offer.archived) return false;
     
-    // Filter by status
-    if (selectedStatus !== 'all' && offer.status !== selectedStatus) return false;
-    
     // Filter by template
     if (selectedTemplate !== 'all' && offer.template !== selectedTemplate) return false;
     
@@ -1039,50 +1035,10 @@ export default function OffersPage() {
     return true;
   });
 
-  const statusCounts = {
+  const approvalCounts = {
     all: filteredOffers.length,
-    offerta_pronta: filteredOffers.filter(o => o.status === 'offerta_pronta').length,
-    offerta_inviata: filteredOffers.filter(o => o.status === 'offerta_inviata').length,
-    negoziazione: filteredOffers.filter(o => o.status === 'negoziazione').length,
-    accettata: filteredOffers.filter(o => o.status === 'accettata').length,
-    rifiutata: filteredOffers.filter(o => o.status === 'rifiutata').length,
-  };
-
-  const handleChangeStatus = async (offerId: string, newStatus: Offer['status']) => {
-    try {
-      const { error } = await supabase
-        .from('offers')
-        .update({ status: newStatus })
-        .eq('id', offerId);
-
-      if (error) throw error;
-
-      // Se l'offerta viene accettata, naviga immediatamente alla pagina ordini
-      if (newStatus === 'accettata') {
-        toast({
-          title: "Offerta Accettata",
-          description: "Vai alla sezione Ordini per creare l'ordine",
-        });
-        
-        // Naviga immediatamente alla pagina ordini
-        setTimeout(() => {
-          navigate('/crm/orders');
-        }, 500);
-      } else {
-        toast({
-          title: "Stato Aggiornato",
-          description: "Lo stato dell'offerta è stato aggiornato",
-        });
-        loadData();
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nell'aggiornamento dello stato",
-        variant: "destructive",
-      });
-    }
+    nonApprovate: filteredOffers.filter(o => !o.approved).length,
+    approvate: filteredOffers.filter(o => o.approved).length,
   };
 
   const handleLinkLead = async (offerId: string, leadId: string | null) => {
@@ -1220,7 +1176,8 @@ export default function OffersPage() {
         .update({ 
           approved: true,
           approved_by: user.id,
-          approved_by_name: user.user_metadata?.full_name || user.email || 'Utente'
+          approved_by_name: user.user_metadata?.full_name || user.email || 'Utente',
+          approved_at: new Date().toISOString()
         } as any)
         .eq('id', offerId);
 
@@ -1995,112 +1952,21 @@ export default function OffersPage() {
         </div>
         
         {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        {/* Colonna: Pronte */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        {/* Colonna: Da Approvare */}
         <Card className="lg:col-span-1">
           <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
-              <FileCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
-              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Pronte</CardTitle>
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600" />
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Da Approvare</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.offerta_pronta}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{approvalCounts.nonApprovate}</Badge>
           </CardHeader>
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {filteredOffers.filter(o => o.status === 'offerta_pronta').map(offer => (
-                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-blue-200" : "p-3 hover:shadow-md transition-shadow border-blue-200"}>
-                      <div className="space-y-1.5 sm:space-y-2">
-                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
-                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
-                      <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      {offer.template && (
-                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
-                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
-                        </Badge>
-                      )}
-                      {offer.status === 'offerta_pronta' && !offer.approved ? (
-                        <>
-                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                            <SelectTrigger className="w-full h-7 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                              <SelectItem value="accettata">Accettata</SelectItem>
-                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="w-full text-xs h-7"
-                            onClick={() => handleApproveOffer(offer.id)}
-                          >
-                            Approvata
-                          </Button>
-                        </>
-                      ) : offer.approved && offer.status === 'offerta_pronta' ? (
-                        <>
-                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                            <SelectTrigger className="w-full h-7 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                              <SelectItem value="accettata">Accettata</SelectItem>
-                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <span className="text-xs text-muted-foreground text-center">
-                            Approvato da {offer.approved_by_name}
-                          </span>
-                        </>
-                      ) : (
-                        <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                          <SelectTrigger className="w-full h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                            <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                            <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                            <SelectItem value="accettata">Accettata</SelectItem>
-                            <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
-                        <Eye className="w-3 h-3 mr-1" />
-                        Dettagli
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Colonna: Inviate */}
-        <Card className="lg:col-span-1">
-          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
-            <div className="flex items-center gap-2">
-              <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
-              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Inviate</CardTitle>
-            </div>
-            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.offerta_inviata}</Badge>
-          </CardHeader>
-          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
-            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
-              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {filteredOffers.filter(o => o.status === 'offerta_inviata').map(offer => (
-                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-purple-200" : "p-3 hover:shadow-md transition-shadow border-purple-200"}>
+                {filteredOffers.filter(o => !o.approved).map(offer => (
+                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-orange-200" : "p-3 hover:shadow-md transition-shadow border-orange-200"}>
                     <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
@@ -2114,18 +1980,15 @@ export default function OffersPage() {
                       <div className="text-xs text-muted-foreground">
                         {new Date(offer.created_at).toLocaleDateString('it-IT')}
                       </div>
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Button 
+                        size="sm" 
+                        variant="default" 
+                        className="w-full text-xs h-7"
+                        onClick={() => handleApproveOffer(offer.id)}
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Approva
+                      </Button>
                       <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
                         <Eye className="w-3 h-3 mr-1" />
                         Dettagli
@@ -2138,67 +2001,19 @@ export default function OffersPage() {
           </CardContent>
         </Card>
 
-        {/* Colonna: In Negoziazione */}
-        <Card className="lg:col-span-1">
-          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600" />
-              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Negoziazione</CardTitle>
-            </div>
-            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.negoziazione}</Badge>
-          </CardHeader>
-          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
-            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
-              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {filteredOffers.filter(o => o.status === 'negoziazione').map(offer => (
-                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-orange-200" : "p-3 hover:shadow-md transition-shadow border-orange-200"}>
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
-                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
-                      <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      {offer.template && (
-                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
-                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
-                        </Badge>
-                      )}
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
-                        <Eye className="w-3 h-3 mr-1" />
-                        Dettagli
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Colonna: Accettate */}
+        {/* Colonna: Approvate */}
         <Card className="lg:col-span-1">
           <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
-              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Accettate</CardTitle>
+              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Approvate</CardTitle>
             </div>
-            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.accettata}</Badge>
+            <Badge variant="secondary" className="w-fit text-xs">{approvalCounts.approvate}</Badge>
           </CardHeader>
           <CardContent className={isMobile ? "p-1.5" : "p-2"}>
             <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
               <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {filteredOffers.filter(o => o.status === 'accettata').map(offer => (
+                {filteredOffers.filter(o => o.approved).map(offer => (
                   <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-green-200 bg-green-50/50" : "p-3 hover:shadow-md transition-shadow border-green-200 bg-green-50/50"}>
                     <div className="space-y-1.5 sm:space-y-2">
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
@@ -2210,72 +2025,15 @@ export default function OffersPage() {
                           {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
                         </Badge>
                       )}
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <div className={isMobile ? "flex flex-col gap-1" : "flex flex-col gap-1"}>
-                        <Button size="sm" variant="default" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => handleCreateOrderFromOffer(offer)}>
-                          <ClipboardList className="w-3 h-3 mr-1" />
-                          Crea Ordine
-                        </Button>
-                        <Button size="sm" variant="outline" className={isMobile ? "w-full h-7 text-xs" : "w-full"} onClick={() => openDetails(offer)}>
-                          <Eye className="w-3 h-3 mr-1" />
-                          Dettagli
-                        </Button>
+                      <div className="text-xs text-green-700 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Approvata da {offer.approved_by_name}
+                        {offer.approved_at && (
+                          <span className="text-muted-foreground ml-1">
+                            il {new Date(offer.approved_at).toLocaleDateString('it-IT')} alle {new Date(offer.approved_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Colonna: Rifiutate */}
-        <Card className="lg:col-span-1">
-          <CardHeader className={isMobile ? "pb-2 px-3 pt-3" : "pb-3"}>
-            <div className="flex items-center gap-2">
-              <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600" />
-              <CardTitle className={isMobile ? "text-xs" : "text-sm"}>Rifiutate</CardTitle>
-            </div>
-            <Badge variant="secondary" className="w-fit text-xs">{statusCounts.rifiutata}</Badge>
-          </CardHeader>
-          <CardContent className={isMobile ? "p-1.5" : "p-2"}>
-            <ScrollArea className={isMobile ? "h-[calc(100vh-380px)]" : "h-[calc(100vh-320px)]"}>
-              <div className={isMobile ? "space-y-1.5 pr-1" : "space-y-2 pr-2"}>
-                {filteredOffers.filter(o => o.status === 'rifiutata').map(offer => (
-                  <Card key={offer.id} className={isMobile ? "p-2 hover:shadow-md transition-shadow border-red-200 bg-red-50/50" : "p-3 hover:shadow-md transition-shadow border-red-200 bg-red-50/50"}>
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
-                      <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
-                      <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className={isMobile ? "text-xs font-semibold text-red-700" : "text-sm font-semibold text-red-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                      {offer.template && (
-                        <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
-                          {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
-                        </Badge>
-                      )}
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className={isMobile ? "w-full h-7 text-xs" : "w-full h-8 text-xs"}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
                       <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={() => openDetails(offer)}>
                         <Eye className="w-3 h-3 mr-1" />
                         Dettagli
@@ -2302,9 +2060,15 @@ export default function OffersPage() {
                           <div className="text-xs text-muted-foreground truncate">{offer.customer_name}</div>
                         </div>
                         <div className="flex flex-col gap-1 items-end">
-                          <Badge className={`${getStatusColor(offer.status)} text-xs`}>
-                            {getStatusText(offer.status)}
-                          </Badge>
+                          {offer.approved ? (
+                            <Badge className="bg-green-100 text-green-800 text-xs">
+                              Approvata
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-orange-100 text-orange-800 text-xs">
+                              Da Approvare
+                            </Badge>
+                          )}
                           {offer.template && (
                             <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
                               {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
@@ -2321,22 +2085,16 @@ export default function OffersPage() {
                           {new Date(offer.created_at).toLocaleDateString('it-IT')}
                         </span>
                       </div>
-                      <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                        <SelectTrigger className="w-full h-7 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                          <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                          <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                          <SelectItem value="accettata">Accettata</SelectItem>
-                          <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {offer.status === 'offerta_pronta' && offer.approved && (
-                        <span className="text-xs text-muted-foreground text-center">
-                          Approvato da {offer.approved_by_name}
-                        </span>
+                      {offer.approved && (
+                        <div className="text-xs text-green-700 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Approvata da {offer.approved_by_name}
+                          {offer.approved_at && (
+                            <span className="text-muted-foreground ml-1">
+                              il {new Date(offer.approved_at).toLocaleDateString('it-IT')} alle {new Date(offer.approved_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
                       )}
                       <div className="flex gap-1 pt-1">
                         <Button
@@ -2356,25 +2114,14 @@ export default function OffersPage() {
                         >
                           <Copy className="w-3 h-3" />
                         </Button>
-                        {offer.status === 'offerta_pronta' && !offer.approved && (
+                        {!offer.approved && (
                           <Button
                             size="sm"
                             variant="default"
                             onClick={() => handleApproveOffer(offer.id)}
                             className="h-7 text-xs flex-1"
                           >
-                            Approvata
-                          </Button>
-                        )}
-                        {offer.status === 'accettata' && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleCreateOrderFromOffer(offer)}
-                            className="h-7 text-xs flex-1"
-                          >
-                            <ClipboardList className="w-3 h-3 mr-1" />
-                            Ordine
+                            Approva
                           </Button>
                         )}
                       </div>
@@ -2391,7 +2138,7 @@ export default function OffersPage() {
                   <TableHead>Titolo</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
                   <TableHead>Template</TableHead>
-                  <TableHead>Stato</TableHead>
+                  <TableHead>Approvazione</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
@@ -2413,60 +2160,29 @@ export default function OffersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {offer.status === 'offerta_pronta' && !offer.approved ? (
-                        <div className="flex items-center gap-2">
-                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                            <SelectTrigger className="w-[100px] h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                              <SelectItem value="accettata">Accettata</SelectItem>
-                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleApproveOffer(offer.id)}
-                            className="h-8 text-xs"
-                          >
-                            Approvata
-                          </Button>
-                        </div>
-                      ) : offer.approved && offer.status === 'offerta_pronta' ? (
+                      {offer.approved ? (
                         <div className="flex flex-col gap-1">
-                          <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                            <SelectTrigger className="w-[140px] h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                              <SelectItem value="accettata">Accettata</SelectItem>
-                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Badge className="bg-green-100 text-green-800 text-xs w-fit">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Approvata
+                          </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Approvato da {offer.approved_by_name}
+                            {offer.approved_by_name}
+                            {offer.approved_at && (
+                              <> - {new Date(offer.approved_at).toLocaleDateString('it-IT')} {new Date(offer.approved_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</>
+                            )}
                           </span>
                         </div>
                       ) : (
-                        <Select value={offer.status} onValueChange={(value) => handleChangeStatus(offer.id, value as Offer['status'])}>
-                          <SelectTrigger className="w-[140px] h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                            <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                            <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                            <SelectItem value="accettata">Accettata</SelectItem>
-                            <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleApproveOffer(offer.id)}
+                          className="h-8 text-xs"
+                        >
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Approva
+                        </Button>
                       )}
                     </TableCell>
                     <TableCell>
@@ -2490,16 +2206,6 @@ export default function OffersPage() {
                         >
                           <Copy className="w-3 h-3" />
                         </Button>
-                        {offer.status === 'accettata' && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleCreateOrderFromOffer(offer)}
-                            title="Crea Ordine"
-                          >
-                            <ClipboardList className="w-3 h-3" />
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -2543,10 +2249,15 @@ export default function OffersPage() {
                   <p className={isMobile ? "text-sm" : "text-sm"}>{selectedOffer.title}</p>
                 </div>
                 <div>
-                  <label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Stato</label>
-                  <Badge className={`ml-2 ${getStatusColor(selectedOffer.status)}`}>
-                    {getStatusText(selectedOffer.status)}
-                  </Badge>
+                  <label className={isMobile ? "text-xs font-medium text-muted-foreground" : "text-sm font-medium text-muted-foreground"}>Approvazione</label>
+                  {selectedOffer.approved ? (
+                    <Badge className="ml-2 bg-green-100 text-green-800">
+                      Approvata da {selectedOffer.approved_by_name}
+                      {selectedOffer.approved_at && ` il ${new Date(selectedOffer.approved_at).toLocaleDateString('it-IT')} alle ${new Date(selectedOffer.approved_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`}
+                    </Badge>
+                  ) : (
+                    <Badge className="ml-2 bg-orange-100 text-orange-800">Da Approvare</Badge>
+                  )}
                 </div>
                 {selectedOffer.priority && (
                   <div>
@@ -2939,7 +2650,7 @@ export default function OffersPage() {
                         description: selectedOffer.description || '',
                         amount: selectedOffer.amount,
                         valid_until: selectedOffer.valid_until || '',
-                        status: selectedOffer.status as any,
+                        status: 'offerta_pronta' as any,
                         template: (selectedOffer as any).template || 'zapper',
                         language: (selectedOffer as any).language || 'it',
                         timeline_produzione: (selectedOffer as any).timeline_produzione || '',
@@ -2988,15 +2699,16 @@ export default function OffersPage() {
                     <Copy className="w-4 h-4 mr-2" />
                     Duplica
                   </Button>
-                  {selectedOffer.status === 'accettata' && (
+                  {!selectedOffer.approved && (
                     <Button
+                      variant="default"
                       onClick={() => {
-                        handleCreateOrderFromOffer(selectedOffer);
+                        handleApproveOffer(selectedOffer.id);
                         setIsDetailsDialogOpen(false);
                       }}
                     >
-                      <ClipboardList className="w-4 h-4 mr-2" />
-                      Crea Ordine
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Approva
                     </Button>
                   )}
                   {selectedOffer.archived ? (
