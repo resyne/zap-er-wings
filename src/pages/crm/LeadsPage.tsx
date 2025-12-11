@@ -2317,47 +2317,46 @@ export default function LeadsPage() {
                 </div>
               )}
 
-              {/* Custom Fields - ZAPPER */}
+              {/* Custom Fields - ZAPPER - Always visible for Zapper/Zapper Pro */}
               {(selectedLead.pipeline === "Zapper" || selectedLead.pipeline === "Zapper Pro") && (
-                selectedLead.custom_fields?.tipologia_cliente || 
-                selectedLead.custom_fields?.diametro_canna_fumaria || 
-                selectedLead.custom_fields?.montaggio || 
-                selectedLead.custom_fields?.ingresso_fumi
-              ) && (
                 <div className="border rounded-lg p-4 bg-primary/5">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-                    <span className="h-2 w-2 bg-primary rounded-full"></span>
+                    <Zap className="h-4 w-4" />
                     Configurazione ZAPPER
                   </h4>
-                  <div className={cn("grid gap-4", isMobile ? "grid-cols-2" : "grid-cols-4")}>
-                    {selectedLead.custom_fields?.tipologia_cliente && (
-                      <div className="bg-background rounded-lg p-3 border">
-                        <label className="text-xs font-medium text-muted-foreground">Tipologia Cliente</label>
-                        <p className="text-sm font-medium mt-1 capitalize">{selectedLead.custom_fields.tipologia_cliente.replace(/_/g, ' ')}</p>
-                      </div>
-                    )}
-                    {selectedLead.custom_fields?.diametro_canna_fumaria && (
-                      <div className="bg-background rounded-lg p-3 border">
-                        <label className="text-xs font-medium text-muted-foreground">Diametro Canna</label>
-                        <p className="text-sm font-medium mt-1">⌀ {selectedLead.custom_fields.diametro_canna_fumaria} mm</p>
-                      </div>
-                    )}
-                    {selectedLead.custom_fields?.montaggio && (
-                      <div className="bg-background rounded-lg p-3 border">
-                        <label className="text-xs font-medium text-muted-foreground">Montaggio</label>
-                        <p className="text-sm font-medium mt-1 capitalize">
-                          {selectedLead.custom_fields.montaggio === "interno" ? "🏠 Interno" : "🌤️ Esterno"}
-                        </p>
-                      </div>
-                    )}
-                    {selectedLead.custom_fields?.ingresso_fumi && (
-                      <div className="bg-background rounded-lg p-3 border">
-                        <label className="text-xs font-medium text-muted-foreground">Ingresso Fumi</label>
-                        <p className="text-sm font-medium mt-1">
-                          {selectedLead.custom_fields.ingresso_fumi === "dx" ? "➡️ DX" : "⬅️ SX"}
-                        </p>
-                      </div>
-                    )}
+                  <div className={cn("grid gap-3", isMobile ? "grid-cols-2" : "grid-cols-4")}>
+                    <div className="bg-background rounded-lg p-3 border">
+                      <label className="text-xs font-medium text-muted-foreground">Tipologia Cliente</label>
+                      <p className="text-sm font-medium mt-1 capitalize">
+                        {selectedLead.custom_fields?.tipologia_cliente 
+                          ? selectedLead.custom_fields.tipologia_cliente.replace(/_/g, ' ')
+                          : <span className="text-muted-foreground italic">Non specificato</span>}
+                      </p>
+                    </div>
+                    <div className="bg-background rounded-lg p-3 border">
+                      <label className="text-xs font-medium text-muted-foreground">Diametro Canna</label>
+                      <p className="text-sm font-medium mt-1">
+                        {selectedLead.custom_fields?.diametro_canna_fumaria 
+                          ? `⌀ ${selectedLead.custom_fields.diametro_canna_fumaria} mm`
+                          : <span className="text-muted-foreground italic">Non specificato</span>}
+                      </p>
+                    </div>
+                    <div className="bg-background rounded-lg p-3 border">
+                      <label className="text-xs font-medium text-muted-foreground">Montaggio</label>
+                      <p className="text-sm font-medium mt-1">
+                        {selectedLead.custom_fields?.montaggio 
+                          ? (selectedLead.custom_fields.montaggio === "interno" ? "🏠 Interno" : "🌤️ Esterno")
+                          : <span className="text-muted-foreground italic">Non specificato</span>}
+                      </p>
+                    </div>
+                    <div className="bg-background rounded-lg p-3 border">
+                      <label className="text-xs font-medium text-muted-foreground">Ingresso Fumi</label>
+                      <p className="text-sm font-medium mt-1">
+                        {selectedLead.custom_fields?.ingresso_fumi 
+                          ? (selectedLead.custom_fields.ingresso_fumi === "dx" ? "➡️ DX" : "⬅️ SX")
+                          : <span className="text-muted-foreground italic">Non specificato</span>}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
