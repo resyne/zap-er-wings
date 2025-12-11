@@ -259,25 +259,6 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
 
       if (error) throw error;
 
-      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
-      try {
-        const { data: leadData } = await supabase
-          .from("leads")
-          .select("status")
-          .eq("id", leadId)
-          .single();
-
-        if (leadData?.status === "new") {
-          await supabase
-            .from("leads")
-            .update({ status: "qualified" })
-            .eq("id", leadId);
-        }
-      } catch (statusError) {
-        console.error("Error updating lead status:", statusError);
-        // Non bloccare l'inserimento del commento se l'aggiornamento dello status fallisce
-      }
-
       toast({
         title: "Commento aggiunto",
         description: "Il commento è stato aggiunto con successo",
@@ -376,24 +357,6 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
 
       if (error) throw error;
 
-      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
-      try {
-        const { data: leadData } = await supabase
-          .from("leads")
-          .select("status")
-          .eq("id", leadId)
-          .single();
-
-        if (leadData?.status === "new") {
-          await supabase
-            .from("leads")
-            .update({ status: "qualified" })
-            .eq("id", leadId);
-        }
-      } catch (statusError) {
-        console.error("Error updating lead status:", statusError);
-        // Non bloccare l'inserimento dell'attività se l'aggiornamento dello status fallisce
-      }
 
       // Aggiungi l'attività al calendario personale e aziendale se assegnata
       if (newActivity.assigned_to) {
@@ -502,24 +465,6 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
         .eq("id", activityToComplete.id);
 
       if (updateError) throw updateError;
-
-      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
-      try {
-        const { data: leadData } = await supabase
-          .from("leads")
-          .select("status")
-          .eq("id", leadId)
-          .single();
-
-        if (leadData?.status === "new") {
-          await supabase
-            .from("leads")
-            .update({ status: "qualified" })
-            .eq("id", leadId);
-        }
-      } catch (statusError) {
-        console.error("Error updating lead status:", statusError);
-      }
 
       // Crea la prossima attività solo se i campi sono compilati
       const hasNextActivity = completionData.next_activity_type && completionData.next_activity_date;
