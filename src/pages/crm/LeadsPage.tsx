@@ -2100,20 +2100,33 @@ export default function LeadsPage() {
                                                  >
                                                    <ExternalLink className="h-3 w-3" />
                                                  </Button>
-                                                 {linkedOffer.unique_code && (
-                                                   <Button
-                                                     size="sm"
-                                                     variant="ghost"
-                                                     className="h-6 w-6 p-0"
-                                                     title="Scarica PDF"
-                                                     onClick={(e) => {
-                                                       e.stopPropagation();
-                                                       window.open(`https://www.erp.abbattitorizapper.it/offerta/${linkedOffer.unique_code}?print=true`, '_blank');
-                                                     }}
-                                                   >
-                                                     <Download className="h-3 w-3" />
-                                                   </Button>
-                                                 )}
+                                                 <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-6 w-6 p-0"
+                                                      title="Scarica PDF"
+                                                      onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        let code = linkedOffer.unique_code;
+                                                        if (!code) {
+                                                          // Generate unique code if missing
+                                                          const { data: codeData } = await supabase.rpc('generate_offer_code');
+                                                          if (codeData) {
+                                                            await supabase
+                                                              .from('offers')
+                                                              .update({ unique_code: codeData })
+                                                              .eq('id', linkedOffer.id);
+                                                            code = codeData;
+                                                            loadOffers();
+                                                          }
+                                                        }
+                                                        if (code) {
+                                                          window.open(`https://www.erp.abbattitorizapper.it/offerta/${code}?print=true`, '_blank');
+                                                        }
+                                                      }}
+                                                    >
+                                                      <Download className="h-3 w-3" />
+                                                    </Button>
                                               </div>
                                             </div>
                                           ))}
