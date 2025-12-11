@@ -1498,30 +1498,30 @@ export default function OffersPage() {
             </DialogTrigger>
             <DialogContent className={cn(
               "max-h-[90vh] overflow-y-auto transition-all duration-300",
-              isMobile ? "max-w-[95vw] p-4" : showPreview ? "max-w-6xl" : "max-w-2xl"
+              isMobile ? "max-w-[95vw] p-4" : showPreview ? "max-w-6xl p-6" : "max-w-2xl p-6"
             )}>
-            <DialogHeader className="pb-2">
-              <DialogTitle>{newOffer.id ? 'Modifica Offerta' : 'Crea Nuova Offerta'}</DialogTitle>
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-xl">{newOffer.id ? 'Modifica Offerta' : 'Crea Nuova Offerta'}</DialogTitle>
             </DialogHeader>
             
-            <div className={cn("flex gap-4", showPreview && !isMobile ? "flex-row" : "flex-col")}>
+            <div className={cn("flex gap-6", showPreview && !isMobile ? "flex-row" : "flex-col")}>
               {/* Form Section */}
               <div className={cn("flex-1 min-w-0", showPreview && !isMobile && "max-w-[60%]")}>
-                <ScrollArea className={isMobile ? "h-[calc(100vh-200px)]" : "h-[calc(80vh-150px)]"}>
-                  <div className="space-y-3 pr-4">
+                <ScrollArea className={isMobile ? "h-[calc(100vh-200px)]" : "h-[calc(80vh-160px)]"}>
+                  <div className="space-y-5 pr-4">
                     {/* Sezione Cliente */}
                     <Collapsible defaultOpen={true}>
-                      <div className="rounded-lg border bg-card overflow-hidden">
-                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-primary" />
-                            <span className="font-medium text-sm">Cliente</span>
-                          </div>
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <Separator />
-                          <div className="p-4 space-y-3">
+                        <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <User className="h-5 w-5 text-primary" />
+                              <span className="font-medium">Cliente</span>
+                            </div>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <Separator />
+                            <div className="p-5 space-y-4">
                             <div className="flex gap-2">
                               <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
                                 <PopoverTrigger asChild>
@@ -1570,30 +1570,30 @@ export default function OffersPage() {
 
                     {/* Sezione Dettagli Offerta */}
                     <Collapsible defaultOpen={true}>
-                      <div className="rounded-lg border bg-card overflow-hidden">
-                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-primary" />
-                            <span className="font-medium text-sm">Dettagli Offerta</span>
+                      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-primary" />
+                            <span className="font-medium">Dettagli Offerta</span>
                           </div>
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <Separator />
-                          <div className="p-4 space-y-3">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium">Titolo Offerta *</label>
-                              <Input value={newOffer.title} onChange={(e) => setNewOffer(prev => ({ ...prev, title: e.target.value }))} placeholder="Es: Forno professionale per ristorante" className="h-9" />
+                          <div className="p-5 space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Titolo Offerta *</label>
+                              <Input value={newOffer.title} onChange={(e) => setNewOffer(prev => ({ ...prev, title: e.target.value }))} placeholder="Es: Forno professionale per ristorante" className="h-10" />
                             </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium">Descrizione</label>
-                              <Textarea value={newOffer.description} onChange={(e) => setNewOffer(prev => ({ ...prev, description: e.target.value }))} placeholder="Descrizione dettagliata..." rows={2} className="resize-none" />
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Descrizione</label>
+                              <Textarea value={newOffer.description} onChange={(e) => setNewOffer(prev => ({ ...prev, description: e.target.value }))} placeholder="Descrizione dettagliata..." rows={3} className="resize-none" />
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1.5">
-                                <label className="text-xs font-medium">Template</label>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Template</label>
                                 <Select value={newOffer.template} onValueChange={(value: 'zapper' | 'vesuviano' | 'zapperpro') => setNewOffer(prev => ({ ...prev, template: value }))}>
-                                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="zapper">ZAPPER</SelectItem>
                                     <SelectItem value="vesuviano">Vesuviano</SelectItem>
@@ -1601,10 +1601,10 @@ export default function OffersPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              <div className="space-y-1.5">
-                                <label className="text-xs font-medium">Lingua</label>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Lingua</label>
                                 <Select value={newOffer.language || 'it'} onValueChange={(value: 'it' | 'en' | 'fr') => setNewOffer(prev => ({ ...prev, language: value }))}>
-                                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="it">🇮🇹 Italiano</SelectItem>
                                     <SelectItem value="en">🇬🇧 Inglese</SelectItem>
@@ -1613,19 +1613,19 @@ export default function OffersPage() {
                                 </Select>
                               </div>
                             </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium">Intestazione e Coordinate Bancarie</label>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Intestazione e Coordinate Bancarie</label>
                               <Select value={newOffer.company_entity || 'climatel'} onValueChange={(value: 'climatel' | 'unita1') => setNewOffer(prev => ({ ...prev, company_entity: value }))}>
-                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                <SelectContent className="z-[100] bg-background">
-                                  <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
-                                  <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                              <SelectContent className="z-[100] bg-background">
+                                <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
+                                <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+                              </SelectContent>
+                            </Select>
                             </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium">Valida Fino al</label>
-                              <Input type="date" value={newOffer.valid_until} onChange={(e) => setNewOffer(prev => ({ ...prev, valid_until: e.target.value }))} className="h-9" />
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Valida Fino al</label>
+                              <Input type="date" value={newOffer.valid_until} onChange={(e) => setNewOffer(prev => ({ ...prev, valid_until: e.target.value }))} className="h-10" />
                             </div>
                           </div>
                         </CollapsibleContent>
@@ -1634,22 +1634,22 @@ export default function OffersPage() {
 
                     {/* Sezione Prodotti */}
                     <Collapsible defaultOpen={true}>
-                      <div className="rounded-lg border bg-card overflow-hidden">
-                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-primary" />
-                            <span className="font-medium text-sm">Prodotti e Servizi</span>
-                            {selectedProducts.length > 0 && <Badge variant="secondary" className="text-xs">{selectedProducts.length}</Badge>}
+                      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <Package className="h-5 w-5 text-primary" />
+                            <span className="font-medium">Prodotti e Servizi</span>
+                            {selectedProducts.length > 0 && <Badge variant="secondary">{selectedProducts.length}</Badge>}
                           </div>
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <Separator />
-                          <div className="p-4 space-y-3">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium">Listino di Riferimento</label>
+                          <div className="p-5 space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Listino di Riferimento</label>
                               <Select value={selectedGlobalPriceListId || 'none'} onValueChange={(value) => { setSelectedGlobalPriceListId(value === 'none' ? '' : value); setCurrentProductId(''); }}>
-                                <SelectTrigger className="h-9"><SelectValue placeholder="Nessun listino" /></SelectTrigger>
+                                <SelectTrigger className="h-10"><SelectValue placeholder="Nessun listino" /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">Nessun listino - Tutti i prodotti</SelectItem>
                                   {priceLists.map((priceList) => (<SelectItem key={priceList.id} value={priceList.id}>{priceList.code} - {priceList.name}</SelectItem>))}
@@ -1658,7 +1658,7 @@ export default function OffersPage() {
                             </div>
                             <div className="flex gap-2">
                               <Select value={currentProductId} onValueChange={setCurrentProductId}>
-                                <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Seleziona prodotto" /></SelectTrigger>
+                                <SelectTrigger className="flex-1 h-10"><SelectValue placeholder="Seleziona prodotto" /></SelectTrigger>
                                 <SelectContent>
                                   {products.map((product) => (
                                     <SelectItem key={product.id} value={product.id}>
@@ -1667,17 +1667,17 @@ export default function OffersPage() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <Button type="button" size="sm" onClick={() => {
+                              <Button type="button" onClick={() => {
                                 const product = products.find(p => p.id === currentProductId);
                                 if (product) {
                                   const priceToUse = selectedGlobalPriceListId && product.price_from_list ? product.price_from_list : product.base_price || 0;
                                   setSelectedProducts([...selectedProducts, { product_id: product.id, product_name: product.name, description: product.description || '', quantity: 1, unit_price: priceToUse, discount_percent: 0, vat_rate: 22, notes: selectedGlobalPriceListId ? `Listino: ${priceLists.find(pl => pl.id === selectedGlobalPriceListId)?.code}` : '' }]);
                                   setCurrentProductId('');
                                 }
-                              }} disabled={!currentProductId} className="h-9">
+                              }} disabled={!currentProductId} className="h-10">
                                 <Plus className="h-4 w-4 mr-1" />Aggiungi
                               </Button>
-                              <Button type="button" variant="outline" size="sm" onClick={() => setSelectedProducts([...selectedProducts, { product_id: `manual-${Date.now()}`, product_name: '', description: '', quantity: 1, unit_price: 0, discount_percent: 0, vat_rate: 22, notes: '' }])} className="h-9">
+                              <Button type="button" variant="outline" onClick={() => setSelectedProducts([...selectedProducts, { product_id: `manual-${Date.now()}`, product_name: '', description: '', quantity: 1, unit_price: 0, discount_percent: 0, vat_rate: 22, notes: '' }])} className="h-10">
                                 <Plus className="h-4 w-4" />
                               </Button>
                             </div>
