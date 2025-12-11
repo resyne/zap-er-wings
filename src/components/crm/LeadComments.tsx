@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Send, Trash2, AtSign } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Send, Trash2, AtSign } from "lucide-react";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import {
   Command,
@@ -64,7 +63,6 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
 
       if (commentsError) throw commentsError;
 
-      // Load profiles for all comment authors
       if (commentsData && commentsData.length > 0) {
         const userIds = [...new Set(commentsData.map(c => c.created_by))];
         const { data: profilesData, error: profilesError } = await supabase
@@ -74,7 +72,6 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
 
         if (profilesError) throw profilesError;
 
-        // Merge profiles with comments
         const commentsWithProfiles = commentsData.map(comment => ({
           ...comment,
           profiles: profilesData?.find(p => p.id === comment.created_by) || {
@@ -113,7 +110,6 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
     loadUsers();
   }, [loadComments, loadUsers]);
 
-  // Realtime subscription per i commenti
   useEffect(() => {
     const channel = supabase
       .channel('lead-comments-changes')
@@ -186,7 +182,6 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
 
       if (error) throw error;
 
-      // Se il lead è "new", cambialo a "qualified" perché c'è stata interazione
       toast({
         title: "Commento aggiunto",
         description: "Il commento è stato aggiunto con successo",
@@ -246,135 +241,110 @@ export default function LeadComments({ leadId }: LeadCommentsProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
-          Commenti ({comments.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Add Comment Form */}
-        <div className="space-y-2">
-          <Textarea
-            placeholder="Scrivi un commento..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            rows={3}
-          />
-          
-          {/* Tagged Users Display */}
-          {selectedUsers.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Taggati:</span>
-              {selectedUsers.map(userId => {
-                const user = users.find(u => u.id === userId);
-                return user ? (
-                  <Badge key={userId} variant="secondary">
-                    @{user.first_name} {user.last_name}
-                  </Badge>
-                ) : null;
-              })}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <Popover open={showUserPicker} onOpenChange={setShowUserPicker}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <AtSign className="w-4 h-4 mr-2" />
-                  Tagga Utente
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Cerca utente..." />
-                  <CommandEmpty>Nessun utente trovato</CommandEmpty>
-                  <CommandGroup className="max-h-[200px] overflow-y-auto">
-                    {users.map((user) => (
-                      <CommandItem
-                        key={user.id}
-                        value={`${user.first_name} ${user.last_name}`}
-                        onSelect={() => {
-                          toggleUserTag(user.id);
-                          setShowUserPicker(false);
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(user.id)}
-                            onChange={() => toggleUserTag(user.id)}
-                            className="rounded"
-                          />
-                          <span>{user.first_name} {user.last_name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({user.email})
-                          </span>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-
-            <Button onClick={handleAddComment} disabled={loading} size="sm">
-              <Send className="w-4 h-4 mr-2" />
-              Invia
-            </Button>
-          </div>
-        </div>
-
-        {/* Comments List */}
-        <div className="space-y-3">
-          {comments.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nessun commento ancora
-            </p>
-          ) : (
-            comments.map((comment) => (
-              <div
-                key={comment.id}
-                className="border rounded-lg p-3 space-y-2 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">
-                        {comment.profiles?.first_name} {comment.profiles?.last_name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(comment.created_at), {
-                          addSuffix: true,
-                          locale: it,
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-                    {comment.tagged_users && comment.tagged_users.length > 0 && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <AtSign className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {getTaggedUserNames(comment.tagged_users)}
-                        </span>
+    <div className="space-y-3">
+      {/* Add Comment */}
+      <div className="flex gap-2">
+        <Textarea
+          placeholder="Aggiungi commento..."
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          rows={2}
+          className="text-sm resize-none"
+        />
+        <div className="flex flex-col gap-1">
+          <Popover open={showUserPicker} onOpenChange={setShowUserPicker}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <AtSign className="h-3.5 w-3.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[250px] p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Cerca utente..." />
+                <CommandEmpty>Nessun utente trovato</CommandEmpty>
+                <CommandGroup className="max-h-[150px] overflow-y-auto">
+                  {users.map((user) => (
+                    <CommandItem
+                      key={user.id}
+                      value={`${user.first_name} ${user.last_name}`}
+                      onSelect={() => {
+                        toggleUserTag(user.id);
+                        setShowUserPicker(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(user.id)}
+                          onChange={() => toggleUserTag(user.id)}
+                          className="rounded"
+                        />
+                        <span>{user.first_name} {user.last_name}</span>
                       </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteComment(comment.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button onClick={handleAddComment} disabled={loading} size="icon" className="h-8 w-8">
+            <Send className="h-3.5 w-3.5" />
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      
+      {/* Tagged Users */}
+      {selectedUsers.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap">
+          {selectedUsers.map(userId => {
+            const user = users.find(u => u.id === userId);
+            return user ? (
+              <Badge key={userId} variant="secondary" className="text-xs">
+                @{user.first_name}
+              </Badge>
+            ) : null;
+          })}
+        </div>
+      )}
+
+      {/* Comments List */}
+      {comments.length > 0 && (
+        <div className="space-y-2 pt-2 border-t">
+          {comments.map((comment) => (
+            <div key={comment.id} className="group flex gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {comment.profiles?.first_name} {comment.profiles?.last_name}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {format(new Date(comment.created_at), "dd/MM/yy HH:mm", { locale: it })}
+                  </span>
+                  {comment.tagged_users && comment.tagged_users.length > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <AtSign className="h-3 w-3" />
+                        {getTaggedUserNames(comment.tagged_users)}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <p className="text-sm mt-0.5">{comment.content}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDeleteComment(comment.id)}
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive transition-opacity"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

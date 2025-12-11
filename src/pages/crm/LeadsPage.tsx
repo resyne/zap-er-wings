@@ -2607,13 +2607,7 @@ export default function LeadsPage() {
               </Collapsible>
 
               {/* Comments - Always Open */}
-              <div className="border rounded-lg bg-card px-3 py-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Commenti</span>
-                </div>
-                <LeadComments leadId={selectedLead.id} />
-              </div>
+              <LeadComments leadId={selectedLead.id} />
 
               {/* Actions */}
               <div className={cn(
