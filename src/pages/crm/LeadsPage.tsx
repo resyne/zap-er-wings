@@ -1331,7 +1331,7 @@ export default function LeadsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       {/* Tipologia Cliente */}
                       <div className="col-span-2 md:col-span-1">
-                        <Label htmlFor="tipologia_cliente" className="text-sm font-medium">Tipologia Cliente *</Label>
+                        <Label htmlFor="tipologia_cliente" className="text-sm font-medium">Tipologia Cliente</Label>
                         <Select 
                           value={newLead.tipologia_cliente} 
                           onValueChange={(value) => setNewLead({...newLead, tipologia_cliente: value, tipologia_cliente_altro: value === "altro" ? newLead.tipologia_cliente_altro : ""})}
@@ -1362,7 +1362,7 @@ export default function LeadsPage() {
 
                       {/* Diametro Canna Fumaria */}
                       <div className="col-span-2 md:col-span-1">
-                        <Label htmlFor="diametro_canna_fumaria" className="text-sm font-medium">Diametro Canna Fumaria *</Label>
+                        <Label htmlFor="diametro_canna_fumaria" className="text-sm font-medium">Diametro Canna Fumaria</Label>
                         <Select 
                           value={newLead.diametro_canna_fumaria} 
                           onValueChange={(value) => setNewLead({...newLead, diametro_canna_fumaria: value, diametro_canna_fumaria_altro: value === "altro" ? newLead.diametro_canna_fumaria_altro : ""})}
@@ -1394,7 +1394,7 @@ export default function LeadsPage() {
 
                       {/* Montaggio */}
                       <div>
-                        <Label className="text-sm font-medium">Montaggio *</Label>
+                        <Label className="text-sm font-medium">Montaggio</Label>
                         <div className="flex gap-2 mt-2">
                           <Button
                             type="button"
@@ -1419,7 +1419,7 @@ export default function LeadsPage() {
 
                       {/* Ingresso Fumi */}
                       <div>
-                        <Label className="text-sm font-medium">Ingresso Fumi *</Label>
+                        <Label className="text-sm font-medium">Ingresso Fumi</Label>
                         <div className="flex gap-2 mt-2">
                           <Button
                             type="button"
@@ -2820,7 +2820,7 @@ export default function LeadsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {/* Tipologia Cliente */}
                   <div className="col-span-2 md:col-span-1">
-                    <Label htmlFor="edit_tipologia_cliente" className="text-sm font-medium">Tipologia Cliente *</Label>
+                    <Label htmlFor="edit_tipologia_cliente" className="text-sm font-medium">Tipologia Cliente</Label>
                     <Select 
                       value={newLead.tipologia_cliente} 
                       onValueChange={(value) => setNewLead({...newLead, tipologia_cliente: value, tipologia_cliente_altro: value === "altro" ? newLead.tipologia_cliente_altro : ""})}
@@ -2851,7 +2851,7 @@ export default function LeadsPage() {
 
                   {/* Diametro Canna Fumaria */}
                   <div className="col-span-2 md:col-span-1">
-                    <Label htmlFor="edit_diametro_canna_fumaria" className="text-sm font-medium">Diametro Canna Fumaria *</Label>
+                    <Label htmlFor="edit_diametro_canna_fumaria" className="text-sm font-medium">Diametro Canna Fumaria</Label>
                     <Select 
                       value={newLead.diametro_canna_fumaria} 
                       onValueChange={(value) => setNewLead({...newLead, diametro_canna_fumaria: value, diametro_canna_fumaria_altro: value === "altro" ? newLead.diametro_canna_fumaria_altro : ""})}
@@ -2883,7 +2883,7 @@ export default function LeadsPage() {
 
                   {/* Montaggio */}
                   <div>
-                    <Label className="text-sm font-medium">Montaggio *</Label>
+                    <Label className="text-sm font-medium">Montaggio</Label>
                     <div className="flex gap-2 mt-2">
                       <Button
                         type="button"
@@ -2908,7 +2908,7 @@ export default function LeadsPage() {
 
                   {/* Ingresso Fumi */}
                   <div>
-                    <Label className="text-sm font-medium">Ingresso Fumi *</Label>
+                    <Label className="text-sm font-medium">Ingresso Fumi</Label>
                     <div className="flex gap-2 mt-2">
                       <Button
                         type="button"
