@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
@@ -2295,9 +2295,9 @@ export default function LeadsPage() {
           </DialogHeader>
           
           {selectedLead && (
-            <div className="space-y-6">
-              {/* Quick Status Badge */}
-              <div className="flex items-center gap-3 flex-wrap">
+            <div className="space-y-3">
+              {/* Quick Status Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge className={allStatuses.find(s => s.id === selectedLead.status)?.color || ''}>
                   {allStatuses.find(s => s.id === selectedLead.status)?.title || selectedLead.status}
                 </Badge>
@@ -2309,49 +2309,36 @@ export default function LeadsPage() {
                 )}
               </div>
 
-              {/* Customer Details - Collapsible */}
-              <Collapsible defaultOpen={false} className="border rounded-lg">
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+              {/* Customer Details - Collapsible Card */}
+              <Collapsible defaultOpen={false} className="border rounded-lg bg-card">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-semibold">Dettagli Cliente</span>
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Dettagli Cliente</span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className={cn("grid gap-4 p-4 pt-0 border-t", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contatto</label>
-                      <p className="text-sm font-medium">{selectedLead.contact_name || '-'}</p>
+                  <div className={cn("grid gap-3 px-3 pb-3 border-t pt-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    <div className="flex items-center gap-2">
+                      <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">{selectedLead.contact_name || '-'}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Telefono</label>
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        {selectedLead.phone ? (
-                          <>
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            <a href={`tel:${selectedLead.phone}`} className="hover:underline">{selectedLead.phone}</a>
-                          </>
-                        ) : '-'}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      {selectedLead.phone ? (
+                        <a href={`tel:${selectedLead.phone}`} className="text-sm hover:underline">{selectedLead.phone}</a>
+                      ) : <span className="text-sm text-muted-foreground">-</span>}
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</label>
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        {selectedLead.email ? (
-                          <>
-                            <Mail className="h-3 w-3 text-muted-foreground" />
-                            <a href={`mailto:${selectedLead.email}`} className="hover:underline truncate">{selectedLead.email}</a>
-                          </>
-                        ) : '-'}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      {selectedLead.email ? (
+                        <a href={`mailto:${selectedLead.email}`} className="text-sm hover:underline truncate">{selectedLead.email}</a>
+                      ) : <span className="text-sm text-muted-foreground">-</span>}
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Luogo</label>
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {selectedLead.country || '-'}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">{selectedLead.country || '-'}</span>
                     </div>
                   </div>
                 </CollapsibleContent>
@@ -2359,32 +2346,32 @@ export default function LeadsPage() {
 
               {/* Description */}
               {selectedLead.notes && (
-                <div className="border rounded-lg p-4 bg-muted/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <label className="text-sm font-semibold text-foreground">Descrizione</label>
+                <div className="border rounded-lg bg-card px-3 py-2">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Descrizione</span>
                   </div>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{selectedLead.notes}</p>
                 </div>
               )}
 
-              {/* Custom Fields - ZAPPER - Always visible for Zapper/Zapper Pro with inline editing */}
+              {/* Custom Fields - ZAPPER */}
               {(selectedLead.pipeline === "Zapper" || selectedLead.pipeline === "Zapper Pro") && (
-                <div className="border rounded-lg p-4 bg-primary/5">
-                  <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    Configurazione ZAPPER
-                  </h4>
-                  <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                <div className="border rounded-lg bg-card px-3 py-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Configurazione ZAPPER</span>
+                  </div>
+                  <div className={cn("grid gap-2", isMobile ? "grid-cols-1" : "grid-cols-2")}>
                     {/* Tipologia Cliente */}
-                    <div className="bg-background rounded-lg p-3 border space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Tipologia Cliente</label>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Tipologia Cliente</label>
                       <Select
                         value={selectedLead.custom_fields?.tipologia_cliente || ""}
                         onValueChange={(value) => handleUpdateZapperField(selectedLead.id, 'tipologia_cliente', value)}
                       >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Seleziona tipologia" />
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Seleziona" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="pizzeria">🍕 Pizzeria</SelectItem>
@@ -2399,14 +2386,14 @@ export default function LeadsPage() {
                     </div>
                     
                     {/* Diametro Canna Fumaria */}
-                    <div className="bg-background rounded-lg p-3 border space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Diametro Canna Fumaria</label>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Diametro Canna Fumaria</label>
                       <Select
                         value={selectedLead.custom_fields?.diametro_canna_fumaria || ""}
                         onValueChange={(value) => handleUpdateZapperField(selectedLead.id, 'diametro_canna_fumaria', value)}
                       >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Seleziona diametro" />
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Seleziona" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="100">⌀ 100 mm</SelectItem>
@@ -2422,14 +2409,14 @@ export default function LeadsPage() {
                     </div>
                     
                     {/* Montaggio */}
-                    <div className="bg-background rounded-lg p-3 border space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Montaggio</label>
-                      <div className="flex gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Montaggio</label>
+                      <div className="flex gap-1">
                         <Button
                           type="button"
                           size="sm"
                           variant={selectedLead.custom_fields?.montaggio === "interno" ? "default" : "outline"}
-                          className="flex-1"
+                          className="flex-1 h-8 text-xs"
                           onClick={() => handleUpdateZapperField(selectedLead.id, 'montaggio', 'interno')}
                         >
                           🏠 Interno
@@ -2438,7 +2425,7 @@ export default function LeadsPage() {
                           type="button"
                           size="sm"
                           variant={selectedLead.custom_fields?.montaggio === "esterno" ? "default" : "outline"}
-                          className="flex-1"
+                          className="flex-1 h-8 text-xs"
                           onClick={() => handleUpdateZapperField(selectedLead.id, 'montaggio', 'esterno')}
                         >
                           🌤️ Esterno
@@ -2447,14 +2434,14 @@ export default function LeadsPage() {
                     </div>
                     
                     {/* Ingresso Fumi */}
-                    <div className="bg-background rounded-lg p-3 border space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Ingresso Fumi</label>
-                      <div className="flex gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Ingresso Fumi</label>
+                      <div className="flex gap-1">
                         <Button
                           type="button"
                           size="sm"
                           variant={selectedLead.custom_fields?.ingresso_fumi === "dx" ? "default" : "outline"}
-                          className="flex-1"
+                          className="flex-1 h-8 text-xs"
                           onClick={() => handleUpdateZapperField(selectedLead.id, 'ingresso_fumi', 'dx')}
                         >
                           ➡️ DX
@@ -2463,7 +2450,7 @@ export default function LeadsPage() {
                           type="button"
                           size="sm"
                           variant={selectedLead.custom_fields?.ingresso_fumi === "sx" ? "default" : "outline"}
-                          className="flex-1"
+                          className="flex-1 h-8 text-xs"
                           onClick={() => handleUpdateZapperField(selectedLead.id, 'ingresso_fumi', 'sx')}
                         >
                           ⬅️ SX
@@ -2480,154 +2467,171 @@ export default function LeadsPage() {
                 selectedLead.custom_fields?.alimentazione || 
                 selectedLead.custom_fields?.pronta_consegna
               ) && (
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Informazioni Vesuviano</h4>
-                  <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                <div className="border rounded-lg bg-card px-3 py-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm font-medium">Configurazione Vesuviano</span>
+                  </div>
+                  <div className={cn("grid gap-2", isMobile ? "grid-cols-1" : "grid-cols-3")}>
                     {selectedLead.custom_fields?.dimensioni_forno && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Dimensioni forno</label>
-                        <p className="text-sm mt-1">{selectedLead.custom_fields.dimensioni_forno}</p>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Dimensioni: </span>
+                        <span>{selectedLead.custom_fields.dimensioni_forno}</span>
                       </div>
                     )}
                     {selectedLead.custom_fields?.alimentazione && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Alimentazione</label>
-                        <p className="text-sm mt-1 capitalize">{selectedLead.custom_fields.alimentazione}</p>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Alimentazione: </span>
+                        <span className="capitalize">{selectedLead.custom_fields.alimentazione}</span>
                       </div>
                     )}
                     {selectedLead.custom_fields?.pronta_consegna && (
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Pronta consegna</label>
-                        <p className="text-sm mt-1">✓ Sì</p>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Pronta consegna: </span>
+                        <span>✓ Sì</span>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Linked Offers - Always visible */}
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-3">
+              {/* Linked Offers */}
+              <div className="border rounded-lg bg-card px-3 py-2">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-purple-600" />
-                    <label className="text-sm font-medium text-purple-600">
-                      Offerte Collegate ({offers.filter(o => o.lead_id === selectedLead.id).length})
-                    </label>
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Offerte ({offers.filter(o => o.lead_id === selectedLead.id).length})</span>
                   </div>
                   <Button
                     size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
                     onClick={() => {
                       setIsDetailsDialogOpen(false);
                       handleCreateOfferForLead(selectedLead);
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nuova Offerta
+                    <Plus className="h-3 w-3 mr-1" />
+                    Nuova
                   </Button>
                 </div>
                 {offers.filter(o => o.lead_id === selectedLead.id).length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {offers.filter(o => o.lead_id === selectedLead.id).map(linkedOffer => (
-                      <div key={linkedOffer.id} className="p-3 bg-muted/50 rounded-lg space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1 flex-1">
-                            <div>
+                      <div key={linkedOffer.id} className="p-2 bg-muted/50 rounded-md">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
                               <span className="text-sm font-medium">{linkedOffer.number}</span>
-                              <span className="text-sm text-muted-foreground"> - {linkedOffer.title}</span>
+                              <span className="text-xs text-muted-foreground truncate">{linkedOffer.title}</span>
                             </div>
                             <div className="text-sm text-green-600 font-medium">
                               €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setIsDetailsDialogOpen(false);
-                              navigate(`/crm/offers?offer=${linkedOffer.id}`);
-                            }}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Stato Offerta</Label>
-                          <Select
-                            value={linkedOffer.status}
-                            onValueChange={(value) => handleUpdateOfferStatus(linkedOffer.id, value)}
-                          >
-                            <SelectTrigger className="h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="richiesta_offerta">Richiesta</SelectItem>
-                              <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                              <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                              <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                              <SelectItem value="accettata">Accettata</SelectItem>
-                              <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={linkedOffer.status}
+                              onValueChange={(value) => handleUpdateOfferStatus(linkedOffer.id, value)}
+                            >
+                              <SelectTrigger className="h-7 w-[100px] text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="richiesta_offerta">Richiesta</SelectItem>
+                                <SelectItem value="offerta_pronta">Pronta</SelectItem>
+                                <SelectItem value="offerta_inviata">Inviata</SelectItem>
+                                <SelectItem value="negoziazione">Negoziazione</SelectItem>
+                                <SelectItem value="accettata">Accettata</SelectItem>
+                                <SelectItem value="rifiutata">Rifiutata</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={() => {
+                                setIsDetailsDialogOpen(false);
+                                navigate(`/crm/offers?offer=${linkedOffer.id}`);
+                              }}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Nessuna offerta collegata</p>
+                  <p className="text-xs text-muted-foreground italic">Nessuna offerta collegata</p>
                 )}
               </div>
 
               {/* Configurator Status for Vesuviano */}
               {selectedLead.pipeline === "Vesuviano" && (
-                <div className="border-t pt-4">
+                <div className="border rounded-lg bg-card px-3 py-2">
                   <ConfiguratorStatus lead={selectedLead} />
                 </div>
               )}
 
-              {/* Lead Activities Component */}
-              <div className="border-t pt-4 space-y-4">
-                <LeadActivities leadId={selectedLead.id} onActivityCompleted={loadLeads} />
-                <LeadComments leadId={selectedLead.id} />
-                <LeadFileUpload leadId={selectedLead.id} />
-              </div>
+              {/* Lead Activities, Comments, Files - Collapsible */}
+              <Collapsible defaultOpen={true} className="border rounded-lg bg-card">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Attività & Comunicazioni</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-3 pb-3 border-t pt-3 space-y-3">
+                    <LeadActivities leadId={selectedLead.id} onActivityCompleted={loadLeads} />
+                    <LeadComments leadId={selectedLead.id} />
+                    <LeadFileUpload leadId={selectedLead.id} />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Actions */}
               <div className={cn(
-                "border-t pt-4 flex gap-2",
+                "flex gap-2 pt-2",
                 isMobile && "flex-col"
               )}>
                 <Button
                   variant="outline"
+                  size="sm"
                   className="flex-1"
                   onClick={() => {
                     setIsDetailsDialogOpen(false);
                     handleEditLead(selectedLead);
                   }}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className="h-4 w-4 mr-1" />
                   Modifica
                 </Button>
                 {selectedLead.status === "negotiation" && (
                   <>
                     <Button
+                      size="sm"
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => {
                         handleWinLead(selectedLead);
                         setIsDetailsDialogOpen(false);
                       }}
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
                       Vinto
                     </Button>
                     <Button
                       variant="destructive"
+                      size="sm"
                       className="flex-1"
                       onClick={() => {
                         handleLoseLead(selectedLead);
                         setIsDetailsDialogOpen(false);
                       }}
                     >
-                      <XCircle className="h-4 w-4 mr-2" />
+                      <XCircle className="h-4 w-4 mr-1" />
                       Perso
                     </Button>
                   </>
