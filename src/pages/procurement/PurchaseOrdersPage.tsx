@@ -281,6 +281,31 @@ export default function PurchaseOrdersPage() {
     window.open(link, '_blank');
   };
 
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('purchase_orders')
+        .update({ 
+          production_status: newStatus,
+          ...(newStatus === 'delivered' ? { actual_delivery_date: new Date().toISOString() } : {})
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+      
+      toast.success("Stato aggiornato con successo");
+      fetchOrders();
+      
+      // Update selected order if open
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, production_status: newStatus });
+      }
+    } catch (error: any) {
+      console.error('Error updating status:', error);
+      toast.error("Errore nell'aggiornamento dello stato");
+    }
+  };
+
   const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
@@ -771,6 +796,51 @@ export default function PurchaseOrdersPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Status Buttons for confirmed orders */}
+                {selectedOrder?.production_status && selectedOrder.production_status !== 'pending' && (
+                  <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                    <label className="text-sm font-medium text-muted-foreground">Aggiorna Stato Produzione</label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        size="sm" 
+                        variant={selectedOrder.production_status === 'in_production' ? 'default' : 'outline'}
+                        className="gap-1"
+                        disabled={selectedOrder.production_status === 'in_production'}
+                        onClick={() => handleStatusChange(selectedOrder.id, 'in_production')}
+                      >
+                        ⚙️ In Produzione
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedOrder.production_status === 'ready_to_ship' ? 'default' : 'outline'}
+                        className="gap-1"
+                        disabled={selectedOrder.production_status === 'ready_to_ship'}
+                        onClick={() => handleStatusChange(selectedOrder.id, 'ready_to_ship')}
+                      >
+                        📦 Pronto
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedOrder.production_status === 'shipped' ? 'default' : 'outline'}
+                        className="gap-1"
+                        disabled={selectedOrder.production_status === 'shipped'}
+                        onClick={() => handleStatusChange(selectedOrder.id, 'shipped')}
+                      >
+                        🚚 Spedito
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedOrder.production_status === 'delivered' ? 'default' : 'outline'}
+                        className="gap-1"
+                        disabled={selectedOrder.production_status === 'delivered'}
+                        onClick={() => handleStatusChange(selectedOrder.id, 'delivered')}
+                      >
+                        ✅ Consegnato
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h4 className="font-semibold mb-3">Articoli Ordinati</h4>
