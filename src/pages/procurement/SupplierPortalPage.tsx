@@ -172,14 +172,12 @@ function OrderCard({ order, getStatusBadge }: any) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showCommentsDialog, setShowCommentsDialog] = useState(false);
   const [showAttachmentsDialog, setShowAttachmentsDialog] = useState(false);
-  const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [showPickedUpDialog, setShowPickedUpDialog] = useState(false);
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [newComment, setNewComment] = useState("");
   const [commentAuthorName, setCommentAuthorName] = useState("");
-  const [newStatus, setNewStatus] = useState(order.production_status);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState(order.purchase_order_comments || []);
   const [attachments, setAttachments] = useState(order.purchase_order_attachments || []);
@@ -287,21 +285,20 @@ function OrderCard({ order, getStatusBadge }: any) {
     }
   };
 
-  const handleUpdateStatus = async () => {
+  const handleUpdateStatus = async (status: string) => {
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('supplier-update-status', {
         body: { 
           orderId: order.id,
-          status: newStatus,
-          notes: supplierNotes
+          status: status,
+          notes: ''
         }
       });
 
       if (error) throw error;
       
       toast.success("Stato aggiornato con successo!");
-      setShowStatusDialog(false);
       setTimeout(() => window.location.reload(), 1500);
     } catch (error: any) {
       console.error('Status update error:', error);
@@ -438,28 +435,49 @@ function OrderCard({ order, getStatusBadge }: any) {
               Conferma Ordine
             </Button>
           )}
-          {['confirmed', 'in_production', 'ready_to_ship', 'shipped'].includes(order.production_status) && (
-            <div className="flex-1 space-y-2">
-              {order.production_status && (
-                <div className="text-xs text-muted-foreground">
-                  Stato: {' '}
-                  {order.production_status === 'confirmed' && '✓ Confermato'}
-                  {order.production_status === 'in_production' && '⚙️ In Produzione'}
-                  {order.production_status === 'ready_to_ship' && '📦 Pronto per Spedizione'}
-                  {order.production_status === 'shipped' && '🚚 Spedito'}
-                </div>
-              )}
-              <Button size="sm" variant="secondary" className="gap-2 w-full" onClick={() => setShowStatusDialog(true)}>
-                <Package className="h-4 w-4" />
-                Aggiorna Stato
-              </Button>
+          {/* Clickable Status Buttons */}
+          {order.production_status !== 'pending' && (
+            <div className="w-full space-y-2">
+              <div className="text-xs text-muted-foreground">Stato: {getStatusBadge(order.production_status)}</div>
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  size="sm" 
+                  variant={order.production_status === 'in_production' ? 'default' : 'outline'}
+                  className="gap-1"
+                  disabled={isSubmitting || order.production_status === 'in_production'}
+                  onClick={() => handleUpdateStatus('in_production')}
+                >
+                  ⚙️ In Produzione
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={order.production_status === 'ready_to_ship' ? 'default' : 'outline'}
+                  className="gap-1"
+                  disabled={isSubmitting || order.production_status === 'ready_to_ship'}
+                  onClick={() => handleUpdateStatus('ready_to_ship')}
+                >
+                  📦 Pronto
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={order.production_status === 'shipped' ? 'default' : 'outline'}
+                  className="gap-1"
+                  disabled={isSubmitting || order.production_status === 'shipped'}
+                  onClick={() => handleUpdateStatus('shipped')}
+                >
+                  🚚 Spedito
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={order.production_status === 'delivered' ? 'default' : 'outline'}
+                  className="gap-1"
+                  disabled={isSubmitting || order.production_status === 'delivered'}
+                  onClick={() => handleUpdateStatus('delivered')}
+                >
+                  ✅ Consegnato
+                </Button>
+              </div>
             </div>
-          )}
-          {order.production_status === 'delivered' && (
-            <Button size="sm" className="gap-2" onClick={() => setShowPickedUpDialog(true)}>
-              <CheckCircle className="h-4 w-4" />
-              Segna come Ritirato
-            </Button>
           )}
         </div>
       </CardContent>
@@ -634,146 +652,6 @@ function OrderCard({ order, getStatusBadge }: any) {
       </DialogContent>
     </Dialog>
 
-    {/* Update Status Dialog */}
-    <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Aggiorna Stato Produzione</DialogTitle>
-          <DialogDescription>
-            Seleziona il nuovo stato dell'ordine {order.number}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          {order.production_status && (
-            <div className="p-3 bg-secondary/30 rounded-lg border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Stato Corrente</p>
-              <p className="font-semibold text-lg">
-                {order.production_status === 'confirmed' && '✓ Confermato'}
-                {order.production_status === 'in_production' && '⚙️ In Produzione'}
-                {order.production_status === 'ready_to_ship' && '📦 Pronto per Spedizione'}
-                {order.production_status === 'shipped' && '🚚 Spedito'}
-                {order.production_status === 'delivered' && '✅ Consegnato'}
-              </p>
-            </div>
-          )}
-          
-          <div>
-            <Label className="text-base font-semibold mb-3 block">Seleziona Nuovo Stato</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setNewStatus('in_production')}
-                className={`p-4 text-left border-2 rounded-lg transition-all ${
-                  newStatus === 'in_production' 
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">⚙️</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-base">In Produzione</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'ordine è in lavorazione</p>
-                  </div>
-                  {newStatus === 'in_production' && (
-                    <CheckCircle className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setNewStatus('ready_to_ship')}
-                className={`p-4 text-left border-2 rounded-lg transition-all ${
-                  newStatus === 'ready_to_ship' 
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">📦</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-base">Pronto per Spedizione</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'ordine è completato e pronto</p>
-                  </div>
-                  {newStatus === 'ready_to_ship' && (
-                    <CheckCircle className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setNewStatus('shipped')}
-                className={`p-4 text-left border-2 rounded-lg transition-all ${
-                  newStatus === 'shipped' 
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">🚚</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-base">Spedito</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'ordine è stato spedito</p>
-                  </div>
-                  {newStatus === 'shipped' && (
-                    <CheckCircle className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setNewStatus('delivered')}
-                className={`p-4 text-left border-2 rounded-lg transition-all ${
-                  newStatus === 'delivered' 
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">✅</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-base">Consegnato</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'ordine è stato consegnato</p>
-                  </div>
-                  {newStatus === 'delivered' && (
-                    <CheckCircle className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-              </button>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="status-notes">Note (opzionale)</Label>
-            <Textarea
-              id="status-notes"
-              placeholder="Aggiungi dettagli sul cambio di stato..."
-              value={supplierNotes}
-              onChange={(e) => setSupplierNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => {
-            setShowStatusDialog(false);
-            setNewStatus(order.production_status);
-            setSupplierNotes('');
-          }}>
-            Annulla
-          </Button>
-          <Button 
-            onClick={handleUpdateStatus} 
-            disabled={!newStatus || newStatus === order.production_status || isSubmitting}
-          >
-            {isSubmitting ? "Aggiornamento..." : "Conferma Aggiornamento"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
 
     {/* Activity Timeline Dialog */}
     <Dialog open={showActivityDialog} onOpenChange={setShowActivityDialog}>
