@@ -45,6 +45,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const [includeGaranzia, setIncludeGaranzia] = useState(true);
   const [inclusoCustom, setInclusoCustom] = useState('');
   const [esclusoCaricoPredisposizione, setEsclusoCaricoPredisposizione] = useState(false);
+  const [esclusoPuliziaCanna, setEsclusoPuliziaCanna] = useState(false);
   const [currentProductId, setCurrentProductId] = useState<string>('');
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
@@ -362,6 +363,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     setIncludeGaranzia(true);
     setInclusoCustom('');
     setEsclusoCaricoPredisposizione(false);
+    setEsclusoPuliziaCanna(false);
     setCurrentProductId('');
     setSelectedGlobalPriceListId('');
     setCurrentProductPrice(0);
@@ -713,6 +715,32 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
             />
             <label htmlFor="escluso-carico" className="text-sm cursor-pointer">
               Carico e scarico acqua / collegamento elettrico
+            </label>
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <Checkbox
+              id="escluso-pulizia-canna"
+              checked={esclusoPuliziaCanna}
+              onCheckedChange={(checked) => {
+                setEsclusoPuliziaCanna(checked === true);
+                const testoPulizia = "È obbligatoria la pulizia della canna fumaria prima del nostro intervento, a meno che non sia già pulita da massimo 45 giorni.";
+                if (checked) {
+                  setNewOffer({ 
+                    ...newOffer, 
+                    escluso_fornitura: newOffer.escluso_fornitura 
+                      ? `${newOffer.escluso_fornitura}\n${testoPulizia}`
+                      : testoPulizia
+                  });
+                } else {
+                  setNewOffer({ 
+                    ...newOffer, 
+                    escluso_fornitura: newOffer.escluso_fornitura?.replace(testoPulizia, '').replace(/\n\n+/g, '\n').trim() || ''
+                  });
+                }
+              }}
+            />
+            <label htmlFor="escluso-pulizia-canna" className="text-sm cursor-pointer">
+              Pulizia canna fumaria obbligatoria (max 45 giorni)
             </label>
           </div>
           <Textarea
