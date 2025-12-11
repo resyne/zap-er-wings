@@ -118,8 +118,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const loadLeads = async () => {
     const { data } = await supabase
       .from('leads')
-      .select('id, name, email, phone, company, pipeline')
-      .order('name');
+      .select('id, company_name, contact_name, email, phone, pipeline')
+      .order('company_name');
     
     setLeads(data || []);
   };
@@ -221,7 +221,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           });
           return;
         }
-        customerName = lead.company || lead.name;
+        customerName = lead.company_name || lead.contact_name;
         customerId = null;
         leadId = selectedLeadId;
       }
@@ -467,7 +467,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                   {selectedLeadId
                     ? (() => {
                         const lead = leads.find((l) => l.id === selectedLeadId);
-                        return lead ? (lead.company || lead.name) : "Seleziona lead";
+                        return lead ? (lead.company_name || lead.contact_name) : "Seleziona lead";
                       })()
                     : "Seleziona lead"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -482,7 +482,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                       {leads.map((lead) => (
                         <CommandItem
                           key={lead.id}
-                          value={`${lead.company || ''} ${lead.name}`}
+                          value={`${lead.company_name || ''} ${lead.contact_name || ''}`}
                           onSelect={() => {
                             setSelectedLeadId(lead.id);
                             setCustomerSearchOpen(false);
@@ -495,8 +495,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                             )}
                           />
                           <div className="flex flex-col">
-                            <span>{lead.company || lead.name}</span>
-                            {lead.company && <span className="text-xs text-muted-foreground">{lead.name}</span>}
+                            <span>{lead.company_name || lead.contact_name}</span>
+                            {lead.company_name && <span className="text-xs text-muted-foreground">{lead.contact_name}</span>}
                           </div>
                         </CommandItem>
                       ))}
