@@ -74,6 +74,7 @@ interface Lead {
 }
 
 const leadPriorities = [
+  { id: "low", title: "LOW", color: "bg-blue-100 text-blue-800" },
   { id: "mid", title: "MID", color: "bg-orange-100 text-orange-800" },
   { id: "hot", title: "HOT", color: "bg-red-100 text-red-800" },
 ];
@@ -887,7 +888,7 @@ export default function LeadsPage() {
     });
   }, []);
 
-  const priorityOrder: Record<string, number> = { hot: 0, mid: 1 };
+  const priorityOrder: Record<string, number> = { hot: 0, mid: 1, low: 2 };
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
