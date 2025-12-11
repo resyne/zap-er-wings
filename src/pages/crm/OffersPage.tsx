@@ -1897,19 +1897,6 @@ export default function OffersPage() {
                 className={`pl-10 ${isMobile ? 'h-9 text-sm' : ''}`}
               />
             </div>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className={`w-full sm:w-[200px] ${isMobile ? 'h-9 text-sm' : ''}`}>
-                <SelectValue placeholder="Filtra per stato" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti gli stati</SelectItem>
-                <SelectItem value="offerta_pronta">Pronte</SelectItem>
-                <SelectItem value="offerta_inviata">Inviate</SelectItem>
-                <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                <SelectItem value="accettata">Accettate</SelectItem>
-                <SelectItem value="rifiutata">Rifiutate</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
               <SelectTrigger className={`w-full sm:w-[180px] ${isMobile ? 'h-9 text-sm' : ''}`}>
                 <SelectValue placeholder="Filtra per template" />
@@ -1922,23 +1909,20 @@ export default function OffersPage() {
               </SelectContent>
             </Select>
           </div>
-          {(searchTerm || selectedStatus !== 'all' || selectedTemplate !== 'all') && (
+          {(searchTerm || selectedTemplate !== 'all') && (
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <span>Risultati: {filteredOffers.length}</span>
-              {(searchTerm || selectedStatus !== 'all' || selectedTemplate !== 'all') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedStatus('all');
-                    setSelectedTemplate('all');
-                  }}
-                  className="h-6 px-2 text-xs"
-                >
-                  Cancella filtri
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedTemplate('all');
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                Cancella filtri
+              </Button>
             </div>
           )}
         </CardContent>
