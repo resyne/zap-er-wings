@@ -2353,11 +2353,14 @@ export default function LeadsPage() {
                 </div>
               </div>
 
-              {/* Notes */}
+              {/* Description */}
               {selectedLead.notes && (
-                <div className="border-t pt-4">
-                  <label className="text-sm font-medium text-muted-foreground">Note</label>
-                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedLead.notes}</p>
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-sm font-semibold text-foreground">Descrizione</label>
+                  </div>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{selectedLead.notes}</p>
                 </div>
               )}
 
