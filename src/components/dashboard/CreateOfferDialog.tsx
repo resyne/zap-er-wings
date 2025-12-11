@@ -47,6 +47,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
   const [esclusoCaricoPredisposizione, setEsclusoCaricoPredisposizione] = useState(false);
   const [esclusoPuliziaCanna, setEsclusoPuliziaCanna] = useState(false);
   const [currentProductId, setCurrentProductId] = useState<string>('');
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     product_id: string;
     product_name: string;
@@ -847,21 +848,52 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
 
           <div>
             <Label>Seleziona Prodotto</Label>
-            <Select
-              value={currentProductId}
-              onValueChange={handleProductChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona prodotto" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.code} - {product.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={productSearchOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {currentProductId
+                    ? (() => {
+                        const product = products.find(p => p.id === currentProductId);
+                        return product ? `${product.code} - ${product.name}` : "Seleziona prodotto";
+                      })()
+                    : "Seleziona prodotto"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 z-[100]" align="start">
+                <Command>
+                  <CommandInput placeholder="Cerca prodotto..." />
+                  <CommandList>
+                    <CommandEmpty>Nessun prodotto trovato.</CommandEmpty>
+                    <CommandGroup>
+                      {products.map((product) => (
+                        <CommandItem
+                          key={product.id}
+                          value={`${product.code} ${product.name}`}
+                          onSelect={() => {
+                            handleProductChange(product.id);
+                            setProductSearchOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              currentProductId === product.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {product.code} - {product.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             {selectedGlobalPriceListId && (
               <p className="text-xs text-muted-foreground mt-1">
                 Prodotti filtrati dal listino selezionato
