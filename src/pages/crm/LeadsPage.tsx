@@ -689,6 +689,50 @@ export default function LeadsPage() {
     }
   };
 
+  // Inline update for ZAPPER custom fields
+  const handleUpdateZapperField = async (leadId: string, fieldName: string, value: string) => {
+    try {
+      // Get the current lead data
+      const currentLead = leads.find(l => l.id === leadId);
+      if (!currentLead) return;
+
+      const updatedCustomFields = {
+        ...currentLead.custom_fields,
+        [fieldName]: value
+      };
+
+      const { error } = await supabase
+        .from("leads")
+        .update({ custom_fields: updatedCustomFields })
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      // Update local state
+      setLeads(prev => prev.map(l => 
+        l.id === leadId 
+          ? { ...l, custom_fields: updatedCustomFields }
+          : l
+      ));
+
+      // Update selectedLead if it's the same lead
+      if (selectedLead?.id === leadId) {
+        setSelectedLead(prev => prev ? { ...prev, custom_fields: updatedCustomFields } : null);
+      }
+
+      toast({
+        title: "Campo aggiornato",
+        description: "La configurazione è stata aggiornata",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare il campo: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteLead = async (leadId: string) => {
     try {
       const { error } = await supabase
@@ -2317,45 +2361,107 @@ export default function LeadsPage() {
                 </div>
               )}
 
-              {/* Custom Fields - ZAPPER - Always visible for Zapper/Zapper Pro */}
+              {/* Custom Fields - ZAPPER - Always visible for Zapper/Zapper Pro with inline editing */}
               {(selectedLead.pipeline === "Zapper" || selectedLead.pipeline === "Zapper Pro") && (
                 <div className="border rounded-lg p-4 bg-primary/5">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                     <Zap className="h-4 w-4" />
                     Configurazione ZAPPER
                   </h4>
-                  <div className={cn("grid gap-3", isMobile ? "grid-cols-2" : "grid-cols-4")}>
-                    <div className="bg-background rounded-lg p-3 border">
+                  <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    {/* Tipologia Cliente */}
+                    <div className="bg-background rounded-lg p-3 border space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">Tipologia Cliente</label>
-                      <p className="text-sm font-medium mt-1 capitalize">
-                        {selectedLead.custom_fields?.tipologia_cliente 
-                          ? selectedLead.custom_fields.tipologia_cliente.replace(/_/g, ' ')
-                          : <span className="text-muted-foreground italic">Non specificato</span>}
-                      </p>
+                      <Select
+                        value={selectedLead.custom_fields?.tipologia_cliente || ""}
+                        onValueChange={(value) => handleUpdateZapperField(selectedLead.id, 'tipologia_cliente', value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Seleziona tipologia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pizzeria">🍕 Pizzeria</SelectItem>
+                          <SelectItem value="cucina_professionale">👨‍🍳 Cucina professionale</SelectItem>
+                          <SelectItem value="panificio">🥖 Panificio</SelectItem>
+                          <SelectItem value="braceria">🥩 Braceria</SelectItem>
+                          <SelectItem value="girarrosto">🍗 Girarrosto</SelectItem>
+                          <SelectItem value="industriale">🏭 Industriale</SelectItem>
+                          <SelectItem value="domestico">🏠 Domestico</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="bg-background rounded-lg p-3 border">
-                      <label className="text-xs font-medium text-muted-foreground">Diametro Canna</label>
-                      <p className="text-sm font-medium mt-1">
-                        {selectedLead.custom_fields?.diametro_canna_fumaria 
-                          ? `⌀ ${selectedLead.custom_fields.diametro_canna_fumaria} mm`
-                          : <span className="text-muted-foreground italic">Non specificato</span>}
-                      </p>
+                    
+                    {/* Diametro Canna Fumaria */}
+                    <div className="bg-background rounded-lg p-3 border space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Diametro Canna Fumaria</label>
+                      <Select
+                        value={selectedLead.custom_fields?.diametro_canna_fumaria || ""}
+                        onValueChange={(value) => handleUpdateZapperField(selectedLead.id, 'diametro_canna_fumaria', value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Seleziona diametro" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="100">⌀ 100 mm</SelectItem>
+                          <SelectItem value="150">⌀ 150 mm</SelectItem>
+                          <SelectItem value="200">⌀ 200 mm</SelectItem>
+                          <SelectItem value="250">⌀ 250 mm</SelectItem>
+                          <SelectItem value="300">⌀ 300 mm</SelectItem>
+                          <SelectItem value="350">⌀ 350 mm</SelectItem>
+                          <SelectItem value="400">⌀ 400 mm</SelectItem>
+                          <SelectItem value="450">⌀ 450 mm</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="bg-background rounded-lg p-3 border">
+                    
+                    {/* Montaggio */}
+                    <div className="bg-background rounded-lg p-3 border space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">Montaggio</label>
-                      <p className="text-sm font-medium mt-1">
-                        {selectedLead.custom_fields?.montaggio 
-                          ? (selectedLead.custom_fields.montaggio === "interno" ? "🏠 Interno" : "🌤️ Esterno")
-                          : <span className="text-muted-foreground italic">Non specificato</span>}
-                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selectedLead.custom_fields?.montaggio === "interno" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => handleUpdateZapperField(selectedLead.id, 'montaggio', 'interno')}
+                        >
+                          🏠 Interno
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selectedLead.custom_fields?.montaggio === "esterno" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => handleUpdateZapperField(selectedLead.id, 'montaggio', 'esterno')}
+                        >
+                          🌤️ Esterno
+                        </Button>
+                      </div>
                     </div>
-                    <div className="bg-background rounded-lg p-3 border">
+                    
+                    {/* Ingresso Fumi */}
+                    <div className="bg-background rounded-lg p-3 border space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">Ingresso Fumi</label>
-                      <p className="text-sm font-medium mt-1">
-                        {selectedLead.custom_fields?.ingresso_fumi 
-                          ? (selectedLead.custom_fields.ingresso_fumi === "dx" ? "➡️ DX" : "⬅️ SX")
-                          : <span className="text-muted-foreground italic">Non specificato</span>}
-                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selectedLead.custom_fields?.ingresso_fumi === "dx" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => handleUpdateZapperField(selectedLead.id, 'ingresso_fumi', 'dx')}
+                        >
+                          ➡️ DX
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selectedLead.custom_fields?.ingresso_fumi === "sx" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => handleUpdateZapperField(selectedLead.id, 'ingresso_fumi', 'sx')}
+                        >
+                          ⬅️ SX
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
