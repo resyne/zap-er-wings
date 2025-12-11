@@ -1497,7 +1497,7 @@ export default function OffersPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className={cn(
-              "max-h-[90vh] transition-all duration-300",
+              "max-h-[90vh] overflow-y-auto transition-all duration-300",
               isMobile ? "max-w-[95vw] p-4" : showPreview ? "max-w-6xl" : "max-w-2xl"
             )}>
             <DialogHeader className="pb-2">
