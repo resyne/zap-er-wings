@@ -2302,6 +2302,11 @@ export default function LeadsPage() {
                   {allStatuses.find(s => s.id === selectedLead.status)?.title || selectedLead.status}
                 </Badge>
                 <Badge variant="outline">{selectedLead.pipeline || 'N/A'}</Badge>
+                {selectedLead.priority && (
+                  <Badge className={leadPriorities.find(p => p.id === selectedLead.priority)?.color || ''}>
+                    {leadPriorities.find(p => p.id === selectedLead.priority)?.title || selectedLead.priority}
+                  </Badge>
+                )}
                 {selectedLead.value && (
                   <Badge variant="secondary" className="text-green-600">
                     {formatAmount(selectedLead.value, hideAmounts)}
