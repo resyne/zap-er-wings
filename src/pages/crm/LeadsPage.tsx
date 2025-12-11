@@ -74,10 +74,8 @@ interface Lead {
 }
 
 const leadPriorities = [
-  { id: "bassa", title: "Bassa", color: "bg-gray-100 text-gray-800" },
-  { id: "media", title: "Media", color: "bg-blue-100 text-blue-800" },
-  { id: "alta", title: "Alta", color: "bg-orange-100 text-orange-800" },
-  { id: "urgente", title: "Urgente", color: "bg-red-100 text-red-800" },
+  { id: "mid", title: "MID", color: "bg-orange-100 text-orange-800" },
+  { id: "hot", title: "HOT", color: "bg-red-100 text-red-800" },
 ];
 
 interface Offer {
@@ -889,7 +887,7 @@ export default function LeadsPage() {
     });
   }, []);
 
-  const priorityOrder: Record<string, number> = { urgente: 0, alta: 1, media: 2, bassa: 3 };
+  const priorityOrder: Record<string, number> = { hot: 0, mid: 1 };
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
@@ -900,8 +898,8 @@ export default function LeadsPage() {
     const matchesArchived = showArchived ? lead.archived : !lead.archived;
     return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
   }).sort((a, b) => {
-    const priorityA = priorityOrder[a.priority || 'media'] ?? 2;
-    const priorityB = priorityOrder[b.priority || 'media'] ?? 2;
+    const priorityA = priorityOrder[a.priority || ''] ?? 99;
+    const priorityB = priorityOrder[b.priority || ''] ?? 99;
     return priorityA - priorityB;
   });
 
@@ -1543,14 +1541,45 @@ export default function LeadsPage() {
                                           NUOVO
                                         </Badge>
                                       )}
-                                      <Badge 
-                                        className={cn(
-                                          leadPriorities.find(p => p.id === (lead.priority || 'media'))?.color || "bg-gray-100 text-gray-800",
-                                          isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
-                                        )}
+                                      <Select
+                                        value={lead.priority || ''}
+                                        onValueChange={(value) => {
+                                          setLeads(prev => prev.map(l => 
+                                            l.id === lead.id ? { ...l, priority: value } : l
+                                          ));
+                                          supabase
+                                            .from('leads')
+                                            .update({ priority: value })
+                                            .eq('id', lead.id)
+                                            .then();
+                                        }}
                                       >
-                                        {leadPriorities.find(p => p.id === (lead.priority || 'media'))?.title || lead.priority || 'Media'}
-                                      </Badge>
+                                        <SelectTrigger 
+                                          className={cn(
+                                            "h-auto border-0 p-0 focus:ring-0 bg-transparent shadow-none",
+                                            isMobile ? "text-[9px]" : "text-[10px]"
+                                          )}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Badge 
+                                            className={cn(
+                                              leadPriorities.find(p => p.id === lead.priority)?.color || "bg-gray-100 text-gray-800",
+                                              isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
+                                            )}
+                                          >
+                                            {leadPriorities.find(p => p.id === lead.priority)?.title || '-'}
+                                          </Badge>
+                                        </SelectTrigger>
+                                        <SelectContent onClick={(e) => e.stopPropagation()}>
+                                          {leadPriorities.map(priority => (
+                                            <SelectItem key={priority.id} value={priority.id}>
+                                              <span className={cn("px-2 py-0.5 rounded text-xs font-medium", priority.color)}>
+                                                {priority.title}
+                                              </span>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
                                     {lead.contact_name && (
                                       <p className={cn(
