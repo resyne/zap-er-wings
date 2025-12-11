@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
@@ -2574,23 +2574,46 @@ export default function LeadsPage() {
                 </div>
               )}
 
-              {/* Lead Activities, Comments, Files - Collapsible */}
-              <Collapsible defaultOpen={true} className="border rounded-lg bg-card">
+              {/* Lead Activities - Collapsible */}
+              <Collapsible defaultOpen={false} className="border rounded-lg bg-card">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <Activity className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Attività & Comunicazioni</span>
+                    <span className="text-sm font-medium">Attività</span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-3 pb-3 border-t pt-3 space-y-3">
+                  <div className="px-3 pb-3 border-t pt-3">
                     <LeadActivities leadId={selectedLead.id} onActivityCompleted={loadLeads} />
-                    <LeadComments leadId={selectedLead.id} />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Files & Documents - Collapsible */}
+              <Collapsible defaultOpen={false} className="border rounded-lg bg-card">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">File & Documenti</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-3 pb-3 border-t pt-3">
                     <LeadFileUpload leadId={selectedLead.id} />
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+
+              {/* Comments - Always Open */}
+              <div className="border rounded-lg bg-card px-3 py-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Commenti</span>
+                </div>
+                <LeadComments leadId={selectedLead.id} />
+              </div>
 
               {/* Actions */}
               <div className={cn(
