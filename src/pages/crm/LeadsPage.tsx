@@ -2505,18 +2505,30 @@ export default function LeadsPage() {
                 </div>
               )}
 
-              {/* Linked Offers */}
-              {offers.filter(o => o.lead_id === selectedLead.id).length > 0 && (
-                <div className="border-t pt-4">
-                  <div className="flex items-center gap-2 mb-3">
+              {/* Linked Offers - Always visible */}
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-purple-600" />
                     <label className="text-sm font-medium text-purple-600">
                       Offerte Collegate ({offers.filter(o => o.lead_id === selectedLead.id).length})
                     </label>
                   </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false);
+                      handleCreateOfferForLead(selectedLead);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nuova Offerta
+                  </Button>
+                </div>
+                {offers.filter(o => o.lead_id === selectedLead.id).length > 0 ? (
                   <div className="space-y-4">
                     {offers.filter(o => o.lead_id === selectedLead.id).map(linkedOffer => (
-                      <div key={linkedOffer.id} className="ml-6 p-3 bg-muted/50 rounded-lg space-y-3">
+                      <div key={linkedOffer.id} className="p-3 bg-muted/50 rounded-lg space-y-3">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
                             <div>
@@ -2560,8 +2572,10 @@ export default function LeadsPage() {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nessuna offerta collegata</p>
+                )}
+              </div>
 
               {/* Configurator Status for Vesuviano */}
               {selectedLead.pipeline === "Vesuviano" && (
@@ -2592,17 +2606,6 @@ export default function LeadsPage() {
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Modifica
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setIsDetailsDialogOpen(false);
-                    handleCreateOfferForLead(selectedLead);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crea Offerta
                 </Button>
                 {selectedLead.status === "negotiation" && (
                   <>
