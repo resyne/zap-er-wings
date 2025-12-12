@@ -40,21 +40,34 @@ export function ArticleBomDisplay({ articleDescription, compact = false, showSto
         return;
       }
 
-      const productName = match[1].trim();
-      
-      // Find matching product
-      const { data: products } = await supabase
-        .from("products")
-        .select("id, name")
-        .ilike("name", `%${productName}%`)
-        .limit(1);
+      const fullLine = match[1].trim();
+      const baseName = fullLine.split(" - ")[0].trim();
 
-      if (!products || products.length === 0) {
+      const searchTerms = [baseName, fullLine].filter(Boolean);
+      let productId: string | null = null;
+
+      for (const term of searchTerms) {
+        const { data: products, error } = await supabase
+          .from("products")
+          .select("id, name")
+          .ilike("name", `%${term}%`)
+          .limit(1);
+
+        if (error) {
+          console.error("Error searching product for article display", error);
+          continue;
+        }
+
+        if (products && products.length > 0) {
+          productId = products[0].id;
+          break;
+        }
+      }
+
+      if (!productId) {
         setLoading(false);
         return;
       }
-
-      const productId = products[0].id;
 
       // Find BOM Level 1 linked to this product
       const { data: bomProducts } = await supabase
@@ -100,7 +113,7 @@ export function ArticleBomDisplay({ articleDescription, compact = false, showSto
                       .from("materials")
                       .select("current_stock")
                       .eq("id", includedBom.material_id)
-                      .single();
+                      .maybeSingle();
                     
                     if (material) {
                       stockInfo = material.current_stock;
