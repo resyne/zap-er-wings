@@ -2362,16 +2362,14 @@ ${allOrdersHTML}
 
 
 
-              {/* Articles */}
-              {selectedWO.article && (
-                <div className="border-t pt-4">
-                  <Label className="text-sm font-medium text-muted-foreground mb-2 block">Articoli</Label>
-                  <WorkOrderArticles 
-                    workOrderId={selectedWO.id} 
-                    articleText={selectedWO.article} 
-                  />
-                </div>
-              )}
+              {/* Articles - Always show, component loads from DB */}
+              <div className="border-t pt-4">
+                <Label className="text-sm font-medium text-muted-foreground mb-2 block">Articoli</Label>
+                <WorkOrderArticles 
+                  workOrderId={selectedWO.id} 
+                  articleText={selectedWO.article || ''} 
+                />
+              </div>
 
               {/* Composizione BOM */}
               {selectedWO.bom_id && (

@@ -269,12 +269,11 @@ export function ProductionOrderDialog({ orderId, open, onOpenChange, hideAmounts
               </div>
             )}
 
-            {order.article && (
-              <div className="border-t pt-4">
-                <Label className="text-sm text-muted-foreground mb-2 block">Da assemblare</Label>
-                <WorkOrderArticles workOrderId={order.id} articleText={order.article} hideAmounts={hideAmounts} />
-              </div>
-            )}
+            {/* Articles - Always show, component loads from DB */}
+            <div className="border-t pt-4">
+              <Label className="text-sm text-muted-foreground mb-2 block">Da assemblare</Label>
+              <WorkOrderArticles workOrderId={order.id} articleText={order.article || ''} hideAmounts={hideAmounts} />
+            </div>
 
             {order.notes && (
               <div>
