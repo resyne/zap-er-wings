@@ -186,18 +186,33 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
         const match = article.description.match(/^\d+x\s+(.+?)(?:\n|$)/i);
         if (!match) continue;
 
-        const productName = match[1].trim();
-        
-        // Find matching product
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, name")
-          .ilike("name", `%${productName}%`)
-          .limit(1);
+        const fullLine = match[1].trim();
+        // Use text before the first " - " as base product name (e.g. "ZPZ NUVOLA L")
+        const baseName = fullLine.split(" - ")[0].trim();
 
-        if (!products || products.length === 0) continue;
+        // Try to find matching product using the base name first, then fall back to full line
+        const searchTerms = [baseName, fullLine].filter(Boolean);
+        let productId: string | null = null;
 
-        const productId = products[0].id;
+        for (const term of searchTerms) {
+          const { data: products, error } = await supabase
+            .from("products")
+            .select("id, name")
+            .ilike("name", `%${term}%`)
+            .limit(1);
+
+          if (error) {
+            console.error("Error searching product for article", article.id, error);
+            continue;
+          }
+
+          if (products && products.length > 0) {
+            productId = products[0].id;
+            break;
+          }
+        }
+
+        if (!productId) continue;
 
         // Find BOM Level 1 linked to this product
         const { data: bomProducts } = await supabase
@@ -268,6 +283,7 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
         bomDataMap[article.id] = { level1: level1Boms, level2: level2Boms };
       }
 
+      console.log("Loaded BOM data for articles", bomDataMap);
       setBomData(bomDataMap);
     } catch (error) {
       console.error("Error loading BOM data:", error);
