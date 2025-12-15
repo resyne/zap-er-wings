@@ -158,14 +158,20 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
         .eq("id", leadId)
         .single();
 
-      if (leadError || !leadData?.next_activity_type || !leadData?.next_activity_date) return;
+      // Se non c'è una data di attività, esci
+      if (leadError || !leadData?.next_activity_date) return;
 
-      // Verifica se esiste già l'attività
+      // Usa il tipo attività se presente, altrimenti "other" come fallback
+      const activityType = leadData.next_activity_type && leadData.next_activity_type.trim() !== "" 
+        ? leadData.next_activity_type 
+        : "other";
+
+      // Verifica se esiste già un'attività scheduled con la stessa data
       const { data: existingActivity } = await supabase
         .from("lead_activities")
         .select("id")
         .eq("lead_id", leadId)
-        .eq("activity_type", leadData.next_activity_type)
+        .eq("activity_date", leadData.next_activity_date)
         .eq("status", "scheduled")
         .maybeSingle();
 
@@ -174,7 +180,7 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
         const { data: { user } } = await supabase.auth.getUser();
         await supabase.from("lead_activities").insert([{
           lead_id: leadId,
-          activity_type: leadData.next_activity_type,
+          activity_type: activityType,
           activity_date: leadData.next_activity_date,
           assigned_to: leadData.next_activity_assigned_to || null,
           notes: leadData.next_activity_notes || null,
