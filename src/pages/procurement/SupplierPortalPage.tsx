@@ -3,14 +3,46 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Package, Clock, CheckCircle, AlertCircle, MessageSquare, Paperclip, Send, Upload } from "lucide-react";
+import { 
+  Package, Clock, CheckCircle, AlertCircle, MessageSquare, 
+  Paperclip, Send, ChevronRight, Calendar, LayoutGrid, 
+  List, Filter, X, History, Upload, Eye
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type ViewMode = 'kanban' | 'list';
+type FilterStatus = 'all' | 'pending' | 'active' | 'completed';
+
+const statusConfig = {
+  pending: { label: "Da Confermare", color: "bg-yellow-500", textColor: "text-yellow-600", bgLight: "bg-yellow-50 dark:bg-yellow-950/30" },
+  confirmed: { label: "Confermato", color: "bg-blue-500", textColor: "text-blue-600", bgLight: "bg-blue-50 dark:bg-blue-950/30" },
+  in_production: { label: "In Produzione", color: "bg-purple-500", textColor: "text-purple-600", bgLight: "bg-purple-50 dark:bg-purple-950/30" },
+  ready_to_ship: { label: "Pronto", color: "bg-orange-500", textColor: "text-orange-600", bgLight: "bg-orange-50 dark:bg-orange-950/30" },
+  shipped: { label: "Spedito", color: "bg-emerald-500", textColor: "text-emerald-600", bgLight: "bg-emerald-50 dark:bg-emerald-950/30" },
+  delivered: { label: "Consegnato", color: "bg-green-600", textColor: "text-green-600", bgLight: "bg-green-50 dark:bg-green-950/30" },
+  cancelled: { label: "Annullato", color: "bg-red-500", textColor: "text-red-600", bgLight: "bg-red-50 dark:bg-red-950/30" },
+};
+
+const priorityConfig = {
+  urgente: { label: "Urgente", color: "bg-red-500 text-white", emoji: "🔴" },
+  alta: { label: "Alta", color: "bg-orange-500 text-white", emoji: "🟠" },
+  media: { label: "Media", color: "bg-yellow-500 text-black", emoji: "🟡" },
+  bassa: { label: "Bassa", color: "bg-blue-500 text-white", emoji: "🔵" },
+};
+
+const kanbanColumns = [
+  { key: 'pending', label: 'Da Confermare', color: 'border-t-yellow-500' },
+  { key: 'in_production', label: 'In Lavorazione', color: 'border-t-purple-500' },
+  { key: 'ready_to_ship', label: 'Pronti', color: 'border-t-orange-500' },
+  { key: 'delivered', label: 'Completati', color: 'border-t-green-500' },
+];
 
 export default function SupplierPortalPage() {
   const { supplierId } = useParams();
@@ -18,8 +50,10 @@ export default function SupplierPortalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [supplierData, setSupplierData] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
-  // Load supplier data automatically
   useEffect(() => {
     if (!supplierId) {
       navigate('/');
@@ -42,7 +76,6 @@ export default function SupplierPortalPage() {
 
         setSupplierData(data.supplier);
         setOrders(data.orders || []);
-        toast.success(`Benvenuto, ${data.supplier.name}!`);
       } catch (error: any) {
         console.error('Access error:', error);
         toast.error("Errore durante il caricamento dei dati");
@@ -54,33 +87,32 @@ export default function SupplierPortalPage() {
     loadSupplierData();
   }, [supplierId, navigate]);
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { label: "In Attesa", variant: "secondary" as const, icon: Clock },
-      confirmed: { label: "Confermato", variant: "default" as const, icon: CheckCircle },
-      in_production: { label: "In Produzione", variant: "default" as const, icon: Package },
-      shipped: { label: "Spedito", variant: "default" as const, icon: CheckCircle },
-      delivered: { label: "Consegnato", variant: "default" as const, icon: CheckCircle },
-      cancelled: { label: "Annullato", variant: "destructive" as const, icon: AlertCircle },
-    };
+  const getFilteredOrders = () => {
+    switch (filterStatus) {
+      case 'pending':
+        return orders.filter(o => o.production_status === 'pending');
+      case 'active':
+        return orders.filter(o => !['delivered', 'cancelled', 'pending'].includes(o.production_status));
+      case 'completed':
+        return orders.filter(o => o.production_status === 'delivered');
+      default:
+        return orders;
+    }
+  };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className="h-3 w-3" />
-        {config.label}
-      </Badge>
-    );
+  const getOrdersByStatus = (status: string) => {
+    if (status === 'in_production') {
+      return orders.filter(o => ['confirmed', 'in_production'].includes(o.production_status));
+    }
+    return orders.filter(o => o.production_status === status);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Caricamento portale fornitore...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 p-6">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground text-sm">Caricamento...</p>
         </div>
       </div>
     );
@@ -88,92 +120,289 @@ export default function SupplierPortalPage() {
 
   if (!supplierData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <CardTitle>Fornitore non trovato</CardTitle>
-            <CardDescription>
-              Il portale richiesto non è disponibile.
-            </CardDescription>
-          </CardHeader>
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-sm text-center p-6">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-lg font-semibold">Portale non disponibile</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            Il link potrebbe essere scaduto o non valido.
+          </p>
         </Card>
       </div>
     );
   }
 
+  const filteredOrders = getFilteredOrders();
+  const pendingCount = orders.filter(o => o.production_status === 'pending').length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">{supplierData?.name}</h1>
-              <p className="text-muted-foreground mt-1">
-                Portale di gestione ordini • {orders.length} ordini totali
+    <div className="min-h-screen bg-background">
+      {/* Mobile-first Header */}
+      <div className="sticky top-0 z-50 bg-card border-b shadow-sm">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold truncate">{supplierData?.name}</h1>
+              <p className="text-xs text-muted-foreground">
+                {orders.length} ordini • {pendingCount > 0 && (
+                  <span className="text-yellow-600 font-medium">{pendingCount} da confermare</span>
+                )}
               </p>
-              {(supplierData?.contact_name || supplierData?.contact_email) && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Referente: {supplierData?.contact_name}
-                  {supplierData?.contact_email && (
-                    <>
-                      {supplierData?.contact_name ? " • " : ""}
-                      <span>{supplierData.contact_email}</span>
-                    </>
-                  )}
-                </p>
-              )}
+            </div>
+            
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+              <Button
+                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setViewMode('kanban')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
             </div>
           </div>
+
+          {/* Filter Pills - Mobile Scrollable */}
+          {viewMode === 'list' && (
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+              {[
+                { key: 'all', label: 'Tutti', count: orders.length },
+                { key: 'pending', label: 'Da Confermare', count: orders.filter(o => o.production_status === 'pending').length },
+                { key: 'active', label: 'In Corso', count: orders.filter(o => !['delivered', 'cancelled', 'pending'].includes(o.production_status)).length },
+                { key: 'completed', label: 'Completati', count: orders.filter(o => o.production_status === 'delivered').length },
+              ].map(filter => (
+                <Button
+                  key={filter.key}
+                  variant={filterStatus === filter.key ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-shrink-0 h-8 text-xs gap-1.5"
+                  onClick={() => setFilterStatus(filter.key as FilterStatus)}
+                >
+                  {filter.label}
+                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[10px]">
+                    {filter.count}
+                  </Badge>
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="active" className="space-y-6">
-          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="active">Attivi ({orders.filter(o => !['delivered', 'cancelled'].includes(o.production_status)).length})</TabsTrigger>
-            <TabsTrigger value="pending">Da Confermare ({orders.filter(o => o.production_status === 'pending').length})</TabsTrigger>
-            <TabsTrigger value="completed">Completati ({orders.filter(o => o.production_status === 'delivered').length})</TabsTrigger>
-            <TabsTrigger value="all">Tutti</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="active" className="space-y-4">
-            {orders.filter(o => !['delivered', 'cancelled'].includes(o.production_status)).map((order) => (
-              <OrderCard key={order.id} order={order} getStatusBadge={getStatusBadge} />
-            ))}
-          </TabsContent>
-
-          <TabsContent value="pending" className="space-y-4">
-            {orders.filter(o => o.production_status === 'pending').map((order) => (
-              <OrderCard key={order.id} order={order} getStatusBadge={getStatusBadge} />
-            ))}
-          </TabsContent>
-
-          <TabsContent value="completed" className="space-y-4">
-            {orders.filter(o => o.production_status === 'delivered').map((order) => (
-              <OrderCard key={order.id} order={order} getStatusBadge={getStatusBadge} />
-            ))}
-          </TabsContent>
-
-          <TabsContent value="all" className="space-y-4">
-            {orders.map((order) => (
-              <OrderCard key={order.id} order={order} getStatusBadge={getStatusBadge} />
-            ))}
-          </TabsContent>
-        </Tabs>
+      <div className="p-4">
+        {viewMode === 'kanban' ? (
+          <KanbanView 
+            orders={orders} 
+            getOrdersByStatus={getOrdersByStatus}
+            onSelectOrder={setSelectedOrder}
+          />
+        ) : (
+          <ListView 
+            orders={filteredOrders} 
+            onSelectOrder={setSelectedOrder}
+          />
+        )}
       </div>
+
+      {/* Order Detail Sheet */}
+      {selectedOrder && (
+        <OrderDetailSheet 
+          order={selectedOrder} 
+          onClose={() => setSelectedOrder(null)}
+          onUpdate={() => {
+            // Reload data
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function OrderCard({ order, getStatusBadge }: any) {
+// Kanban View Component
+function KanbanView({ orders, getOrdersByStatus, onSelectOrder }: {
+  orders: any[];
+  getOrdersByStatus: (status: string) => any[];
+  onSelectOrder: (order: any) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {kanbanColumns.map(column => {
+        const columnOrders = getOrdersByStatus(column.key);
+        if (columnOrders.length === 0 && column.key === 'delivered') return null;
+        
+        return (
+          <div key={column.key} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <div className={cn("w-3 h-3 rounded-full", column.color.replace('border-t-', 'bg-'))} />
+                {column.label}
+              </h3>
+              <Badge variant="secondary" className="text-xs">
+                {columnOrders.length}
+              </Badge>
+            </div>
+            
+            <div className="space-y-2">
+              {columnOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm bg-muted/30 rounded-lg">
+                  Nessun ordine
+                </div>
+              ) : (
+                columnOrders.map(order => (
+                  <MobileOrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onClick={() => onSelectOrder(order)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// List View Component
+function ListView({ orders, onSelectOrder }: {
+  orders: any[];
+  onSelectOrder: (order: any) => void;
+}) {
+  if (orders.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+        <p>Nessun ordine trovato</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {orders.map(order => (
+        <MobileOrderCard 
+          key={order.id} 
+          order={order} 
+          onClick={() => onSelectOrder(order)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Mobile Order Card
+function MobileOrderCard({ order, onClick }: { order: any; onClick: () => void }) {
+  const status = statusConfig[order.production_status as keyof typeof statusConfig] || statusConfig.pending;
+  const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
+  
+  const daysUntilDeadline = order.expected_delivery_date 
+    ? Math.ceil((new Date(order.expected_delivery_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const itemsCount = order.purchase_order_items?.length || 0;
+  const commentsCount = order.purchase_order_comments?.length || 0;
+  const attachmentsCount = order.purchase_order_attachments?.length || 0;
+
+  return (
+    <Card 
+      className={cn(
+        "cursor-pointer active:scale-[0.98] transition-all duration-150",
+        "border-l-4",
+        status.color.replace('bg-', 'border-l-')
+      )}
+      onClick={onClick}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            {/* Header Row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-base">{order.number}</span>
+              {priority && (
+                <span className="text-sm">{priority.emoji}</span>
+              )}
+            </div>
+
+            {/* Status Badge */}
+            <Badge 
+              className={cn("text-xs", status.color, "text-white")}
+            >
+              {status.label}
+            </Badge>
+
+            {/* Items Preview */}
+            {order.purchase_order_items && order.purchase_order_items.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                {order.purchase_order_items.slice(0, 2).map((item: any, idx: number) => (
+                  <div key={idx} className="truncate">
+                    {item.quantity}x {item.material?.name || item.description}
+                  </div>
+                ))}
+                {order.purchase_order_items.length > 2 && (
+                  <div className="text-xs text-muted-foreground/70">
+                    +{order.purchase_order_items.length - 2} altri
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Meta Row */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {order.expected_delivery_date && (
+                <div className={cn(
+                  "flex items-center gap-1",
+                  daysUntilDeadline !== null && daysUntilDeadline < 0 && "text-destructive font-medium",
+                  daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 3 && "text-orange-600 font-medium"
+                )}>
+                  <Calendar className="h-3 w-3" />
+                  {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                </div>
+              )}
+              {commentsCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  {commentsCount}
+                </div>
+              )}
+              {attachmentsCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <Paperclip className="h-3 w-3" />
+                  {attachmentsCount}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Indicator */}
+          <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Order Detail Sheet (Full-screen on mobile)
+function OrderDetailSheet({ order, onClose, onUpdate }: { 
+  order: any; 
+  onClose: () => void;
+  onUpdate: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<'details' | 'actions' | 'activity'>('details');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
-  const [showAttachmentsDialog, setShowAttachmentsDialog] = useState(false);
-  const [showPickedUpDialog, setShowPickedUpDialog] = useState(false);
-  const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [newComment, setNewComment] = useState("");
@@ -181,66 +410,66 @@ function OrderCard({ order, getStatusBadge }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [comments, setComments] = useState(order.purchase_order_comments || []);
   const [attachments, setAttachments] = useState(order.purchase_order_attachments || []);
-  const [statusUpdates, setStatusUpdates] = useState(order.purchase_order_status_updates || []);
+
+  const status = statusConfig[order.production_status as keyof typeof statusConfig] || statusConfig.pending;
+  const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
 
   const handleConfirmOrder = async () => {
     if (!deliveryDate) {
-      toast.error("Inserisci la data di consegna prevista");
+      toast.error("Inserisci la data di consegna");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('supplier-confirm-order', {
-        body: { 
-          orderId: order.id,
-          deliveryDate,
-          supplierNotes 
-        }
+      const { error } = await supabase.functions.invoke('supplier-confirm-order', {
+        body: { orderId: order.id, deliveryDate, supplierNotes }
       });
-
       if (error) throw error;
-      
-      toast.success("Ordine confermato con successo!");
+      toast.success("Ordine confermato!");
       setShowConfirmDialog(false);
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (error: any) {
-      console.error('Confirm error:', error);
+      onUpdate();
+    } catch (error) {
       toast.error("Errore durante la conferma");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleAddComment = async () => {
-    if (!newComment.trim()) {
-      toast.error("Inserisci un commento");
-      return;
+  const handleUpdateStatus = async (newStatus: string) => {
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.functions.invoke('supplier-update-status', {
+        body: { orderId: order.id, status: newStatus, notes: '' }
+      });
+      if (error) throw error;
+      toast.success("Stato aggiornato!");
+      onUpdate();
+    } catch (error) {
+      toast.error("Errore durante l'aggiornamento");
+    } finally {
+      setIsSubmitting(false);
     }
-    if (!commentAuthorName.trim()) {
-      toast.error("Inserisci il tuo nome");
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !commentAuthorName.trim()) {
+      toast.error("Compila tutti i campi");
       return;
     }
 
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('supplier-add-comment', {
-        body: { 
-          orderId: order.id,
-          comment: newComment,
-          supplierName: commentAuthorName
-        }
+        body: { orderId: order.id, comment: newComment, supplierName: commentAuthorName }
       });
-
       if (error) throw error;
-      
-      toast.success("Commento aggiunto con successo!");
+      toast.success("Commento aggiunto!");
       setNewComment("");
-      setCommentAuthorName("");
       setComments([...comments, data.comment]);
-    } catch (error: any) {
-      console.error('Comment error:', error);
-      toast.error("Errore durante l'invio del commento");
+      setShowCommentDialog(false);
+    } catch (error) {
+      toast.error("Errore durante l'invio");
     } finally {
       setIsSubmitting(false);
     }
@@ -266,526 +495,425 @@ function OrderCard({ order, getStatusBadge }: any) {
         .getPublicUrl(fileName);
 
       const { data, error } = await supabase.functions.invoke('supplier-add-attachment', {
-        body: { 
-          orderId: order.id,
-          fileName: file.name,
-          fileUrl: publicUrl
-        }
+        body: { orderId: order.id, fileName: file.name, fileUrl: publicUrl }
       });
 
       if (error) throw error;
-      
-      toast.success("File caricato con successo!");
+      toast.success("File caricato!");
       setAttachments([...attachments, data.attachment]);
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      toast.error("Errore durante il caricamento del file");
+      setShowUploadDialog(false);
+    } catch (error) {
+      toast.error("Errore durante il caricamento");
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleUpdateStatus = async (status: string) => {
-    setIsSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('supplier-update-status', {
-        body: { 
-          orderId: order.id,
-          status: status,
-          notes: ''
-        }
-      });
-
-      if (error) throw error;
-      
-      toast.success("Stato aggiornato con successo!");
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (error: any) {
-      console.error('Status update error:', error);
-      toast.error("Errore durante l'aggiornamento dello stato");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleMarkAsPickedUp = async () => {
-    setIsSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('supplier-mark-picked-up', {
-        body: { 
-          orderId: order.id,
-          notes: supplierNotes
-        }
-      });
-
-      if (error) throw error;
-      
-      toast.success("Ordine segnato come ritirato!");
-      setShowPickedUpDialog(false);
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (error: any) {
-      console.error('Picked up error:', error);
-      toast.error("Errore durante la segnalazione del ritiro");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const priorityConfig = {
-    urgente: { label: "Urgente", color: "bg-red-500 text-white" },
-    alta: { label: "Alta", color: "bg-orange-500 text-white" },
-    media: { label: "Media", color: "bg-yellow-500 text-white" },
-    bassa: { label: "Bassa", color: "bg-blue-500 text-white" },
   };
 
   return (
-    <>
-      <Card>
-      <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <CardTitle className="text-xl">{order.number}</CardTitle>
-              {getStatusBadge(order.production_status)}
-              {order.priority && priorityConfig[order.priority as keyof typeof priorityConfig] && (
-                <Badge className={priorityConfig[order.priority as keyof typeof priorityConfig].color}>
-                  {priorityConfig[order.priority as keyof typeof priorityConfig].label}
-                </Badge>
-              )}
-            </div>
-            <CardDescription className="mt-2 space-y-1">
-              <div>Ordinato il {new Date(order.created_at).toLocaleDateString('it-IT')}</div>
-              {order.expected_delivery_date && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3 w-3" />
-                  <span className="font-medium">
-                    Consegna prevista: {new Date(order.expected_delivery_date).toLocaleDateString('it-IT')}
-                  </span>
-                </div>
-              )}
-            </CardDescription>
-          </div>
-          {order.expected_delivery_date && (
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Scadenza</div>
-              <div className="text-lg font-bold">
-                {new Date(order.expected_delivery_date).toLocaleDateString('it-IT')}
+    <Dialog open={true} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0">
+        {/* Header */}
+        <div className="p-4 border-b flex-shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">{order.number}</h2>
+                {priority && <span className="text-lg">{priority.emoji}</span>}
               </div>
-              {(() => {
-                const daysUntil = Math.ceil((new Date(order.expected_delivery_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                return (
-                  <div className={`text-xs font-medium mt-1 ${
-                    daysUntil < 0 ? 'text-destructive' : 
-                    daysUntil < 7 ? 'text-orange-500' : 
-                    'text-muted-foreground'
-                  }`}>
-                    {daysUntil < 0 ? `${Math.abs(daysUntil)} giorni in ritardo` : 
-                     daysUntil === 0 ? 'Scade oggi' :
-                     `Tra ${daysUntil} giorni`}
-                  </div>
-                );
-              })()}
+              <Badge className={cn("mt-2", status.color, "text-white")}>
+                {status.label}
+              </Badge>
             </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Items */}
-        {order.purchase_order_items && order.purchase_order_items.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="font-semibold text-sm text-muted-foreground">Articoli</h4>
-            <div className="space-y-2">
-              {order.purchase_order_items.map((item: any, idx: number) => (
-                <div key={idx} className="p-3 bg-muted/50 rounded-lg">
-                  <div className="font-medium">{item.material?.name || item.description}</div>
-                  <div className="text-sm text-muted-foreground">Quantità: {item.quantity}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Order Notes */}
-        {order.notes && (
-          <div className="space-y-2">
-            <h4 className="font-semibold text-sm text-muted-foreground">Note Ordine</h4>
-            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowActivityDialog(true)}>
-            <Clock className="h-4 w-4" />
-            Cronologia Attività
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCommentsDialog(true)}>
-            <MessageSquare className="h-4 w-4" />
-            Commenti ({comments.length})
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAttachmentsDialog(true)}>
-            <Paperclip className="h-4 w-4" />
-            Allegati ({attachments.length})
-          </Button>
-          {order.production_status === 'pending' && (
-            <Button size="sm" className="gap-2" onClick={() => setShowConfirmDialog(true)}>
-              <CheckCircle className="h-4 w-4" />
-              Conferma Ordine
-            </Button>
-          )}
-          {/* Clickable Status Buttons */}
-          {order.production_status !== 'pending' && (
-            <div className="w-full space-y-2">
-              <div className="text-xs text-muted-foreground">Stato: {getStatusBadge(order.production_status)}</div>
-              <div className="flex flex-wrap gap-2">
-                <Button 
-                  size="sm" 
-                  variant={order.production_status === 'in_production' ? 'default' : 'outline'}
-                  className="gap-1"
-                  disabled={isSubmitting || order.production_status === 'in_production'}
-                  onClick={() => handleUpdateStatus('in_production')}
-                >
-                  ⚙️ In Produzione
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant={order.production_status === 'ready_to_ship' ? 'default' : 'outline'}
-                  className="gap-1"
-                  disabled={isSubmitting || order.production_status === 'ready_to_ship'}
-                  onClick={() => handleUpdateStatus('ready_to_ship')}
-                >
-                  📦 Pronto
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant={order.production_status === 'shipped' ? 'default' : 'outline'}
-                  className="gap-1"
-                  disabled={isSubmitting || order.production_status === 'shipped'}
-                  onClick={() => handleUpdateStatus('shipped')}
-                >
-                  🚚 Spedito
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant={order.production_status === 'delivered' ? 'default' : 'outline'}
-                  className="gap-1"
-                  disabled={isSubmitting || order.production_status === 'delivered'}
-                  onClick={() => handleUpdateStatus('delivered')}
-                >
-                  ✅ Consegnato
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-
-    {/* Confirm Order Dialog */}
-    <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Conferma Ordine {order.number}</DialogTitle>
-          <DialogDescription>
-            Conferma la ricezione dell'ordine e indica la data di consegna prevista (obbligatoria)
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-            <div className="flex gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-semibold text-amber-700 dark:text-amber-400">Attenzione</p>
-                <p className="text-amber-600 dark:text-amber-300">
-                  La data di consegna prevista è obbligatoria per confermare l'ordine. 
-                  Indica quando prevedi di poter evadere l'ordine.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="delivery-date" className="text-base font-semibold">
-              Data di consegna prevista *
-            </Label>
-            <Input
-              id="delivery-date"
-              type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              className="text-lg"
-              required
-            />
-            {!deliveryDate && (
-              <p className="text-xs text-destructive">Campo obbligatorio</p>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="supplier-notes">Note aggiuntive (opzionale)</Label>
-            <Textarea
-              id="supplier-notes"
-              placeholder="Aggiungi eventuali note sulla consegna o specifiche sull'ordine..."
-              value={supplierNotes}
-              onChange={(e) => setSupplierNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => {
-            setShowConfirmDialog(false);
-            setDeliveryDate('');
-            setSupplierNotes('');
-          }}>
-            Annulla
-          </Button>
-          <Button 
-            onClick={handleConfirmOrder} 
-            disabled={isSubmitting || !deliveryDate}
-            className="gap-2"
-          >
-            <CheckCircle className="h-4 w-4" />
-            {isSubmitting ? "Conferma in corso..." : "Conferma Ordine"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    {/* Comments Dialog */}
-    <Dialog open={showCommentsDialog} onOpenChange={setShowCommentsDialog}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Commenti - {order.number}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* Existing Comments */}
-          {comments.length > 0 ? (
-            <div className="space-y-3">
-              {comments.map((comment: any) => (
-                <div key={comment.id} className="p-3 bg-muted rounded-lg">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-semibold text-sm">
-                      {comment.is_supplier ? comment.supplier_name : 'Azienda'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(comment.created_at).toLocaleString('it-IT')}
-                    </span>
-                  </div>
-                  <p className="text-sm">{comment.comment}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">Nessun commento</p>
-          )}
-
-          {/* Add Comment */}
-          <div className="space-y-2 pt-4 border-t">
-            <Label htmlFor="author-name">Il tuo nome *</Label>
-            <Input
-              id="author-name"
-              placeholder="Es. Mario Rossi"
-              value={commentAuthorName}
-              onChange={(e) => setCommentAuthorName(e.target.value)}
-              required
-            />
-            <Label htmlFor="new-comment">Aggiungi commento</Label>
-            <Textarea
-              id="new-comment"
-              placeholder="Scrivi un commento..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              rows={3}
-            />
-            <Button onClick={handleAddComment} disabled={isSubmitting} className="gap-2">
-              <Send className="h-4 w-4" />
-              {isSubmitting ? "Invio..." : "Invia Commento"}
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-5 w-5" />
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
 
-    {/* Attachments Dialog */}
-    <Dialog open={showAttachmentsDialog} onOpenChange={setShowAttachmentsDialog}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Allegati - {order.number}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* Existing Attachments */}
-          {attachments.length > 0 ? (
-            <div className="space-y-2">
-              {attachments.map((att: any) => (
-                <div key={att.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="h-4 w-4" />
-                    <span className="text-sm font-medium">{att.file_name}</span>
-                  </div>
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={att.file_url} target="_blank" rel="noopener noreferrer">
-                      Scarica
-                    </a>
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">Nessun allegato</p>
-          )}
-
-          {/* Upload File */}
-          <div className="space-y-2 pt-4 border-t">
-            <Label htmlFor="file-upload">Carica nuovo file</Label>
-            <Input
-              id="file-upload"
-              type="file"
-              onChange={handleFileUpload}
-              disabled={isSubmitting}
-            />
-          </div>
+        {/* Tab Navigation */}
+        <div className="flex border-b flex-shrink-0">
+          {[
+            { key: 'details', label: 'Dettagli', icon: Eye },
+            { key: 'actions', label: 'Azioni', icon: Package },
+            { key: 'activity', label: 'Attività', icon: History },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={cn(
+                "flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2",
+                activeTab === tab.key 
+                  ? "border-primary text-primary" 
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </DialogContent>
-    </Dialog>
 
-
-    {/* Activity Timeline Dialog */}
-    <Dialog open={showActivityDialog} onOpenChange={setShowActivityDialog}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Cronologia Attività - {order.number}</DialogTitle>
-          <DialogDescription>
-            Tutti gli eventi relativi a questo ordine in ordine cronologico
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3 py-4">
-          {(() => {
-            // Combine all activities
-            const activities = [
-              ...comments.map((c: any) => ({
-                type: 'comment',
-                date: new Date(c.created_at),
-                data: c
-              })),
-              ...attachments.map((a: any) => ({
-                type: 'attachment',
-                date: new Date(a.created_at),
-                data: a
-              })),
-              ...statusUpdates.map((s: any) => ({
-                type: 'status',
-                date: new Date(s.created_at),
-                data: s
-              })),
-              {
-                type: 'created',
-                date: new Date(order.created_at),
-                data: { note: 'Ordine creato' }
-              }
-            ].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-            if (activities.length === 0) {
-              return <p className="text-center text-muted-foreground py-8">Nessuna attività registrata</p>;
-            }
-
-            return activities.map((activity, idx) => (
-              <div key={idx} className="flex gap-3 p-3 bg-muted/50 rounded-lg">
-                <div className="flex-shrink-0 mt-1">
-                  {activity.type === 'comment' && <MessageSquare className="h-5 w-5 text-blue-500" />}
-                  {activity.type === 'attachment' && <Paperclip className="h-5 w-5 text-green-500" />}
-                  {activity.type === 'status' && <Package className="h-5 w-5 text-orange-500" />}
-                  {activity.type === 'created' && <CheckCircle className="h-5 w-5 text-purple-500" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="font-semibold text-sm">
-                      {activity.type === 'comment' && 'Commento'}
-                      {activity.type === 'attachment' && 'Allegato caricato'}
-                      {activity.type === 'status' && 'Aggiornamento stato'}
-                      {activity.type === 'created' && 'Ordine creato'}
-                    </span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {activity.date.toLocaleString('it-IT')}
-                    </span>
+        {/* Tab Content */}
+        <ScrollArea className="flex-1">
+          <div className="p-4">
+            {activeTab === 'details' && (
+              <div className="space-y-4">
+                {/* Delivery Date */}
+                {order.expected_delivery_date && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="text-xs text-muted-foreground mb-1">Consegna prevista</div>
+                    <div className="text-lg font-bold flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
+                        weekday: 'long', 
+                        day: 'numeric', 
+                        month: 'long' 
+                      })}
+                    </div>
                   </div>
-                  
-                  {activity.type === 'comment' && (
-                    <>
-                      <div className="text-xs text-muted-foreground mb-1">
-                        da {activity.data.is_supplier ? activity.data.supplier_name : 'Azienda'}
+                )}
+
+                {/* Order Date */}
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Data ordine</div>
+                  <div className="font-medium">
+                    {new Date(order.created_at).toLocaleDateString('it-IT')}
+                  </div>
+                </div>
+
+                {/* Items */}
+                {order.purchase_order_items?.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Articoli ordinati</h4>
+                    {order.purchase_order_items.map((item: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-card border rounded-lg">
+                        <div className="font-medium">{item.material?.name || item.description}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                        </div>
                       </div>
-                      <p className="text-sm">{activity.data.comment}</p>
-                    </>
-                  )}
-                  
-                  {activity.type === 'attachment' && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{activity.data.file_name}</span>
-                      <Button size="sm" variant="ghost" asChild>
-                        <a href={activity.data.file_url} target="_blank" rel="noopener noreferrer" className="text-xs">
-                          Apri
+                    ))}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {order.notes && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Note ordine</h4>
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
+                      <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Attachments */}
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Allegati ({attachments.length})</h4>
+                    <div className="space-y-2">
+                      {attachments.map((att: any) => (
+                        <a
+                          key={att.id}
+                          href={att.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Paperclip className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium truncate flex-1">{att.file_name}</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'actions' && (
+              <div className="space-y-4">
+                {/* Primary Action for Pending */}
+                {order.production_status === 'pending' && (
+                  <Button 
+                    className="w-full h-14 text-base gap-2" 
+                    onClick={() => setShowConfirmDialog(true)}
+                  >
+                    <CheckCircle className="h-5 w-5" />
+                    Conferma Ordine
+                  </Button>
+                )}
+
+                {/* Status Update Buttons */}
+                {order.production_status !== 'pending' && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm mb-3">Aggiorna stato</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={order.production_status === 'in_production' ? 'default' : 'outline'}
+                        className="h-12 gap-2"
+                        disabled={isSubmitting || order.production_status === 'in_production'}
+                        onClick={() => handleUpdateStatus('in_production')}
+                      >
+                        ⚙️ In Produzione
+                      </Button>
+                      <Button
+                        variant={order.production_status === 'ready_to_ship' ? 'default' : 'outline'}
+                        className="h-12 gap-2"
+                        disabled={isSubmitting || order.production_status === 'ready_to_ship'}
+                        onClick={() => handleUpdateStatus('ready_to_ship')}
+                      >
+                        📦 Pronto
+                      </Button>
+                      <Button
+                        variant={order.production_status === 'shipped' ? 'default' : 'outline'}
+                        className="h-12 gap-2"
+                        disabled={isSubmitting || order.production_status === 'shipped'}
+                        onClick={() => handleUpdateStatus('shipped')}
+                      >
+                        🚚 Spedito
+                      </Button>
+                      <Button
+                        variant={order.production_status === 'delivered' ? 'default' : 'outline'}
+                        className="h-12 gap-2"
+                        disabled={isSubmitting || order.production_status === 'delivered'}
+                        onClick={() => handleUpdateStatus('delivered')}
+                      >
+                        ✅ Consegnato
                       </Button>
                     </div>
-                  )}
-                  
-                  {activity.type === 'status' && (
-                    <>
-                      <div className="text-sm">
-                        Stato cambiato in: <span className="font-semibold">{activity.data.status}</span>
-                      </div>
-                      {activity.data.notes && (
-                        <p className="text-xs text-muted-foreground mt-1">{activity.data.notes}</p>
-                      )}
-                    </>
-                  )}
-                  
-                  {activity.type === 'created' && (
-                    <p className="text-sm text-muted-foreground">{activity.data.note}</p>
-                  )}
+                  </div>
+                )}
+
+                {/* Secondary Actions */}
+                <div className="space-y-2 pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3">Comunicazioni</h4>
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-12 justify-start gap-3"
+                    onClick={() => setShowCommentDialog(true)}
+                  >
+                    <MessageSquare className="h-5 w-5" />
+                    Invia messaggio
+                    {comments.length > 0 && (
+                      <Badge variant="secondary" className="ml-auto">{comments.length}</Badge>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-12 justify-start gap-3"
+                    onClick={() => setShowUploadDialog(true)}
+                  >
+                    <Upload className="h-5 w-5" />
+                    Carica documento
+                    {attachments.length > 0 && (
+                      <Badge variant="secondary" className="ml-auto">{attachments.length}</Badge>
+                    )}
+                  </Button>
                 </div>
               </div>
-            ));
-          })()}
-        </div>
-      </DialogContent>
-    </Dialog>
+            )}
 
-    {/* Picked Up Dialog */}
-    <Dialog open={showPickedUpDialog} onOpenChange={setShowPickedUpDialog}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Segna come Ritirato - {order.number}</DialogTitle>
-          <DialogDescription>
-            Conferma che l'ordine è stato ritirato dall'azienda
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="pickup-notes">Note (opzionale)</Label>
-            <Textarea
-              id="pickup-notes"
-              placeholder="Aggiungi eventuali note sul ritiro..."
-              value={supplierNotes}
-              onChange={(e) => setSupplierNotes(e.target.value)}
-              rows={3}
-            />
+            {activeTab === 'activity' && (
+              <div className="space-y-3">
+                {(() => {
+                  const activities = [
+                    ...comments.map((c: any) => ({
+                      type: 'comment',
+                      date: new Date(c.created_at),
+                      data: c
+                    })),
+                    ...attachments.map((a: any) => ({
+                      type: 'attachment',
+                      date: new Date(a.created_at),
+                      data: a
+                    })),
+                    ...(order.purchase_order_status_updates || []).map((s: any) => ({
+                      type: 'status',
+                      date: new Date(s.created_at),
+                      data: s
+                    })),
+                    {
+                      type: 'created',
+                      date: new Date(order.created_at),
+                      data: { note: 'Ordine ricevuto' }
+                    }
+                  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+                  if (activities.length === 0) {
+                    return <p className="text-center text-muted-foreground py-8">Nessuna attività</p>;
+                  }
+
+                  return activities.map((activity, idx) => (
+                    <div key={idx} className="flex gap-3 p-3 bg-muted/30 rounded-lg">
+                      <div className="flex-shrink-0">
+                        {activity.type === 'comment' && <MessageSquare className="h-5 w-5 text-blue-500" />}
+                        {activity.type === 'attachment' && <Paperclip className="h-5 w-5 text-green-500" />}
+                        {activity.type === 'status' && <Package className="h-5 w-5 text-orange-500" />}
+                        {activity.type === 'created' && <CheckCircle className="h-5 w-5 text-purple-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-sm">
+                            {activity.type === 'comment' && 'Messaggio'}
+                            {activity.type === 'attachment' && 'Allegato'}
+                            {activity.type === 'status' && 'Stato aggiornato'}
+                            {activity.type === 'created' && 'Ordine creato'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {activity.date.toLocaleDateString('it-IT')}
+                          </span>
+                        </div>
+                        {activity.type === 'comment' && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            {activity.data.comment}
+                          </p>
+                        )}
+                        {activity.type === 'status' && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            → {statusConfig[activity.data.status as keyof typeof statusConfig]?.label || activity.data.status}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowPickedUpDialog(false)}>
-            Annulla
-          </Button>
-          <Button onClick={handleMarkAsPickedUp} disabled={isSubmitting}>
-            {isSubmitting ? "Segnalazione in corso..." : "Conferma Ritiro"}
-          </Button>
-        </DialogFooter>
+        </ScrollArea>
+
+        {/* Confirm Order Dialog */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Conferma Ordine</DialogTitle>
+              <DialogDescription>
+                Indica quando prevedi di completare l'ordine
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="font-semibold">Data consegna prevista *</Label>
+                <Input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="text-base h-12"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Note (opzionale)</Label>
+                <Textarea
+                  placeholder="Note aggiuntive..."
+                  value={supplierNotes}
+                  onChange={(e) => setSupplierNotes(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex-col gap-2 sm:flex-col">
+              <Button 
+                className="w-full h-12" 
+                onClick={handleConfirmOrder}
+                disabled={!deliveryDate || isSubmitting}
+              >
+                {isSubmitting ? "Conferma in corso..." : "Conferma Ordine"}
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                Annulla
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Comment Dialog */}
+        <Dialog open={showCommentDialog} onOpenChange={setShowCommentDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Invia Messaggio</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Il tuo nome *</Label>
+                <Input
+                  placeholder="Es. Mario Rossi"
+                  value={commentAuthorName}
+                  onChange={(e) => setCommentAuthorName(e.target.value)}
+                  className="h-12"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Messaggio *</Label>
+                <Textarea
+                  placeholder="Scrivi il tuo messaggio..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex-col gap-2 sm:flex-col">
+              <Button 
+                className="w-full h-12 gap-2" 
+                onClick={handleAddComment}
+                disabled={!newComment.trim() || !commentAuthorName.trim() || isSubmitting}
+              >
+                <Send className="h-4 w-4" />
+                {isSubmitting ? "Invio..." : "Invia"}
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => setShowCommentDialog(false)}
+              >
+                Annulla
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Upload Dialog */}
+        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Carica Documento</DialogTitle>
+              <DialogDescription>
+                Carica un file da allegare all'ordine
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="file-upload-modal" className="block">
+                <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm font-medium">Tocca per selezionare un file</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF, immagini, documenti</p>
+                </div>
+                <Input
+                  id="file-upload-modal"
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  disabled={isSubmitting}
+                />
+              </Label>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => setShowUploadDialog(false)}
+              >
+                Annulla
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
-    </>
   );
 }
