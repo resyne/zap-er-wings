@@ -161,36 +161,40 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
       // Se non c'è una data di attività, esci
       if (leadError || !leadData?.next_activity_date) return;
 
+      // Verifica se esiste già un'attività scheduled per questo lead con la stessa data E note
+      const { data: existingActivities } = await supabase
+        .from("lead_activities")
+        .select("id, activity_date, notes")
+        .eq("lead_id", leadId)
+        .eq("status", "scheduled");
+
+      // Controlla se esiste già un'attività con la stessa data
+      const alreadyExists = existingActivities?.some(activity => {
+        const activityDate = new Date(activity.activity_date).getTime();
+        const nextActivityDate = new Date(leadData.next_activity_date).getTime();
+        return activityDate === nextActivityDate;
+      });
+
+      if (alreadyExists) return;
+
       // Usa il tipo attività se presente, altrimenti "other" come fallback
       const activityType = leadData.next_activity_type && leadData.next_activity_type.trim() !== "" 
         ? leadData.next_activity_type 
         : "other";
 
-      // Verifica se esiste già un'attività scheduled con la stessa data
-      const { data: existingActivity } = await supabase
-        .from("lead_activities")
-        .select("id")
-        .eq("lead_id", leadId)
-        .eq("activity_date", leadData.next_activity_date)
-        .eq("status", "scheduled")
-        .maybeSingle();
-
-      // Se non esiste, creala
-      if (!existingActivity) {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("lead_activities").insert([{
-          lead_id: leadId,
-          activity_type: activityType,
-          activity_date: leadData.next_activity_date,
-          assigned_to: leadData.next_activity_assigned_to || null,
-          notes: leadData.next_activity_notes || null,
-          status: "scheduled",
-          created_by: user?.id
-        }]);
-        
-        // Ricarica le attività
-        loadActivities();
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("lead_activities").insert([{
+        lead_id: leadId,
+        activity_type: activityType,
+        activity_date: leadData.next_activity_date,
+        assigned_to: leadData.next_activity_assigned_to || null,
+        notes: leadData.next_activity_notes || null,
+        status: "scheduled",
+        created_by: user?.id
+      }]);
+      
+      // Ricarica le attività
+      loadActivities();
     } catch (error) {
       console.error("Error syncing next activity:", error);
     }
