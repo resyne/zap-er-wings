@@ -390,10 +390,6 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
     }
   };
 
-  const isPending = order.production_status === 'pending';
-  const isConfirmed = order.production_status === 'confirmed';
-  const isInProduction = order.production_status === 'in_production';
-  const isReady = order.production_status === 'ready_to_ship';
 
   return (
     <Card className={cn("border-l-4 overflow-hidden", status.color.replace('bg-', 'border-l-'))}>
@@ -455,22 +451,53 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
           </div>
         </div>
 
-        {/* Inline Actions - Always Visible */}
-        <div className="px-3 pb-3 pt-1 border-t bg-muted/30">
-          {/* Pending: Show Confirm Action */}
-          {isPending && !showConfirm && (
-            <Button 
-              className="w-full h-11 gap-2 text-sm"
-              onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
-            >
-              <CheckCircle className="h-4 w-4" />
-              Conferma Ordine
-            </Button>
-          )}
+        {/* Status Selector - All Phases */}
+        <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-3" onClick={(e) => e.stopPropagation()}>
+          <p className="text-xs font-medium text-muted-foreground">Seleziona stato:</p>
+          
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { value: 'pending', label: 'Da Confermare', emoji: '⏳' },
+              { value: 'confirmed', label: 'Confermato', emoji: '✓' },
+              { value: 'in_production', label: 'In Produzione', emoji: '⚙️' },
+              { value: 'ready_to_ship', label: 'Pronto', emoji: '📦' },
+              { value: 'shipped', label: 'Spedito', emoji: '🚚' },
+              { value: 'delivered', label: 'Consegnato', emoji: '✅' },
+            ].map((statusOption) => {
+              const isActive = order.production_status === statusOption.value;
+              return (
+                <button
+                  key={statusOption.value}
+                  disabled={isSubmitting}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isActive) return;
+                    
+                    // If changing from pending to confirmed, need delivery date
+                    if (order.production_status === 'pending' && statusOption.value === 'confirmed') {
+                      setShowConfirm(true);
+                    } else if (statusOption.value !== 'pending') {
+                      handleUpdateStatus(statusOption.value, e);
+                    }
+                  }}
+                  className={cn(
+                    "py-2 px-2 rounded-md text-xs font-medium transition-all flex flex-col items-center gap-0.5",
+                    isActive 
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1" 
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <span className="text-base">{statusOption.emoji}</span>
+                  <span className="leading-tight text-center">{statusOption.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Confirm Form Expanded */}
-          {isPending && showConfirm && (
-            <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+          {/* Confirm Form - When selecting Confermato from pending */}
+          {showConfirm && (
+            <div className="space-y-2 p-3 bg-card rounded-lg border">
+              <p className="text-xs font-medium">Conferma ordine</p>
               <div>
                 <Label className="text-xs">Data Consegna *</Label>
                 <Input 
@@ -492,12 +519,14 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
+                  size="sm"
                   className="flex-1 h-10"
                   onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}
                 >
                   Annulla
                 </Button>
                 <Button 
+                  size="sm"
                   className="flex-1 h-10"
                   onClick={handleConfirm}
                   disabled={isSubmitting || !deliveryDate}
@@ -508,61 +537,19 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
             </div>
           )}
 
-          {/* Non-Pending: Show Status Quick Actions */}
-          {!isPending && !showComment && (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                {(isConfirmed || isInProduction) && (
-                  <>
-                    {!isInProduction && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex-1 h-10 text-xs gap-1"
-                        disabled={isSubmitting}
-                        onClick={(e) => handleUpdateStatus('in_production', e)}
-                      >
-                        ⚙️ In Produzione
-                      </Button>
-                    )}
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="flex-1 h-10 text-xs gap-1"
-                      disabled={isSubmitting}
-                      onClick={(e) => handleUpdateStatus('ready_to_ship', e)}
-                    >
-                      📦 Pronto
-                    </Button>
-                  </>
-                )}
-                {isReady && (
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    className="flex-1 h-10 text-xs gap-1"
-                    disabled={isSubmitting}
-                    onClick={(e) => handleUpdateStatus('delivered', e)}
-                  >
-                    ✅ Consegnato
-                  </Button>
-                )}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="w-full h-9 text-xs gap-1 text-muted-foreground"
-                onClick={(e) => { e.stopPropagation(); setShowComment(true); }}
-              >
-                <MessageSquare className="h-3 w-3" />
-                Invia messaggio
-              </Button>
-            </div>
-          )}
-
-          {/* Comment Form Expanded */}
-          {!isPending && showComment && (
-            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+          {/* Quick Message Button */}
+          {!showComment ? (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="w-full h-9 text-xs gap-1 text-muted-foreground"
+              onClick={(e) => { e.stopPropagation(); setShowComment(true); }}
+            >
+              <MessageSquare className="h-3 w-3" />
+              Invia messaggio
+            </Button>
+          ) : (
+            <div className="space-y-2 p-3 bg-card rounded-lg border">
               <Input 
                 placeholder="Il tuo nome"
                 value={commentAuthor}
