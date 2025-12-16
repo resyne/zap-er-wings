@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { 
   Package, Clock, CheckCircle, AlertCircle, MessageSquare, 
@@ -317,6 +318,7 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
   const [newComment, setNewComment] = useState("");
   const [commentAuthor, setCommentAuthor] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
   const status = statusConfig[order.production_status as keyof typeof statusConfig] || statusConfig.pending;
   const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
@@ -408,17 +410,34 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
               </Badge>
 
               {order.purchase_order_items && order.purchase_order_items.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  {order.purchase_order_items.slice(0, 2).map((item: any, idx: number) => (
-                    <div key={idx} className="truncate">
-                      {item.quantity}x {item.material?.name || item.description}
+                <div className="text-sm space-y-1" onClick={(e) => e.stopPropagation()}>
+                  {order.purchase_order_items.map((item: any, idx: number) => (
+                    <div 
+                      key={item.id || idx} 
+                      className="flex items-center gap-2"
+                    >
+                      <Checkbox
+                        id={`item-${order.id}-${item.id || idx}`}
+                        checked={checkedItems[item.id || idx] || false}
+                        onCheckedChange={(checked) => {
+                          setCheckedItems(prev => ({
+                            ...prev,
+                            [item.id || idx]: !!checked
+                          }));
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <label 
+                        htmlFor={`item-${order.id}-${item.id || idx}`}
+                        className={cn(
+                          "truncate cursor-pointer text-muted-foreground",
+                          checkedItems[item.id || idx] && "line-through opacity-60"
+                        )}
+                      >
+                        {item.quantity}x {item.material?.name || item.description}
+                      </label>
                     </div>
                   ))}
-                  {order.purchase_order_items.length > 2 && (
-                    <div className="text-xs text-muted-foreground/70">
-                      +{order.purchase_order_items.length - 2} altri
-                    </div>
-                  )}
                 </div>
               )}
 
