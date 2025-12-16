@@ -161,14 +161,13 @@ export default function LeadActivities({ leadId, onActivityCompleted }: LeadActi
       // Se non c'è una data di attività, esci
       if (leadError || !leadData?.next_activity_date) return;
 
-      // Verifica se esiste già un'attività scheduled per questo lead con la stessa data E note
+      // Verifica se esiste già un'attività per questo lead con la stessa data (qualsiasi status)
       const { data: existingActivities } = await supabase
         .from("lead_activities")
-        .select("id, activity_date, notes")
-        .eq("lead_id", leadId)
-        .eq("status", "scheduled");
+        .select("id, activity_date, notes, status")
+        .eq("lead_id", leadId);
 
-      // Controlla se esiste già un'attività con la stessa data
+      // Controlla se esiste già un'attività con la stessa data (scheduled o completed)
       const alreadyExists = existingActivities?.some(activity => {
         const activityDate = new Date(activity.activity_date).getTime();
         const nextActivityDate = new Date(leadData.next_activity_date).getTime();
