@@ -4,7 +4,7 @@ import { UtensilsCrossed, ExternalLink } from "lucide-react";
 
 export default function TicketRestaurantPage() {
   const handleOpenPortal = () => {
-    window.open("https://clienti.ticketxte.com", "_blank", "noopener,noreferrer");
+    window.open("https://acquista.edenred.it/ticketrestaurant/eshop?icmp=cta_header#/scegli-tipologia", "_blank", "noopener,noreferrer");
   };
 
   return (
