@@ -25,7 +25,6 @@ export function FileUpload({
 }: FileUploadProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const onDrop = useCallback(
@@ -36,10 +35,12 @@ export function FileUpload({
     [value, onChange, maxFiles]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: acceptedFileTypes.reduce((acc, type) => ({ ...acc, [type]: [] }), {}),
     maxFiles: maxFiles - value.length,
+    noClick: true,
+    noKeyboard: true,
   });
 
   const removeFile = (indexToRemove: number) => {
@@ -75,6 +76,7 @@ export function FileUpload({
         <CardContent className="p-6">
           <div
             {...getRootProps()}
+            onClick={open}
             className={cn(
               "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
               isDragActive
@@ -103,7 +105,11 @@ export function FileUpload({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                open();
+              }}
               className="flex-1"
             >
               <Upload className="mr-2 h-4 w-4" />
@@ -113,7 +119,11 @@ export function FileUpload({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => cameraInputRef.current?.click()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                cameraInputRef.current?.click();
+              }}
               className="flex-1"
             >
               <Camera className="mr-2 h-4 w-4" />
@@ -121,14 +131,6 @@ export function FileUpload({
             </Button>
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept={acceptedFileTypes.join(",")}
-            onChange={(e) => onDrop(Array.from(e.target.files || []))}
-            className="hidden"
-          />
           <input
             ref={cameraInputRef}
             type="file"
