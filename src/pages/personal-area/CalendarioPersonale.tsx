@@ -690,46 +690,49 @@ export default function CalendarioPersonale() {
               {crmActivities.map((activity) => {
                 const isOverdue = new Date(activity.activity_date) < new Date();
                 return (
-                  <Card key={activity.id} className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-destructive' : ''}`}>
-                    <CardHeader className="p-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">
-                          {getActivityTypeLabel(activity.activity_type)}
-                        </CardTitle>
-                        <Badge variant={isOverdue ? "destructive" : "secondary"}>
+                  <Card key={activity.id} className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-destructive border-2' : ''}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline">Lead</Badge>
+                        <Badge variant="secondary">{getActivityTypeLabel(activity.activity_type)}</Badge>
+                        <Badge variant={isOverdue ? "destructive" : "default"}>
                           {isOverdue ? "Scaduta" : "Programmata"}
                         </Badge>
                       </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 space-y-3">
                       <div className="space-y-1">
                         <p className="text-sm font-semibold">
                           {activity.lead?.company_name || activity.lead?.contact_name || "Lead"}
                         </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(activity.activity_date), "PPP 'alle' HH:mm", { locale: it })}
+                          {format(new Date(activity.activity_date), "PPP", { locale: it })}
                         </p>
                         {activity.notes && (
                           <p className="text-xs text-muted-foreground line-clamp-2">{activity.notes}</p>
                         )}
                       </div>
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex gap-2 pt-2 border-t">
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="flex-1"
-                          onClick={() => handleEditCrmActivity(activity)}
+                          className="flex-1 h-9"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCrmActivity(activity);
+                          }}
                         >
-                          <Edit className="h-3 w-3 mr-1" />
+                          <Edit className="h-4 w-4 mr-1" />
                           Modifica
                         </Button>
                         <Button 
                           size="sm"
-                          className="flex-1"
-                          onClick={() => handleCompleteCrmActivity(activity)}
+                          className="flex-1 h-9"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCompleteCrmActivity(activity);
+                          }}
                         >
-                          <CheckCircle className="h-3 w-3 mr-1" />
+                          <CheckCircle className="h-4 w-4 mr-1" />
                           Completa
                         </Button>
                       </div>
