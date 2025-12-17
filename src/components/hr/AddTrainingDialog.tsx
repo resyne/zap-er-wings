@@ -24,13 +24,16 @@ interface AddTrainingDialogProps {
 export const AddTrainingDialog = ({ open, onOpenChange, employees, onSuccess }: AddTrainingDialogProps) => {
   const [employeeId, setEmployeeId] = useState("");
   const [trainingType, setTrainingType] = useState("");
+  const [customTrainingType, setCustomTrainingType] = useState("");
   const [trainingDate, setTrainingDate] = useState<Date>();
   const [expiryDate, setExpiryDate] = useState<Date>();
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const finalTrainingType = trainingType === "altro" ? customTrainingType : trainingType;
+
   const handleSubmit = async () => {
-    if (!employeeId || !trainingType || !trainingDate || !expiryDate) {
+    if (!employeeId || !finalTrainingType || !trainingDate || !expiryDate) {
       toast.error("Compila tutti i campi obbligatori");
       return;
     }
@@ -63,7 +66,7 @@ export const AddTrainingDialog = ({ open, onOpenChange, employees, onSuccess }: 
         .from('safety_training_records')
         .insert({
           employee_id: employeeId,
-          training_type: trainingType,
+          training_type: finalTrainingType,
           training_date: format(trainingDate, 'yyyy-MM-dd'),
           expiry_date: format(expiryDate, 'yyyy-MM-dd'),
           certificate_url: certificateUrl,
@@ -86,6 +89,7 @@ export const AddTrainingDialog = ({ open, onOpenChange, employees, onSuccess }: 
   const resetForm = () => {
     setEmployeeId("");
     setTrainingType("");
+    setCustomTrainingType("");
     setTrainingDate(undefined);
     setExpiryDate(undefined);
     setFiles([]);
@@ -130,9 +134,25 @@ export const AddTrainingDialog = ({ open, onOpenChange, employees, onSuccess }: 
                 <SelectItem value="pav_base">Formazione PAV (Base)</SelectItem>
                 <SelectItem value="pes_esperto">Formazione PES (Esperto)</SelectItem>
                 <SelectItem value="rspp">Formazione RSPP</SelectItem>
+                <SelectItem value="antincendio">Antincendio</SelectItem>
+                <SelectItem value="primo_soccorso">Primo Soccorso</SelectItem>
+                <SelectItem value="preposto">Preposto</SelectItem>
+                <SelectItem value="altro">Altro...</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {trainingType === "altro" && (
+            <div>
+              <Label htmlFor="custom-training-type">Specifica Tipo Formazione *</Label>
+              <Input
+                id="custom-training-type"
+                value={customTrainingType}
+                onChange={(e) => setCustomTrainingType(e.target.value)}
+                placeholder="Es. Formazione Carrellisti"
+              />
+            </div>
+          )}
 
           <div>
             <Label>Data Formazione *</Label>

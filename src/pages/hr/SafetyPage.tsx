@@ -142,6 +142,9 @@ const SafetyPage = () => {
       pav_base: "Formazione PAV (Base)",
       pes_esperto: "Formazione PES (Esperto)",
       rspp: "Formazione RSPP",
+      antincendio: "Antincendio",
+      primo_soccorso: "Primo Soccorso",
+      preposto: "Preposto",
     };
     return labels[type] || type;
   };
