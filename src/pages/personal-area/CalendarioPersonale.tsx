@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CheckCircle, Edit, Calendar, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, startOfWeek, endOfWeek } from "date-fns";
 import { it } from "date-fns/locale";
@@ -57,7 +57,40 @@ interface AssignedOrder {
   created_at: string;
 }
 
+interface CRMActivity {
+  id: string;
+  lead_id: string;
+  activity_type: string;
+  activity_date: string;
+  assigned_to?: string;
+  notes?: string;
+  status: string;
+  completed_at?: string;
+  completed_by?: string;
+  lead?: {
+    company_name?: string;
+    contact_name?: string;
+  };
+}
+
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
 type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' });
+
+const activityTypes = [
+  { value: "call", label: "Chiamata" },
+  { value: "email", label: "Email" },
+  { value: "meeting", label: "Incontro" },
+  { value: "demo", label: "Demo" },
+  { value: "follow_up", label: "Follow-up" },
+  { value: "quote", label: "Preventivo" },
+  { value: "other", label: "Altro" }
+];
 
 const priorityColors = {
   low: "bg-slate-100 text-slate-800",
@@ -71,11 +104,31 @@ export default function CalendarioPersonale() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
+  const [crmActivities, setCrmActivities] = useState<CRMActivity[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  // CRM Activity editing state
+  const [showCrmEditDialog, setShowCrmEditDialog] = useState(false);
+  const [showCrmCompleteDialog, setShowCrmCompleteDialog] = useState(false);
+  const [selectedCrmActivity, setSelectedCrmActivity] = useState<CRMActivity | null>(null);
+  const [crmEditData, setCrmEditData] = useState({
+    activity_date: "",
+    activity_type: "",
+    notes: ""
+  });
+  const [completionData, setCompletionData] = useState({
+    notes: "",
+    next_activity_type: "",
+    next_activity_date: "",
+    next_activity_assigned_to: "",
+    next_activity_notes: ""
+  });
+  
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -231,10 +284,32 @@ export default function CalendarioPersonale() {
         });
       });
 
+      // Load CRM activities assigned to user
+      const { data: crmActivitiesData, error: crmError } = await supabase
+        .from('lead_activities')
+        .select(`
+          *,
+          lead:lead_id(company_name, contact_name)
+        `)
+        .eq('assigned_to', user.id)
+        .eq('status', 'scheduled')
+        .order('activity_date', { ascending: true });
+
+      if (crmError) throw crmError;
+
+      // Load users for assignment dropdown
+      const { data: usersData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .eq('user_type', 'erp')
+        .order('first_name', { ascending: true });
+
       setTasks(allTasks);
       setEvents(eventsData || []);
       setTickets(ticketsData || []);
       setAssignedOrders(assignedOrdersList);
+      setCrmActivities(crmActivitiesData || []);
+      setUsers(usersData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -381,6 +456,144 @@ export default function CalendarioPersonale() {
     setCurrentMonth(new Date());
   };
 
+  const getActivityTypeLabel = (type: string) => {
+    return activityTypes.find(t => t.value === type)?.label || type;
+  };
+
+  const handleEditCrmActivity = (activity: CRMActivity) => {
+    setSelectedCrmActivity(activity);
+    setCrmEditData({
+      activity_date: new Date(activity.activity_date).toISOString().slice(0, 16),
+      activity_type: activity.activity_type,
+      notes: activity.notes || ""
+    });
+    setShowCrmEditDialog(true);
+  };
+
+  const handleSaveCrmActivity = async () => {
+    if (!selectedCrmActivity) return;
+
+    try {
+      const { error } = await supabase
+        .from('lead_activities')
+        .update({
+          activity_date: new Date(crmEditData.activity_date).toISOString(),
+          activity_type: crmEditData.activity_type,
+          notes: crmEditData.notes || null
+        })
+        .eq('id', selectedCrmActivity.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Attività aggiornata",
+      });
+
+      setShowCrmEditDialog(false);
+      setSelectedCrmActivity(null);
+      loadData();
+    } catch (error) {
+      console.error('Error updating activity:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiornamento dell'attività",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCompleteCrmActivity = (activity: CRMActivity) => {
+    setSelectedCrmActivity(activity);
+    setCompletionData({
+      notes: "",
+      next_activity_type: "",
+      next_activity_date: "",
+      next_activity_assigned_to: "",
+      next_activity_notes: ""
+    });
+    setShowCrmCompleteDialog(true);
+  };
+
+  const confirmCompleteCrmActivity = async () => {
+    if (!selectedCrmActivity) return;
+
+    if (!completionData.notes.trim()) {
+      toast({
+        title: "Nota obbligatoria",
+        description: "Devi inserire una nota per completare l'attività",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Completa l'attività corrente
+      const { error: updateError } = await supabase
+        .from('lead_activities')
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          completed_by: user.id,
+          notes: completionData.notes
+        })
+        .eq('id', selectedCrmActivity.id);
+
+      if (updateError) throw updateError;
+
+      // Crea prossima attività se specificata
+      const hasNextActivity = completionData.next_activity_type && completionData.next_activity_date;
+      
+      if (hasNextActivity) {
+        const { error: insertError } = await supabase
+          .from('lead_activities')
+          .insert([{
+            lead_id: selectedCrmActivity.lead_id,
+            activity_type: completionData.next_activity_type,
+            activity_date: new Date(completionData.next_activity_date).toISOString(),
+            assigned_to: completionData.next_activity_assigned_to || null,
+            notes: completionData.next_activity_notes || null,
+            status: "scheduled",
+            created_by: user.id
+          }]);
+
+        if (insertError) throw insertError;
+
+        // Aggiorna il lead
+        await supabase
+          .from('leads')
+          .update({
+            next_activity_type: completionData.next_activity_type,
+            next_activity_date: new Date(completionData.next_activity_date).toISOString(),
+            next_activity_assigned_to: completionData.next_activity_assigned_to || null,
+            next_activity_notes: completionData.next_activity_notes || null
+          })
+          .eq('id', selectedCrmActivity.lead_id);
+      }
+
+      toast({
+        title: "Attività completata",
+        description: hasNextActivity 
+          ? "L'attività è stata completata e la prossima pianificata"
+          : "L'attività è stata completata",
+      });
+
+      setShowCrmCompleteDialog(false);
+      setSelectedCrmActivity(null);
+      loadData();
+    } catch (error) {
+      console.error('Error completing activity:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel completamento dell'attività",
+        variant: "destructive",
+      });
+    }
+  };
+
   const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
   return (
@@ -460,6 +673,74 @@ export default function CalendarioPersonale() {
           </CardContent>
         </Card>
       )}
+
+      {/* Attività CRM */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Attività CRM ({crmActivities.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {crmActivities.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">Nessuna attività CRM</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {crmActivities.map((activity) => {
+                const isOverdue = new Date(activity.activity_date) < new Date();
+                return (
+                  <Card key={activity.id} className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-destructive' : ''}`}>
+                    <CardHeader className="p-4">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          {getActivityTypeLabel(activity.activity_type)}
+                        </CardTitle>
+                        <Badge variant={isOverdue ? "destructive" : "secondary"}>
+                          {isOverdue ? "Scaduta" : "Programmata"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">
+                          {activity.lead?.company_name || activity.lead?.contact_name || "Lead"}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(activity.activity_date), "PPP 'alle' HH:mm", { locale: it })}
+                        </p>
+                        {activity.notes && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">{activity.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => handleEditCrmActivity(activity)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Modifica
+                        </Button>
+                        <Button 
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleCompleteCrmActivity(activity)}
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Completa
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4">
@@ -737,6 +1018,169 @@ export default function CalendarioPersonale() {
               </Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* CRM Activity Edit Dialog */}
+      <Dialog open={showCrmEditDialog} onOpenChange={setShowCrmEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifica Attività CRM</DialogTitle>
+            <DialogDescription>
+              {selectedCrmActivity?.lead?.company_name || selectedCrmActivity?.lead?.contact_name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="crm_activity_type">Tipo Attività</Label>
+              <Select 
+                value={crmEditData.activity_type} 
+                onValueChange={(value) => setCrmEditData({ ...crmEditData, activity_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activityTypes.map(type => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="crm_activity_date">Data e Ora</Label>
+              <Input
+                id="crm_activity_date"
+                type="datetime-local"
+                value={crmEditData.activity_date}
+                onChange={(e) => setCrmEditData({ ...crmEditData, activity_date: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="crm_notes">Note</Label>
+              <Textarea
+                id="crm_notes"
+                value={crmEditData.notes}
+                onChange={(e) => setCrmEditData({ ...crmEditData, notes: e.target.value })}
+                placeholder="Note attività"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCrmEditDialog(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleSaveCrmActivity}>
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CRM Activity Complete Dialog */}
+      <Dialog open={showCrmCompleteDialog} onOpenChange={setShowCrmCompleteDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Completa Attività</DialogTitle>
+            <DialogDescription>
+              {selectedCrmActivity && (
+                <>
+                  {getActivityTypeLabel(selectedCrmActivity.activity_type)} - {selectedCrmActivity?.lead?.company_name || selectedCrmActivity?.lead?.contact_name}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="completion_notes">Note di Completamento *</Label>
+              <Textarea
+                id="completion_notes"
+                value={completionData.notes}
+                onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })}
+                placeholder="Descrivi l'esito dell'attività"
+                rows={3}
+              />
+            </div>
+
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Prossima Attività (opzionale)</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="next_type">Tipo</Label>
+                  <Select 
+                    value={completionData.next_activity_type} 
+                    onValueChange={(value) => setCompletionData({ ...completionData, next_activity_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activityTypes.map(type => (
+                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="next_date">Data</Label>
+                  <Input
+                    id="next_date"
+                    type="datetime-local"
+                    value={completionData.next_activity_date}
+                    onChange={(e) => setCompletionData({ ...completionData, next_activity_date: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <Label htmlFor="next_assigned">Assegnato a</Label>
+                <Select 
+                  value={completionData.next_activity_assigned_to} 
+                  onValueChange={(value) => setCompletionData({ ...completionData, next_activity_assigned_to: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona utente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="mt-4">
+                <Label htmlFor="next_notes">Note Prossima Attività</Label>
+                <Textarea
+                  id="next_notes"
+                  value={completionData.next_activity_notes}
+                  onChange={(e) => setCompletionData({ ...completionData, next_activity_notes: e.target.value })}
+                  placeholder="Note per la prossima attività"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCrmCompleteDialog(false)}>
+              Annulla
+            </Button>
+            <Button onClick={confirmCompleteCrmActivity}>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Completa
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
