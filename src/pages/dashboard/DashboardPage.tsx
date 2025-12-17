@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -151,6 +152,23 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Lead activities edit/complete (from Personal Area)
+  const [isLeadEditOpen, setIsLeadEditOpen] = useState(false);
+  const [isLeadCompleteOpen, setIsLeadCompleteOpen] = useState(false);
+  const [selectedLeadActivity, setSelectedLeadActivity] = useState<LeadActivity | null>(null);
+  const [leadEditData, setLeadEditData] = useState({
+    activity_type: "",
+    activity_date: "",
+    notes: "",
+  });
+  const [leadCompleteData, setLeadCompleteData] = useState({
+    notes: "",
+    next_activity_type: "",
+    next_activity_date: "",
+    next_activity_notes: "",
+  });
+
   const [showNewNoteDialog, setShowNewNoteDialog] = useState(false);
   const [newNote, setNewNote] = useState({ content: "", color: "yellow" });
 
@@ -165,6 +183,19 @@ export function DashboardPage() {
     { value: 5, label: 'Venerdì', short: 'Ven' }
   ];
 
+  const leadActivityTypes = [
+    { value: "call", label: "Chiamata" },
+    { value: "email", label: "Email" },
+    { value: "meeting", label: "Incontro" },
+    { value: "demo", label: "Demo" },
+    { value: "follow_up", label: "Follow-up" },
+    { value: "quote", label: "Preventivo" },
+    { value: "other", label: "Altro" },
+  ];
+
+  const getLeadActivityTypeLabel = (type: string) => {
+    return leadActivityTypes.find(t => t.value === type)?.label || type;
+  };
   useEffect(() => {
     if (user) {
       loadUserTasks();
@@ -407,6 +438,137 @@ export function DashboardPage() {
       loadUserTasks();
     } catch (error) {
       console.error("Error completing activity:", error);
+    }
+  };
+
+  const openLeadActivityEdit = (activity: LeadActivity) => {
+    setSelectedLeadActivity(activity);
+    setLeadEditData({
+      activity_type: activity.activity_type || "other",
+      activity_date: new Date(activity.activity_date).toISOString().slice(0, 16),
+      notes: activity.notes || "",
+    });
+    setIsLeadEditOpen(true);
+  };
+
+  const saveLeadActivityEdit = async () => {
+    if (!user || !selectedLeadActivity) return;
+
+    try {
+      const { error } = await supabase
+        .from("lead_activities")
+        .update({
+          activity_type: leadEditData.activity_type,
+          activity_date: new Date(leadEditData.activity_date).toISOString(),
+          notes: leadEditData.notes?.trim() ? leadEditData.notes.trim() : null,
+        })
+        .eq("id", selectedLeadActivity.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Salvato",
+        description: "Attività aggiornata",
+      });
+
+      setIsLeadEditOpen(false);
+      setSelectedLeadActivity(null);
+      loadUserTasks();
+    } catch (error: any) {
+      console.error("Error updating lead activity:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare l'attività",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openLeadActivityComplete = (activity: LeadActivity) => {
+    setSelectedLeadActivity(activity);
+    setLeadCompleteData({
+      notes: "",
+      next_activity_type: "",
+      next_activity_date: "",
+      next_activity_notes: "",
+    });
+    setIsLeadCompleteOpen(true);
+  };
+
+  const confirmLeadActivityComplete = async () => {
+    if (!user || !selectedLeadActivity) return;
+
+    if (!leadCompleteData.notes.trim()) {
+      toast({
+        title: "Nota obbligatoria",
+        description: "Devi inserire una nota per completare l'attività",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const now = new Date().toISOString();
+
+      const { error: updateError } = await supabase
+        .from("lead_activities")
+        .update({
+          status: "completed",
+          completed_at: now,
+          completed_by: user.id,
+          notes: leadCompleteData.notes.trim(),
+        })
+        .eq("id", selectedLeadActivity.id);
+
+      if (updateError) throw updateError;
+
+      const hasNext = !!(leadCompleteData.next_activity_type && leadCompleteData.next_activity_date);
+
+      if (hasNext) {
+        const nextDateIso = new Date(leadCompleteData.next_activity_date).toISOString();
+
+        const { error: insertError } = await supabase
+          .from("lead_activities")
+          .insert([
+            {
+              lead_id: selectedLeadActivity.lead_id,
+              activity_type: leadCompleteData.next_activity_type,
+              activity_date: nextDateIso,
+              assigned_to: user.id,
+              notes: leadCompleteData.next_activity_notes?.trim() ? leadCompleteData.next_activity_notes.trim() : null,
+              status: "scheduled",
+              created_by: user.id,
+            },
+          ]);
+
+        if (insertError) throw insertError;
+
+        await supabase
+          .from("leads")
+          .update({
+            next_activity_type: leadCompleteData.next_activity_type,
+            next_activity_date: nextDateIso,
+            next_activity_assigned_to: user.id,
+            next_activity_notes: leadCompleteData.next_activity_notes?.trim() ? leadCompleteData.next_activity_notes.trim() : null,
+          })
+          .eq("id", selectedLeadActivity.lead_id);
+      }
+
+      toast({
+        title: "Attività completata",
+        description: hasNext ? "Completata e prossima pianificata" : "Completata",
+      });
+
+      setIsLeadCompleteOpen(false);
+      setSelectedLeadActivity(null);
+      loadUserTasks();
+    } catch (error: any) {
+      console.error("Error completing lead activity:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile completare l'attività",
+        variant: "destructive",
+      });
     }
   };
 
@@ -736,13 +898,9 @@ export function DashboardPage() {
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={async (e) => {
+                              onClick={(e) => {
                                 e.stopPropagation();
-                                await supabase
-                                  .from('lead_activities')
-                                  .update({ status: 'completed' })
-                                  .eq('id', activity.id);
-                                loadUserTasks();
+                                openLeadActivityComplete(activity);
                               }}
                               className="h-7 w-7 p-0"
                             >
@@ -1274,7 +1432,7 @@ export function DashboardPage() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Lead</Badge>
-                        <span className="capitalize">{previewItem.data.activity_type}</span>
+                        <span>{getLeadActivityTypeLabel(previewItem.data.activity_type)}</span>
                       </div>
                       <p className="text-sm"><strong>Lead:</strong> {previewItem.data.leads?.company_name || 'N/A'}</p>
                       <p className="text-sm"><strong>Data:</strong> {format(new Date(previewItem.data.activity_date), "PPP 'alle' HH:mm", { locale: it })}</p>
@@ -1286,6 +1444,27 @@ export function DashboardPage() {
                       )}
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsPreviewOpen(false);
+                        openLeadActivityEdit(previewItem.data as LeadActivity);
+                      }}
+                    >
+                      Modifica
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setIsPreviewOpen(false);
+                        openLeadActivityComplete(previewItem.data as LeadActivity);
+                      }}
+                    >
+                      Completa
+                    </Button>
+                  </div>
+
                   <Button 
                     className="w-full" 
                     onClick={() => {
@@ -1419,6 +1598,143 @@ export function DashboardPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lead Activity Edit Dialog */}
+      <Dialog open={isLeadEditOpen} onOpenChange={setIsLeadEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifica Attività Lead</DialogTitle>
+            <DialogDescription>
+              {selectedLeadActivity?.leads?.company_name || ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="lead_activity_type">Tipo Attività</Label>
+              <Select
+                value={leadEditData.activity_type}
+                onValueChange={(value) => setLeadEditData((p) => ({ ...p, activity_type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leadActivityTypes.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="lead_activity_date">Data e Ora</Label>
+              <Input
+                id={"lead_activity_date"}
+                type="datetime-local"
+                value={leadEditData.activity_date}
+                onChange={(e) => setLeadEditData((p) => ({ ...p, activity_date: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="lead_activity_notes">Note</Label>
+              <Textarea
+                id={"lead_activity_notes"}
+                value={leadEditData.notes}
+                onChange={(e) => setLeadEditData((p) => ({ ...p, notes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLeadEditOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={saveLeadActivityEdit}>Salva</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lead Activity Complete Dialog */}
+      <Dialog open={isLeadCompleteOpen} onOpenChange={setIsLeadCompleteOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Completa Attività Lead</DialogTitle>
+            <DialogDescription>
+              {selectedLeadActivity?.leads?.company_name || ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="lead_complete_notes">Note di Completamento *</Label>
+              <Textarea
+                id={"lead_complete_notes"}
+                value={leadCompleteData.notes}
+                onChange={(e) => setLeadCompleteData((p) => ({ ...p, notes: e.target.value }))}
+                rows={3}
+                placeholder="Esito attività"
+              />
+            </div>
+
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Prossima Attività (opzionale)</h4>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="lead_next_type">Tipo</Label>
+                  <Select
+                    value={leadCompleteData.next_activity_type}
+                    onValueChange={(value) => setLeadCompleteData((p) => ({ ...p, next_activity_type: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadActivityTypes.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="lead_next_date">Data</Label>
+                  <Input
+                    id={"lead_next_date"}
+                    type="datetime-local"
+                    value={leadCompleteData.next_activity_date}
+                    onChange={(e) => setLeadCompleteData((p) => ({ ...p, next_activity_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <Label htmlFor="lead_next_notes">Note prossima attività</Label>
+                <Textarea
+                  id={"lead_next_notes"}
+                  value={leadCompleteData.next_activity_notes}
+                  onChange={(e) => setLeadCompleteData((p) => ({ ...p, next_activity_notes: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLeadCompleteOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={confirmLeadActivityComplete}>Completa</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
