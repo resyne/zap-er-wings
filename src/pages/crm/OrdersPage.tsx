@@ -23,6 +23,7 @@ import { OrderActivityLog } from "@/components/orders/OrderActivityLog";
 import { OrderComments } from "@/components/orders/OrderComments";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
 import { OrderFileManager } from "@/components/orders/OrderFileManager";
+import { OrderWorkOrdersManager } from "@/components/orders/OrderWorkOrdersManager";
 
 interface Order {
   id: string;
@@ -1907,147 +1908,37 @@ export default function OrdersPage() {
                 </CardContent>
               </Card>
 
-              {/* Production Work Orders */}
-              {selectedOrder.work_orders && selectedOrder.work_orders.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Commesse di Produzione</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {selectedOrder.work_orders.map((wo) => (
-                        <Link 
-                          key={wo.id} 
-                          to="/mfg/work-orders"
-                          className="block p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="font-semibold text-sm md:text-base">{wo.number}</div>
-                              <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-                            </div>
-                            <Badge className={
-                              wo.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              wo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }>
-                              {getSubOrderStatusLabel(wo.status)}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs md:text-sm text-muted-foreground">
-                            <span>
-                              {wo.includes_installation ? 'Include Installazione' : 'Solo Produzione'}
-                            </span>
-                            {selectedOrder.order_date && (
-                              <div className="flex items-center gap-2">
-                                <span>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</span>
-                                <span className={`font-semibold ${getAgingColor(calculateAgingDays(selectedOrder.order_date))}`}>
-                                  • {calculateAgingDays(selectedOrder.order_date)} giorni
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Service Work Orders */}
-              {selectedOrder.service_work_orders && selectedOrder.service_work_orders.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Commesse di Lavoro/Installazione</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {selectedOrder.service_work_orders.map((swo) => (
-                        <Link 
-                          key={swo.id} 
-                          to="/support/work-orders"
-                          className="block p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <div className="font-semibold text-sm md:text-base">{swo.number}</div>
-                              <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-                            </div>
-                            <Badge className={
-                              swo.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              swo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }>
-                              {getSubOrderStatusLabel(swo.status)}
-                            </Badge>
-                          </div>
-                          {selectedOrder.order_date && (
-                            <div className="flex items-center gap-2 mt-2 text-xs md:text-sm text-muted-foreground">
-                              <span>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</span>
-                              <span className={`font-semibold ${getAgingColor(calculateAgingDays(selectedOrder.order_date))}`}>
-                                • {calculateAgingDays(selectedOrder.order_date)} giorni
-                              </span>
-                            </div>
-                          )}
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Shipping Orders */}
-              {selectedOrder.shipping_orders && selectedOrder.shipping_orders.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Commesse di Spedizione</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {selectedOrder.shipping_orders.map((so) => (
-                        <Link 
-                          key={so.id} 
-                          to="/warehouse/shipping-orders"
-                          className="block p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <div className="font-semibold text-sm md:text-base">{so.number}</div>
-                              <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-                            </div>
-                            <Badge className={
-                              so.status === 'spedito' ? 'bg-green-100 text-green-800' :
-                              so.status === 'in_preparazione' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }>
-                              {getSubOrderStatusLabel(so.status)}
-                            </Badge>
-                          </div>
-                          {selectedOrder.order_date && (
-                            <div className="flex items-center gap-2 mt-2 text-xs md:text-sm text-muted-foreground">
-                              <span>{new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</span>
-                              <span className={`font-semibold ${getAgingColor(calculateAgingDays(selectedOrder.order_date))}`}>
-                                • {calculateAgingDays(selectedOrder.order_date)} giorni
-                              </span>
-                            </div>
-                          )}
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* No sub-orders message */}
-              {(!selectedOrder.work_orders || selectedOrder.work_orders.length === 0) &&
-               (!selectedOrder.service_work_orders || selectedOrder.service_work_orders.length === 0) &&
-               (!selectedOrder.shipping_orders || selectedOrder.shipping_orders.length === 0) && (
-                <Card>
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    Nessun sotto-ordine collegato
-                  </CardContent>
-                </Card>
-              )}
+              {/* Work Orders Manager */}
+              <OrderWorkOrdersManager 
+                orderId={selectedOrder.id}
+                customerId={selectedOrder.customer_id}
+                onUpdate={() => {
+                  loadOrders();
+                  // Refresh selected order data
+                  const refreshOrder = async () => {
+                    const { data } = await supabase
+                      .from("sales_orders")
+                      .select(`
+                        *,
+                        customers(name, code),
+                        leads(id, company_name),
+                        offers(id, number, title),
+                        work_orders(id, number, status, includes_installation),
+                        service_work_orders(id, number, status),
+                        shipping_orders(id, number, status)
+                      `)
+                      .eq('id', selectedOrder.id)
+                      .single();
+                    if (data) {
+                      setSelectedOrder({
+                        ...data,
+                        attachments: Array.isArray(data.attachments) ? data.attachments : []
+                      } as unknown as Order);
+                    }
+                  };
+                  refreshOrder();
+                }}
+              />
 
               {/* Financial Information */}
               <OrderFinancialInfo
