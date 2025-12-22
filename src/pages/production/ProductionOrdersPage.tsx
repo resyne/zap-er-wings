@@ -2371,12 +2371,6 @@ ${allOrdersHTML}
                 />
               </div>
 
-              {/* Composizione BOM */}
-              {selectedWO.bom_id && (
-                <div className="border-t pt-4">
-                  <BomComposition bomId={selectedWO.bom_id} />
-                </div>
-              )}
               
               {/* Work Order Files */}
               {parentOrderFiles.length > 0 && (
