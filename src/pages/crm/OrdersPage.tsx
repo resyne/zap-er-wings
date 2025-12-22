@@ -114,6 +114,7 @@ export default function OrdersPage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
+  const [allOffers, setAllOffers] = useState<any[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
   const [selectedOfferForOrder, setSelectedOfferForOrder] = useState<any | null>(null);
@@ -135,7 +136,7 @@ export default function OrdersPage() {
     notes: "",
     work_description: "",
     bom_id: "",
-    accessori_ids: [], // Array of selected accessori IDs
+    accessori_ids: [] as string[], // Array of selected accessori IDs
     assigned_technician: "",
     back_office_manager: "",
     priority: "medium",
@@ -143,7 +144,8 @@ export default function OrdersPage() {
     planned_end_date: "",
     location: "",
     equipment_needed: "",
-    shipping_address: ""
+    shipping_address: "",
+    offer_id: ""
   });
   
   const { toast } = useToast();
@@ -199,6 +201,7 @@ export default function OrdersPage() {
           *,
           customers(name, code),
           leads(id, company_name),
+          offers(id, number, title),
           work_orders(id, number, status, includes_installation),
           service_work_orders(id, number, status),
           shipping_orders(id, number, status)
@@ -246,13 +249,14 @@ export default function OrdersPage() {
 
   const loadRelatedData = async () => {
     try {
-      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes, leadsRes] = await Promise.all([
+      const [customersRes, bomsRes, accessoriRes, techniciansRes, usersRes, leadsRes, offersRes] = await Promise.all([
         supabase.from("customers").select("id, name, code").eq("active", true),
         supabase.from("boms").select("id, name, version, level").in("level", [0, 1, 2]).order("name"),
         supabase.from("boms").select("id, name, version, level").eq("level", 3).order("name"),
         supabase.from("technicians").select("id, first_name, last_name, employee_code").eq("active", true),
         supabase.from("profiles").select("id, email, first_name, last_name").order("first_name"),
-        supabase.from("leads").select("id, company_name, contact_name, status, pipeline").order("company_name")
+        supabase.from("leads").select("id, company_name, contact_name, status, pipeline").order("company_name"),
+        supabase.from("offers").select("id, number, title, customer_id").order("number", { ascending: false })
       ]);
 
       if (customersRes.error) throw customersRes.error;
@@ -261,6 +265,7 @@ export default function OrdersPage() {
       if (techniciansRes.error) throw techniciansRes.error;
       if (usersRes.error) throw usersRes.error;
       if (leadsRes.error) throw leadsRes.error;
+      if (offersRes.error) throw offersRes.error;
 
       setCustomers(customersRes.data || []);
       setBoms(bomsRes.data || []);
@@ -268,6 +273,7 @@ export default function OrdersPage() {
       setTechnicians(techniciansRes.data || []);
       setUsers(usersRes.data || []);
       setLeads(leadsRes.data || []);
+      setAllOffers(offersRes.data || []);
     } catch (error: any) {
       console.error("Error loading related data:", error);
     }
@@ -549,7 +555,8 @@ export default function OrdersPage() {
         planned_end_date: "",
         location: "",
         equipment_needed: "",
-        shipping_address: ""
+        shipping_address: "",
+        offer_id: ""
       });
       setUploadedFiles([]);
       await loadOrders();
@@ -584,7 +591,8 @@ export default function OrdersPage() {
       planned_end_date: "",
       location: "",
       equipment_needed: "",
-      shipping_address: ""
+      shipping_address: "",
+      offer_id: order.offer_id || ""
     });
     setIsEditDialogOpen(true);
   };
@@ -607,7 +615,8 @@ export default function OrdersPage() {
         status: newOrder.status,
         notes: newOrder.notes || null,
         order_type: newOrder.order_type,
-        order_source: newOrder.order_source
+        order_source: newOrder.order_source,
+        offer_id: (newOrder as any).offer_id || null
       };
 
       const { error } = await supabase
@@ -644,7 +653,8 @@ export default function OrdersPage() {
         planned_end_date: "",
         location: "",
         equipment_needed: "",
-        shipping_address: ""
+        shipping_address: "",
+        offer_id: ""
       });
       await loadOrders();
     } catch (error: any) {
@@ -1728,6 +1738,26 @@ export default function OrdersPage() {
             </div>
 
             <div>
+              <Label htmlFor="edit_offer_id">Offerta Collegata</Label>
+              <Select 
+                value={newOrder.offer_id || "none"} 
+                onValueChange={(value) => setNewOrder({...newOrder, offer_id: value === "none" ? "" : value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona offerta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessuna offerta</SelectItem>
+                  {allOffers.map(offer => (
+                    <SelectItem key={offer.id} value={offer.id}>
+                      {offer.number} - {offer.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label htmlFor="edit_notes">Note</Label>
               <Textarea
                 id="edit_notes"
@@ -1822,12 +1852,12 @@ export default function OrdersPage() {
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Offerta</Label>
-                    {selectedOrder.offer_id ? (
+                    {selectedOrder.offers ? (
                       <Link 
                         to={`/crm/offers`}
                         className="text-primary hover:underline flex items-center gap-1 font-semibold"
                       >
-                        Offerta collegata
+                        {selectedOrder.offers.number} - {selectedOrder.offers.title}
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : (
