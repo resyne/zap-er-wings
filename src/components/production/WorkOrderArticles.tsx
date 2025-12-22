@@ -1,11 +1,20 @@
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
-import { Loader2, Package, X } from "lucide-react";
+import { Loader2, Package, X, Pencil, Plus, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface ArticleItem {
   id: string;
@@ -47,6 +56,10 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [bomData, setBomData] = useState<Record<string, { level1: BomLevel1[]; level2: BomLevel2[] }>>({});
+  const [editingArticle, setEditingArticle] = useState<ArticleItem | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newArticleDescription, setNewArticleDescription] = useState("");
 
   useEffect(() => {
     loadArticles();
@@ -350,6 +363,81 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
     }
   };
 
+  const handleEditArticle = async () => {
+    if (!editingArticle || !editDescription.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from("work_order_article_items")
+        .update({ description: editDescription.trim() })
+        .eq("id", editingArticle.id);
+
+      if (error) throw error;
+
+      // Log activity
+      await (supabase as any).from("work_order_activities").insert({
+        work_order_id: workOrderId,
+        activity_type: "article_updated",
+        description: `Articolo modificato: ${editDescription.substring(0, 100)}`
+      });
+
+      setArticles(prev => prev.map(a => 
+        a.id === editingArticle.id 
+          ? { ...a, description: editDescription.trim() }
+          : a
+      ));
+
+      setEditingArticle(null);
+      setEditDescription("");
+      toast.success("Articolo aggiornato");
+    } catch (error) {
+      console.error("Error updating article:", error);
+      toast.error("Errore nell'aggiornamento");
+    }
+  };
+
+  const handleAddArticle = async () => {
+    if (!newArticleDescription.trim()) return;
+    
+    try {
+      const newPosition = articles.length > 0 
+        ? Math.max(...articles.map(a => a.position)) + 1 
+        : 0;
+
+      const { data: createdArticle, error } = await supabase
+        .from("work_order_article_items")
+        .insert({
+          work_order_id: workOrderId,
+          description: newArticleDescription.trim(),
+          is_completed: false,
+          position: newPosition
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log activity
+      await (supabase as any).from("work_order_activities").insert({
+        work_order_id: workOrderId,
+        activity_type: "article_added",
+        description: `Articolo aggiunto: ${newArticleDescription.substring(0, 100)}`
+      });
+
+      if (createdArticle) {
+        setArticles(prev => [...prev, createdArticle]);
+        await loadBomDataForArticles([createdArticle]);
+      }
+
+      setIsAddDialogOpen(false);
+      setNewArticleDescription("");
+      toast.success("Articolo aggiunto");
+    } catch (error) {
+      console.error("Error adding article:", error);
+      toast.error("Errore nell'aggiunta");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -358,85 +446,158 @@ export function WorkOrderArticles({ workOrderId, articleText, hideAmounts = fals
     );
   }
 
-  if (articles.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">Nessun articolo disponibile</p>
-    );
-  }
-
   return (
     <div className="space-y-3">
-      {articles.map((article) => {
-        const articleBoms = bomData[article.id];
-        const hasBomsToShow = articleBoms && (articleBoms.level1.length > 0 || articleBoms.level2.length > 0);
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setIsAddDialogOpen(true)}
+          className="gap-1"
+        >
+          <Plus className="h-4 w-4" />
+          Aggiungi Articolo
+        </Button>
+      </div>
 
-        return (
-          <div
-            key={article.id}
-            className={`rounded-lg border bg-card ${article.is_completed ? 'opacity-60' : ''}`}
-          >
-            <div className="p-3 flex items-start gap-3">
-              <Checkbox
-                checked={article.is_completed}
-                onCheckedChange={() => handleToggleComplete(article)}
-                className="mt-1"
-              />
-              <Label className={`text-sm font-medium whitespace-pre-wrap flex-1 ${article.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                {hideAmounts ? sanitizeAmounts(article.description) : article.description}
-              </Label>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                onClick={() => handleDeleteArticle(article)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      {articles.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nessun articolo disponibile</p>
+      ) : (
+        articles.map((article) => {
+          const articleBoms = bomData[article.id];
+          const hasBomsToShow = articleBoms && (articleBoms.level1.length > 0 || articleBoms.level2.length > 0);
 
-            {/* BOM Hierarchy - Always visible */}
-            {hasBomsToShow && (
-              <div className="px-3 pb-3 pt-0 ml-10 space-y-2 border-t">
-                {articleBoms.level1.length > 0 && (
-                  <div className="space-y-1 pt-2">
-                    <p className="text-xs font-medium text-muted-foreground">BOM Livello 1:</p>
-                    {articleBoms.level1.map(bom => (
-                      <div key={bom.id} className="text-sm pl-2 border-l-2 border-primary/30">
-                        {bom.name} <span className="text-muted-foreground">(v{bom.version})</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {articleBoms.level2.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">BOM Livello 2:</p>
-                    {articleBoms.level2.map(bom => (
-                      <div key={bom.id} className="text-sm pl-2 border-l-2 border-amber-500/30 flex items-center justify-between">
-                        <span>
-                          {bom.quantity}x {bom.name} <span className="text-muted-foreground">(v{bom.version})</span>
-                        </span>
-                        {bom.current_stock !== undefined && (
-                          <Badge 
-                            variant="outline" 
-                            className={`ml-2 gap-1 ${
-                              bom.current_stock >= bom.quantity 
-                                ? 'border-green-500 text-green-600' 
-                                : 'border-red-500 text-red-600'
-                            }`}
-                          >
-                            <Package className="h-3 w-3" />
-                            {bom.current_stock}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+          return (
+            <div
+              key={article.id}
+              className={`rounded-lg border bg-card ${article.is_completed ? 'opacity-60' : ''}`}
+            >
+              <div className="p-3 flex items-start gap-3">
+                <Checkbox
+                  checked={article.is_completed}
+                  onCheckedChange={() => handleToggleComplete(article)}
+                  className="mt-1"
+                />
+                <Label className={`text-sm font-medium whitespace-pre-wrap flex-1 ${article.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                  {hideAmounts ? sanitizeAmounts(article.description) : article.description}
+                </Label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                  onClick={() => {
+                    setEditingArticle(article);
+                    setEditDescription(article.description);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleDeleteArticle(article)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-            )}
+
+              {/* BOM Hierarchy - Always visible */}
+              {hasBomsToShow && (
+                <div className="px-3 pb-3 pt-0 ml-10 space-y-2 border-t">
+                  {articleBoms.level1.length > 0 && (
+                    <div className="space-y-1 pt-2">
+                      <p className="text-xs font-medium text-muted-foreground">BOM Livello 1:</p>
+                      {articleBoms.level1.map(bom => (
+                        <div key={bom.id} className="text-sm pl-2 border-l-2 border-primary/30">
+                          {bom.name} <span className="text-muted-foreground">(v{bom.version})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {articleBoms.level2.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">BOM Livello 2:</p>
+                      {articleBoms.level2.map(bom => (
+                        <div key={bom.id} className="text-sm pl-2 border-l-2 border-amber-500/30 flex items-center justify-between">
+                          <span>
+                            {bom.quantity}x {bom.name} <span className="text-muted-foreground">(v{bom.version})</span>
+                          </span>
+                          {bom.current_stock !== undefined && (
+                            <Badge 
+                              variant="outline" 
+                              className={`ml-2 gap-1 ${
+                                bom.current_stock >= bom.quantity 
+                                  ? 'border-green-500 text-green-600' 
+                                  : 'border-red-500 text-red-600'
+                              }`}
+                            >
+                              <Package className="h-3 w-3" />
+                              {bom.current_stock}
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingArticle} onOpenChange={(open) => !open && setEditingArticle(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Modifica Articolo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Descrizione articolo"
+              rows={5}
+            />
           </div>
-        );
-      })}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingArticle(null)}>
+              Annulla
+            </Button>
+            <Button onClick={handleEditArticle}>
+              <Check className="h-4 w-4 mr-1" />
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Aggiungi Articolo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={newArticleDescription}
+              onChange={(e) => setNewArticleDescription(e.target.value)}
+              placeholder="Es: 1x Nome Prodotto - Descrizione"
+              rows={5}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleAddArticle}>
+              <Plus className="h-4 w-4 mr-1" />
+              Aggiungi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
