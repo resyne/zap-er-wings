@@ -655,7 +655,7 @@ export default function EventClassificationPage() {
                             <TooltipTrigger asChild>
                               <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-md p-4 text-sm">
+                            <TooltipContent side="bottom" align="start" className="max-w-lg p-4 text-sm z-[100]">
                               <div className="space-y-3">
                                 <div>
                                   <p className="font-semibold text-green-600">✅ SÌ</p>
