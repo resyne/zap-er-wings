@@ -70,7 +70,15 @@ interface ChartAccount {
   code: string;
   name: string;
   account_type: string;
+  level?: number | null;
 }
+
+// Macro-categorie contabili per filtro progressivo
+const accountCategories = [
+  { value: "revenue", label: "Ricavi", accountType: "revenue" },
+  { value: "cogs", label: "Costo del Venduto (COGS)", accountType: "cogs" },
+  { value: "opex", label: "Spese Operative (Opex)", accountType: "opex" },
+];
 
 const documentTypes = [
   { value: "fattura", label: "Fattura" },
@@ -121,6 +129,7 @@ const economicSubjectTypes = [
 export default function EventClassificationPage() {
   const queryClient = useQueryClient();
   const [selectedEntry, setSelectedEntry] = useState<AccountingEntry | null>(null);
+  const [accountCategory, setAccountCategory] = useState<string>("");
   
   // Classification form state
   const [classificationForm, setClassificationForm] = useState({
@@ -190,7 +199,7 @@ export default function EventClassificationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("chart_of_accounts")
-        .select("id, code, name, account_type")
+        .select("id, code, name, account_type, level")
         .eq("is_active", true)
         .order("code");
       if (error) throw error;
@@ -274,6 +283,17 @@ export default function EventClassificationPage() {
 
   const handleOpenEntry = (entry: AccountingEntry) => {
     setSelectedEntry(entry);
+    
+    // Determine category from existing chart_account_id
+    let category = "";
+    if (entry.chart_account_id) {
+      const existingAccount = accounts.find(a => a.id === entry.chart_account_id);
+      if (existingAccount) {
+        category = existingAccount.account_type;
+      }
+    }
+    setAccountCategory(category);
+    
     setClassificationForm({
       event_type: entry.event_type || "",
       affects_income_statement: entry.affects_income_statement ?? false,
@@ -372,13 +392,50 @@ export default function EventClassificationPage() {
   // For Costo/Ricavo it's always YES, for others it can be changed
   const handleEventTypeChange = (value: string) => {
     const affectsIncome = ["ricavo", "costo", "assestamento"].includes(value);
+    
+    // Auto-select category based on event type
+    let autoCategory = "";
+    if (value === "ricavo") {
+      autoCategory = "revenue";
+    }
+    // For costo, user must choose between cogs and opex
+    
+    setAccountCategory(autoCategory);
     setClassificationForm(prev => ({
       ...prev,
       event_type: value,
       affects_income_statement: affectsIncome,
-      // Clear chart_account_id if affects_income is false
-      chart_account_id: affectsIncome ? prev.chart_account_id : "",
+      // Clear chart_account_id when event type changes
+      chart_account_id: "",
     }));
+  };
+
+  // Get available categories based on event type
+  const getAvailableCategories = () => {
+    const eventType = classificationForm.event_type;
+    if (eventType === "ricavo") {
+      return accountCategories.filter(c => c.value === "revenue");
+    }
+    if (eventType === "costo") {
+      return accountCategories.filter(c => c.value === "cogs" || c.value === "opex");
+    }
+    // For assestamento, show all
+    return accountCategories;
+  };
+
+  // Get filtered accounts based on selected category
+  const getFilteredAccounts = () => {
+    if (!accountCategory) return [];
+    return accounts.filter(a => 
+      a.account_type === accountCategory && 
+      (a.level === null || a.level === undefined || a.level >= 2)
+    );
+  };
+
+  // Handle category change
+  const handleCategoryChange = (value: string) => {
+    setAccountCategory(value);
+    setClassificationForm(prev => ({ ...prev, chart_account_id: "" }));
   };
 
   // Check if affects_income_statement should be locked
@@ -700,31 +757,59 @@ export default function EventClassificationPage() {
                       </div>
                     </div>
 
-                    {/* Piano dei Conti - only visible when affects_income_statement is true */}
+                    {/* Piano dei Conti - Two step selection when affects_income_statement is true */}
                     {classificationForm.affects_income_statement && (
-                      <div className="space-y-2">
-                        <Label>Piano dei Conti (NATURA) *</Label>
-                        <Select
-                          value={classificationForm.chart_account_id}
-                          onValueChange={(value) =>
-                            setClassificationForm(prev => ({ ...prev, chart_account_id: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleziona conto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {accounts.map((account) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.code} - {account.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Classifica CHE COSA è il costo/ricavo
-                        </p>
-                      </div>
+                      <>
+                        {/* Step 1: Categoria Contabile */}
+                        <div className="space-y-2">
+                          <Label>Categoria Contabile *</Label>
+                          <Select
+                            value={accountCategory}
+                            onValueChange={handleCategoryChange}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getAvailableCategories().map((cat) => (
+                                <SelectItem key={cat.value} value={cat.value}>
+                                  {cat.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Macro-categoria del costo/ricavo
+                          </p>
+                        </div>
+
+                        {/* Step 2: Conto Specifico - only visible when category is selected */}
+                        {accountCategory && (
+                          <div className="space-y-2">
+                            <Label>Conto Specifico *</Label>
+                            <Select
+                              value={classificationForm.chart_account_id}
+                              onValueChange={(value) =>
+                                setClassificationForm(prev => ({ ...prev, chart_account_id: value }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona conto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getFilteredAccounts().map((account) => (
+                                  <SelectItem key={account.id} value={account.id}>
+                                    {account.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Classifica CHE COSA è il costo/ricavo
+                            </p>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     {/* Temporal Competence */}
