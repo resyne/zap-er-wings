@@ -4527,6 +4527,127 @@ export type Database = {
         }
         Relationships: []
       }
+      prima_nota: {
+        Row: {
+          accounting_entry_id: string
+          accounting_period: string | null
+          amount: number
+          blocked_at: string | null
+          center_percentage: number | null
+          chart_account_id: string | null
+          competence_date: string
+          cost_center_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          installment_number: number | null
+          is_rectification: boolean | null
+          movement_type: string
+          original_movement_id: string | null
+          profit_center_id: string | null
+          rectification_reason: string | null
+          rectified_by: string | null
+          registered_at: string | null
+          registered_by: string | null
+          status: string
+          total_installments: number | null
+        }
+        Insert: {
+          accounting_entry_id: string
+          accounting_period?: string | null
+          amount: number
+          blocked_at?: string | null
+          center_percentage?: number | null
+          chart_account_id?: string | null
+          competence_date: string
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          installment_number?: number | null
+          is_rectification?: boolean | null
+          movement_type: string
+          original_movement_id?: string | null
+          profit_center_id?: string | null
+          rectification_reason?: string | null
+          rectified_by?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          status?: string
+          total_installments?: number | null
+        }
+        Update: {
+          accounting_entry_id?: string
+          accounting_period?: string | null
+          amount?: number
+          blocked_at?: string | null
+          center_percentage?: number | null
+          chart_account_id?: string | null
+          competence_date?: string
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          installment_number?: number | null
+          is_rectification?: boolean | null
+          movement_type?: string
+          original_movement_id?: string | null
+          profit_center_id?: string | null
+          rectification_reason?: string | null
+          rectified_by?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          status?: string
+          total_installments?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prima_nota_accounting_entry_id_fkey"
+            columns: ["accounting_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_chart_account_id_fkey"
+            columns: ["chart_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_original_movement_id_fkey"
+            columns: ["original_movement_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_rectified_by_fkey"
+            columns: ["rectified_by"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_configurations: {
         Row: {
           additional_info: Json | null
