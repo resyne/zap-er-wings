@@ -648,39 +648,51 @@ export type Database = {
           category: string | null
           code: string
           created_at: string | null
+          default_competence: string | null
+          description: string | null
           id: string
           is_active: boolean | null
           level: number | null
           name: string
           parent_code: string | null
+          requires_cost_center: boolean | null
           sort_order: number | null
           updated_at: string | null
+          visibility: string | null
         }
         Insert: {
           account_type: string
           category?: string | null
           code: string
           created_at?: string | null
+          default_competence?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean | null
           level?: number | null
           name: string
           parent_code?: string | null
+          requires_cost_center?: boolean | null
           sort_order?: number | null
           updated_at?: string | null
+          visibility?: string | null
         }
         Update: {
           account_type?: string
           category?: string | null
           code?: string
           created_at?: string | null
+          default_competence?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean | null
           level?: number | null
           name?: string
           parent_code?: string | null
+          requires_cost_center?: boolean | null
           sort_order?: number | null
           updated_at?: string | null
+          visibility?: string | null
         }
         Relationships: []
       }
