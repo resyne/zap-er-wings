@@ -37,7 +37,7 @@ interface AccountingEntry {
   // Classification fields
   event_type?: string | null;
   affects_income_statement?: boolean | null;
-  account_code?: string | null;
+  chart_account_id?: string | null;
   temporal_competence?: string | null;
   is_recurring?: boolean | null;
   recurrence_period?: string | null;
@@ -126,7 +126,7 @@ export default function EventClassificationPage() {
   const [classificationForm, setClassificationForm] = useState({
     event_type: "",
     affects_income_statement: false,
-    account_code: "",
+    chart_account_id: "",
     temporal_competence: "immediata",
     is_recurring: false,
     recurrence_period: "",
@@ -205,7 +205,7 @@ export default function EventClassificationPage() {
         status: data.status,
         event_type: classificationForm.event_type || null,
         affects_income_statement: classificationForm.affects_income_statement,
-        account_code: classificationForm.account_code || null,
+        chart_account_id: classificationForm.chart_account_id || null,
         temporal_competence: classificationForm.temporal_competence,
         is_recurring: classificationForm.is_recurring,
         recurrence_period: classificationForm.is_recurring ? classificationForm.recurrence_period : null,
@@ -277,7 +277,7 @@ export default function EventClassificationPage() {
     setClassificationForm({
       event_type: entry.event_type || "",
       affects_income_statement: entry.affects_income_statement ?? false,
-      account_code: entry.account_code || "",
+      chart_account_id: entry.chart_account_id || "",
       temporal_competence: entry.temporal_competence || "immediata",
       is_recurring: entry.is_recurring ?? false,
       recurrence_period: entry.recurrence_period || "",
@@ -300,8 +300,8 @@ export default function EventClassificationPage() {
       errors.push("Tipo di evento obbligatorio");
     }
     
-    if (classificationForm.affects_income_statement && !classificationForm.account_code) {
-      errors.push("Conto economico obbligatorio se incide sul C/E");
+    if (classificationForm.affects_income_statement && !classificationForm.chart_account_id) {
+      errors.push("Piano dei Conti obbligatorio se incide sul C/E");
     }
     
     const isEconomicEvent = ["ricavo", "costo"].includes(classificationForm.event_type);
@@ -376,8 +376,8 @@ export default function EventClassificationPage() {
       ...prev,
       event_type: value,
       affects_income_statement: affectsIncome,
-      // Clear account code if affects_income is false
-      account_code: affectsIncome ? prev.account_code : "",
+      // Clear chart_account_id if affects_income is false
+      chart_account_id: affectsIncome ? prev.chart_account_id : "",
     }));
   };
 
@@ -684,7 +684,7 @@ export default function EventClassificationPage() {
                             setClassificationForm(prev => ({ 
                               ...prev, 
                               affects_income_statement: checked,
-                              account_code: checked ? prev.account_code : ""
+                              chart_account_id: checked ? prev.chart_account_id : ""
                             }))
                           }
                           disabled={isAffectsIncomeStatementLocked()}
@@ -700,14 +700,14 @@ export default function EventClassificationPage() {
                       </div>
                     </div>
 
-                    {/* Account Code - only visible when affects_income_statement is true */}
+                    {/* Piano dei Conti - only visible when affects_income_statement is true */}
                     {classificationForm.affects_income_statement && (
                       <div className="space-y-2">
-                        <Label>Conto Economico *</Label>
+                        <Label>Piano dei Conti (NATURA) *</Label>
                         <Select
-                          value={classificationForm.account_code}
+                          value={classificationForm.chart_account_id}
                           onValueChange={(value) =>
-                            setClassificationForm(prev => ({ ...prev, account_code: value }))
+                            setClassificationForm(prev => ({ ...prev, chart_account_id: value }))
                           }
                         >
                           <SelectTrigger>
@@ -715,12 +715,15 @@ export default function EventClassificationPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {accounts.map((account) => (
-                              <SelectItem key={account.id} value={account.code}>
+                              <SelectItem key={account.id} value={account.id}>
                                 {account.code} - {account.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Classifica CHE COSA è il costo/ricavo
+                        </p>
                       </div>
                     )}
 
@@ -819,9 +822,14 @@ export default function EventClassificationPage() {
 
                 {/* SECTION 3: Economic Destination */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                    Destinazione Economica
-                  </h3>
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                      Destinazione Economica (ORIGINE)
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Indica DOVE e PERCHÉ nasce questo costo/ricavo
+                    </p>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Cost Center - only for outgoing (uscita) */}
@@ -845,6 +853,9 @@ export default function EventClassificationPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Es: Reparto, Progetto, Cliente che genera il costo
+                        </p>
                       </div>
                     )}
 
@@ -869,6 +880,9 @@ export default function EventClassificationPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Es: Prodotto, Cliente, Linea di business che genera il ricavo
+                        </p>
                       </div>
                     )}
 
