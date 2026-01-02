@@ -165,17 +165,60 @@ export default function EntryExitRegisterPage() {
 
       setUploadedFile({ name: file.name, url: urlData.publicUrl });
       
-      // Simulate AI analysis
+      // AI analysis of the document
       setIsAnalyzing(true);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
       
-      // Auto-fill with simulated AI data
-      const today = new Date().toISOString().split("T")[0];
-      setFormData((prev) => ({
-        ...prev,
-        document_date: today,
-        document_type: file.name.toLowerCase().includes("fattura") ? "fattura" : "",
-      }));
+      try {
+        const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+          "analyze-document",
+          {
+            body: { imageUrl: urlData.publicUrl },
+          }
+        );
+
+        if (analysisError) {
+          console.error("Analysis error:", analysisError);
+          toast.error("Errore nell'analisi AI, compila i dati manualmente");
+        } else if (analysisData?.success && analysisData?.data) {
+          const extracted = analysisData.data;
+          console.log("AI extracted data:", extracted);
+          
+          // Pre-fill form with extracted data
+          setFormData((prev) => ({
+            ...prev,
+            direction: extracted.direction || prev.direction,
+            document_type: extracted.document_type || prev.document_type,
+            amount: extracted.amount ? String(extracted.amount) : prev.amount,
+            document_date: extracted.document_date || new Date().toISOString().split("T")[0],
+            payment_method: extracted.payment_method || prev.payment_method,
+            subject_type: extracted.subject_type || prev.subject_type,
+            note: extracted.notes || prev.note,
+          }));
+          
+          if (extracted.confidence === "high") {
+            toast.success("Documento analizzato con successo!");
+          } else if (extracted.confidence === "medium") {
+            toast.info("Documento analizzato, verifica i dati estratti");
+          } else {
+            toast.info("Alcuni dati potrebbero essere incompleti, verifica attentamente");
+          }
+        } else {
+          // Fallback to defaults
+          setFormData((prev) => ({
+            ...prev,
+            document_date: new Date().toISOString().split("T")[0],
+          }));
+          toast.info("Non è stato possibile estrarre dati, compila manualmente");
+        }
+      } catch (aiError) {
+        console.error("AI analysis failed:", aiError);
+        // Fallback to defaults
+        setFormData((prev) => ({
+          ...prev,
+          document_date: new Date().toISOString().split("T")[0],
+        }));
+        toast.error("Analisi AI non disponibile, compila i dati manualmente");
+      }
       
       setIsAnalyzing(false);
       setStep("review");
