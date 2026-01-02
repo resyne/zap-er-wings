@@ -312,20 +312,32 @@ export default function EntryExitRegisterPage() {
           </div>
         </div>
 
-        {/* Document upload option */}
+        {/* Document upload option with drag & drop */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base text-center text-muted-foreground">Carica documento</CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-            <Button
-              variant="outline"
-              onClick={handleDocumentFlow}
-              className="w-full h-16 flex items-center justify-center gap-3"
+            <div
+              {...getUploadRootProps()}
+              className={cn(
+                "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                isUploadDragActive
+                  ? "border-primary bg-primary/5"
+                  : "hover:bg-accent/50"
+              )}
             >
-              <Upload className="h-6 w-6" />
-              <span>Carica PDF, foto o scansione</span>
-            </Button>
+              <input {...getUploadInputProps()} />
+              <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+              {isUploadDragActive ? (
+                <p className="text-primary font-medium">Rilascia il file qui...</p>
+              ) : (
+                <>
+                  <p className="font-medium mb-1">Trascina o clicca per caricare</p>
+                  <p className="text-sm text-muted-foreground">PDF, foto o scansione</p>
+                </>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground text-center mt-2">
               L'AI analizzerà il documento e precompilerà i campi
             </p>
