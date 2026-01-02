@@ -23,6 +23,7 @@ export type Database = {
           attachment_url: string
           center_percentage: number | null
           cfo_notes: string | null
+          chart_account_id: string | null
           classified_at: string | null
           classified_by: string | null
           cost_center_id: string | null
@@ -57,6 +58,7 @@ export type Database = {
           attachment_url: string
           center_percentage?: number | null
           cfo_notes?: string | null
+          chart_account_id?: string | null
           classified_at?: string | null
           classified_by?: string | null
           cost_center_id?: string | null
@@ -91,6 +93,7 @@ export type Database = {
           attachment_url?: string
           center_percentage?: number | null
           cfo_notes?: string | null
+          chart_account_id?: string | null
           classified_at?: string | null
           classified_by?: string | null
           cost_center_id?: string | null
@@ -118,6 +121,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "accounting_entries_chart_account_id_fkey"
+            columns: ["chart_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "accounting_entries_cost_center_id_fkey"
             columns: ["cost_center_id"]
