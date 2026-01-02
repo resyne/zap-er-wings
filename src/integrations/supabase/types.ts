@@ -16,54 +16,123 @@ export type Database = {
     Tables: {
       accounting_entries: {
         Row: {
+          account_code: string | null
+          affects_income_statement: boolean | null
           ai_extracted_data: Json | null
           amount: number
           attachment_url: string
+          center_percentage: number | null
+          cfo_notes: string | null
+          classified_at: string | null
+          classified_by: string | null
+          cost_center_id: string | null
           created_at: string
           direction: string
           document_date: string
           document_type: string
+          economic_subject_id: string | null
+          economic_subject_type: string | null
+          event_type: string | null
+          financial_status: string | null
           id: string
+          is_recurring: boolean | null
           note: string | null
+          payment_date: string | null
           payment_method: string | null
+          profit_center_id: string | null
+          recurrence_end_date: string | null
+          recurrence_period: string | null
+          recurrence_start_date: string | null
           status: string
           subject_type: string | null
+          temporal_competence: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          account_code?: string | null
+          affects_income_statement?: boolean | null
           ai_extracted_data?: Json | null
           amount: number
           attachment_url: string
+          center_percentage?: number | null
+          cfo_notes?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
+          cost_center_id?: string | null
           created_at?: string
           direction: string
           document_date: string
           document_type: string
+          economic_subject_id?: string | null
+          economic_subject_type?: string | null
+          event_type?: string | null
+          financial_status?: string | null
           id?: string
+          is_recurring?: boolean | null
           note?: string | null
+          payment_date?: string | null
           payment_method?: string | null
+          profit_center_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_period?: string | null
+          recurrence_start_date?: string | null
           status?: string
           subject_type?: string | null
+          temporal_competence?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          account_code?: string | null
+          affects_income_statement?: boolean | null
           ai_extracted_data?: Json | null
           amount?: number
           attachment_url?: string
+          center_percentage?: number | null
+          cfo_notes?: string | null
+          classified_at?: string | null
+          classified_by?: string | null
+          cost_center_id?: string | null
           created_at?: string
           direction?: string
           document_date?: string
           document_type?: string
+          economic_subject_id?: string | null
+          economic_subject_type?: string | null
+          event_type?: string | null
+          financial_status?: string | null
           id?: string
+          is_recurring?: boolean | null
           note?: string | null
+          payment_date?: string | null
           payment_method?: string | null
+          profit_center_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_period?: string | null
+          recurrence_start_date?: string | null
           status?: string
           subject_type?: string | null
+          temporal_competence?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "accounting_entries_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_activity_logs: {
         Row: {
