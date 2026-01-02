@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle, X, Plus } from "lucide-react";
+import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle, X, Plus, Building2, UserCheck, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface SupplierMatch {
+  matched: boolean;
+  supplier?: {
+    id: string;
+    name: string;
+    code: string;
+    tax_id: string | null;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+  };
+  alternatives?: Array<{
+    id: string;
+    name: string;
+    code: string;
+    tax_id: string | null;
+  }>;
+  match_type?: string;
+  suggested_supplier?: {
+    name: string;
+    tax_id: string;
+    address: string;
+    city: string;
+    email: string;
+    phone: string;
+  };
+}
 
 const documentTypes = [
   { value: "fattura", label: "Fattura" },
@@ -103,11 +134,18 @@ function ReviewDropzone({ onFileUpload, isUploading }: { onFileUpload: (file: Fi
 }
 
 export default function EntryExitRegisterPage() {
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<"start" | "upload" | "review" | "success">("start");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [flowType, setFlowType] = useState<"document" | "manual">("document");
+  
+  // Supplier matching state
+  const [supplierMatch, setSupplierMatch] = useState<SupplierMatch | null>(null);
+  const [showSupplierDialog, setShowSupplierDialog] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
 
   const [formData, setFormData] = useState({
     direction: "",
@@ -117,6 +155,7 @@ export default function EntryExitRegisterPage() {
     payment_method: "",
     subject_type: "",
     note: "",
+    supplier_id: "",
   });
 
   const submitMutation = useMutation({
@@ -195,6 +234,26 @@ export default function EntryExitRegisterPage() {
             note: extracted.notes || prev.note,
           }));
           
+          // Handle supplier matching
+          if (analysisData.supplier) {
+            console.log("Supplier match data:", analysisData.supplier);
+            setSupplierMatch(analysisData.supplier);
+            
+            if (analysisData.supplier.matched && analysisData.supplier.supplier) {
+              // Auto-select matched supplier
+              setSelectedSupplierId(analysisData.supplier.supplier.id);
+              setFormData((prev) => ({
+                ...prev,
+                supplier_id: analysisData.supplier.supplier.id,
+                subject_type: "fornitore",
+              }));
+              toast.success(`Fornitore riconosciuto: ${analysisData.supplier.supplier.name}`);
+            } else if (!analysisData.supplier.matched && analysisData.supplier.suggested_supplier) {
+              // Show dialog to create new supplier
+              setShowSupplierDialog(true);
+            }
+          }
+          
           if (extracted.confidence === "high") {
             toast.success("Documento analizzato con successo!");
           } else if (extracted.confidence === "medium") {
@@ -261,6 +320,8 @@ export default function EntryExitRegisterPage() {
     setStep("start");
     setFlowType("document");
     setUploadedFile(null);
+    setSupplierMatch(null);
+    setSelectedSupplierId(null);
     setFormData({
       direction: "",
       document_type: "",
@@ -269,7 +330,81 @@ export default function EntryExitRegisterPage() {
       payment_method: "",
       subject_type: "",
       note: "",
+      supplier_id: "",
     });
+  };
+
+  // Create new supplier from AI-extracted data
+  const handleCreateSupplier = async () => {
+    if (!supplierMatch?.suggested_supplier) return;
+    
+    setIsCreatingSupplier(true);
+    try {
+      // Generate a unique code for the supplier
+      const { data: lastSupplier } = await supabase
+        .from("suppliers")
+        .select("code")
+        .order("code", { ascending: false })
+        .limit(1)
+        .single();
+      
+      let newCode = "F001";
+      if (lastSupplier?.code) {
+        const lastNum = parseInt(lastSupplier.code.replace(/\D/g, ""), 10);
+        newCode = `F${String(lastNum + 1).padStart(3, "0")}`;
+      }
+      
+      const suggested = supplierMatch.suggested_supplier;
+      const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      
+      const { data: newSupplier, error } = await supabase
+        .from("suppliers")
+        .insert({
+          code: newCode,
+          name: suggested.name,
+          tax_id: suggested.tax_id || null,
+          address: suggested.address || null,
+          city: suggested.city || null,
+          email: suggested.email || null,
+          phone: suggested.phone || null,
+          active: true,
+          access_code: accessCode,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Update form with the new supplier
+      setSelectedSupplierId(newSupplier.id);
+      setFormData((prev) => ({
+        ...prev,
+        supplier_id: newSupplier.id,
+        subject_type: "fornitore",
+      }));
+      
+      // Update supplier match state to show as matched
+      setSupplierMatch({
+        matched: true,
+        supplier: newSupplier,
+        match_type: "created",
+      });
+      
+      toast.success(`Fornitore "${suggested.name}" creato con successo!`);
+      setShowSupplierDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    } catch (error) {
+      console.error("Error creating supplier:", error);
+      toast.error("Errore durante la creazione del fornitore");
+    } finally {
+      setIsCreatingSupplier(false);
+    }
+  };
+
+  // Skip supplier creation and continue without linking
+  const handleSkipSupplier = () => {
+    setShowSupplierDialog(false);
+    toast.info("Puoi collegare il fornitore in seguito durante la classificazione");
   };
 
   // Dropzone for upload step - MUST be at top level, before any conditional returns
@@ -510,10 +645,25 @@ export default function EntryExitRegisterPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        {/* Supplier Match Info */}
+        {supplierMatch?.matched && supplierMatch.supplier && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+            <div className="flex items-center gap-2 text-green-700">
+              <UserCheck className="h-5 w-5" />
+              <div>
+                <p className="font-medium">Fornitore: {supplierMatch.supplier.name}</p>
+                {supplierMatch.supplier.tax_id && (
+                  <p className="text-sm text-green-600">P.IVA: {supplierMatch.supplier.tax_id}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <CardHeader className="px-0 pt-0">
           <CardTitle className="text-lg">Dati Registrazione</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-0">
           {/* Direzione */}
           <div className="space-y-2">
             <Label>Direzione *</Label>
@@ -655,6 +805,61 @@ export default function EntryExitRegisterPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Supplier Match Dialog */}
+      <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Nuovo Fornitore Rilevato
+            </DialogTitle>
+          </DialogHeader>
+          
+          {supplierMatch?.suggested_supplier && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                L'AI ha estratto i seguenti dati del fornitore dal documento. Vuoi creare un nuovo fornitore in anagrafica?
+              </p>
+              
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Nome:</span>
+                  <span className="font-medium">{supplierMatch.suggested_supplier.name || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">P.IVA:</span>
+                  <span className="font-medium">{supplierMatch.suggested_supplier.tax_id || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Città:</span>
+                  <span className="font-medium">{supplierMatch.suggested_supplier.city || "-"}</span>
+                </div>
+                {supplierMatch.suggested_supplier.email && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Email:</span>
+                    <span className="font-medium">{supplierMatch.suggested_supplier.email}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={handleSkipSupplier}>
+              Salta
+            </Button>
+            <Button onClick={handleCreateSupplier} disabled={isCreatingSupplier}>
+              {isCreatingSupplier ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4 mr-2" />
+              )}
+              Crea Fornitore
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

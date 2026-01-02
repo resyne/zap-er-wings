@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +62,8 @@ serve(async (req) => {
     const systemPrompt = `Sei un assistente specializzato nell'analisi di documenti contabili italiani (fatture, scontrini, ricevute, estratti conto, rapporti di intervento).
 
 Analizza l'immagine del documento e estrai i seguenti dati se presenti:
+
+DATI DOCUMENTO:
 - direction: "entrata" se è un incasso/vendita, "uscita" se è una spesa/acquisto
 - document_type: uno tra "fattura", "scontrino", "estratto_conto", "documento_interno", "rapporto_intervento", "altro"
 - amount: l'importo totale in formato numerico (es: 150.50)
@@ -69,7 +72,16 @@ Analizza l'immagine del documento e estrai i seguenti dati se presenti:
 - subject_type: uno tra "cliente", "fornitore", "interno" (se identificabile)
 - notes: eventuali note o dettagli importanti estratti dal documento
 
-Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
+DATI FORNITORE/EMITTENTE (se presente - tipicamente chi emette la fattura):
+- supplier_name: ragione sociale o nome del fornitore/emittente
+- supplier_tax_id: partita IVA o codice fiscale del fornitore (formato italiano)
+- supplier_address: indirizzo completo del fornitore
+- supplier_city: città del fornitore
+- supplier_email: email del fornitore se presente
+- supplier_phone: telefono del fornitore se presente
+
+Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.
+Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -86,7 +98,7 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
             content: [
               {
                 type: "text",
-                text: "Analizza questo documento e estrai i dati contabili.",
+                text: "Analizza questo documento e estrai i dati contabili e del fornitore/emittente.",
               },
               {
                 type: "image_url",
@@ -102,7 +114,7 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
             type: "function",
             function: {
               name: "extract_document_data",
-              description: "Estrae i dati strutturati dal documento contabile",
+              description: "Estrae i dati strutturati dal documento contabile inclusi i dati del fornitore",
               parameters: {
                 type: "object",
                 properties: {
@@ -142,6 +154,31 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
                     type: "string",
                     enum: ["high", "medium", "low"],
                     description: "Livello di confidenza nell'estrazione dei dati",
+                  },
+                  // Supplier data
+                  supplier_name: {
+                    type: "string",
+                    description: "Ragione sociale o nome del fornitore/emittente",
+                  },
+                  supplier_tax_id: {
+                    type: "string",
+                    description: "Partita IVA o codice fiscale del fornitore",
+                  },
+                  supplier_address: {
+                    type: "string",
+                    description: "Indirizzo completo del fornitore",
+                  },
+                  supplier_city: {
+                    type: "string",
+                    description: "Città del fornitore",
+                  },
+                  supplier_email: {
+                    type: "string",
+                    description: "Email del fornitore",
+                  },
+                  supplier_phone: {
+                    type: "string",
+                    description: "Telefono del fornitore",
                   },
                 },
                 additionalProperties: false,
@@ -183,8 +220,81 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
       const extractedData = JSON.parse(toolCall.function.arguments);
       console.log("Extracted data:", extractedData);
       
+      // If we have supplier data, try to match or suggest creation
+      let supplierMatch = null;
+      if (extractedData.supplier_tax_id || extractedData.supplier_name) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          
+          // Try to find existing supplier by tax_id first (most reliable)
+          if (extractedData.supplier_tax_id) {
+            const { data: supplierByTaxId } = await supabase
+              .from("suppliers")
+              .select("id, name, code, tax_id, email, phone, address, city")
+              .eq("tax_id", extractedData.supplier_tax_id)
+              .eq("active", true)
+              .limit(1)
+              .single();
+            
+            if (supplierByTaxId) {
+              console.log("Found supplier by tax_id:", supplierByTaxId.name);
+              supplierMatch = {
+                matched: true,
+                supplier: supplierByTaxId,
+                match_type: "tax_id"
+              };
+            }
+          }
+          
+          // If no match by tax_id, try by name (fuzzy match)
+          if (!supplierMatch && extractedData.supplier_name) {
+            const { data: suppliersByName } = await supabase
+              .from("suppliers")
+              .select("id, name, code, tax_id, email, phone, address, city")
+              .ilike("name", `%${extractedData.supplier_name}%`)
+              .eq("active", true)
+              .limit(5);
+            
+            if (suppliersByName && suppliersByName.length > 0) {
+              console.log("Found potential suppliers by name:", suppliersByName.length);
+              supplierMatch = {
+                matched: true,
+                supplier: suppliersByName[0],
+                alternatives: suppliersByName.slice(1),
+                match_type: "name_fuzzy"
+              };
+            }
+          }
+          
+          // No match found - suggest new supplier data
+          if (!supplierMatch && (extractedData.supplier_name || extractedData.supplier_tax_id)) {
+            console.log("No supplier match, suggesting new supplier");
+            supplierMatch = {
+              matched: false,
+              suggested_supplier: {
+                name: extractedData.supplier_name || "",
+                tax_id: extractedData.supplier_tax_id || "",
+                address: extractedData.supplier_address || "",
+                city: extractedData.supplier_city || "",
+                email: extractedData.supplier_email || "",
+                phone: extractedData.supplier_phone || "",
+              }
+            };
+          }
+        } catch (dbError) {
+          console.error("Error matching supplier:", dbError);
+          // Continue without supplier match
+        }
+      }
+      
       return new Response(
-        JSON.stringify({ success: true, data: extractedData }),
+        JSON.stringify({ 
+          success: true, 
+          data: extractedData,
+          supplier: supplierMatch 
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
