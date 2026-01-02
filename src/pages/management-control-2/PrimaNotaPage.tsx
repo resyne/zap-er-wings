@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, addMonths, startOfMonth } from "date-fns";
+import { format, addMonths, startOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
@@ -79,12 +79,48 @@ export default function PrimaNotaPage() {
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
   const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
   const [rectificationReason, setRectificationReason] = useState("");
+  const [filterPeriodType, setFilterPeriodType] = useState<string>("month");
   const [filterPeriod, setFilterPeriod] = useState<string>(format(new Date(), "yyyy-MM"));
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
+  // Calculate date range based on period type
+  const getDateRange = () => {
+    const now = new Date();
+    switch (filterPeriodType) {
+      case "month":
+        return { period: filterPeriod };
+      case "quarter": {
+        const q = parseInt(filterPeriod.split("-Q")[1] || "1");
+        const year = parseInt(filterPeriod.split("-Q")[0] || format(now, "yyyy"));
+        const quarterStart = new Date(year, (q - 1) * 3, 1);
+        return {
+          from: format(quarterStart, "yyyy-MM-dd"),
+          to: format(endOfQuarter(quarterStart), "yyyy-MM-dd"),
+        };
+      }
+      case "year":
+        return {
+          from: `${filterPeriod}-01-01`,
+          to: `${filterPeriod}-12-31`,
+        };
+      case "custom":
+        return {
+          from: filterDateFrom,
+          to: filterDateTo,
+        };
+      case "all":
+        return {};
+      default:
+        return { period: filterPeriod };
+    }
+  };
+
   // Fetch prima nota movements
+  const dateRange = getDateRange();
   const { data: movements = [], isLoading } = useQuery({
-    queryKey: ["prima-nota", filterPeriod, filterStatus],
+    queryKey: ["prima-nota", filterPeriodType, filterPeriod, filterDateFrom, filterDateTo, filterStatus],
     queryFn: async () => {
       let query = supabase
         .from("prima_nota")
@@ -98,9 +134,16 @@ export default function PrimaNotaPage() {
         .order("competence_date", { ascending: false })
         .order("created_at", { ascending: false });
 
-      if (filterPeriod) {
+      // Apply period filter based on type
+      if (filterPeriodType === "month" && filterPeriod) {
         query = query.eq("accounting_period", filterPeriod);
+      } else if (filterPeriodType === "quarter" || filterPeriodType === "year" || filterPeriodType === "custom") {
+        const range = getDateRange();
+        if (range.from && range.to) {
+          query = query.gte("competence_date", range.from).lte("competence_date", range.to);
+        }
       }
+      // filterPeriodType === "all" → no date filter
 
       if (filterStatus !== "all") {
         query = query.eq("status", filterStatus);
@@ -467,14 +510,100 @@ export default function PrimaNotaPage() {
               <div className="flex flex-wrap gap-4 items-center">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-sm">Periodo:</Label>
-                  <Input
-                    type="month"
-                    value={filterPeriod}
-                    onChange={(e) => setFilterPeriod(e.target.value)}
-                    className="w-40"
-                  />
+                  <Label className="text-sm">Tipo Periodo:</Label>
+                  <Select value={filterPeriodType} onValueChange={(val) => {
+                    setFilterPeriodType(val);
+                    // Reset period value on type change
+                    if (val === "month") setFilterPeriod(format(new Date(), "yyyy-MM"));
+                    else if (val === "quarter") setFilterPeriod(`${format(new Date(), "yyyy")}-Q${Math.ceil((new Date().getMonth() + 1) / 3)}`);
+                    else if (val === "year") setFilterPeriod(format(new Date(), "yyyy"));
+                  }}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Mese</SelectItem>
+                      <SelectItem value="quarter">Trimestre</SelectItem>
+                      <SelectItem value="year">Anno</SelectItem>
+                      <SelectItem value="custom">Intervallo</SelectItem>
+                      <SelectItem value="all">Tutto</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {filterPeriodType === "month" && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Periodo:</Label>
+                    <Input
+                      type="month"
+                      value={filterPeriod}
+                      onChange={(e) => setFilterPeriod(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                )}
+
+                {filterPeriodType === "quarter" && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Trimestre:</Label>
+                    <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[-1, 0, 1].map(yearOffset => {
+                          const year = new Date().getFullYear() + yearOffset;
+                          return [1, 2, 3, 4].map(q => (
+                            <SelectItem key={`${year}-Q${q}`} value={`${year}-Q${q}`}>
+                              Q{q} {year}
+                            </SelectItem>
+                          ));
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {filterPeriodType === "year" && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Anno:</Label>
+                    <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[-2, -1, 0, 1].map(offset => {
+                          const year = new Date().getFullYear() + offset;
+                          return (
+                            <SelectItem key={year} value={year.toString()}>
+                              {year}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {filterPeriodType === "custom" && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Da:</Label>
+                    <Input
+                      type="date"
+                      value={filterDateFrom}
+                      onChange={(e) => setFilterDateFrom(e.target.value)}
+                      className="w-36"
+                    />
+                    <Label className="text-sm">A:</Label>
+                    <Input
+                      type="date"
+                      value={filterDateTo}
+                      onChange={(e) => setFilterDateTo(e.target.value)}
+                      className="w-36"
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <Label className="text-sm">Stato:</Label>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
