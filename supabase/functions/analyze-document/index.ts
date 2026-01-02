@@ -49,16 +49,14 @@ serve(async (req) => {
 
     console.log("Analyzing document:", imageUrl);
 
-    // Convert file to base64 data URL for proper MIME type handling (required for PDFs)
-    let fileUrl = imageUrl;
-    try {
-      const { dataUrl, mimeType } = await fileToDataUrl(imageUrl);
-      console.log("Converted to data URL, MIME type:", mimeType);
-      fileUrl = dataUrl;
-    } catch (e) {
-      console.error("Failed to convert file to data URL:", e);
-      // Fall back to original URL for images
-    }
+    // Convert file to base64 data URL
+    const { dataUrl, mimeType } = await fileToDataUrl(imageUrl);
+    console.log("Converted to data URL, MIME type:", mimeType);
+    
+    // Determine if it's a PDF - use OpenAI for PDFs, Gemini for images
+    const isPdf = mimeType === "application/pdf" || imageUrl.toLowerCase().endsWith(".pdf");
+    const model = isPdf ? "openai/gpt-5-mini" : "google/gemini-2.5-flash";
+    console.log("Using model:", model, "isPdf:", isPdf);
 
     const systemPrompt = `Sei un assistente specializzato nell'analisi di documenti contabili italiani (fatture, scontrini, ricevute, estratti conto, rapporti di intervento).
 
@@ -80,7 +78,7 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model,
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -93,7 +91,7 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
               {
                 type: "image_url",
                 image_url: {
-                  url: fileUrl,
+                  url: dataUrl,
                 },
               },
             ],
