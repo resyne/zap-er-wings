@@ -185,6 +185,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Registro Entrate/Uscite", url: "/management-control-2/register", icon: FileText },
       { title: "Classificazione Eventi", url: "/management-control-2/classification", icon: ClipboardCheck },
       { title: "Piano dei Conti", url: "/management-control-2/chart-of-accounts", icon: BookOpen },
+      { title: "Centri di Costo/Ricavo", url: "/management-control-2/cost-centers", icon: Building2 },
     ]
   },
   {

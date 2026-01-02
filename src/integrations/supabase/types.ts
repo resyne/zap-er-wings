@@ -885,35 +885,55 @@ export type Database = {
       cost_centers: {
         Row: {
           account_code: string | null
+          category: string | null
+          center_type: string | null
           code: string
           created_at: string | null
           description: string | null
           id: string
           is_active: boolean | null
           name: string
+          parent_id: string | null
+          responsible_id: string | null
           updated_at: string | null
         }
         Insert: {
           account_code?: string | null
+          category?: string | null
+          center_type?: string | null
           code: string
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           name: string
+          parent_id?: string | null
+          responsible_id?: string | null
           updated_at?: string | null
         }
         Update: {
           account_code?: string | null
+          category?: string | null
+          center_type?: string | null
           code?: string
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
+          parent_id?: string | null
+          responsible_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cost_draft_items: {
         Row: {
