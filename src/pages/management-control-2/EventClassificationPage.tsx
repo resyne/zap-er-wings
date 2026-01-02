@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,7 +18,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, ExternalLink, 
-  Save, MessageSquare, Pause, Send, AlertCircle, Image
+  Save, MessageSquare, Pause, Send, AlertCircle, Image, Trash2
 } from "lucide-react";
 
 interface AccountingEntry {
@@ -247,6 +248,29 @@ export default function EventClassificationPage() {
     },
   });
 
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("accounting_entries")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      toast.success("Registrazione eliminata");
+      setSelectedEntry(null);
+    },
+    onError: () => {
+      toast.error("Errore durante l'eliminazione");
+    },
+  });
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
   const handleOpenEntry = (entry: AccountingEntry) => {
     setSelectedEntry(entry);
     setClassificationForm({
@@ -415,7 +439,38 @@ export default function EventClassificationPage() {
                       </div>
                     </div>
                   </div>
-                  {getStatusBadge(entry.status)}
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(entry.status)}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminare questa registrazione?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Questa azione non può essere annullata. La registrazione sarà eliminata permanentemente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleDelete(entry.id)}
+                          >
+                            Elimina
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </CardContent>
             </Card>
