@@ -18,8 +18,9 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, ExternalLink, 
-  Save, MessageSquare, Pause, Send, AlertCircle, Image, Trash2
+  Save, MessageSquare, Pause, Send, AlertCircle, Image, Trash2, HelpCircle
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AccountingEntry {
   id: string;
@@ -634,7 +635,35 @@ export default function EventClassificationPage() {
 
                     {/* Affects Income Statement */}
                     <div className="space-y-2">
-                      <Label>Incide sul Conto Economico?</Label>
+                      <div className="flex items-center gap-2">
+                        <Label>Incide sul Conto Economico?</Label>
+                        <TooltipProvider>
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-sm p-4 text-sm">
+                              <div className="space-y-3">
+                                <div>
+                                  <p className="font-semibold text-green-600">✅ SÌ</p>
+                                  <p className="text-muted-foreground">Quando stai registrando un <strong>COSTO</strong> o un <strong>RICAVO</strong>, cioè qualcosa che fa guadagnare o perdere soldi all'azienda.</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Es: parcheggio, carburante, marketing, stipendi, consulenze, vendita servizi, ammortamenti</p>
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-red-600">❌ NO</p>
+                                  <p className="text-muted-foreground">Quando stai solo registrando un <strong>PAGAMENTO</strong> o un <strong>INCASSO</strong>, cioè soldi che entrano o escono, ma il costo/ricavo esiste già.</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Es: pagamento fattura, incasso cliente, rimborso dipendente, giroconto</p>
+                                </div>
+                                <div className="pt-2 border-t">
+                                  <p className="text-xs font-medium">💡 Regola lampo:</p>
+                                  <p className="text-xs text-muted-foreground">"Quanto ho guadagnato o speso" → SÌ</p>
+                                  <p className="text-xs text-muted-foreground">"Come ho pagato o incassato" → NO</p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className="flex items-center gap-3 p-2 border rounded-md">
                         <Switch
                           checked={classificationForm.affects_income_statement}
