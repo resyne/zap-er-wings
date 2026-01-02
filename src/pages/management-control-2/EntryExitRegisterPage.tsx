@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle } from "lucide-react";
+import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle, X, Plus } from "lucide-react";
 
 const documentTypes = [
   { value: "fattura", label: "Fattura" },
@@ -34,10 +34,11 @@ const subjectTypes = [
 ];
 
 export default function EntryExitRegisterPage() {
-  const [step, setStep] = useState<"upload" | "review" | "success">("upload");
+  const [step, setStep] = useState<"start" | "upload" | "review" | "success">("start");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
+  const [flowType, setFlowType] = useState<"document" | "manual">("document");
 
   const [formData, setFormData] = useState({
     direction: "",
@@ -117,16 +118,36 @@ export default function EntryExitRegisterPage() {
     }
   };
 
+  const handleManualStart = (direction: "entrata" | "uscita") => {
+    setFlowType("manual");
+    setFormData((prev) => ({
+      ...prev,
+      direction,
+      document_date: new Date().toISOString().split("T")[0],
+    }));
+    setStep("review");
+  };
+
+  const handleDocumentFlow = () => {
+    setFlowType("document");
+    setStep("upload");
+  };
+
   const handleSubmit = () => {
     if (!formData.direction || !formData.document_type || !formData.amount || !formData.document_date) {
       toast.error("Compila tutti i campi obbligatori");
+      return;
+    }
+    if (!uploadedFile) {
+      toast.error("L'allegato è obbligatorio");
       return;
     }
     submitMutation.mutate();
   };
 
   const resetForm = () => {
-    setStep("upload");
+    setStep("start");
+    setFlowType("document");
     setUploadedFile(null);
     setFormData({
       direction: "",
@@ -159,13 +180,79 @@ export default function EntryExitRegisterPage() {
     );
   }
 
+  // Start screen - choose flow
+  if (step === "start") {
+    return (
+      <div className="container mx-auto p-4 max-w-lg">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold">Nuova Registrazione</h1>
+          <p className="text-muted-foreground">Scegli come registrare il movimento</p>
+        </div>
+
+        {/* Manual entry buttons */}
+        <Card className="mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-center text-muted-foreground">Registrazione manuale</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => handleManualStart("entrata")}
+                className="h-20 flex flex-col items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
+                <ArrowUp className="h-8 w-8" />
+                <span className="font-semibold">ENTRATA</span>
+              </Button>
+              <Button
+                onClick={() => handleManualStart("uscita")}
+                className="h-20 flex flex-col items-center gap-2 bg-red-600 hover:bg-red-700"
+              >
+                <ArrowDown className="h-8 w-8" />
+                <span className="font-semibold">USCITA</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">oppure</span>
+          </div>
+        </div>
+
+        {/* Document upload option */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-center text-muted-foreground">Carica documento</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <Button
+              variant="outline"
+              onClick={handleDocumentFlow}
+              className="w-full h-16 flex items-center justify-center gap-3"
+            >
+              <Upload className="h-6 w-6" />
+              <span>Carica PDF, foto o scansione</span>
+            </Button>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              L'AI analizzerà il documento e precompilerà i campi
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Upload step
   if (step === "upload") {
     return (
       <div className="container mx-auto p-4 max-w-lg">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold">Nuova Registrazione</h1>
-          <p className="text-muted-foreground">Carica il documento per iniziare</p>
+          <h1 className="text-2xl font-bold">Carica Documento</h1>
+          <p className="text-muted-foreground">Carica il documento per l'analisi automatica</p>
         </div>
 
         <Card>
@@ -223,6 +310,10 @@ export default function EntryExitRegisterPage() {
                     }}
                   />
                 </label>
+
+                <Button variant="ghost" onClick={() => setStep("start")} className="w-full">
+                  Indietro
+                </Button>
               </div>
             )}
           </CardContent>
@@ -235,19 +326,81 @@ export default function EntryExitRegisterPage() {
   return (
     <div className="container mx-auto p-4 max-w-lg">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Verifica e Completa</h1>
-        <p className="text-muted-foreground">Controlla i dati e inserisci quelli mancanti</p>
+        <h1 className="text-2xl font-bold">
+          {flowType === "manual" ? "Inserisci Dati" : "Verifica e Completa"}
+        </h1>
+        <p className="text-muted-foreground">
+          {flowType === "manual" ? "Compila tutti i campi obbligatori" : "Controlla i dati e inserisci quelli mancanti"}
+        </p>
       </div>
 
+      {/* Allegato section */}
       <Card className="mb-4">
         <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <FileCheck className="h-8 w-8 text-green-500" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{uploadedFile?.name}</p>
-              <p className="text-sm text-green-600">Documento caricato</p>
+          {uploadedFile ? (
+            <div className="flex items-center gap-3">
+              <FileCheck className="h-8 w-8 text-green-500" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{uploadedFile.name}</p>
+                <p className="text-sm text-green-600">Documento caricato</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setUploadedFile(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              <Label className="flex items-center gap-1">
+                Allegato <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <Button variant="outline" className="w-full" asChild>
+                    <div className="cursor-pointer">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Carica file
+                    </div>
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                    }}
+                  />
+                </label>
+                <label>
+                  <Button variant="outline" asChild>
+                    <div className="cursor-pointer">
+                      <Camera className="h-4 w-4" />
+                    </div>
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                    }}
+                  />
+                </label>
+              </div>
+              {isUploading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Caricamento...
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
