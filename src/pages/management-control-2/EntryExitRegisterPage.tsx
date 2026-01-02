@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle, X, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const documentTypes = [
   { value: "fattura", label: "Fattura" },
@@ -32,6 +34,73 @@ const subjectTypes = [
   { value: "fornitore", label: "Fornitore" },
   { value: "interno", label: "Interno" },
 ];
+
+// Dropzone component for review step attachment
+function ReviewDropzone({ onFileUpload, isUploading }: { onFileUpload: (file: File) => void; isUploading: boolean }) {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) onFileUpload(file);
+  }, [onFileUpload]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [],
+      "application/pdf": [],
+    },
+    maxFiles: 1,
+    noClick: false,
+  });
+
+  return (
+    <div className="space-y-3">
+      <Label className="flex items-center gap-1">
+        Allegato <span className="text-destructive">*</span>
+      </Label>
+      <div
+        {...getRootProps()}
+        className={cn(
+          "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
+          isDragActive
+            ? "border-primary bg-primary/5"
+            : "hover:bg-accent/50"
+        )}
+      >
+        <input {...getInputProps()} />
+        <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+        {isDragActive ? (
+          <p className="text-sm text-primary">Rilascia il file qui...</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Trascina o clicca per caricare</p>
+        )}
+      </div>
+      <label className="block">
+        <Button variant="outline" size="sm" className="w-full" asChild>
+          <div className="cursor-pointer">
+            <Camera className="h-4 w-4 mr-2" />
+            Scatta foto
+          </div>
+        </Button>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFileUpload(file);
+          }}
+        />
+      </label>
+      {isUploading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Caricamento...
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EntryExitRegisterPage() {
   const [step, setStep] = useState<"start" | "upload" | "review" | "success">("start");
@@ -246,6 +315,26 @@ export default function EntryExitRegisterPage() {
     );
   }
 
+  // Dropzone for upload step
+  const onDropUpload = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) handleFileUpload(file);
+  }, []);
+
+  const {
+    getRootProps: getUploadRootProps,
+    getInputProps: getUploadInputProps,
+    isDragActive: isUploadDragActive,
+  } = useDropzone({
+    onDrop: onDropUpload,
+    accept: {
+      "image/*": [],
+      "application/pdf": [],
+    },
+    maxFiles: 1,
+    noClick: false,
+  });
+
   // Upload step
   if (step === "upload") {
     return (
@@ -266,22 +355,26 @@ export default function EntryExitRegisterPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <label className="block">
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-accent/50 transition-colors">
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-lg font-medium mb-1">Carica documento</p>
-                    <p className="text-sm text-muted-foreground">PDF, foto o scansione</p>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
-                    }}
-                  />
-                </label>
+                <div
+                  {...getUploadRootProps()}
+                  className={cn(
+                    "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+                    isUploadDragActive
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <input {...getUploadInputProps()} />
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  {isUploadDragActive ? (
+                    <p className="text-lg font-medium text-primary">Rilascia il file qui...</p>
+                  ) : (
+                    <>
+                      <p className="text-lg font-medium mb-1">Trascina o clicca per caricare</p>
+                      <p className="text-sm text-muted-foreground">PDF, foto o scansione</p>
+                    </>
+                  )}
+                </div>
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -353,53 +446,10 @@ export default function EntryExitRegisterPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              <Label className="flex items-center gap-1">
-                Allegato <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <label className="flex-1">
-                  <Button variant="outline" className="w-full" asChild>
-                    <div className="cursor-pointer">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Carica file
-                    </div>
-                  </Button>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
-                    }}
-                  />
-                </label>
-                <label>
-                  <Button variant="outline" asChild>
-                    <div className="cursor-pointer">
-                      <Camera className="h-4 w-4" />
-                    </div>
-                  </Button>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
-                    }}
-                  />
-                </label>
-              </div>
-              {isUploading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Caricamento...
-                </div>
-              )}
-            </div>
+            <ReviewDropzone 
+              onFileUpload={handleFileUpload} 
+              isUploading={isUploading} 
+            />
           )}
         </CardContent>
       </Card>
