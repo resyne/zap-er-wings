@@ -369,13 +369,26 @@ export default function EventClassificationPage() {
   };
 
   // Auto-set affects_income_statement based on event_type
+  // For Costo/Ricavo it's always YES, for others it can be changed
   const handleEventTypeChange = (value: string) => {
     const affectsIncome = ["ricavo", "costo", "assestamento"].includes(value);
     setClassificationForm(prev => ({
       ...prev,
       event_type: value,
       affects_income_statement: affectsIncome,
+      // Clear account code if affects_income is false
+      account_code: affectsIncome ? prev.account_code : "",
     }));
+  };
+
+  // Check if affects_income_statement should be locked
+  const isAffectsIncomeStatementLocked = () => {
+    return ["ricavo", "costo"].includes(classificationForm.event_type);
+  };
+
+  // Check if financial status requires payment date
+  const requiresPaymentDate = () => {
+    return ["pagato", "incassato"].includes(classificationForm.financial_status);
   };
 
   // Auto-set financial_status based on direction
@@ -664,41 +677,52 @@ export default function EventClassificationPage() {
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <div className="flex items-center gap-3 p-2 border rounded-md">
+                      <div className={`flex items-center gap-3 p-2 border rounded-md ${isAffectsIncomeStatementLocked() ? "bg-muted/50" : ""}`}>
                         <Switch
                           checked={classificationForm.affects_income_statement}
                           onCheckedChange={(checked) =>
-                            setClassificationForm(prev => ({ ...prev, affects_income_statement: checked }))
+                            setClassificationForm(prev => ({ 
+                              ...prev, 
+                              affects_income_statement: checked,
+                              account_code: checked ? prev.account_code : ""
+                            }))
                           }
+                          disabled={isAffectsIncomeStatementLocked()}
                         />
                         <span className="text-sm">
                           {classificationForm.affects_income_statement ? "Sì" : "No"}
                         </span>
+                        {isAffectsIncomeStatementLocked() && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (automatico per {classificationForm.event_type === "ricavo" ? "Ricavo" : "Costo"})
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Account Code */}
-                    <div className="space-y-2">
-                      <Label>Conto Economico {classificationForm.affects_income_statement ? "*" : ""}</Label>
-                      <Select
-                        value={classificationForm.account_code}
-                        onValueChange={(value) =>
-                          setClassificationForm(prev => ({ ...prev, account_code: value }))
-                        }
-                        disabled={!classificationForm.affects_income_statement}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona conto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {accounts.map((account) => (
-                            <SelectItem key={account.id} value={account.code}>
-                              {account.code} - {account.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Account Code - only visible when affects_income_statement is true */}
+                    {classificationForm.affects_income_statement && (
+                      <div className="space-y-2">
+                        <Label>Conto Economico *</Label>
+                        <Select
+                          value={classificationForm.account_code}
+                          onValueChange={(value) =>
+                            setClassificationForm(prev => ({ ...prev, account_code: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona conto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accounts.map((account) => (
+                              <SelectItem key={account.id} value={account.code}>
+                                {account.code} - {account.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     {/* Temporal Competence */}
                     <div className="space-y-2">
@@ -723,11 +747,11 @@ export default function EventClassificationPage() {
                     </div>
                   </div>
 
-                  {/* Rateizzazione dates */}
-                  {classificationForm.temporal_competence === "rateizzata" && (
+                  {/* Competenza dates - for differita and rateizzata */}
+                  {(classificationForm.temporal_competence === "rateizzata" || classificationForm.temporal_competence === "differita") && (
                     <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                       <div className="space-y-2">
-                        <Label>Data Inizio *</Label>
+                        <Label>Periodo di competenza - Inizio *</Label>
                         <Input
                           type="date"
                           value={classificationForm.recurrence_start_date}
@@ -737,7 +761,7 @@ export default function EventClassificationPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Data Fine *</Label>
+                        <Label>Periodo di competenza - Fine *</Label>
                         <Input
                           type="date"
                           value={classificationForm.recurrence_end_date}
@@ -758,7 +782,25 @@ export default function EventClassificationPage() {
                           setClassificationForm(prev => ({ ...prev, is_recurring: checked }))
                         }
                       />
-                      <Label>Ricorrente</Label>
+                      <div className="flex items-center gap-2">
+                        <Label>Ricorrente</Label>
+                        <TooltipProvider>
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs p-3 text-sm">
+                              <p className="font-medium mb-1">💡 Quando attivare?</p>
+                              <p className="text-muted-foreground">
+                                Attiva solo se questo evento <strong>si ripeterà nel tempo</strong> (es: canone mensile, abbonamento, affitto).
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                ⚠️ Ricorrente ≠ Rateizzato. Ricorrente = "si ripeterà", Rateizzato = "è già stato diviso in rate".
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
                     {classificationForm.is_recurring && (
                       <Input
@@ -830,23 +872,25 @@ export default function EventClassificationPage() {
                       </div>
                     )}
 
-                    {/* Center Percentage */}
-                    <div className="space-y-2">
-                      <Label>Percentuale Allocazione (%)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={classificationForm.center_percentage}
-                        onChange={(e) =>
-                          setClassificationForm(prev => ({ ...prev, center_percentage: Number(e.target.value) }))
-                        }
-                      />
-                    </div>
+                    {/* Center Percentage - hidden by default, show only if user needs to change from 100% */}
+                    {classificationForm.center_percentage !== 100 && (
+                      <div className="space-y-2">
+                        <Label>Percentuale Allocazione (%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={classificationForm.center_percentage}
+                          onChange={(e) =>
+                            setClassificationForm(prev => ({ ...prev, center_percentage: Number(e.target.value) }))
+                          }
+                        />
+                      </div>
+                    )}
 
                     {/* Economic Subject Type */}
                     <div className="space-y-2">
-                      <Label>Soggetto Economico</Label>
+                      <Label className="text-muted-foreground">Soggetto Economico (opzionale)</Label>
                       <Select
                         value={classificationForm.economic_subject_type}
                         onValueChange={(value) =>
@@ -899,17 +943,25 @@ export default function EventClassificationPage() {
                       </Select>
                     </div>
 
-                    {/* Payment Date */}
-                    <div className="space-y-2">
-                      <Label>Data Pagamento/Incasso</Label>
-                      <Input
-                        type="date"
-                        value={classificationForm.payment_date}
-                        onChange={(e) =>
-                          setClassificationForm(prev => ({ ...prev, payment_date: e.target.value }))
-                        }
-                      />
-                    </div>
+                    {/* Payment Date - highlighted when required */}
+                    {requiresPaymentDate() && (
+                      <div className="space-y-2">
+                        <Label className={requiresPaymentDate() && !classificationForm.payment_date ? "text-orange-600 font-medium" : ""}>
+                          Data Pagamento/Incasso {requiresPaymentDate() ? "*" : ""}
+                        </Label>
+                        <Input
+                          type="date"
+                          value={classificationForm.payment_date}
+                          onChange={(e) =>
+                            setClassificationForm(prev => ({ ...prev, payment_date: e.target.value }))
+                          }
+                          className={requiresPaymentDate() && !classificationForm.payment_date ? "border-orange-400" : ""}
+                        />
+                        {requiresPaymentDate() && !classificationForm.payment_date && (
+                          <p className="text-xs text-orange-600">Consigliato inserire la data per lo stato selezionato</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
