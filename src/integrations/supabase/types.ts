@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_entries: {
+        Row: {
+          ai_extracted_data: Json | null
+          amount: number
+          attachment_url: string
+          created_at: string
+          direction: string
+          document_date: string
+          document_type: string
+          id: string
+          note: string | null
+          payment_method: string | null
+          status: string
+          subject_type: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_extracted_data?: Json | null
+          amount: number
+          attachment_url: string
+          created_at?: string
+          direction: string
+          document_date: string
+          document_type: string
+          id?: string
+          note?: string | null
+          payment_method?: string | null
+          status?: string
+          subject_type?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_extracted_data?: Json | null
+          amount?: number
+          attachment_url?: string
+          created_at?: string
+          direction?: string
+          document_date?: string
+          document_type?: string
+          id?: string
+          note?: string | null
+          payment_method?: string | null
+          status?: string
+          subject_type?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_activity_logs: {
         Row: {
           action_description: string

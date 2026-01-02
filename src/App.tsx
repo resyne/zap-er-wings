@@ -56,6 +56,7 @@ import ProjectsPage from "./pages/management-control/ProjectsPage";
 import BudgetPage from "./pages/management-control/BudgetPage";
 import MovementsPageMC from "./pages/management-control/MovementsPage";
 import CreditsDebtsPage from "./pages/management-control/CreditsDebtsPage";
+import EntryExitRegisterPage from "./pages/management-control-2/EntryExitRegisterPage";
 import FluidaPage from "./pages/hr/FluidaPage";
 import DocumentationPage from "./pages/documentation/DocumentationPage";
 import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
@@ -165,6 +166,7 @@ const App = () => (
                 <Route path="management-control/projects" element={<ProjectsPage />} />
                 <Route path="management-control/budget" element={<BudgetPage />} />
                 <Route path="management-control/credits-debts" element={<CreditsDebtsPage />} />
+                <Route path="management-control-2/register" element={<EntryExitRegisterPage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />
                 <Route path="hr/ticket-restaurant" element={<TicketRestaurantPage />} />
                 <Route path="docs" element={<DocumentationPage />} />
