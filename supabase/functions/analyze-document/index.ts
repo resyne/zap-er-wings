@@ -1,9 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Helper to convert file to base64 data URL
+async function fileToDataUrl(url: string): Promise<{ dataUrl: string; mimeType: string }> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.status}`);
+  }
+  
+  const contentType = response.headers.get("content-type") || "application/octet-stream";
+  const arrayBuffer = await response.arrayBuffer();
+  const base64 = base64Encode(new Uint8Array(arrayBuffer));
+  
+  return {
+    dataUrl: `data:${contentType};base64,${base64}`,
+    mimeType: contentType
+  };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -30,6 +48,17 @@ serve(async (req) => {
     }
 
     console.log("Analyzing document:", imageUrl);
+
+    // Convert file to base64 data URL for proper MIME type handling (required for PDFs)
+    let fileUrl = imageUrl;
+    try {
+      const { dataUrl, mimeType } = await fileToDataUrl(imageUrl);
+      console.log("Converted to data URL, MIME type:", mimeType);
+      fileUrl = dataUrl;
+    } catch (e) {
+      console.error("Failed to convert file to data URL:", e);
+      // Fall back to original URL for images
+    }
 
     const systemPrompt = `Sei un assistente specializzato nell'analisi di documenti contabili italiani (fatture, scontrini, ricevute, estratti conto, rapporti di intervento).
 
@@ -64,7 +93,7 @@ Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.`;
               {
                 type: "image_url",
                 image_url: {
-                  url: imageUrl,
+                  url: fileUrl,
                 },
               },
             ],
