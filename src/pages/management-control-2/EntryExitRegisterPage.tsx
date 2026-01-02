@@ -229,6 +229,26 @@ export default function EntryExitRegisterPage() {
     });
   };
 
+  // Dropzone for upload step - MUST be at top level, before any conditional returns
+  const onDropUpload = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) handleFileUpload(file);
+  }, []);
+
+  const {
+    getRootProps: getUploadRootProps,
+    getInputProps: getUploadInputProps,
+    isDragActive: isUploadDragActive,
+  } = useDropzone({
+    onDrop: onDropUpload,
+    accept: {
+      "image/*": [],
+      "application/pdf": [],
+    },
+    maxFiles: 1,
+    noClick: false,
+  });
+
   // Success screen
   if (step === "success") {
     return (
@@ -314,26 +334,6 @@ export default function EntryExitRegisterPage() {
       </div>
     );
   }
-
-  // Dropzone for upload step
-  const onDropUpload = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) handleFileUpload(file);
-  }, []);
-
-  const {
-    getRootProps: getUploadRootProps,
-    getInputProps: getUploadInputProps,
-    isDragActive: isUploadDragActive,
-  } = useDropzone({
-    onDrop: onDropUpload,
-    accept: {
-      "image/*": [],
-      "application/pdf": [],
-    },
-    maxFiles: 1,
-    noClick: false,
-  });
 
   // Upload step
   if (step === "upload") {
