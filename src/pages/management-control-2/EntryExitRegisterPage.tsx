@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle, X, Plus, Building2, UserCheck, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 
 interface SupplierMatch {
   matched: boolean;
@@ -206,68 +207,107 @@ export default function EntryExitRegisterPage() {
       
       // AI analysis of the document
       setIsAnalyzing(true);
-      
-      try {
-        const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
-          "analyze-document",
-          {
-            body: { imageUrl: urlData.publicUrl },
-          }
-        );
 
-        if (analysisError) {
-          console.error("Analysis error:", analysisError);
-          toast.error("Errore nell'analisi AI, compila i dati manualmente");
-        } else if (analysisData?.success && analysisData?.data) {
-          const extracted = analysisData.data;
-          console.log("AI extracted data:", extracted);
-          
-          // Pre-fill form with extracted data
-          setFormData((prev) => ({
-            ...prev,
-            direction: extracted.direction || prev.direction,
-            document_type: extracted.document_type || prev.document_type,
-            amount: extracted.amount ? String(extracted.amount) : prev.amount,
-            document_date: extracted.document_date || new Date().toISOString().split("T")[0],
-            payment_method: extracted.payment_method || prev.payment_method,
-            subject_type: extracted.subject_type || prev.subject_type,
-            note: extracted.notes || prev.note,
-          }));
-          
-          // Handle supplier matching
-          if (analysisData.supplier) {
-            console.log("Supplier match data:", analysisData.supplier);
-            setSupplierMatch(analysisData.supplier);
-            
-            if (analysisData.supplier.matched && analysisData.supplier.supplier) {
-              // Auto-select matched supplier
-              setSelectedSupplierId(analysisData.supplier.supplier.id);
-              setFormData((prev) => ({
-                ...prev,
-                supplier_id: analysisData.supplier.supplier.id,
-                subject_type: "fornitore",
-              }));
-              toast.success(`Fornitore riconosciuto: ${analysisData.supplier.supplier.name}`);
-            } else if (!analysisData.supplier.matched && analysisData.supplier.suggested_supplier) {
-              // Show dialog to create new supplier
-              setShowSupplierDialog(true);
-            }
+      try {
+        let analysisUrl: string | null = urlData.publicUrl;
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+        if (isPdf) {
+          try {
+            toast.info("PDF rilevato: genero un'anteprima per l'analisi AI…");
+            const pngBlob = await pdfFirstPageToPngBlob(file);
+            const previewPath = `uploads/${Date.now()}-preview.png`;
+
+            const { error: previewUploadError } = await supabase.storage
+              .from("accounting-attachments")
+              .upload(previewPath, pngBlob, { contentType: "image/png" });
+
+            if (previewUploadError) throw previewUploadError;
+
+            const { data: previewUrlData } = supabase.storage
+              .from("accounting-attachments")
+              .getPublicUrl(previewPath);
+
+            analysisUrl = previewUrlData.publicUrl;
+          } catch (previewErr) {
+            console.warn("PDF preview generation failed:", previewErr);
+            analysisUrl = null;
+            toast.error("Non riesco a leggere il PDF per l'analisi AI: compila i dati manualmente");
           }
-          
-          if (extracted.confidence === "high") {
-            toast.success("Documento analizzato con successo!");
-          } else if (extracted.confidence === "medium") {
-            toast.info("Documento analizzato, verifica i dati estratti");
-          } else {
-            toast.info("Alcuni dati potrebbero essere incompleti, verifica attentamente");
-          }
-        } else {
-          // Fallback to defaults
+        }
+
+        if (!analysisUrl) {
           setFormData((prev) => ({
             ...prev,
             document_date: new Date().toISOString().split("T")[0],
           }));
-          toast.info("Non è stato possibile estrarre dati, compila manualmente");
+          toast.info("Compila manualmente: anteprima PDF non disponibile");
+        } else {
+          const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+            "analyze-document",
+            {
+              body: { imageUrl: analysisUrl },
+            }
+          );
+
+          if (analysisError) {
+            console.error("Analysis error:", analysisError);
+            setFormData((prev) => ({
+              ...prev,
+              document_date: prev.document_date || new Date().toISOString().split("T")[0],
+            }));
+            toast.error("Errore nell'analisi AI, compila i dati manualmente");
+          } else if (analysisData?.success && analysisData?.data) {
+            const extracted = analysisData.data;
+            console.log("AI extracted data:", extracted);
+
+            // Pre-fill form with extracted data
+            setFormData((prev) => ({
+              ...prev,
+              direction: extracted.direction || prev.direction,
+              document_type: extracted.document_type || prev.document_type,
+              amount: extracted.amount ? String(extracted.amount) : prev.amount,
+              document_date: extracted.document_date || new Date().toISOString().split("T")[0],
+              payment_method: extracted.payment_method || prev.payment_method,
+              subject_type: extracted.subject_type || prev.subject_type,
+              note: extracted.notes || prev.note,
+            }));
+
+            // Handle supplier matching
+            if (analysisData.supplier) {
+              console.log("Supplier match data:", analysisData.supplier);
+              setSupplierMatch(analysisData.supplier);
+
+              if (analysisData.supplier.matched && analysisData.supplier.supplier) {
+                // Auto-select matched supplier
+                setSelectedSupplierId(analysisData.supplier.supplier.id);
+                setFormData((prev) => ({
+                  ...prev,
+                  supplier_id: analysisData.supplier.supplier.id,
+                  subject_type: "fornitore",
+                }));
+                toast.success(`Fornitore riconosciuto: ${analysisData.supplier.supplier.name}`);
+              } else if (!analysisData.supplier.matched && analysisData.supplier.suggested_supplier) {
+                // Show dialog to create new supplier
+                setShowSupplierDialog(true);
+              }
+            }
+
+            if (extracted.confidence === "high") {
+              toast.success("Documento analizzato con successo!");
+            } else if (extracted.confidence === "medium") {
+              toast.info("Documento analizzato, verifica i dati estratti");
+            } else {
+              toast.info("Alcuni dati potrebbero essere incompleti, verifica attentamente");
+            }
+          } else {
+            // Fallback to defaults
+            setFormData((prev) => ({
+              ...prev,
+              document_date: new Date().toISOString().split("T")[0],
+            }));
+            toast.info("Non è stato possibile estrarre dati, compila manualmente");
+          }
         }
       } catch (aiError) {
         console.error("AI analysis failed:", aiError);
@@ -277,9 +317,10 @@ export default function EntryExitRegisterPage() {
           document_date: new Date().toISOString().split("T")[0],
         }));
         toast.error("Analisi AI non disponibile, compila i dati manualmente");
+      } finally {
+        setIsAnalyzing(false);
       }
-      
-      setIsAnalyzing(false);
+
       setStep("review");
     } catch (error) {
       console.error("Upload error:", error);
