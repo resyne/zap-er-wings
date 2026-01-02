@@ -180,6 +180,12 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Controllo di Gestione 2",
+    items: [
+      { title: "Registro Entrate/Uscite", url: "/management-control-2/register", icon: FileText },
+    ]
+  },
+  {
     title: "Risorse Umane",
     items: [
       { title: "Personale", url: "/hr/people", icon: Users },
