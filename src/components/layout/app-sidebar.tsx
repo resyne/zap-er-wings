@@ -183,6 +183,7 @@ const navigationGroups: NavGroup[] = [
     title: "Controllo di Gestione 2",
     items: [
       { title: "Registro Entrate/Uscite", url: "/management-control-2/register", icon: FileText },
+      { title: "Classificazione Eventi", url: "/management-control-2/classification", icon: ClipboardCheck },
     ]
   },
   {
