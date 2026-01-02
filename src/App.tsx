@@ -59,6 +59,7 @@ import CreditsDebtsPage from "./pages/management-control/CreditsDebtsPage";
 import EntryExitRegisterPage from "./pages/management-control-2/EntryExitRegisterPage";
 import EventClassificationPage from "./pages/management-control-2/EventClassificationPage";
 import ChartOfAccountsPage from "./pages/management-control-2/ChartOfAccountsPage";
+import CostCentersPage from "./pages/management-control-2/CostCentersPage";
 import FluidaPage from "./pages/hr/FluidaPage";
 import DocumentationPage from "./pages/documentation/DocumentationPage";
 import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
@@ -171,6 +172,7 @@ const App = () => (
                 <Route path="management-control-2/register" element={<EntryExitRegisterPage />} />
                 <Route path="management-control-2/classification" element={<EventClassificationPage />} />
                 <Route path="management-control-2/chart-of-accounts" element={<ChartOfAccountsPage />} />
+                <Route path="management-control-2/cost-centers" element={<CostCentersPage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />
                 <Route path="hr/ticket-restaurant" element={<TicketRestaurantPage />} />
                 <Route path="docs" element={<DocumentationPage />} />
