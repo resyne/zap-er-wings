@@ -381,19 +381,10 @@ export default function EntryExitRegisterPage() {
     
     setIsCreatingSupplier(true);
     try {
-      // Generate a unique code for the supplier
-      const { data: lastSupplier } = await supabase
-        .from("suppliers")
-        .select("code")
-        .order("code", { ascending: false })
-        .limit(1)
-        .single();
-      
-      let newCode = "F001";
-      if (lastSupplier?.code) {
-        const lastNum = parseInt(lastSupplier.code.replace(/\D/g, ""), 10);
-        newCode = `F${String(lastNum + 1).padStart(3, "0")}`;
-      }
+      // Generate a unique code for the supplier using timestamp + random to avoid collisions
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const newCode = `SUP-${timestamp}-${random}`;
       
       const suggested = supplierMatch.suggested_supplier;
       const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
