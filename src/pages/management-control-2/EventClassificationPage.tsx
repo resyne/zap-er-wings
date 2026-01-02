@@ -782,49 +782,53 @@ export default function EventClassificationPage() {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Cost Center */}
-                    <div className="space-y-2">
-                      <Label>Centro di Costo</Label>
-                      <Select
-                        value={classificationForm.cost_center_id}
-                        onValueChange={(value) =>
-                          setClassificationForm(prev => ({ ...prev, cost_center_id: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona centro di costo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {costCenters.map((cc) => (
-                            <SelectItem key={cc.id} value={cc.id}>
-                              {cc.code} - {cc.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Cost Center - only for outgoing (uscita) */}
+                    {selectedEntry.direction === "uscita" && (
+                      <div className="space-y-2">
+                        <Label>Centro di Costo</Label>
+                        <Select
+                          value={classificationForm.cost_center_id}
+                          onValueChange={(value) =>
+                            setClassificationForm(prev => ({ ...prev, cost_center_id: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona centro di costo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {costCenters.map((cc) => (
+                              <SelectItem key={cc.id} value={cc.id}>
+                                {cc.code} - {cc.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
-                    {/* Profit Center */}
-                    <div className="space-y-2">
-                      <Label>Centro di Ricavo</Label>
-                      <Select
-                        value={classificationForm.profit_center_id}
-                        onValueChange={(value) =>
-                          setClassificationForm(prev => ({ ...prev, profit_center_id: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona centro di ricavo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {profitCenters.map((pc) => (
-                            <SelectItem key={pc.id} value={pc.id}>
-                              {pc.code} - {pc.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Profit Center - only for incoming (entrata) */}
+                    {selectedEntry.direction === "entrata" && (
+                      <div className="space-y-2">
+                        <Label>Centro di Ricavo</Label>
+                        <Select
+                          value={classificationForm.profit_center_id}
+                          onValueChange={(value) =>
+                            setClassificationForm(prev => ({ ...prev, profit_center_id: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona centro di ricavo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {profitCenters.map((pc) => (
+                              <SelectItem key={pc.id} value={pc.id}>
+                                {pc.code} - {pc.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     {/* Center Percentage */}
                     <div className="space-y-2">
