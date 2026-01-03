@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, ExternalLink, 
-  Save, MessageSquare, Pause, Send, AlertCircle, Image, Trash2, HelpCircle
+  Save, MessageSquare, Pause, Send, AlertCircle, Image, Trash2, HelpCircle, Sparkles, Loader2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -130,6 +130,8 @@ export default function EventClassificationPage() {
   const queryClient = useQueryClient();
   const [selectedEntry, setSelectedEntry] = useState<AccountingEntry | null>(null);
   const [accountCategory, setAccountCategory] = useState<string>("");
+  const [isClassifying, setIsClassifying] = useState(false);
+  const [aiReasoning, setAiReasoning] = useState<string | null>(null);
   
   // Classification form state
   const [classificationForm, setClassificationForm] = useState({
@@ -283,6 +285,7 @@ export default function EventClassificationPage() {
 
   const handleOpenEntry = (entry: AccountingEntry) => {
     setSelectedEntry(entry);
+    setAiReasoning(null);
     
     // Determine category from existing chart_account_id
     let category = "";
@@ -311,6 +314,61 @@ export default function EventClassificationPage() {
       payment_date: entry.payment_date || "",
       cfo_notes: entry.cfo_notes || "",
     });
+  };
+
+  // AI Classification
+  const handleAIClassify = async () => {
+    if (!selectedEntry) return;
+    
+    setIsClassifying(true);
+    setAiReasoning(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("classify-accounting-entry", {
+        body: {
+          entry: selectedEntry,
+          chartOfAccounts: accounts.filter(a => a.level === null || a.level === undefined || a.level >= 2),
+          costCenters,
+          profitCenters,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data?.success && data?.classification) {
+        const c = data.classification;
+        
+        // Set account category first
+        if (c.account_category) {
+          setAccountCategory(c.account_category);
+        }
+        
+        // Update form with AI suggestions
+        setClassificationForm(prev => ({
+          ...prev,
+          event_type: c.event_type || prev.event_type,
+          affects_income_statement: c.affects_income_statement ?? prev.affects_income_statement,
+          chart_account_id: c.chart_account_id || prev.chart_account_id,
+          temporal_competence: c.temporal_competence || prev.temporal_competence,
+          cost_center_id: c.cost_center_id || prev.cost_center_id,
+          profit_center_id: c.profit_center_id || prev.profit_center_id,
+          financial_status: c.financial_status || prev.financial_status,
+        }));
+        
+        if (c.reasoning) {
+          setAiReasoning(c.reasoning);
+        }
+        
+        toast.success("Classificazione AI completata! Verifica e conferma.");
+      } else {
+        toast.error(data?.error || "Errore nella classificazione AI");
+      }
+    } catch (err) {
+      console.error("AI classification error:", err);
+      toast.error("Errore durante la classificazione AI");
+    } finally {
+      setIsClassifying(false);
+    }
   };
 
   const validateForPrimaNota = (): string[] => {
@@ -552,15 +610,43 @@ export default function EventClassificationPage() {
       <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(null)}>
         <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              Classifica Evento
-              {selectedEntry && getStatusBadge(selectedEntry.status)}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                Classifica Evento
+                {selectedEntry && getStatusBadge(selectedEntry.status)}
+              </DialogTitle>
+              <Button
+                onClick={handleAIClassify}
+                disabled={isClassifying}
+                variant="outline"
+                className="gap-2 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-300 hover:border-violet-400 hover:bg-violet-500/20"
+              >
+                {isClassifying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-violet-600" />
+                )}
+                {isClassifying ? "Analizzo..." : "Classifica con AI"}
+              </Button>
+            </div>
           </DialogHeader>
 
           {selectedEntry && (
             <ScrollArea className="max-h-[calc(95vh-8rem)]">
               <div className="px-6 pb-6 space-y-6">
+                
+                {/* AI Reasoning Banner */}
+                {aiReasoning && (
+                  <div className="p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="h-4 w-4 text-violet-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-violet-800">Suggerimento AI</p>
+                        <p className="text-sm text-violet-700">{aiReasoning}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* SECTION 1: Read-only inherited data */}
                 <div className="space-y-4">
