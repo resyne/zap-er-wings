@@ -112,9 +112,11 @@ export default function RegistroPage() {
       allegato_nome?: string;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
+      const today = new Date().toISOString().split("T")[0];
       
-      const { error } = await supabase.from("movimenti_finanziari").insert({
-        data_movimento: new Date().toISOString().split("T")[0],
+      // Insert into movimenti_finanziari
+      const { error: movError } = await supabase.from("movimenti_finanziari").insert({
+        data_movimento: today,
         direzione: movimento.direzione,
         importo: movimento.importo,
         metodo_pagamento: movimento.metodo_pagamento as "banca" | "cassa" | "carta",
@@ -123,15 +125,34 @@ export default function RegistroPage() {
         descrizione: movimento.descrizione || null,
         allegato_url: movimento.allegato_url || null,
         allegato_nome: movimento.allegato_nome || null,
-        stato: "grezzo",
+        stato: "da_classificare",
         created_by: userData.user?.id,
       });
       
-      if (error) throw error;
+      if (movError) throw movError;
+
+      // Also create entry in accounting_entries for classification
+      const { error: accError } = await supabase.from("accounting_entries").insert({
+        direction: movimento.direzione,
+        document_type: "movimento_finanziario",
+        amount: movimento.importo,
+        document_date: today,
+        attachment_url: movimento.allegato_url || "",
+        payment_method: movimento.metodo_pagamento,
+        subject_type: null,
+        note: movimento.soggetto_nome 
+          ? `Soggetto: ${movimento.soggetto_nome}${movimento.descrizione ? ` - ${movimento.descrizione}` : ""}`
+          : movimento.descrizione || null,
+        status: "da_classificare",
+        user_id: userData.user?.id,
+      });
+      
+      if (accError) throw accError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
       toast.success("Movimento registrato con successo!");
       resetQuickEntry();
     },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { 
   Search, 
   ArrowUp, 
@@ -16,12 +15,12 @@ import {
   CheckCircle, 
   Clock, 
   AlertCircle,
-  Pencil,
-  Link2
+  Link2,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import ClassificationDialog, { ClassificationFormData } from "@/components/management-control/ClassificationDialog";
+import { useNavigate } from "react-router-dom";
 
 interface MovimentoFinanziario {
   id: string;
@@ -49,7 +48,6 @@ interface MovimentoFinanziario {
   note_cfo: string | null;
 }
 
-
 const statoConfig = {
   grezzo: { label: "Grezzo", color: "bg-gray-500", icon: Clock },
   da_verificare: { label: "Da Verificare", color: "bg-yellow-500", icon: AlertCircle },
@@ -59,12 +57,10 @@ const statoConfig = {
 };
 
 export default function MovimentiFinanziariPage() {
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStato, setFilterStato] = useState<string>("all");
   const [filterDirezione, setFilterDirezione] = useState<string>("all");
-  const [showClassifyDialog, setShowClassifyDialog] = useState(false);
-  const [selectedMovimento, setSelectedMovimento] = useState<MovimentoFinanziario | null>(null);
 
   // Fetch movimenti finanziari
   const { data: movimenti = [], isLoading } = useQuery({
@@ -79,91 +75,6 @@ export default function MovimentiFinanziariPage() {
       return data as MovimentoFinanziario[];
     },
   });
-
-  // Classify mutation - now with full classification data
-  const classifyMutation = useMutation({
-    mutationFn: async ({ id, movimento, classificationData }: { 
-      id: string; 
-      movimento: MovimentoFinanziario; 
-      classificationData: ClassificationFormData 
-    }) => {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      // Update movimento finanziario to "contabilizzato" since it's fully classified
-      const { error: updateError } = await supabase
-        .from("movimenti_finanziari")
-        .update({
-          tipo_allocazione: classificationData.event_type,
-          note_cfo: classificationData.cfo_notes,
-          stato: "contabilizzato" as const,
-          classificato_da: userData.user?.id,
-          classificato_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-      
-      if (updateError) throw updateError;
-
-      // Create fully classified entry in accounting_entries
-      const { error: insertError } = await supabase
-        .from("accounting_entries")
-        .insert({
-          direction: movimento.direzione === "entrata" ? "entrata" : "uscita",
-          document_type: "movimento_finanziario",
-          amount: Number(movimento.importo),
-          document_date: movimento.data_movimento,
-          attachment_url: movimento.allegato_url || "",
-          payment_method: movimento.metodo_pagamento,
-          subject_type: movimento.soggetto_tipo,
-          note: `Soggetto: ${movimento.soggetto_nome || "N/A"}`,
-          status: "classificato",
-          user_id: userData.user?.id,
-          // Full classification fields
-          event_type: classificationData.event_type || null,
-          affects_income_statement: classificationData.affects_income_statement,
-          chart_account_id: classificationData.chart_account_id || null,
-          temporal_competence: classificationData.temporal_competence || null,
-          is_recurring: classificationData.is_recurring,
-          recurrence_period: classificationData.is_recurring ? classificationData.recurrence_period : null,
-          cost_center_id: classificationData.cost_center_id || null,
-          profit_center_id: classificationData.profit_center_id || null,
-          center_percentage: classificationData.center_percentage,
-          economic_subject_type: classificationData.economic_subject_type || null,
-          financial_status: classificationData.financial_status || null,
-          payment_date: classificationData.payment_date || null,
-          cfo_notes: classificationData.cfo_notes || null,
-          classified_by: userData.user?.id,
-          classified_at: new Date().toISOString(),
-        });
-      
-      if (insertError) throw insertError;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
-      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
-      toast.success("Movimento classificato con successo!");
-      setShowClassifyDialog(false);
-      setSelectedMovimento(null);
-    },
-    onError: (error) => {
-      console.error("Classification error:", error);
-      toast.error("Errore durante la classificazione");
-    },
-  });
-
-  const handleClassify = (movimento: MovimentoFinanziario) => {
-    setSelectedMovimento(movimento);
-    setShowClassifyDialog(true);
-  };
-
-  const handleClassificationSubmit = (classificationData: ClassificationFormData) => {
-    if (!selectedMovimento) return;
-    
-    classifyMutation.mutate({
-      id: selectedMovimento.id,
-      movimento: selectedMovimento,
-      classificationData,
-    });
-  };
 
   // Filter movimenti
   const filteredMovimenti = movimenti.filter((m) => {
@@ -181,7 +92,7 @@ export default function MovimentiFinanziariPage() {
   // Stats
   const stats = {
     totale: movimenti.length,
-    grezzi: movimenti.filter((m) => m.stato === "grezzo" || m.stato === "da_verificare" || m.stato === "da_classificare").length,
+    daClassificare: movimenti.filter((m) => m.stato === "grezzo" || m.stato === "da_verificare" || m.stato === "da_classificare").length,
     allocati: movimenti.filter((m) => m.stato === "allocato").length,
     contabilizzati: movimenti.filter((m) => m.stato === "contabilizzato").length,
     entrate: movimenti.filter((m) => m.direzione === "entrata").reduce((sum, m) => sum + Number(m.importo), 0),
@@ -195,6 +106,10 @@ export default function MovimentiFinanziariPage() {
     }).format(value);
   };
 
+  const handleGoToClassification = () => {
+    navigate("/management-control-2/classification");
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -204,6 +119,12 @@ export default function MovimentiFinanziariPage() {
             Gestione incassi, pagamenti, anticipi e rimborsi
           </p>
         </div>
+        {stats.daClassificare > 0 && (
+          <Button onClick={handleGoToClassification}>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Vai a Classificazione Eventi ({stats.daClassificare})
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -215,7 +136,7 @@ export default function MovimentiFinanziariPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.grezzi}</div>
+            <div className="text-2xl font-bold text-orange-600">{stats.daClassificare}</div>
           </CardContent>
         </Card>
         <Card>
@@ -322,9 +243,9 @@ export default function MovimentiFinanziariPage() {
                   <TableHead>Importo</TableHead>
                   <TableHead>Metodo</TableHead>
                   <TableHead>Soggetto</TableHead>
-                  <TableHead>Tipo Allocazione</TableHead>
+                  <TableHead>Descrizione</TableHead>
                   <TableHead>Stato</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
+                  <TableHead className="text-right">Allegato</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -358,10 +279,8 @@ export default function MovimentiFinanziariPage() {
                       <TableCell>
                         {movimento.soggetto_nome || "-"}
                       </TableCell>
-                      <TableCell>
-                        {movimento.tipo_allocazione || (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                      <TableCell className="max-w-[200px] truncate">
+                        {movimento.descrizione || movimento.riferimento || "-"}
                       </TableCell>
                       <TableCell>
                         <Badge className={`${statoInfo.color} text-white`}>
@@ -370,27 +289,15 @@ export default function MovimentiFinanziariPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {movimento.allegato_url && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => window.open(movimento.allegato_url!, "_blank")}
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {(movimento.stato === "grezzo" || movimento.stato === "da_verificare" || movimento.stato === "da_classificare") && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleClassify(movimento)}
-                            >
-                              <Pencil className="h-4 w-4 mr-1" />
-                              Classifica
-                            </Button>
-                          )}
-                        </div>
+                        {movimento.allegato_url && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => window.open(movimento.allegato_url!, "_blank")}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -400,15 +307,6 @@ export default function MovimentiFinanziariPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Classification Dialog */}
-      <ClassificationDialog
-        open={showClassifyDialog}
-        onOpenChange={setShowClassifyDialog}
-        movimentoData={selectedMovimento}
-        onClassify={handleClassificationSubmit}
-        isPending={classifyMutation.isPending}
-      />
     </div>
   );
 }
