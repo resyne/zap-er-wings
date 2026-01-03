@@ -6392,6 +6392,145 @@ export type Database = {
           },
         ]
       }
+      scadenza_movimenti: {
+        Row: {
+          created_at: string | null
+          data_movimento: string
+          evento_finanziario_id: string | null
+          id: string
+          importo: number
+          metodo_pagamento: string | null
+          note: string | null
+          prima_nota_id: string | null
+          scadenza_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_movimento: string
+          evento_finanziario_id?: string | null
+          id?: string
+          importo: number
+          metodo_pagamento?: string | null
+          note?: string | null
+          prima_nota_id?: string | null
+          scadenza_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data_movimento?: string
+          evento_finanziario_id?: string | null
+          id?: string
+          importo?: number
+          metodo_pagamento?: string | null
+          note?: string | null
+          prima_nota_id?: string | null
+          scadenza_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scadenza_movimenti_evento_finanziario_id_fkey"
+            columns: ["evento_finanziario_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scadenza_movimenti_prima_nota_id_fkey"
+            columns: ["prima_nota_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scadenza_movimenti_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scadenze: {
+        Row: {
+          centro_id: string | null
+          conto_economico: string | null
+          created_at: string | null
+          data_documento: string
+          data_scadenza: string
+          evento_id: string | null
+          id: string
+          importo_residuo: number
+          importo_totale: number
+          iva_mode: string | null
+          note: string | null
+          prima_nota_id: string | null
+          soggetto_id: string | null
+          soggetto_nome: string | null
+          soggetto_tipo: string | null
+          stato: string
+          termini_pagamento: number | null
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          centro_id?: string | null
+          conto_economico?: string | null
+          created_at?: string | null
+          data_documento: string
+          data_scadenza: string
+          evento_id?: string | null
+          id?: string
+          importo_residuo: number
+          importo_totale: number
+          iva_mode?: string | null
+          note?: string | null
+          prima_nota_id?: string | null
+          soggetto_id?: string | null
+          soggetto_nome?: string | null
+          soggetto_tipo?: string | null
+          stato?: string
+          termini_pagamento?: number | null
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          centro_id?: string | null
+          conto_economico?: string | null
+          created_at?: string | null
+          data_documento?: string
+          data_scadenza?: string
+          evento_id?: string | null
+          id?: string
+          importo_residuo?: number
+          importo_totale?: number
+          iva_mode?: string | null
+          note?: string | null
+          prima_nota_id?: string | null
+          soggetto_id?: string | null
+          soggetto_nome?: string | null
+          soggetto_tipo?: string | null
+          stato?: string
+          termini_pagamento?: number | null
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scadenze_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scadenze_prima_nota_id_fkey"
+            columns: ["prima_nota_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sender_emails: {
         Row: {
           created_at: string

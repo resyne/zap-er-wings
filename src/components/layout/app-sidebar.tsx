@@ -188,6 +188,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Centri di Costo/Ricavo", url: "/management-control-2/cost-centers", icon: Building2 },
       { title: "Motore Contabile", url: "/management-control-2/accounting-engine", icon: Settings },
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
+      { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
     ]
   },
   {
