@@ -9,10 +9,28 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface Customer {
+  id: string;
+  name: string;
+  code?: string;
+  email?: string;
+  phone?: string;
+  company_name?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  country?: string;
+  tax_id?: string;
+  pec?: string;
+  sdi_code?: string;
+  shipping_address?: string;
+}
+
 interface CreateCustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCustomerCreated: (customer: { id: string; name: string; code: string }) => void;
+  onCustomerCreated: (customer: Customer) => void;
 }
 
 export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: CreateCustomerDialogProps) {

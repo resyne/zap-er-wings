@@ -10,8 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Search } from "lucide-react";
-import { CreateContactDialog } from "@/components/support/CreateContactDialog";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown } from "lucide-react";
+import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,8 @@ interface ServiceReport {
   intervention_type: string;
   work_performed: string;
   status: string;
-  contact_id: string;
+  customer_id?: string;
+  contact_id?: string;
   technician_id: string;
   created_at: string;
   amount?: number;
@@ -79,15 +80,15 @@ interface ServiceReport {
 
 export default function ServiceReportsPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [contactSearchOpen, setContactSearchOpen] = useState(false);
-  const [contactSearch, setContactSearch] = useState("");
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [reports, setReports] = useState<ServiceReport[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
-  const [showCreateContact, setShowCreateContact] = useState(false);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [showSignatures, setShowSignatures] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -114,8 +115,8 @@ export default function ServiceReportsPage() {
 
   // Filtered customers for search
   const filteredCustomers = useMemo(() => {
-    if (!contactSearch.trim()) return customers;
-    const searchLower = contactSearch.toLowerCase();
+    if (!customerSearch.trim()) return customers;
+    const searchLower = customerSearch.toLowerCase();
     return customers.filter(customer => {
       const name = (customer.name || '').toLowerCase();
       const companyName = (customer.company_name || '').toLowerCase();
@@ -126,7 +127,7 @@ export default function ServiceReportsPage() {
              email.includes(searchLower) ||
              phone.includes(searchLower);
     });
-  }, [customers, contactSearch]);
+  }, [customers, customerSearch]);
 
   useEffect(() => {
     loadInitialData();
@@ -174,7 +175,7 @@ export default function ServiceReportsPage() {
       
       setWorkOrders([...serviceOrders, ...productionOrders]);
 
-      // Load existing reports
+      // Load existing reports with customers relation
       const { data: reportsData, error: reportsError } = await supabase
         .from('service_reports')
         .select(`
@@ -183,6 +184,7 @@ export default function ServiceReportsPage() {
           intervention_type,
           work_performed,
           status,
+          customer_id,
           contact_id,
           technician_id,
           created_at,
@@ -215,7 +217,7 @@ export default function ServiceReportsPage() {
         .order('created_at', { ascending: false });
 
       if (reportsError) throw reportsError;
-      setReports(reportsData || []);
+      setReports((reportsData as unknown as ServiceReport[]) || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -277,11 +279,11 @@ export default function ServiceReportsPage() {
   const handleCustomerCreated = (newCustomer: Customer) => {
     setCustomers(prev => [...prev, newCustomer]);
     setSelectedCustomer(newCustomer);
-    setShowCreateContact(false);
+    setShowCreateCustomer(false);
   };
 
   const generateReport = () => {
-    if (!selectedContact || !formData.intervention_type || !selectedTechnician) {
+    if (!selectedCustomer || !formData.intervention_type || !selectedTechnician) {
       toast({
         title: "Campi obbligatori mancanti",
         description: "Seleziona almeno cliente, tipo intervento e tecnico",
@@ -307,7 +309,7 @@ export default function ServiceReportsPage() {
       const { data, error } = await supabase
         .from('service_reports')
         .insert({
-          contact_id: selectedContact?.id,
+          customer_id: selectedCustomer?.id,
           technician_id: selectedTechnician?.id,
           work_order_id: selectedWorkOrder?.type === 'service' ? selectedWorkOrder.id : null,
           production_work_order_id: selectedWorkOrder?.type === 'production' ? selectedWorkOrder.id : null,
@@ -353,7 +355,7 @@ export default function ServiceReportsPage() {
   };
 
   const generatePDF = () => {
-    if (!selectedContact || !selectedTechnician) return;
+    if (!selectedCustomer || !selectedTechnician) return;
 
     const doc = new jsPDF();
     let y = 20;
@@ -376,22 +378,23 @@ export default function ServiceReportsPage() {
       doc.text("Cliente:", 20, y);
       doc.setFont(undefined, "normal");
       y += 7;
-      doc.text(`${selectedContact.first_name} ${selectedContact.last_name}`, 20, y);
-      if (selectedContact.company_name) {
+      doc.text(selectedCustomer.name, 20, y);
+      if (selectedCustomer.company_name) {
         y += 7;
-        doc.text(selectedContact.company_name, 20, y);
+        doc.text(selectedCustomer.company_name, 20, y);
       }
-      if (selectedContact.email) {
+      if (selectedCustomer.email) {
         y += 7;
-        doc.text(`Email: ${selectedContact.email}`, 20, y);
+        doc.text(`Email: ${selectedCustomer.email}`, 20, y);
       }
-      if (selectedContact.phone) {
+      if (selectedCustomer.phone) {
         y += 7;
-        doc.text(`Tel: ${selectedContact.phone}`, 20, y);
+        doc.text(`Tel: ${selectedCustomer.phone}`, 20, y);
       }
-      if (selectedContact.address) {
+      if (selectedCustomer.address) {
         y += 7;
-        doc.text(`Indirizzo: ${selectedContact.address}`, 20, y);
+        const fullAddress = [selectedCustomer.address, selectedCustomer.city].filter(Boolean).join(', ');
+        doc.text(`Indirizzo: ${fullAddress}`, 20, y);
       }
       y += 10;
 
@@ -509,7 +512,7 @@ export default function ServiceReportsPage() {
       doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
       doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
 
-      const fileName = `rapporto_intervento_${formData.intervention_date}_${selectedContact.last_name}.pdf`;
+      const fileName = `rapporto_intervento_${formData.intervention_date}_${selectedCustomer.name.replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
 
       toast({
@@ -520,7 +523,7 @@ export default function ServiceReportsPage() {
   };
 
   const sendEmail = async () => {
-    if (!selectedContact?.email) {
+    if (!selectedCustomer?.email) {
       toast({
         title: "Email mancante",
         description: "Il cliente non ha un indirizzo email registrato",
@@ -533,12 +536,12 @@ export default function ServiceReportsPage() {
     try {
       const { error } = await supabase.functions.invoke('send-customer-emails', {
         body: {
-          to: selectedContact.email,
+          to: selectedCustomer.email,
           subject: `Rapporto di Intervento - ${formData.intervention_date}`,
-          recipientName: `${selectedContact.first_name} ${selectedContact.last_name}`,
-          message: `Gentile ${selectedContact.first_name} ${selectedContact.last_name},\n\nin allegato trovi il rapporto di intervento del ${formData.intervention_date}.\n\nTipo intervento: ${formData.intervention_type}\nTecnico: ${selectedTechnician?.first_name} ${selectedTechnician?.last_name}\n\n${formData.work_performed ? `Lavori eseguiti:\n${formData.work_performed}\n\n` : ''}Grazie per averci scelto.\n\nCordiali saluti`,
+          recipientName: selectedCustomer.name,
+          message: `Gentile ${selectedCustomer.name},\n\nin allegato trovi il rapporto di intervento del ${formData.intervention_date}.\n\nTipo intervento: ${formData.intervention_type}\nTecnico: ${selectedTechnician?.first_name} ${selectedTechnician?.last_name}\n\n${formData.work_performed ? `Lavori eseguiti:\n${formData.work_performed}\n\n` : ''}Grazie per averci scelto.\n\nCordiali saluti`,
           reportData: {
-            customer: selectedContact,
+            customer: selectedCustomer,
             technician: selectedTechnician,
             formData: formData,
             customerSignature: customerSignature,
@@ -552,7 +555,7 @@ export default function ServiceReportsPage() {
 
       toast({
         title: "Email Inviata",
-        description: `Il rapporto è stato inviato a ${selectedContact.email}`,
+        description: `Il rapporto è stato inviato a ${selectedCustomer.email}`,
       });
     } catch (error) {
       console.error('Error sending email:', error);
@@ -580,10 +583,10 @@ export default function ServiceReportsPage() {
       vat_rate: '22',
       total_amount: ''
     });
-    setSelectedContact(null);
+    setSelectedCustomer(null);
     setSelectedTechnician(null);
     setSelectedWorkOrder(null);
-    setContactSearch("");
+    setCustomerSearch("");
     setCustomerSignature('');
     setTechnicianSignature('');
     setShowSignatures(false);
@@ -648,11 +651,11 @@ export default function ServiceReportsPage() {
                       {/* Nome cliente e azienda */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
                         <h3 className="font-semibold text-base sm:text-lg">
-                          {report.crm_contacts?.first_name} {report.crm_contacts?.last_name}
+                          {report.customers?.name || 'Cliente non specificato'}
                         </h3>
-                        {report.crm_contacts?.company_name && (
+                        {report.customers?.company_name && (
                           <span className="text-xs sm:text-sm text-muted-foreground">
-                            {report.crm_contacts.company_name}
+                            {report.customers.company_name}
                           </span>
                         )}
                       </div>
@@ -724,7 +727,7 @@ export default function ServiceReportsPage() {
               variant="outline"
               className="w-full flex items-center justify-center gap-2 h-12"
               size="lg"
-              disabled={loading || !selectedContact?.email}
+              disabled={loading || !selectedCustomer?.email}
             >
               <Mail className="w-5 h-5" />
               {loading ? "Invio in corso..." : "Invia Email"}
@@ -814,18 +817,18 @@ export default function ServiceReportsPage() {
             </CardHeader>
             <CardContent className="px-0 sm:px-6 space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
-                <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
+                <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
-                      aria-expanded={contactSearchOpen}
+                      aria-expanded={customerSearchOpen}
                       className="flex-1 h-12 justify-between text-base font-normal"
                     >
-                      {selectedContact ? (
+                      {selectedCustomer ? (
                         <span className="truncate">
-                          {selectedContact.first_name} {selectedContact.last_name}
-                          {selectedContact.company_name && ` - ${selectedContact.company_name}`}
+                          {selectedCustomer.name}
+                          {selectedCustomer.company_name && ` - ${selectedCustomer.company_name}`}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">Cerca cliente...</span>
@@ -837,8 +840,8 @@ export default function ServiceReportsPage() {
                     <Command shouldFilter={false}>
                       <CommandInput 
                         placeholder="Cerca per nome, azienda, email..." 
-                        value={contactSearch}
-                        onValueChange={setContactSearch}
+                        value={customerSearch}
+                        onValueChange={setCustomerSearch}
                         className="h-12"
                       />
                       <CommandList className="max-h-[300px]">
@@ -848,8 +851,8 @@ export default function ServiceReportsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              setContactSearchOpen(false);
-                              setShowCreateContact(true);
+                              setCustomerSearchOpen(false);
+                              setShowCreateCustomer(true);
                             }}
                           >
                             <Plus className="w-4 h-4 mr-2" />
@@ -857,30 +860,30 @@ export default function ServiceReportsPage() {
                           </Button>
                         </CommandEmpty>
                         <CommandGroup>
-                          {filteredContacts.map((contact) => (
+                          {filteredCustomers.map((customer) => (
                             <CommandItem
-                              key={contact.id}
-                              value={contact.id}
+                              key={customer.id}
+                              value={customer.id}
                               onSelect={() => {
-                                handleContactSelect(contact.id);
-                                setContactSearchOpen(false);
-                                setContactSearch("");
+                                handleCustomerSelect(customer.id);
+                                setCustomerSearchOpen(false);
+                                setCustomerSearch("");
                               }}
                               className="py-3 cursor-pointer"
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  selectedContact?.id === contact.id ? "opacity-100" : "opacity-0"
+                                  selectedCustomer?.id === customer.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate">
-                                  {contact.first_name} {contact.last_name}
+                                  {customer.name}
                                 </p>
                                 <div className="flex gap-2 text-xs text-muted-foreground">
-                                  {contact.company_name && <span className="truncate">{contact.company_name}</span>}
-                                  {contact.email && <span className="truncate">• {contact.email}</span>}
+                                  {customer.company_name && <span className="truncate">{customer.company_name}</span>}
+                                  {customer.email && <span className="truncate">• {customer.email}</span>}
                                 </div>
                               </div>
                             </CommandItem>
@@ -893,7 +896,7 @@ export default function ServiceReportsPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowCreateContact(true)}
+                  onClick={() => setShowCreateCustomer(true)}
                   className="h-12 w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -901,14 +904,14 @@ export default function ServiceReportsPage() {
                 </Button>
               </div>
 
-              {selectedContact && (
+              {selectedCustomer && (
                 <div className="p-3 bg-muted rounded-lg text-sm">
-                  <p className="font-medium">{selectedContact.first_name} {selectedContact.last_name}</p>
-                  {selectedContact.company_name && <p className="text-muted-foreground">{selectedContact.company_name}</p>}
+                  <p className="font-medium">{selectedCustomer.name}</p>
+                  {selectedCustomer.company_name && <p className="text-muted-foreground">{selectedCustomer.company_name}</p>}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
-                    {selectedContact.email && <span>{selectedContact.email}</span>}
-                    {selectedContact.phone && <span>{selectedContact.phone}</span>}
-                    {selectedContact.address && <span className="w-full mt-1">{selectedContact.address}</span>}
+                    {selectedCustomer.email && <span>{selectedCustomer.email}</span>}
+                    {selectedCustomer.phone && <span>{selectedCustomer.phone}</span>}
+                    {selectedCustomer.address && <span className="w-full mt-1">{[selectedCustomer.address, selectedCustomer.city].filter(Boolean).join(', ')}</span>}
                   </div>
                 </div>
               )}
@@ -1158,10 +1161,10 @@ export default function ServiceReportsPage() {
         </Card>
       )}
 
-      <CreateContactDialog
-        open={showCreateContact}
-        onOpenChange={setShowCreateContact}
-        onContactCreated={handleContactCreated}
+      <CreateCustomerDialog
+        open={showCreateCustomer}
+        onOpenChange={setShowCreateCustomer}
+        onCustomerCreated={handleCustomerCreated}
       />
 
       <ReportDetailsDialog
@@ -1172,7 +1175,7 @@ export default function ServiceReportsPage() {
           if (selectedReport) {
             const doc = new jsPDF();
             let y = 20;
-            const contact = selectedReport.crm_contacts;
+            const customer = selectedReport.customers;
             const technician = selectedReport.technicians;
 
             // Logo aziendale
@@ -1193,22 +1196,22 @@ export default function ServiceReportsPage() {
               doc.text("Cliente:", 20, y);
               doc.setFont(undefined, "normal");
               y += 7;
-              doc.text(`${contact?.first_name} ${contact?.last_name}`, 20, y);
-              if (contact?.company_name) {
+              doc.text(customer?.name || 'N/A', 20, y);
+              if (customer?.company_name) {
                 y += 7;
-                doc.text(contact.company_name, 20, y);
+                doc.text(customer.company_name, 20, y);
               }
-              if (contact?.email) {
+              if (customer?.email) {
                 y += 7;
-                doc.text(`Email: ${contact.email}`, 20, y);
+                doc.text(`Email: ${customer.email}`, 20, y);
               }
-              if (contact?.phone) {
+              if (customer?.phone) {
                 y += 7;
-                doc.text(`Tel: ${contact.phone}`, 20, y);
+                doc.text(`Tel: ${customer.phone}`, 20, y);
               }
-              if (contact?.address) {
+              if (customer?.address) {
                 y += 7;
-                doc.text(`Indirizzo: ${contact.address}`, 20, y);
+                doc.text(`Indirizzo: ${customer.address}`, 20, y);
               }
               y += 10;
 
@@ -1320,7 +1323,7 @@ export default function ServiceReportsPage() {
               doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
               doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
 
-              const fileName = `rapporto_intervento_${selectedReport.intervention_date}_${contact?.last_name || 'report'}.pdf`;
+              const fileName = `rapporto_intervento_${selectedReport.intervention_date}_${customer?.name?.replace(/\s+/g, '_') || 'report'}.pdf`;
               doc.save(fileName);
 
               toast({
@@ -1333,10 +1336,10 @@ export default function ServiceReportsPage() {
         onSendEmail={async () => {
           if (!selectedReport) return;
           
-          const contact = selectedReport.crm_contacts;
+          const customer = selectedReport.customers;
           const technician = selectedReport.technicians;
 
-          if (!contact?.email) {
+          if (!customer?.email) {
             toast({
               title: "Email mancante",
               description: "Il cliente non ha un indirizzo email registrato",
@@ -1349,10 +1352,10 @@ export default function ServiceReportsPage() {
           try {
             const { error } = await supabase.functions.invoke('send-customer-emails', {
               body: {
-                to: contact.email,
+                to: customer.email,
                 subject: `Rapporto di Intervento - ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}`,
-                recipientName: `${contact.first_name} ${contact.last_name}`,
-                message: `Gentile ${contact.first_name} ${contact.last_name},\n\nin allegato trovi il rapporto di intervento del ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}.\n\nTipo intervento: ${selectedReport.intervention_type}\nTecnico: ${technician?.first_name} ${technician?.last_name}\n\n${selectedReport.work_performed ? `Lavori eseguiti:\n${selectedReport.work_performed}\n\n` : ''}Grazie per averci scelto.\n\nCordiali saluti`,
+                recipientName: customer.name,
+                message: `Gentile ${customer.name},\n\nin allegato trovi il rapporto di intervento del ${new Date(selectedReport.intervention_date).toLocaleDateString('it-IT')}.\n\nTipo intervento: ${selectedReport.intervention_type}\nTecnico: ${technician?.first_name} ${technician?.last_name}\n\n${selectedReport.work_performed ? `Lavori eseguiti:\n${selectedReport.work_performed}\n\n` : ''}Grazie per averci scelto.\n\nCordiali saluti`,
                 reportData: selectedReport
               }
             });
@@ -1361,7 +1364,7 @@ export default function ServiceReportsPage() {
 
             toast({
               title: "Email Inviata",
-              description: `Il rapporto è stato inviato a ${contact.email}`,
+              description: `Il rapporto è stato inviato a ${customer.email}`,
             });
           } catch (error) {
             console.error('Error sending email:', error);
