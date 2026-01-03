@@ -17,16 +17,18 @@ import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 
-interface Contact {
+interface Customer {
   id: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   email?: string;
   phone?: string;
-  mobile?: string;
   company_name?: string;
   address?: string;
-  piva?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  country?: string;
+  tax_id?: string;
   pec?: string;
   sdi_code?: string;
   shipping_address?: string;
@@ -69,20 +71,20 @@ interface ServiceReport {
   notes?: string;
   start_time?: string;
   end_time?: string;
-  crm_contacts?: Contact;
+  customers?: Customer;
   technicians?: Technician;
   work_orders?: WorkOrder;
   service_work_orders?: WorkOrder;
 }
 
 export default function ServiceReportsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [contactSearchOpen, setContactSearchOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [reports, setReports] = useState<ServiceReport[]>([]);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showCreateContact, setShowCreateContact] = useState(false);
@@ -110,21 +112,21 @@ export default function ServiceReportsPage() {
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
   const { toast } = useToast();
 
-  // Filtered contacts for search
-  const filteredContacts = useMemo(() => {
-    if (!contactSearch.trim()) return contacts;
+  // Filtered customers for search
+  const filteredCustomers = useMemo(() => {
+    if (!contactSearch.trim()) return customers;
     const searchLower = contactSearch.toLowerCase();
-    return contacts.filter(contact => {
-      const fullName = `${contact.first_name} ${contact.last_name}`.toLowerCase();
-      const companyName = (contact.company_name || '').toLowerCase();
-      const email = (contact.email || '').toLowerCase();
-      const phone = (contact.phone || '').toLowerCase();
-      return fullName.includes(searchLower) || 
+    return customers.filter(customer => {
+      const name = (customer.name || '').toLowerCase();
+      const companyName = (customer.company_name || '').toLowerCase();
+      const email = (customer.email || '').toLowerCase();
+      const phone = (customer.phone || '').toLowerCase();
+      return name.includes(searchLower) || 
              companyName.includes(searchLower) ||
              email.includes(searchLower) ||
              phone.includes(searchLower);
     });
-  }, [contacts, contactSearch]);
+  }, [customers, contactSearch]);
 
   useEffect(() => {
     loadInitialData();
@@ -132,15 +134,15 @@ export default function ServiceReportsPage() {
 
   const loadInitialData = async () => {
     try {
-      // Load contacts from crm_contacts (anagrafica clienti)
-      const { data: contactsData, error: contactsError } = await supabase
-        .from('crm_contacts')
-        .select('id, first_name, last_name, email, phone, mobile, company_name, address, piva, pec, sdi_code, shipping_address')
+      // Load customers from customers table (CRM customers)
+      const { data: customersData, error: customersError } = await supabase
+        .from('customers')
+        .select('id, name, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address')
         .order('company_name', { ascending: true, nullsFirst: false })
-        .order('last_name');
+        .order('name');
 
-      if (contactsError) throw contactsError;
-      setContacts(contactsData || []);
+      if (customersError) throw customersError;
+      setCustomers(customersData || []);
 
       // Load technicians
       const { data: techniciansData, error: techniciansError } = await supabase
@@ -194,14 +196,14 @@ export default function ServiceReportsPage() {
           total_amount,
           customer_signature,
           technician_signature,
-          crm_contacts (
+          customers (
             id,
-            first_name,
-            last_name,
+            name,
             company_name,
             email,
             phone,
-            address
+            address,
+            city
           ),
           technicians (
             id,
@@ -240,9 +242,9 @@ export default function ServiceReportsPage() {
     });
   };
 
-  const handleContactSelect = (contactId: string) => {
-    const contact = contacts.find(c => c.id === contactId);
-    setSelectedContact(contact || null);
+  const handleCustomerSelect = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    setSelectedCustomer(customer || null);
   };
 
   const handleTechnicianSelect = (technicianId: string) => {
@@ -262,19 +264,19 @@ export default function ServiceReportsPage() {
         notes: workOrder.title || prev.notes
       }));
 
-      // Auto-select contact if available
-      if (workOrder.contact_id) {
-        const contact = contacts.find(c => c.id === workOrder.contact_id);
-        if (contact) {
-          setSelectedContact(contact);
+      // Auto-select customer if work order has customer_id
+      if (workOrder.customer_id) {
+        const customer = customers.find(c => c.id === workOrder.customer_id);
+        if (customer) {
+          setSelectedCustomer(customer);
         }
       }
     }
   };
 
-  const handleContactCreated = (newContact: Contact) => {
-    setContacts(prev => [...prev, newContact]);
-    setSelectedContact(newContact);
+  const handleCustomerCreated = (newCustomer: Customer) => {
+    setCustomers(prev => [...prev, newCustomer]);
+    setSelectedCustomer(newCustomer);
     setShowCreateContact(false);
   };
 
