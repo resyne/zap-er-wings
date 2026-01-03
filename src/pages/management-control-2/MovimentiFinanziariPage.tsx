@@ -101,10 +101,11 @@ export default function MovimentiFinanziariPage() {
 
   // Classify mutation
   const classifyMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { tipo_allocazione: string; note_cfo: string } }) => {
+    mutationFn: async ({ id, movimento, data }: { id: string; movimento: MovimentoFinanziario; data: { tipo_allocazione: string; note_cfo: string } }) => {
       const { data: userData } = await supabase.auth.getUser();
       
-      const { error } = await supabase
+      // Update movimento finanziario
+      const { error: updateError } = await supabase
         .from("movimenti_finanziari")
         .update({
           tipo_allocazione: data.tipo_allocazione,
@@ -115,15 +116,36 @@ export default function MovimentiFinanziariPage() {
         })
         .eq("id", id);
       
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Create entry in accounting_entries for classification
+      const { error: insertError } = await supabase
+        .from("accounting_entries")
+        .insert({
+          direction: movimento.direzione === "entrata" ? "entrata" : "uscita",
+          document_type: "movimento_finanziario",
+          amount: Number(movimento.importo),
+          document_date: movimento.data_movimento,
+          attachment_url: movimento.allegato_url || "",
+          payment_method: movimento.metodo_pagamento,
+          subject_type: movimento.soggetto_tipo,
+          note: `${data.tipo_allocazione}${data.note_cfo ? ` - ${data.note_cfo}` : ""} | Soggetto: ${movimento.soggetto_nome || "N/A"}`,
+          status: "da_classificare",
+          user_id: userData.user?.id,
+          cfo_notes: data.note_cfo,
+        });
+      
+      if (insertError) throw insertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
-      toast.success("Movimento classificato con successo");
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      toast.success("Movimento classificato e inviato a Classificazione Eventi");
       setShowClassifyDialog(false);
       setSelectedMovimento(null);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Classification error:", error);
       toast.error("Errore durante la classificazione");
     },
   });
@@ -145,6 +167,7 @@ export default function MovimentiFinanziariPage() {
     
     classifyMutation.mutate({
       id: selectedMovimento.id,
+      movimento: selectedMovimento,
       data: classificationData,
     });
   };
