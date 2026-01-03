@@ -564,96 +564,104 @@ export default function ServiceReportsPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="min-h-screen bg-background p-3 sm:p-6 max-w-6xl mx-auto">
+      {/* Header - Mobile optimized */}
+      <div className="mb-4 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Rapporti di Intervento</h1>
-          <p className="text-muted-foreground">
-            Crea e gestisci rapporti di intervento tecnico con firma digitale
+          <h1 className="text-xl sm:text-3xl font-bold text-foreground">Rapporti di Intervento</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Crea e gestisci rapporti di intervento
           </p>
         </div>
         {!showCreateForm && !showActions && (
-          <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Nuovo Rapporto di Intervento
+          <Button 
+            onClick={() => setShowCreateForm(true)} 
+            className="w-full sm:w-auto flex items-center justify-center gap-2"
+            size="lg"
+          >
+            <Plus className="w-5 h-5" />
+            Nuovo Rapporto
           </Button>
         )}
       </div>
 
       {!showCreateForm && !showActions ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Rapporti Esistenti</CardTitle>
-            <CardDescription>
-              Elenco di tutti i rapporti di intervento generati
+        <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+          <CardHeader className="px-0 sm:px-6">
+            <CardTitle className="text-lg sm:text-xl">Rapporti Esistenti</CardTitle>
+            <CardDescription className="text-sm">
+              Elenco rapporti di intervento
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0 sm:px-6">
             {reports.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">Nessun rapporto di intervento trovato</p>
-                <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2 mx-auto">
-                  <Plus className="w-4 h-4" />
+              <div className="text-center py-8 sm:py-12">
+                <FileText className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+                <p className="text-muted-foreground mb-4 text-sm sm:text-base">Nessun rapporto trovato</p>
+                <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2 mx-auto" size="lg">
+                  <Plus className="w-5 h-5" />
                   Crea il Primo Rapporto
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {reports.map((report) => (
                   <div 
                     key={report.id} 
-                    className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                    className="p-3 sm:p-4 border rounded-lg hover:bg-accent/50 active:bg-accent/70 transition-colors cursor-pointer touch-manipulation"
                     onClick={() => {
                       setSelectedReport(report);
                       setShowReportDetails(true);
                     }}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">
-                            {report.crm_contacts?.first_name} {report.crm_contacts?.last_name}
-                          </h3>
-                          {report.crm_contacts?.company_name && (
-                            <span className="text-sm text-muted-foreground">
-                              ({report.crm_contacts.company_name})
-                            </span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Data:</span>
-                            <p className="font-medium">
-                              {new Date(report.intervention_date).toLocaleDateString('it-IT')}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Tipo:</span>
-                            <p className="font-medium capitalize">{report.intervention_type}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Tecnico:</span>
-                            <p className="font-medium">
-                              {report.technicians?.first_name} {report.technicians?.last_name}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Stato:</span>
-                            <p className="font-medium capitalize">{report.status}</p>
-                          </div>
-                        </div>
-                        {report.work_performed && (
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                            {report.work_performed}
-                          </p>
-                        )}
-                        {report.total_amount && (
-                          <p className="text-sm font-semibold text-primary mt-2">
-                            Totale: €{report.total_amount.toFixed(2)}
-                          </p>
+                    <div className="flex flex-col gap-2">
+                      {/* Nome cliente e azienda */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                        <h3 className="font-semibold text-base sm:text-lg">
+                          {report.crm_contacts?.first_name} {report.crm_contacts?.last_name}
+                        </h3>
+                        {report.crm_contacts?.company_name && (
+                          <span className="text-xs sm:text-sm text-muted-foreground">
+                            {report.crm_contacts.company_name}
+                          </span>
                         )}
                       </div>
+                      
+                      {/* Info grid - mobile 2 cols, desktop 4 cols */}
+                      <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Data:</span>
+                          <p className="font-medium">
+                            {new Date(report.intervention_date).toLocaleDateString('it-IT')}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Tipo:</span>
+                          <p className="font-medium capitalize">{report.intervention_type}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Tecnico:</span>
+                          <p className="font-medium">
+                            {report.technicians?.first_name} {report.technicians?.last_name}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Stato:</span>
+                          <p className="font-medium capitalize">{report.status}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Descrizione e totale */}
+                      {report.work_performed && (
+                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                          {report.work_performed}
+                        </p>
+                      )}
+                      {report.total_amount && (
+                        <p className="text-sm font-semibold text-primary">
+                          Totale: €{report.total_amount.toFixed(2)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -662,36 +670,43 @@ export default function ServiceReportsPage() {
           </CardContent>
         </Card>
       ) : showActions ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Rapporto Completato</CardTitle>
-            <CardDescription>
-              Il rapporto è stato salvato con successo. Scegli cosa fare ora.
+        <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+          <CardHeader className="px-0 sm:px-6 text-center">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle className="text-lg sm:text-xl">Rapporto Completato</CardTitle>
+            <CardDescription className="text-sm">
+              Salvato con successo. Scegli cosa fare.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col gap-3">
-              <Button onClick={generatePDF} className="w-full flex items-center justify-center gap-2">
-                <Download className="w-4 h-4" />
-                Scarica PDF
-              </Button>
-              <Button 
-                onClick={sendEmail} 
-                variant="outline"
-                className="w-full flex items-center justify-center gap-2"
-                disabled={loading || !selectedContact?.email}
-              >
-                <Mail className="w-4 h-4" />
-                {loading ? "Invio in corso..." : "Invia Email al Cliente"}
-              </Button>
-            </div>
+          <CardContent className="space-y-3 px-0 sm:px-6">
+            <Button 
+              onClick={generatePDF} 
+              className="w-full flex items-center justify-center gap-2 h-12"
+              size="lg"
+            >
+              <Download className="w-5 h-5" />
+              Scarica PDF
+            </Button>
+            <Button 
+              onClick={sendEmail} 
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2 h-12"
+              size="lg"
+              disabled={loading || !selectedContact?.email}
+            >
+              <Mail className="w-5 h-5" />
+              {loading ? "Invio in corso..." : "Invia Email"}
+            </Button>
 
-            <Separator />
+            <Separator className="my-4" />
 
             <Button 
               onClick={resetForm}
               variant="secondary"
-              className="w-full"
+              className="w-full h-12"
+              size="lg"
             >
               Crea Nuovo Rapporto
             </Button>
@@ -702,44 +717,45 @@ export default function ServiceReportsPage() {
                 setShowCreateForm(false);
                 setSavedReportId(null);
               }}
-              variant="outline"
-              className="w-full"
+              variant="ghost"
+              className="w-full h-12"
+              size="lg"
             >
               Torna all'Elenco
             </Button>
           </CardContent>
         </Card>
       ) : !showSignatures ? (
-        <div>
-          <div className="mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => setShowCreateForm(false)}
-              className="flex items-center gap-2"
-            >
-              ← Torna all'Elenco
-            </Button>
-          </div>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
+          {/* Back button */}
+          <Button
+            variant="ghost"
+            onClick={() => setShowCreateForm(false)}
+            className="flex items-center gap-2 -ml-2 sm:ml-0"
+            size="sm"
+          >
+            ← Torna all'Elenco
+          </Button>
+
           {/* Ordine di Lavoro (Optional) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+            <CardHeader className="px-0 sm:px-6 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <ClipboardList className="w-5 h-5" />
-                Commessa di Lavoro (Opzionale)
+                Commessa (Opzionale)
               </CardTitle>
-              <CardDescription>
-                Collega il rapporto a una commessa di lavoro esistente per automaticamente inserire i dati
+              <CardDescription className="text-xs sm:text-sm">
+                Collega a una commessa esistente
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="px-0 sm:px-6 space-y-3">
               <Select onValueChange={handleWorkOrderSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona una commessa di lavoro..." />
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Seleziona commessa..." />
                 </SelectTrigger>
                 <SelectContent>
                   {workOrders.map((workOrder) => (
-                    <SelectItem key={workOrder.id} value={workOrder.id}>
+                    <SelectItem key={workOrder.id} value={workOrder.id} className="py-3">
                       {workOrder.number} - {workOrder.title} ({workOrder.type === 'service' ? 'CdL' : 'CdP'})
                     </SelectItem>
                   ))}
@@ -747,37 +763,34 @@ export default function ServiceReportsPage() {
               </Select>
 
               {selectedWorkOrder && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Ordine selezionato:</h4>
-                  <p><strong>{selectedWorkOrder.number}</strong> - {selectedWorkOrder.title}</p>
-                  <p>Tipo: {selectedWorkOrder.type === 'service' ? 'Commessa di Lavoro (CdL)' : 'Commessa di Produzione (CdP)'}</p>
-                  {selectedWorkOrder.description && <p>Descrizione: {selectedWorkOrder.description}</p>}
-                  {selectedWorkOrder.location && <p>Località: {selectedWorkOrder.location}</p>}
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  <h4 className="font-medium mb-1">{selectedWorkOrder.number} - {selectedWorkOrder.title}</h4>
+                  <p className="text-muted-foreground text-xs">
+                    {selectedWorkOrder.type === 'service' ? 'CdL' : 'CdP'}
+                    {selectedWorkOrder.location && ` • ${selectedWorkOrder.location}`}
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Selezione Cliente */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+            <CardHeader className="px-0 sm:px-6 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <User className="w-5 h-5" />
                 Cliente *
               </CardTitle>
-              <CardDescription>
-                Seleziona un cliente esistente o creane uno nuovo
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
+            <CardContent className="px-0 sm:px-6 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select onValueChange={handleContactSelect} value={selectedContact?.id || ""}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Seleziona un cliente..." />
+                  <SelectTrigger className="flex-1 h-12 text-base">
+                    <SelectValue placeholder="Seleziona cliente..." />
                   </SelectTrigger>
                   <SelectContent>
                     {contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id}>
+                      <SelectItem key={contact.id} value={contact.id} className="py-3">
                         {contact.first_name} {contact.last_name} 
                         {contact.company_name && ` - ${contact.company_name}`}
                       </SelectItem>
@@ -788,54 +801,57 @@ export default function ServiceReportsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowCreateContact(true)}
+                  className="h-12 w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Nuovo Cliente
+                  Nuovo
                 </Button>
               </div>
 
               {selectedContact && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Cliente selezionato:</h4>
-                  <p>{selectedContact.first_name} {selectedContact.last_name}</p>
-                  {selectedContact.company_name && <p>{selectedContact.company_name}</p>}
-                  {selectedContact.email && <p>Email: {selectedContact.email}</p>}
-                  {selectedContact.phone && <p>Tel: {selectedContact.phone}</p>}
-                  {selectedContact.address && <p>Indirizzo: {selectedContact.address}</p>}
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  <p className="font-medium">{selectedContact.first_name} {selectedContact.last_name}</p>
+                  {selectedContact.company_name && <p className="text-muted-foreground">{selectedContact.company_name}</p>}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
+                    {selectedContact.email && <span>{selectedContact.email}</span>}
+                    {selectedContact.phone && <span>{selectedContact.phone}</span>}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Dettagli Intervento */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+            <CardHeader className="px-0 sm:px-6 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Wrench className="w-5 h-5" />
                 Dettagli Intervento
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="px-0 sm:px-6 space-y-4">
+              {/* Data e Tecnico - stack su mobile */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="intervention_date">Data Intervento *</Label>
+                  <Label htmlFor="intervention_date" className="text-sm font-medium">Data Intervento *</Label>
                   <Input
                     id="intervention_date"
                     type="date"
                     value={formData.intervention_date}
                     onChange={(e) => handleInputChange('intervention_date', e.target.value)}
+                    className="h-12 text-base"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="technician">Tecnico Operatore *</Label>
+                  <Label htmlFor="technician" className="text-sm font-medium">Tecnico *</Label>
                   <Select onValueChange={handleTechnicianSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona un tecnico..." />
+                    <SelectTrigger className="h-12 text-base">
+                      <SelectValue placeholder="Seleziona tecnico..." />
                     </SelectTrigger>
                     <SelectContent>
                       {technicians.map((technician) => (
-                        <SelectItem key={technician.id} value={technician.id}>
-                          {technician.first_name} {technician.last_name} ({technician.employee_code})
+                        <SelectItem key={technician.id} value={technician.id} className="py-3">
+                          {technician.first_name} {technician.last_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -843,137 +859,143 @@ export default function ServiceReportsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Ora inizio/fine */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start_time">Ora Inizio</Label>
+                  <Label htmlFor="start_time" className="text-sm font-medium">Ora Inizio</Label>
                   <Input
                     id="start_time"
                     type="time"
                     value={formData.start_time}
                     onChange={(e) => handleInputChange('start_time', e.target.value)}
+                    className="h-12 text-base"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="end_time">Ora Fine</Label>
+                  <Label htmlFor="end_time" className="text-sm font-medium">Ora Fine</Label>
                   <Input
                     id="end_time"
                     type="time"
                     value={formData.end_time}
                     onChange={(e) => handleInputChange('end_time', e.target.value)}
+                    className="h-12 text-base"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="intervention_type">Tipo Intervento *</Label>
+                <Label htmlFor="intervention_type" className="text-sm font-medium">Tipo Intervento *</Label>
                 <Select onValueChange={(value) => handleInputChange('intervention_type', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tipo di intervento" />
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue placeholder="Seleziona tipo..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="manutenzione">Manutenzione</SelectItem>
-                    <SelectItem value="riparazione">Riparazione</SelectItem>
-                    <SelectItem value="installazione">Installazione</SelectItem>
-                    <SelectItem value="collaudo">Collaudo</SelectItem>
-                    <SelectItem value="consulenza">Consulenza</SelectItem>
-                    <SelectItem value="altro">Altro</SelectItem>
+                    <SelectItem value="manutenzione" className="py-3">Manutenzione</SelectItem>
+                    <SelectItem value="riparazione" className="py-3">Riparazione</SelectItem>
+                    <SelectItem value="installazione" className="py-3">Installazione</SelectItem>
+                    <SelectItem value="collaudo" className="py-3">Collaudo</SelectItem>
+                    <SelectItem value="consulenza" className="py-3">Consulenza</SelectItem>
+                    <SelectItem value="altro" className="py-3">Altro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Descrizione Problema</Label>
+                <Label htmlFor="description" className="text-sm font-medium">Descrizione Problema</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Descrivi il problema riscontrato (opzionale)..."
+                  placeholder="Descrivi il problema..."
                   rows={3}
+                  className="text-base resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="work_performed">Lavori Eseguiti</Label>
+                <Label htmlFor="work_performed" className="text-sm font-medium">Lavori Eseguiti</Label>
                 <Textarea
                   id="work_performed"
                   value={formData.work_performed}
                   onChange={(e) => handleInputChange('work_performed', e.target.value)}
                   placeholder="Descrivi i lavori eseguiti..."
                   rows={3}
+                  className="text-base resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="materials_used">Materiali Utilizzati</Label>
+                <Label htmlFor="materials_used" className="text-sm font-medium">Materiali Utilizzati</Label>
                 <Textarea
                   id="materials_used"
                   value={formData.materials_used}
                   onChange={(e) => handleInputChange('materials_used', e.target.value)}
-                  placeholder="Elenca i materiali utilizzati..."
+                  placeholder="Elenca i materiali..."
                   rows={2}
+                  className="text-base resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Note Aggiuntive</Label>
+                <Label htmlFor="notes" className="text-sm font-medium">Note Aggiuntive</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
                   onChange={(e) => handleInputChange('notes', e.target.value)}
-                  placeholder="Note aggiuntive..."
+                  placeholder="Note..."
                   rows={2}
+                  className="text-base resize-none"
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Dettagli Economici */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+            <CardHeader className="px-0 sm:px-6 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <FileText className="w-5 h-5" />
                 Dettagli Economici
               </CardTitle>
-              <CardDescription>
-                Inserisci l'importo dell'intervento e l'IVA applicata
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+            <CardContent className="px-0 sm:px-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Importo (€)</Label>
+                  <Label htmlFor="amount" className="text-sm font-medium">Importo (€)</Label>
                   <Input
                     id="amount"
                     type="number"
                     step="0.01"
                     min="0"
+                    inputMode="decimal"
                     value={formData.amount}
                     onChange={(e) => handleInputChange('amount', e.target.value)}
                     placeholder="0.00"
+                    className="h-12 text-base"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vat_rate">IVA (%)</Label>
+                  <Label htmlFor="vat_rate" className="text-sm font-medium">IVA (%)</Label>
                   <Select value={formData.vat_rate} onValueChange={(value) => handleInputChange('vat_rate', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona IVA" />
+                    <SelectTrigger className="h-12 text-base">
+                      <SelectValue placeholder="IVA" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">0%</SelectItem>
-                      <SelectItem value="4">4%</SelectItem>
-                      <SelectItem value="10">10%</SelectItem>
-                      <SelectItem value="22">22%</SelectItem>
+                      <SelectItem value="0" className="py-3">0%</SelectItem>
+                      <SelectItem value="4" className="py-3">4%</SelectItem>
+                      <SelectItem value="10" className="py-3">10%</SelectItem>
+                      <SelectItem value="22" className="py-3">22%</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="total_amount">Totale (€)</Label>
+                  <Label htmlFor="total_amount" className="text-sm font-medium">Totale (€)</Label>
                   <Input
                     id="total_amount"
                     type="text"
                     value={formData.total_amount}
                     readOnly
-                    className="bg-muted font-semibold"
+                    className="h-12 text-base bg-muted font-semibold"
                     placeholder="0.00"
                   />
                 </div>
@@ -981,25 +1003,29 @@ export default function ServiceReportsPage() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
-            <Button onClick={generateReport} className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
+          {/* Bottom CTA */}
+          <div className="sticky bottom-0 bg-background py-4 border-t sm:border-0 sm:static sm:py-0 -mx-3 px-3 sm:mx-0 sm:px-0">
+            <Button 
+              onClick={generateReport} 
+              className="w-full h-14 text-base flex items-center justify-center gap-2"
+              size="lg"
+            >
+              <FileText className="w-5 h-5" />
               Genera Rapporto
             </Button>
           </div>
         </div>
-        </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Firme Digitali</CardTitle>
-            <CardDescription>
-              Richiedi la firma del cliente e inserisci la tua firma per completare il rapporto
+        <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+          <CardHeader className="px-0 sm:px-6 text-center">
+            <CardTitle className="text-lg sm:text-xl">Firme Digitali</CardTitle>
+            <CardDescription className="text-sm">
+              Firma cliente e tecnico per completare
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 px-0 sm:px-6">
             <div>
-              <h3 className="text-lg font-medium mb-4">Firma Cliente</h3>
+              <h3 className="text-base font-medium mb-3">Firma Cliente</h3>
               <SignatureCanvas
                 onSignatureChange={setCustomerSignature}
                 placeholder="Il cliente deve firmare qui"
@@ -1009,23 +1035,27 @@ export default function ServiceReportsPage() {
             <Separator />
 
             <div>
-              <h3 className="text-lg font-medium mb-4">Firma Tecnico</h3>
+              <h3 className="text-base font-medium mb-3">Firma Tecnico</h3>
               <SignatureCanvas
                 onSignatureChange={setTechnicianSignature}
                 placeholder="Il tecnico deve firmare qui"
               />
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
               <Button
                 variant="outline"
                 onClick={() => setShowSignatures(false)}
+                className="h-12 order-2 sm:order-1"
+                size="lg"
               >
                 Indietro
               </Button>
               <Button
                 onClick={saveReport}
                 disabled={loading || !customerSignature || !technicianSignature}
+                className="h-12 order-1 sm:order-2"
+                size="lg"
               >
                 {loading ? "Salvando..." : "Salva Rapporto"}
               </Button>
