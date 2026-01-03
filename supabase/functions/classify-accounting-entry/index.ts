@@ -67,13 +67,26 @@ serve(async (req) => {
       `- ${c.name} (id: ${c.id})`
     ).join("\n") || "Nessun centro di ricavo";
 
+    // Extract filename for additional context
+    const attachmentUrl = entry.attachment_url || "";
+    const filename = attachmentUrl.split("/").pop()?.split("?")[0] || "";
+    const decodedFilename = decodeURIComponent(filename);
+    
+    // Detect if filename indicates this is a sales invoice from Climatel
+    const isFromClimatel = /climatel|elefante/i.test(decodedFilename);
+    const filenameHint = isFromClimatel 
+      ? `\n\n⚠️ ATTENZIONE: Il nome del file "${decodedFilename}" contiene "Climatel" o "Elefante", questo indica che è una FATTURA EMESSA DA Climatel verso un cliente. Il soggetto economico è quindi un CLIENTE, non un fornitore!`
+      : "";
+
     const systemPrompt = `Sei un esperto contabile italiano. Devi classificare una registrazione contabile e identificare il soggetto economico.
 
-AZIENDA EMITTENTE: "Climatel di Elefante Pasquale" (o simili varianti: Climatel, CLIMATEL)
-- Se la fattura è EMESSA DA Climatel verso qualcun altro → è una FATTURA DI VENDITA (ricavo, entrata)
-- Se la fattura è EMESSA DA un altro soggetto verso Climatel → è una FATTURA DI ACQUISTO (costo, uscita)
+AZIENDA DI RIFERIMENTO: "Climatel di Elefante Pasquale" (varianti: Climatel, CLIMATEL, Elefante Pasquale)
+- Se la fattura è EMESSA DA Climatel verso qualcun altro → è una FATTURA DI VENDITA (ricavo, entrata), l'altro soggetto è un CLIENTE
+- Se la fattura è EMESSA DA un altro soggetto verso Climatel → è una FATTURA DI ACQUISTO (costo, uscita), l'altro soggetto è un FORNITORE
+${filenameHint}
 
 DATI DELLA REGISTRAZIONE:
+- Nome file allegato: ${decodedFilename || "nessun allegato"}
 - Direzione inserita: ${entry.direction} (entrata = incasso, uscita = spesa)
 - Tipo documento: ${entry.document_type}
 - Importo: € ${entry.amount}
@@ -91,18 +104,18 @@ CENTRI DI RICAVO DISPONIBILI:
 ${profitCentersContext}
 
 REGOLE DI CLASSIFICAZIONE:
-1. PRIMA analizza il documento per capire CHI è l'emittente e CHI è il destinatario
-2. Se l'emittente è Climatel → è un RICAVO (fattura di vendita)
-3. Se il destinatario è Climatel → è un COSTO (fattura di acquisto)
-4. La direzione potrebbe essere errata, fidati del documento!
-5. Estrai sempre i dati del SOGGETTO ECONOMICO (cliente o fornitore):
+1. PRIMA analizza il nome file e il documento per capire CHI è l'emittente e CHI è il destinatario
+2. Se nel nome file c'è "Climatel" o "Elefante" → la fattura è EMESSA DA Climatel, quindi è un RICAVO e il soggetto è un CLIENTE
+3. Se l'emittente NON è Climatel → è un COSTO e il soggetto è un FORNITORE
+4. La direzione potrebbe essere errata, fidati del documento e del nome file!
+5. Estrai sempre i dati del SOGGETTO ECONOMICO (cliente se ricavo, fornitore se costo):
    - Nome/Ragione sociale
    - Partita IVA (se presente)
    - Indirizzo/Città (se presenti)
 6. Per i costi scegli un centro di costo, per i ricavi un centro di ricavo
 7. financial_status: per vendite → "incassato" o "da_incassare"; per acquisti → "pagato" o "da_pagare"
 
-Analizza attentamente il documento e suggerisci la classificazione corretta, correggendo la direzione se necessario.`;
+Analizza attentamente e suggerisci la classificazione corretta, correggendo la direzione se necessario.`;
 
     // Prepare messages - optionally include document image
     const messages: any[] = [
