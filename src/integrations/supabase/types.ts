@@ -6949,6 +6949,7 @@ export type Database = {
           amount: number | null
           contact_id: string | null
           created_at: string
+          customer_id: string | null
           customer_signature: string | null
           description: string | null
           end_time: string | null
@@ -6973,6 +6974,7 @@ export type Database = {
           amount?: number | null
           contact_id?: string | null
           created_at?: string
+          customer_id?: string | null
           customer_signature?: string | null
           description?: string | null
           end_time?: string | null
@@ -6997,6 +6999,7 @@ export type Database = {
           amount?: number | null
           contact_id?: string | null
           created_at?: string
+          customer_id?: string | null
           customer_signature?: string | null
           description?: string | null
           end_time?: string | null
@@ -7023,6 +7026,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {

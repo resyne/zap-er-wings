@@ -20,7 +20,7 @@ export function ReportDetailsDialog({
 }: ReportDetailsDialogProps) {
   if (!report) return null;
 
-  const contact = report.crm_contacts;
+  const customer = report.customers;
   const technician = report.technicians;
 
   return (
@@ -38,11 +38,11 @@ export function ReportDetailsDialog({
           <div>
             <h3 className="font-semibold text-lg mb-3">Cliente</h3>
             <div className="bg-muted p-4 rounded-lg space-y-2">
-              <p><strong>Nome:</strong> {contact?.first_name} {contact?.last_name}</p>
-              {contact?.company_name && <p><strong>Azienda:</strong> {contact.company_name}</p>}
-              {contact?.email && <p><strong>Email:</strong> {contact.email}</p>}
-              {contact?.phone && <p><strong>Telefono:</strong> {contact.phone}</p>}
-              {contact?.address && <p><strong>Indirizzo:</strong> {contact.address}</p>}
+              <p><strong>Nome:</strong> {customer?.name || 'N/A'}</p>
+              {customer?.company_name && <p><strong>Azienda:</strong> {customer.company_name}</p>}
+              {customer?.email && <p><strong>Email:</strong> {customer.email}</p>}
+              {customer?.phone && <p><strong>Telefono:</strong> {customer.phone}</p>}
+              {customer?.address && <p><strong>Indirizzo:</strong> {[customer.address, customer.city].filter(Boolean).join(', ')}</p>}
             </div>
           </div>
 
@@ -160,7 +160,7 @@ export function ReportDetailsDialog({
               onClick={onSendEmail} 
               variant="outline"
               className="flex-1 flex items-center justify-center gap-2"
-              disabled={!contact?.email}
+              disabled={!customer?.email}
             >
               <Mail className="w-4 h-4" />
               Invia Email
