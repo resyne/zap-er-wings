@@ -2766,6 +2766,118 @@ export type Database = {
           },
         ]
       }
+      invoice_registry: {
+        Row: {
+          accounting_entry_id: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          financial_status: string
+          id: string
+          imponibile: number
+          invoice_date: string
+          invoice_number: string
+          invoice_type: string
+          iva_amount: number
+          iva_rate: number
+          notes: string | null
+          payment_date: string | null
+          prima_nota_id: string | null
+          registered_at: string | null
+          registered_by: string | null
+          scadenza_id: string | null
+          source_document_id: string | null
+          source_document_type: string | null
+          status: string
+          subject_id: string | null
+          subject_name: string
+          subject_type: string
+          total_amount: number
+          updated_at: string
+          vat_regime: string
+        }
+        Insert: {
+          accounting_entry_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          financial_status?: string
+          id?: string
+          imponibile?: number
+          invoice_date: string
+          invoice_number: string
+          invoice_type: string
+          iva_amount?: number
+          iva_rate?: number
+          notes?: string | null
+          payment_date?: string | null
+          prima_nota_id?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          scadenza_id?: string | null
+          source_document_id?: string | null
+          source_document_type?: string | null
+          status?: string
+          subject_id?: string | null
+          subject_name: string
+          subject_type: string
+          total_amount?: number
+          updated_at?: string
+          vat_regime?: string
+        }
+        Update: {
+          accounting_entry_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          financial_status?: string
+          id?: string
+          imponibile?: number
+          invoice_date?: string
+          invoice_number?: string
+          invoice_type?: string
+          iva_amount?: number
+          iva_rate?: number
+          notes?: string | null
+          payment_date?: string | null
+          prima_nota_id?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          scadenza_id?: string | null
+          source_document_id?: string | null
+          source_document_type?: string | null
+          status?: string
+          subject_id?: string | null
+          subject_name?: string
+          subject_type?: string
+          total_amount?: number
+          updated_at?: string
+          vat_regime?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_registry_accounting_entry_id_fkey"
+            columns: ["accounting_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_prima_nota_id_fkey"
+            columns: ["prima_nota_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_reminders: {
         Row: {
           created_at: string
