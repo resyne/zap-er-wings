@@ -3957,6 +3957,136 @@ export type Database = {
           },
         ]
       }
+      movimenti_finanziari: {
+        Row: {
+          allegato_nome: string | null
+          allegato_url: string | null
+          centro_costo_id: string | null
+          centro_ricavo_id: string | null
+          classificato_at: string | null
+          classificato_da: string | null
+          conto_id: string | null
+          created_at: string
+          created_by: string | null
+          data_movimento: string
+          descrizione: string | null
+          direzione: string
+          fattura_id: string | null
+          id: string
+          importo: number
+          metodo_pagamento: string
+          note_cfo: string | null
+          prima_nota_id: string | null
+          riferimento: string | null
+          scadenza_id: string | null
+          soggetto_id: string | null
+          soggetto_nome: string | null
+          soggetto_tipo: string | null
+          stato: string
+          tipo_allocazione: string | null
+          updated_at: string
+        }
+        Insert: {
+          allegato_nome?: string | null
+          allegato_url?: string | null
+          centro_costo_id?: string | null
+          centro_ricavo_id?: string | null
+          classificato_at?: string | null
+          classificato_da?: string | null
+          conto_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_movimento: string
+          descrizione?: string | null
+          direzione: string
+          fattura_id?: string | null
+          id?: string
+          importo: number
+          metodo_pagamento: string
+          note_cfo?: string | null
+          prima_nota_id?: string | null
+          riferimento?: string | null
+          scadenza_id?: string | null
+          soggetto_id?: string | null
+          soggetto_nome?: string | null
+          soggetto_tipo?: string | null
+          stato?: string
+          tipo_allocazione?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allegato_nome?: string | null
+          allegato_url?: string | null
+          centro_costo_id?: string | null
+          centro_ricavo_id?: string | null
+          classificato_at?: string | null
+          classificato_da?: string | null
+          conto_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_movimento?: string
+          descrizione?: string | null
+          direzione?: string
+          fattura_id?: string | null
+          id?: string
+          importo?: number
+          metodo_pagamento?: string
+          note_cfo?: string | null
+          prima_nota_id?: string | null
+          riferimento?: string | null
+          scadenza_id?: string | null
+          soggetto_id?: string | null
+          soggetto_nome?: string | null
+          soggetto_tipo?: string | null
+          stato?: string
+          tipo_allocazione?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimenti_finanziari_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_finanziari_centro_ricavo_id_fkey"
+            columns: ["centro_ricavo_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_finanziari_conto_id_fkey"
+            columns: ["conto_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_finanziari_fattura_id_fkey"
+            columns: ["fattura_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_finanziari_prima_nota_id_fkey"
+            columns: ["prima_nota_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_finanziari_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_templates: {
         Row: {
           attachments: Json | null
