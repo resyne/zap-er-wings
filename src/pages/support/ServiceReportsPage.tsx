@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,12 +6,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Search } from "lucide-react";
 import { CreateContactDialog } from "@/components/support/CreateContactDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
+import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 
 interface Contact {
@@ -20,8 +23,13 @@ interface Contact {
   last_name: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   company_name?: string;
   address?: string;
+  piva?: string;
+  pec?: string;
+  sdi_code?: string;
+  shipping_address?: string;
 }
 
 interface Technician {
@@ -69,6 +77,8 @@ interface ServiceReport {
 
 export default function ServiceReportsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactSearchOpen, setContactSearchOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [reports, setReports] = useState<ServiceReport[]>([]);
@@ -100,17 +110,34 @@ export default function ServiceReportsPage() {
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
   const { toast } = useToast();
 
+  // Filtered contacts for search
+  const filteredContacts = useMemo(() => {
+    if (!contactSearch.trim()) return contacts;
+    const searchLower = contactSearch.toLowerCase();
+    return contacts.filter(contact => {
+      const fullName = `${contact.first_name} ${contact.last_name}`.toLowerCase();
+      const companyName = (contact.company_name || '').toLowerCase();
+      const email = (contact.email || '').toLowerCase();
+      const phone = (contact.phone || '').toLowerCase();
+      return fullName.includes(searchLower) || 
+             companyName.includes(searchLower) ||
+             email.includes(searchLower) ||
+             phone.includes(searchLower);
+    });
+  }, [contacts, contactSearch]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
 
   const loadInitialData = async () => {
     try {
-      // Load contacts
+      // Load contacts from crm_contacts (anagrafica clienti)
       const { data: contactsData, error: contactsError } = await supabase
         .from('crm_contacts')
-        .select('id, first_name, last_name, email, phone, company_name, address')
-        .order('first_name');
+        .select('id, first_name, last_name, email, phone, mobile, company_name, address, piva, pec, sdi_code, shipping_address')
+        .order('company_name', { ascending: true, nullsFirst: false })
+        .order('last_name');
 
       if (contactsError) throw contactsError;
       setContacts(contactsData || []);
@@ -554,6 +581,7 @@ export default function ServiceReportsPage() {
     setSelectedContact(null);
     setSelectedTechnician(null);
     setSelectedWorkOrder(null);
+    setContactSearch("");
     setCustomerSignature('');
     setTechnicianSignature('');
     setShowSignatures(false);
@@ -784,19 +812,82 @@ export default function ServiceReportsPage() {
             </CardHeader>
             <CardContent className="px-0 sm:px-6 space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
-                <Select onValueChange={handleContactSelect} value={selectedContact?.id || ""}>
-                  <SelectTrigger className="flex-1 h-12 text-base">
-                    <SelectValue placeholder="Seleziona cliente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id} className="py-3">
-                        {contact.first_name} {contact.last_name} 
-                        {contact.company_name && ` - ${contact.company_name}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={contactSearchOpen}
+                      className="flex-1 h-12 justify-between text-base font-normal"
+                    >
+                      {selectedContact ? (
+                        <span className="truncate">
+                          {selectedContact.first_name} {selectedContact.last_name}
+                          {selectedContact.company_name && ` - ${selectedContact.company_name}`}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Cerca cliente...</span>
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[calc(100vw-24px)] sm:w-[400px] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput 
+                        placeholder="Cerca per nome, azienda, email..." 
+                        value={contactSearch}
+                        onValueChange={setContactSearch}
+                        className="h-12"
+                      />
+                      <CommandList className="max-h-[300px]">
+                        <CommandEmpty className="py-6 text-center text-sm">
+                          <p className="text-muted-foreground mb-2">Nessun cliente trovato</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setContactSearchOpen(false);
+                              setShowCreateContact(true);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Crea nuovo cliente
+                          </Button>
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {filteredContacts.map((contact) => (
+                            <CommandItem
+                              key={contact.id}
+                              value={contact.id}
+                              onSelect={() => {
+                                handleContactSelect(contact.id);
+                                setContactSearchOpen(false);
+                                setContactSearch("");
+                              }}
+                              className="py-3 cursor-pointer"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedContact?.id === contact.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">
+                                  {contact.first_name} {contact.last_name}
+                                </p>
+                                <div className="flex gap-2 text-xs text-muted-foreground">
+                                  {contact.company_name && <span className="truncate">{contact.company_name}</span>}
+                                  {contact.email && <span className="truncate">• {contact.email}</span>}
+                                </div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <Button
                   type="button"
                   variant="outline"
@@ -815,6 +906,7 @@ export default function ServiceReportsPage() {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
                     {selectedContact.email && <span>{selectedContact.email}</span>}
                     {selectedContact.phone && <span>{selectedContact.phone}</span>}
+                    {selectedContact.address && <span className="w-full mt-1">{selectedContact.address}</span>}
                   </div>
                 </div>
               )}
