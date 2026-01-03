@@ -30,7 +30,8 @@ import {
   Upload,
   Camera,
   Loader2,
-  FileText
+  FileText,
+  Pencil
 } from "lucide-react";
 
 interface InvoiceRegistry {
@@ -105,8 +106,10 @@ export default function RegistroFatturePage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRegistry | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [editFormData, setEditFormData] = useState<FormData>(initialFormData);
   
   // Drag & drop AI states
   const [isUploading, setIsUploading] = useState(false);
@@ -420,6 +423,103 @@ export default function RegistroFatturePage() {
     }
   });
 
+  // Mutation per modificare fatture registrate e aggiornare prima nota
+  const updateInvoiceMutation = useMutation({
+    mutationFn: async (data: { invoice: InvoiceRegistry; updates: FormData }) => {
+      const { invoice, updates } = data;
+      const ivaAmount = updates.imponibile * (updates.iva_rate / 100);
+      const totalAmount = updates.imponibile + ivaAmount;
+
+      // Aggiorna la fattura nel registro
+      const { error: invoiceError } = await supabase
+        .from('invoice_registry')
+        .update({
+          invoice_number: updates.invoice_number,
+          invoice_date: updates.invoice_date,
+          invoice_type: updates.invoice_type,
+          subject_type: updates.subject_type,
+          subject_name: updates.subject_name,
+          imponibile: updates.imponibile,
+          iva_rate: updates.iva_rate,
+          iva_amount: ivaAmount,
+          total_amount: totalAmount,
+          vat_regime: updates.vat_regime,
+          financial_status: updates.financial_status,
+          due_date: updates.due_date || null,
+          payment_date: updates.payment_date || null,
+          notes: updates.notes || null
+        })
+        .eq('id', invoice.id);
+
+      if (invoiceError) throw invoiceError;
+
+      // Se la fattura è registrata, aggiorna anche prima nota e accounting entry
+      if (invoice.status === 'registrata') {
+        // Aggiorna prima nota se esiste
+        if (invoice.prima_nota_id) {
+          const { error: primaNotaError } = await supabase
+            .from('prima_nota')
+            .update({
+              description: `Fattura ${updates.invoice_number} - ${updates.subject_name}`,
+              amount: totalAmount,
+              imponibile: updates.imponibile,
+              iva_amount: ivaAmount,
+              iva_aliquota: updates.iva_rate,
+              competence_date: updates.invoice_date
+            })
+            .eq('id', invoice.prima_nota_id);
+
+          if (primaNotaError) throw primaNotaError;
+        }
+
+        // Aggiorna accounting entry se esiste
+        if (invoice.accounting_entry_id) {
+          const { error: entryError } = await supabase
+            .from('accounting_entries')
+            .update({
+              amount: totalAmount,
+              imponibile: updates.imponibile,
+              iva_amount: ivaAmount,
+              iva_aliquota: updates.iva_rate,
+              document_date: updates.invoice_date,
+              direction: updates.invoice_type === 'acquisto' ? 'uscita' : 'entrata',
+              financial_status: updates.financial_status,
+              subject_type: updates.subject_type
+            })
+            .eq('id', invoice.accounting_entry_id);
+
+          if (entryError) throw entryError;
+        }
+
+        // Aggiorna scadenza se esiste
+        if (invoice.scadenza_id) {
+          const { error: scadenzaError } = await supabase
+            .from('scadenze')
+            .update({
+              soggetto_nome: updates.subject_name,
+              soggetto_tipo: updates.subject_type,
+              importo_totale: totalAmount,
+              importo_residuo: totalAmount,
+              data_documento: updates.invoice_date,
+              data_scadenza: updates.due_date || updates.invoice_date
+            })
+            .eq('id', invoice.scadenza_id);
+
+          if (scadenzaError) throw scadenzaError;
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success('Fattura modificata! Prima Nota e documenti collegati aggiornati.');
+      setShowEditDialog(false);
+      setSelectedInvoice(null);
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+    },
+    onError: (error) => {
+      toast.error('Errore nella modifica: ' + error.message);
+    }
+  });
+
   const handleFormChange = (field: string, value: string | number) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
@@ -429,6 +529,36 @@ export default function RegistroFatturePage() {
       }
       return updated;
     });
+  };
+
+  const handleEditFormChange = (field: string, value: string | number) => {
+    setEditFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'invoice_type') {
+        updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
+      }
+      return updated;
+    });
+  };
+
+  const openEditDialog = (invoice: InvoiceRegistry) => {
+    setSelectedInvoice(invoice);
+    setEditFormData({
+      invoice_number: invoice.invoice_number,
+      invoice_date: invoice.invoice_date,
+      invoice_type: invoice.invoice_type,
+      subject_type: invoice.subject_type,
+      subject_name: invoice.subject_name,
+      imponibile: invoice.imponibile,
+      iva_rate: invoice.iva_rate,
+      vat_regime: invoice.vat_regime,
+      financial_status: invoice.financial_status,
+      due_date: invoice.due_date || '',
+      payment_date: invoice.payment_date || '',
+      notes: invoice.notes || '',
+      attachment_url: invoice.attachment_url || ''
+    });
+    setShowEditDialog(true);
   };
 
   const filteredInvoices = invoices.filter(inv => 
@@ -701,6 +831,14 @@ export default function RegistroFatturePage() {
                     <TableCell>{getFinancialStatusBadge(invoice.financial_status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => openEditDialog(invoice)}
+                        >
+                          <Pencil className="w-4 h-4 mr-1" />
+                          Modifica
+                        </Button>
                         {invoice.status === 'bozza' && (
                           <Button 
                             size="sm" 
@@ -969,6 +1107,174 @@ export default function RegistroFatturePage() {
               disabled={registerMutation.isPending}
             >
               {registerMutation.isPending ? 'Registrazione...' : 'Registra Fattura'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Modifica Fattura */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Modifica Fattura {selectedInvoice?.status === 'registrata' && (
+                <Badge className="ml-2 bg-amber-500/20 text-amber-400 border-amber-500/30">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Registrata
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedInvoice?.status === 'registrata' && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-500">Modifica fattura registrata</p>
+                  <p className="text-sm text-muted-foreground">
+                    Le modifiche verranno applicate anche a: Prima Nota, Evento Contabile e Scadenza collegati.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Numero Fattura *</Label>
+              <Input
+                value={editFormData.invoice_number}
+                onChange={(e) => handleEditFormChange('invoice_number', e.target.value)}
+                placeholder="FT-2026/001"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Fattura *</Label>
+              <Input
+                type="date"
+                value={editFormData.invoice_date}
+                onChange={(e) => handleEditFormChange('invoice_date', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo *</Label>
+              <Select value={editFormData.invoice_type} onValueChange={(v) => handleEditFormChange('invoice_type', v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vendita">Vendita</SelectItem>
+                  <SelectItem value="acquisto">Acquisto</SelectItem>
+                  <SelectItem value="nota_credito">Nota Credito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Soggetto ({editFormData.subject_type === 'cliente' ? 'Cliente' : 'Fornitore'}) *</Label>
+              <Input
+                value={editFormData.subject_name}
+                onChange={(e) => handleEditFormChange('subject_name', e.target.value)}
+                placeholder="Nome soggetto"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Imponibile *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={editFormData.imponibile}
+                onChange={(e) => handleEditFormChange('imponibile', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Aliquota IVA %</Label>
+              <Select value={editFormData.iva_rate.toString()} onValueChange={(v) => handleEditFormChange('iva_rate', parseFloat(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="22">22%</SelectItem>
+                  <SelectItem value="10">10%</SelectItem>
+                  <SelectItem value="4">4%</SelectItem>
+                  <SelectItem value="0">0% (Esente)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Regime IVA</Label>
+              <Select value={editFormData.vat_regime} onValueChange={(v) => handleEditFormChange('vat_regime', v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="domestica_imponibile">Domestica Imponibile</SelectItem>
+                  <SelectItem value="ue_non_imponibile">UE Non Imponibile</SelectItem>
+                  <SelectItem value="extra_ue">Extra-UE</SelectItem>
+                  <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Stato Finanziario</Label>
+              <Select value={editFormData.financial_status} onValueChange={(v) => handleEditFormChange('financial_status', v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="da_incassare">Da Incassare</SelectItem>
+                  <SelectItem value="da_pagare">Da Pagare</SelectItem>
+                  <SelectItem value="incassata">Incassata</SelectItem>
+                  <SelectItem value="pagata">Pagata</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Data Scadenza</Label>
+              <Input
+                type="date"
+                value={editFormData.due_date}
+                onChange={(e) => handleEditFormChange('due_date', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Pagamento</Label>
+              <Input
+                type="date"
+                value={editFormData.payment_date}
+                onChange={(e) => handleEditFormChange('payment_date', e.target.value)}
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label>Note</Label>
+              <Textarea
+                value={editFormData.notes}
+                onChange={(e) => handleEditFormChange('notes', e.target.value)}
+                rows={3}
+              />
+            </div>
+            {/* Calcolo automatico importi */}
+            <div className="col-span-2 bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">IVA ({editFormData.iva_rate}%):</span>
+                <span>€{(editFormData.imponibile * (editFormData.iva_rate / 100)).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span>Totale:</span>
+                <span className="text-primary">€{(editFormData.imponibile * (1 + editFormData.iva_rate / 100)).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ invoice: selectedInvoice, updates: editFormData })}
+              disabled={updateInvoiceMutation.isPending}
+            >
+              {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
             </Button>
           </DialogFooter>
         </DialogContent>
