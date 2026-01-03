@@ -36,7 +36,11 @@ export type Database = {
           event_type: string | null
           financial_status: string | null
           id: string
+          imponibile: number | null
           is_recurring: boolean | null
+          iva_aliquota: number | null
+          iva_amount: number | null
+          iva_mode: string | null
           note: string | null
           payment_date: string | null
           payment_method: string | null
@@ -47,6 +51,7 @@ export type Database = {
           status: string
           subject_type: string | null
           temporal_competence: string | null
+          totale: number | null
           updated_at: string
           user_id: string | null
         }
@@ -71,7 +76,11 @@ export type Database = {
           event_type?: string | null
           financial_status?: string | null
           id?: string
+          imponibile?: number | null
           is_recurring?: boolean | null
+          iva_aliquota?: number | null
+          iva_amount?: number | null
+          iva_mode?: string | null
           note?: string | null
           payment_date?: string | null
           payment_method?: string | null
@@ -82,6 +91,7 @@ export type Database = {
           status?: string
           subject_type?: string | null
           temporal_competence?: string | null
+          totale?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -106,7 +116,11 @@ export type Database = {
           event_type?: string | null
           financial_status?: string | null
           id?: string
+          imponibile?: number | null
           is_recurring?: boolean | null
+          iva_aliquota?: number | null
+          iva_amount?: number | null
+          iva_mode?: string | null
           note?: string | null
           payment_date?: string | null
           payment_method?: string | null
@@ -117,6 +131,7 @@ export type Database = {
           status?: string
           subject_type?: string | null
           temporal_competence?: string | null
+          totale?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -4666,10 +4681,15 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          imponibile: number | null
           installment_number: number | null
           is_rectification: boolean | null
+          iva_aliquota: number | null
+          iva_amount: number | null
+          iva_mode: string | null
           movement_type: string
           original_movement_id: string | null
+          payment_method: string | null
           profit_center_id: string | null
           rectification_reason: string | null
           rectified_by: string | null
@@ -4677,6 +4697,7 @@ export type Database = {
           registered_by: string | null
           status: string
           total_installments: number | null
+          totale: number | null
         }
         Insert: {
           accounting_entry_id: string
@@ -4691,10 +4712,15 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          imponibile?: number | null
           installment_number?: number | null
           is_rectification?: boolean | null
+          iva_aliquota?: number | null
+          iva_amount?: number | null
+          iva_mode?: string | null
           movement_type: string
           original_movement_id?: string | null
+          payment_method?: string | null
           profit_center_id?: string | null
           rectification_reason?: string | null
           rectified_by?: string | null
@@ -4702,6 +4728,7 @@ export type Database = {
           registered_by?: string | null
           status?: string
           total_installments?: number | null
+          totale?: number | null
         }
         Update: {
           accounting_entry_id?: string
@@ -4716,10 +4743,15 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          imponibile?: number | null
           installment_number?: number | null
           is_rectification?: boolean | null
+          iva_aliquota?: number | null
+          iva_amount?: number | null
+          iva_mode?: string | null
           movement_type?: string
           original_movement_id?: string | null
+          payment_method?: string | null
           profit_center_id?: string | null
           rectification_reason?: string | null
           rectified_by?: string | null
@@ -4727,6 +4759,7 @@ export type Database = {
           registered_by?: string | null
           status?: string
           total_installments?: number | null
+          totale?: number | null
         }
         Relationships: [
           {
@@ -4769,6 +4802,70 @@ export type Database = {
             columns: ["rectified_by"]
             isOneToOne: false
             referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prima_nota_lines: {
+        Row: {
+          account_type: string
+          avere: number
+          chart_account_id: string | null
+          created_at: string
+          dare: number
+          description: string | null
+          dynamic_account_key: string | null
+          id: string
+          line_order: number
+          prima_nota_id: string
+          structural_account_id: string | null
+        }
+        Insert: {
+          account_type: string
+          avere?: number
+          chart_account_id?: string | null
+          created_at?: string
+          dare?: number
+          description?: string | null
+          dynamic_account_key?: string | null
+          id?: string
+          line_order?: number
+          prima_nota_id: string
+          structural_account_id?: string | null
+        }
+        Update: {
+          account_type?: string
+          avere?: number
+          chart_account_id?: string | null
+          created_at?: string
+          dare?: number
+          description?: string | null
+          dynamic_account_key?: string | null
+          id?: string
+          line_order?: number
+          prima_nota_id?: string
+          structural_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prima_nota_lines_chart_account_id_fkey"
+            columns: ["chart_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_lines_prima_nota_id_fkey"
+            columns: ["prima_nota_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prima_nota_lines_structural_account_id_fkey"
+            columns: ["structural_account_id"]
+            isOneToOne: false
+            referencedRelation: "structural_accounts"
             referencedColumns: ["id"]
           },
         ]
