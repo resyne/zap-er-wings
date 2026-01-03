@@ -156,221 +156,255 @@ Analizza attentamente e suggerisci la classificazione corretta, correggendo la d
       });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "classify_entry",
-              description: "Classifica la registrazione contabile e identifica il soggetto economico",
-              parameters: {
-                type: "object",
-                properties: {
-                  event_type: {
-                    type: "string",
-                    enum: ["ricavo", "costo", "evento_finanziario", "assestamento", "evento_interno"],
-                    description: "Tipo di evento contabile (ricavo se fattura di vendita, costo se fattura di acquisto)"
-                  },
-                  correct_direction: {
-                    type: "string",
-                    enum: ["entrata", "uscita"],
-                    description: "La direzione CORRETTA basata sul documento (entrata per ricavi, uscita per costi)"
-                  },
-                  affects_income_statement: {
-                    type: "boolean",
-                    description: "Se incide sul conto economico"
-                  },
-                  chart_account_id: {
-                    type: "string",
-                    description: "ID del conto del piano dei conti"
-                  },
-                  account_category: {
-                    type: "string",
-                    enum: ["revenue", "cogs", "opex"],
-                    description: "Categoria macro del conto"
-                  },
-                  temporal_competence: {
-                    type: "string",
-                    enum: ["immediata", "differita", "rateizzata"],
-                    description: "Competenza temporale"
-                  },
-                  cost_center_id: {
-                    type: "string",
-                    description: "ID del centro di costo (per i costi)"
-                  },
-                  profit_center_id: {
-                    type: "string",
-                    description: "ID del centro di ricavo (per i ricavi)"
-                  },
-                  financial_status: {
-                    type: "string",
-                    enum: ["pagato", "da_pagare", "incassato", "da_incassare", "anticipato_dipendente"],
-                    description: "Stato finanziario"
-                  },
-                  // Extracted subject data
-                  subject_type: {
-                    type: "string",
-                    enum: ["cliente", "fornitore"],
-                    description: "Tipo di soggetto economico: cliente se è una fattura di vendita, fornitore se è una fattura di acquisto"
-                  },
-                  subject_name: {
-                    type: "string",
-                    description: "Nome o ragione sociale del soggetto (il cliente o fornitore)"
-                  },
-                  subject_tax_id: {
-                    type: "string",
-                    description: "Partita IVA o Codice Fiscale del soggetto"
-                  },
-                  subject_address: {
-                    type: "string",
-                    description: "Indirizzo del soggetto"
-                  },
-                  subject_city: {
-                    type: "string",
-                    description: "Città e provincia del soggetto (es. 'Vico Equense (NA)')"
-                  },
-                  reasoning: {
-                    type: "string",
-                    description: "Breve spiegazione della classificazione suggerita, incluso chi è l'emittente e chi il destinatario della fattura"
-                  },
-                  confidence: {
-                    type: "string",
-                    enum: ["high", "medium", "low"],
-                    description: "Livello di confidenza nella classificazione"
+    // Retry logic for transient errors
+    const maxRetries = 3;
+    let lastError: string = "";
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages,
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "classify_entry",
+                  description: "Classifica la registrazione contabile e identifica il soggetto economico",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      event_type: {
+                        type: "string",
+                        enum: ["ricavo", "costo", "evento_finanziario", "assestamento", "evento_interno"],
+                        description: "Tipo di evento contabile (ricavo se fattura di vendita, costo se fattura di acquisto)"
+                      },
+                      correct_direction: {
+                        type: "string",
+                        enum: ["entrata", "uscita"],
+                        description: "La direzione CORRETTA basata sul documento (entrata per ricavi, uscita per costi)"
+                      },
+                      affects_income_statement: {
+                        type: "boolean",
+                        description: "Se incide sul conto economico"
+                      },
+                      chart_account_id: {
+                        type: "string",
+                        description: "ID del conto del piano dei conti"
+                      },
+                      account_category: {
+                        type: "string",
+                        enum: ["revenue", "cogs", "opex"],
+                        description: "Categoria macro del conto"
+                      },
+                      temporal_competence: {
+                        type: "string",
+                        enum: ["immediata", "differita", "rateizzata"],
+                        description: "Competenza temporale"
+                      },
+                      cost_center_id: {
+                        type: "string",
+                        description: "ID del centro di costo (per i costi)"
+                      },
+                      profit_center_id: {
+                        type: "string",
+                        description: "ID del centro di ricavo (per i ricavi)"
+                      },
+                      financial_status: {
+                        type: "string",
+                        enum: ["pagato", "da_pagare", "incassato", "da_incassare", "anticipato_dipendente"],
+                        description: "Stato finanziario"
+                      },
+                      subject_type: {
+                        type: "string",
+                        enum: ["cliente", "fornitore"],
+                        description: "Tipo di soggetto economico: cliente se è una fattura di vendita, fornitore se è una fattura di acquisto"
+                      },
+                      subject_name: {
+                        type: "string",
+                        description: "Nome o ragione sociale del soggetto (il cliente o fornitore)"
+                      },
+                      subject_tax_id: {
+                        type: "string",
+                        description: "Partita IVA o Codice Fiscale del soggetto"
+                      },
+                      subject_address: {
+                        type: "string",
+                        description: "Indirizzo del soggetto"
+                      },
+                      subject_city: {
+                        type: "string",
+                        description: "Città e provincia del soggetto (es. 'Vico Equense (NA)')"
+                      },
+                      reasoning: {
+                        type: "string",
+                        description: "Breve spiegazione della classificazione suggerita, incluso chi è l'emittente e chi il destinatario della fattura"
+                      },
+                      confidence: {
+                        type: "string",
+                        enum: ["high", "medium", "low"],
+                        description: "Livello di confidenza nella classificazione"
+                      }
+                    },
+                    required: ["event_type", "affects_income_statement", "reasoning"],
+                    additionalProperties: false
                   }
-                },
-                required: ["event_type", "affects_income_statement", "reasoning"],
-                additionalProperties: false
+                }
+              }
+            ],
+            tool_choice: { type: "function", function: { name: "classify_entry" } }
+          }),
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            return new Response(
+              JSON.stringify({ success: false, error: "Rate limit exceeded, riprova tra poco." }),
+              { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          if (response.status === 402) {
+            return new Response(
+              JSON.stringify({ success: false, error: "Crediti esauriti, aggiungi crediti al workspace." }),
+              { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          
+          // For 5xx errors, retry
+          if (response.status >= 500 && attempt < maxRetries) {
+            const errorText = await response.text();
+            console.log(`Attempt ${attempt} failed with ${response.status}, retrying... Error: ${errorText}`);
+            lastError = `${response.status}: ${errorText}`;
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // exponential backoff
+            continue;
+          }
+          
+          const errorText = await response.text();
+          console.error("AI gateway error:", response.status, errorText);
+          return new Response(
+            JSON.stringify({ success: false, error: `Errore AI (${response.status}). Riprova.` }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const data = await response.json();
+        console.log("AI response:", JSON.stringify(data));
+
+        const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          const classification = JSON.parse(toolCall.function.arguments);
+          console.log("Classification:", classification);
+      
+          // If we have subject data, search BOTH customers AND suppliers to find matches
+          let customerMatch = null;
+          let supplierMatch = null;
+          let customerMatches: any[] = [];
+          let supplierMatches: any[] = [];
+          
+          if (classification.subject_name || classification.subject_tax_id) {
+            // Always search CUSTOMERS
+            if (classification.subject_tax_id) {
+              const taxId = classification.subject_tax_id.replace(/\s/g, "");
+              const { data: byTaxId } = await supabase
+                .from("customers")
+                .select("id, name, company_name, tax_id, city, address")
+                .ilike("tax_id", `%${taxId}%`);
+              if (byTaxId && byTaxId.length > 0) {
+                customerMatch = byTaxId[0];
+                customerMatches = byTaxId;
               }
             }
+            
+            if (!customerMatch && classification.subject_name) {
+              const { data: byName } = await supabase
+                .from("customers")
+                .select("id, name, company_name, tax_id, city, address")
+                .or(`name.ilike.%${classification.subject_name}%,company_name.ilike.%${classification.subject_name}%`);
+              if (byName && byName.length > 0) {
+                customerMatch = byName[0];
+                customerMatches = byName;
+              }
+            }
+            
+            // Always search SUPPLIERS too
+            if (classification.subject_tax_id) {
+              const taxId = classification.subject_tax_id.replace(/\s/g, "");
+              const { data: byTaxId } = await supabase
+                .from("suppliers")
+                .select("id, name, tax_id, city, address")
+                .ilike("tax_id", `%${taxId}%`);
+              if (byTaxId && byTaxId.length > 0) {
+                supplierMatch = byTaxId[0];
+                supplierMatches = byTaxId;
+              }
+            }
+            
+            if (!supplierMatch && classification.subject_name) {
+              const { data: byName } = await supabase
+                .from("suppliers")
+                .select("id, name, tax_id, city, address")
+                .ilike("name", `%${classification.subject_name}%`);
+              if (byName && byName.length > 0) {
+                supplierMatch = byName[0];
+                supplierMatches = byName;
+              }
+            }
+            
+            // Return both search results - let the frontend decide
+            classification.customer_match = customerMatch;
+            classification.supplier_match = supplierMatch;
+            classification.customer_matches = customerMatches;
+            classification.supplier_matches = supplierMatches;
+            
+            // Set existing_subject based on AI's suggested type
+            const subjectType = classification.subject_type || (classification.event_type === "ricavo" ? "cliente" : "fornitore");
+            if (subjectType === "cliente" && customerMatch) {
+              classification.existing_subject = customerMatch;
+              classification.subject_found = true;
+            } else if (subjectType === "fornitore" && supplierMatch) {
+              classification.existing_subject = supplierMatch;
+              classification.subject_found = true;
+            } else {
+              // Check if found in the OTHER table
+              classification.found_as_customer = !!customerMatch;
+              classification.found_as_supplier = !!supplierMatch;
+              classification.subject_found = false;
+            }
           }
-        ],
-        tool_choice: { type: "function", function: { name: "classify_entry" } }
-      }),
-    });
+          
+          return new Response(
+            JSON.stringify({ success: true, classification }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
 
-    if (!response.ok) {
-      if (response.status === 429) {
+        // If no valid tool call, return error
         return new Response(
-          JSON.stringify({ success: false, error: "Rate limit exceeded, riprova tra poco." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ success: false, error: "Impossibile generare classificazione" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+
+      } catch (fetchError) {
+        // Network/timeout errors - retry
+        if (attempt < maxRetries) {
+          console.log(`Attempt ${attempt} failed with network error, retrying...`, fetchError);
+          lastError = fetchError instanceof Error ? fetchError.message : "Network error";
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+        throw fetchError;
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Crediti esauriti, aggiungi crediti al workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ success: false, error: "Errore nell'analisi AI" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
-    const data = await response.json();
-    console.log("AI response:", JSON.stringify(data));
-
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall?.function?.arguments) {
-      const classification = JSON.parse(toolCall.function.arguments);
-      console.log("Classification:", classification);
-      
-      // If we have subject data, search BOTH customers AND suppliers to find matches
-      let customerMatch = null;
-      let supplierMatch = null;
-      let customerMatches: any[] = [];
-      let supplierMatches: any[] = [];
-      
-      if (classification.subject_name || classification.subject_tax_id) {
-        // Always search CUSTOMERS
-        if (classification.subject_tax_id) {
-          const taxId = classification.subject_tax_id.replace(/\s/g, "");
-          const { data: byTaxId } = await supabase
-            .from("customers")
-            .select("id, name, company_name, tax_id, city, address")
-            .ilike("tax_id", `%${taxId}%`);
-          if (byTaxId && byTaxId.length > 0) {
-            customerMatch = byTaxId[0];
-            customerMatches = byTaxId;
-          }
-        }
-        
-        if (!customerMatch && classification.subject_name) {
-          const { data: byName } = await supabase
-            .from("customers")
-            .select("id, name, company_name, tax_id, city, address")
-            .or(`name.ilike.%${classification.subject_name}%,company_name.ilike.%${classification.subject_name}%`);
-          if (byName && byName.length > 0) {
-            customerMatch = byName[0];
-            customerMatches = byName;
-          }
-        }
-        
-        // Always search SUPPLIERS too
-        if (classification.subject_tax_id) {
-          const taxId = classification.subject_tax_id.replace(/\s/g, "");
-          const { data: byTaxId } = await supabase
-            .from("suppliers")
-            .select("id, name, tax_id, city, address")
-            .ilike("tax_id", `%${taxId}%`);
-          if (byTaxId && byTaxId.length > 0) {
-            supplierMatch = byTaxId[0];
-            supplierMatches = byTaxId;
-          }
-        }
-        
-        if (!supplierMatch && classification.subject_name) {
-          const { data: byName } = await supabase
-            .from("suppliers")
-            .select("id, name, tax_id, city, address")
-            .ilike("name", `%${classification.subject_name}%`);
-          if (byName && byName.length > 0) {
-            supplierMatch = byName[0];
-            supplierMatches = byName;
-          }
-        }
-        
-        // Return both search results - let the frontend decide
-        classification.customer_match = customerMatch;
-        classification.supplier_match = supplierMatch;
-        classification.customer_matches = customerMatches;
-        classification.supplier_matches = supplierMatches;
-        
-        // Set existing_subject based on AI's suggested type
-        const subjectType = classification.subject_type || (classification.event_type === "ricavo" ? "cliente" : "fornitore");
-        if (subjectType === "cliente" && customerMatch) {
-          classification.existing_subject = customerMatch;
-          classification.subject_found = true;
-        } else if (subjectType === "fornitore" && supplierMatch) {
-          classification.existing_subject = supplierMatch;
-          classification.subject_found = true;
-        } else {
-          // Check if found in the OTHER table
-          classification.found_as_customer = !!customerMatch;
-          classification.found_as_supplier = !!supplierMatch;
-          classification.subject_found = false;
-        }
-      }
-      
-      return new Response(
-        JSON.stringify({ success: true, classification }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    // All retries exhausted
     return new Response(
-      JSON.stringify({ success: false, error: "Impossibile generare classificazione" }),
+      JSON.stringify({ success: false, error: `Errore AI dopo ${maxRetries} tentativi: ${lastError}` }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
