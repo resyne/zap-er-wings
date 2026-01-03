@@ -47,6 +47,11 @@ serve(async (req) => {
       );
     }
 
+    // Create Supabase client to search for existing customers/suppliers
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     console.log("Classifying entry:", entry.id);
 
     // Build context about available accounts and centers
@@ -62,10 +67,14 @@ serve(async (req) => {
       `- ${c.name} (id: ${c.id})`
     ).join("\n") || "Nessun centro di ricavo";
 
-    const systemPrompt = `Sei un esperto contabile italiano. Devi classificare una registrazione contabile.
+    const systemPrompt = `Sei un esperto contabile italiano. Devi classificare una registrazione contabile e identificare il soggetto economico.
+
+AZIENDA EMITTENTE: "Climatel di Elefante Pasquale" (o simili varianti: Climatel, CLIMATEL)
+- Se la fattura è EMESSA DA Climatel verso qualcun altro → è una FATTURA DI VENDITA (ricavo, entrata)
+- Se la fattura è EMESSA DA un altro soggetto verso Climatel → è una FATTURA DI ACQUISTO (costo, uscita)
 
 DATI DELLA REGISTRAZIONE:
-- Direzione: ${entry.direction} (entrata = incasso, uscita = spesa)
+- Direzione inserita: ${entry.direction} (entrata = incasso, uscita = spesa)
 - Tipo documento: ${entry.document_type}
 - Importo: € ${entry.amount}
 - Data documento: ${entry.document_date}
@@ -82,14 +91,18 @@ CENTRI DI RICAVO DISPONIBILI:
 ${profitCentersContext}
 
 REGOLE DI CLASSIFICAZIONE:
-1. Se direction="uscita" → event_type="costo", affects_income_statement=true
-2. Se direction="entrata" → event_type="ricavo", affects_income_statement=true
-3. Scegli il conto più appropriato dal piano dei conti
-4. Per i costi scegli un centro di costo, per i ricavi un centro di ricavo
-5. financial_status: se direction="uscita" → "pagato" o "da_pagare"; se direction="entrata" → "incassato" o "da_incassare"
-6. temporal_competence di default è "immediata"
+1. PRIMA analizza il documento per capire CHI è l'emittente e CHI è il destinatario
+2. Se l'emittente è Climatel → è un RICAVO (fattura di vendita)
+3. Se il destinatario è Climatel → è un COSTO (fattura di acquisto)
+4. La direzione potrebbe essere errata, fidati del documento!
+5. Estrai sempre i dati del SOGGETTO ECONOMICO (cliente o fornitore):
+   - Nome/Ragione sociale
+   - Partita IVA (se presente)
+   - Indirizzo/Città (se presenti)
+6. Per i costi scegli un centro di costo, per i ricavi un centro di ricavo
+7. financial_status: per vendite → "incassato" o "da_incassare"; per acquisti → "pagato" o "da_pagare"
 
-Analizza i dati e suggerisci la classificazione migliore.`;
+Analizza attentamente il documento e suggerisci la classificazione corretta, correggendo la direzione se necessario.`;
 
     // Prepare messages - optionally include document image
     const messages: any[] = [
@@ -106,14 +119,14 @@ Analizza i dati e suggerisci la classificazione migliore.`;
           messages.push({
             role: "user",
             content: [
-              { type: "text", text: "Analizza questo documento e suggerisci la classificazione contabile appropriata." },
+              { type: "text", text: "Analizza questo documento: identifica emittente, destinatario, e suggerisci la classificazione contabile. Estrai anche i dati del soggetto economico (cliente o fornitore)." },
               { type: "image_url", image_url: { url: dataUrl } }
             ]
           });
         } else {
           messages.push({
             role: "user",
-            content: "Suggerisci la classificazione contabile appropriata basandoti sui dati disponibili."
+            content: "Suggerisci la classificazione contabile appropriata basandoti sui dati disponibili. Non posso visualizzare il PDF, usa le informazioni testuali."
           });
         }
       } catch (e) {
@@ -144,14 +157,19 @@ Analizza i dati e suggerisci la classificazione migliore.`;
             type: "function",
             function: {
               name: "classify_entry",
-              description: "Classifica la registrazione contabile",
+              description: "Classifica la registrazione contabile e identifica il soggetto economico",
               parameters: {
                 type: "object",
                 properties: {
                   event_type: {
                     type: "string",
                     enum: ["ricavo", "costo", "evento_finanziario", "assestamento", "evento_interno"],
-                    description: "Tipo di evento contabile"
+                    description: "Tipo di evento contabile (ricavo se fattura di vendita, costo se fattura di acquisto)"
+                  },
+                  correct_direction: {
+                    type: "string",
+                    enum: ["entrata", "uscita"],
+                    description: "La direzione CORRETTA basata sul documento (entrata per ricavi, uscita per costi)"
                   },
                   affects_income_statement: {
                     type: "boolean",
@@ -184,9 +202,31 @@ Analizza i dati e suggerisci la classificazione migliore.`;
                     enum: ["pagato", "da_pagare", "incassato", "da_incassare", "anticipato_dipendente"],
                     description: "Stato finanziario"
                   },
+                  // Extracted subject data
+                  subject_type: {
+                    type: "string",
+                    enum: ["cliente", "fornitore"],
+                    description: "Tipo di soggetto economico: cliente se è una fattura di vendita, fornitore se è una fattura di acquisto"
+                  },
+                  subject_name: {
+                    type: "string",
+                    description: "Nome o ragione sociale del soggetto (il cliente o fornitore)"
+                  },
+                  subject_tax_id: {
+                    type: "string",
+                    description: "Partita IVA o Codice Fiscale del soggetto"
+                  },
+                  subject_address: {
+                    type: "string",
+                    description: "Indirizzo del soggetto"
+                  },
+                  subject_city: {
+                    type: "string",
+                    description: "Città e provincia del soggetto (es. 'Vico Equense (NA)')"
+                  },
                   reasoning: {
                     type: "string",
-                    description: "Breve spiegazione della classificazione suggerita"
+                    description: "Breve spiegazione della classificazione suggerita, incluso chi è l'emittente e chi il destinatario della fattura"
                   },
                   confidence: {
                     type: "string",
@@ -232,6 +272,70 @@ Analizza i dati e suggerisci la classificazione migliore.`;
     if (toolCall?.function?.arguments) {
       const classification = JSON.parse(toolCall.function.arguments);
       console.log("Classification:", classification);
+      
+      // If we have subject data, try to find existing customer or supplier
+      let existingSubject = null;
+      let subjectMatches: any[] = [];
+      
+      if (classification.subject_name || classification.subject_tax_id) {
+        const subjectType = classification.subject_type || (classification.event_type === "ricavo" ? "cliente" : "fornitore");
+        
+        if (subjectType === "cliente") {
+          // Search in customers table
+          let query = supabase.from("customers").select("id, name, company_name, tax_id, city, address");
+          
+          // Search by tax_id first (most reliable)
+          if (classification.subject_tax_id) {
+            const taxId = classification.subject_tax_id.replace(/\s/g, "");
+            const { data: byTaxId } = await query.ilike("tax_id", `%${taxId}%`);
+            if (byTaxId && byTaxId.length > 0) {
+              existingSubject = byTaxId[0];
+              subjectMatches = byTaxId;
+            }
+          }
+          
+          // If no match by tax_id, search by name
+          if (!existingSubject && classification.subject_name) {
+            const { data: byName } = await supabase
+              .from("customers")
+              .select("id, name, company_name, tax_id, city, address")
+              .or(`name.ilike.%${classification.subject_name}%,company_name.ilike.%${classification.subject_name}%`);
+            if (byName && byName.length > 0) {
+              existingSubject = byName[0];
+              subjectMatches = byName;
+            }
+          }
+        } else {
+          // Search in suppliers table
+          let query = supabase.from("suppliers").select("id, name, tax_id, city, address");
+          
+          // Search by tax_id first
+          if (classification.subject_tax_id) {
+            const taxId = classification.subject_tax_id.replace(/\s/g, "");
+            const { data: byTaxId } = await query.ilike("tax_id", `%${taxId}%`);
+            if (byTaxId && byTaxId.length > 0) {
+              existingSubject = byTaxId[0];
+              subjectMatches = byTaxId;
+            }
+          }
+          
+          // If no match by tax_id, search by name
+          if (!existingSubject && classification.subject_name) {
+            const { data: byName } = await supabase
+              .from("suppliers")
+              .select("id, name, tax_id, city, address")
+              .ilike("name", `%${classification.subject_name}%`);
+            if (byName && byName.length > 0) {
+              existingSubject = byName[0];
+              subjectMatches = byName;
+            }
+          }
+        }
+        
+        classification.existing_subject = existingSubject;
+        classification.subject_matches = subjectMatches;
+        classification.subject_found = !!existingSubject;
+      }
       
       return new Response(
         JSON.stringify({ success: true, classification }),
