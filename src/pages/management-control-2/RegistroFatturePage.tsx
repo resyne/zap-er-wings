@@ -338,7 +338,7 @@ export default function RegistroFatturePage() {
           iva_amount: invoice.iva_amount,
           iva_aliquota: invoice.iva_rate,
           payment_method: 'bonifico',
-          status: invoice.financial_status === 'incassata' || invoice.financial_status === 'pagata' ? 'confermato' : 'in_attesa',
+          status: 'registrato',
           accounting_entry_id: accountingEntry.id
         })
         .select()
