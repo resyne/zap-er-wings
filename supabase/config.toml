@@ -1,5 +1,8 @@
 project_id = "rucjkoleodtwrbftwgsm"
 
+[functions.classify-accounting-entry]
+verify_jwt = false
+
 [functions.inbound-call-records]
 verify_jwt = false
 
