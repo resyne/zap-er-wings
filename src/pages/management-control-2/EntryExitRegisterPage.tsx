@@ -15,9 +15,9 @@ import { Upload, Camera, ArrowUp, ArrowDown, FileCheck, Loader2, CheckCircle, X,
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 
-interface SupplierMatch {
+interface SubjectMatch {
   matched: boolean;
-  supplier?: {
+  subject?: {
     id: string;
     name: string;
     code: string;
@@ -34,7 +34,7 @@ interface SupplierMatch {
     tax_id: string | null;
   }>;
   match_type?: string;
-  suggested_supplier?: {
+  suggested_subject?: {
     name: string;
     tax_id: string;
     address: string;
@@ -42,6 +42,7 @@ interface SupplierMatch {
     email: string;
     phone: string;
   };
+  type: "cliente" | "fornitore";
 }
 
 const documentTypes = [
@@ -142,11 +143,12 @@ export default function EntryExitRegisterPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [flowType, setFlowType] = useState<"document" | "manual">("document");
   
-  // Supplier matching state
-  const [supplierMatch, setSupplierMatch] = useState<SupplierMatch | null>(null);
-  const [showSupplierDialog, setShowSupplierDialog] = useState(false);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
-  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
+  // Subject matching state (cliente o fornitore)
+  const [subjectMatch, setSubjectMatch] = useState<SubjectMatch | null>(null);
+  const [showSubjectDialog, setShowSubjectDialog] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  const [isCreatingSubject, setIsCreatingSubject] = useState(false);
+  const [subjectType, setSubjectType] = useState<"cliente" | "fornitore">("fornitore");
 
   const [formData, setFormData] = useState({
     direction: "",
@@ -273,23 +275,70 @@ export default function EntryExitRegisterPage() {
               note: extracted.notes || prev.note,
             }));
 
-            // Handle supplier matching
+            // Handle subject matching (cliente o fornitore)
             if (analysisData.supplier) {
-              console.log("Supplier match data:", analysisData.supplier);
-              setSupplierMatch(analysisData.supplier);
-
-              if (analysisData.supplier.matched && analysisData.supplier.supplier) {
-                // Auto-select matched supplier
-                setSelectedSupplierId(analysisData.supplier.supplier.id);
-                setFormData((prev) => ({
-                  ...prev,
-                  supplier_id: analysisData.supplier.supplier.id,
-                  subject_type: "fornitore",
-                }));
-                toast.success(`Fornitore riconosciuto: ${analysisData.supplier.supplier.name}`);
-              } else if (!analysisData.supplier.matched && analysisData.supplier.suggested_supplier) {
-                // Show dialog to create new supplier
-                setShowSupplierDialog(true);
+              console.log("Subject match data:", analysisData.supplier);
+              
+              // Cerca in entrambe le anagrafiche
+              const suggestedData = analysisData.supplier.suggested_supplier;
+              if (suggestedData) {
+                // Prima cerca nei clienti
+                const { data: customerMatch } = await supabase
+                  .from("customers")
+                  .select("id, name, code, tax_id, email, phone, address, city")
+                  .or(`tax_id.eq.${suggestedData.tax_id || ''},name.ilike.%${suggestedData.name || ''}%`)
+                  .limit(1)
+                  .maybeSingle();
+                
+                // Poi cerca nei fornitori
+                const { data: supplierMatchData } = await supabase
+                  .from("suppliers")
+                  .select("id, name, code, tax_id, email, phone, address, city")
+                  .or(`tax_id.eq.${suggestedData.tax_id || ''},name.ilike.%${suggestedData.name || ''}%`)
+                  .limit(1)
+                  .maybeSingle();
+                
+                if (customerMatch) {
+                  // Trovato come cliente
+                  setSubjectMatch({
+                    matched: true,
+                    subject: customerMatch,
+                    type: "cliente",
+                    match_type: "existing"
+                  });
+                  setSelectedSubjectId(customerMatch.id);
+                  setSubjectType("cliente");
+                  setFormData((prev) => ({
+                    ...prev,
+                    subject_type: "cliente",
+                  }));
+                  toast.success(`Cliente riconosciuto: ${customerMatch.name}`);
+                } else if (supplierMatchData) {
+                  // Trovato come fornitore
+                  setSubjectMatch({
+                    matched: true,
+                    subject: supplierMatchData,
+                    type: "fornitore",
+                    match_type: "existing"
+                  });
+                  setSelectedSubjectId(supplierMatchData.id);
+                  setSubjectType("fornitore");
+                  setFormData((prev) => ({
+                    ...prev,
+                    supplier_id: supplierMatchData.id,
+                    subject_type: "fornitore",
+                  }));
+                  toast.success(`Fornitore riconosciuto: ${supplierMatchData.name}`);
+                } else {
+                  // Non trovato, mostra dialog per creazione
+                  setSubjectMatch({
+                    matched: false,
+                    suggested_subject: suggestedData,
+                    type: extracted.direction === "entrata" ? "cliente" : "fornitore"
+                  });
+                  setSubjectType(extracted.direction === "entrata" ? "cliente" : "fornitore");
+                  setShowSubjectDialog(true);
+                }
               }
             }
 
@@ -361,8 +410,9 @@ export default function EntryExitRegisterPage() {
     setStep("start");
     setFlowType("document");
     setUploadedFile(null);
-    setSupplierMatch(null);
-    setSelectedSupplierId(null);
+    setSubjectMatch(null);
+    setSelectedSubjectId(null);
+    setSubjectType("fornitore");
     setFormData({
       direction: "",
       document_type: "",
@@ -375,68 +425,104 @@ export default function EntryExitRegisterPage() {
     });
   };
 
-  // Create new supplier from AI-extracted data
-  const handleCreateSupplier = async () => {
-    if (!supplierMatch?.suggested_supplier) return;
+  // Create new subject (cliente o fornitore) from AI-extracted data
+  const handleCreateSubject = async () => {
+    if (!subjectMatch?.suggested_subject) return;
     
-    setIsCreatingSupplier(true);
+    setIsCreatingSubject(true);
     try {
-      // Generate a unique code for the supplier using timestamp + random to avoid collisions
       const timestamp = Date.now().toString(36).toUpperCase();
       const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const newCode = `SUP-${timestamp}-${random}`;
+      const suggested = subjectMatch.suggested_subject;
       
-      const suggested = supplierMatch.suggested_supplier;
-      const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      if (subjectType === "cliente") {
+        const newCode = `CLI-${timestamp}-${random}`;
+        
+        const { data: newCustomer, error } = await supabase
+          .from("customers")
+          .insert({
+            code: newCode,
+            name: suggested.name,
+            tax_id: suggested.tax_id || null,
+            address: suggested.address || null,
+            city: suggested.city || null,
+            email: suggested.email || null,
+            phone: suggested.phone || null,
+            active: true,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        setSelectedSubjectId(newCustomer.id);
+        setFormData((prev) => ({
+          ...prev,
+          subject_type: "cliente",
+        }));
+        
+        setSubjectMatch({
+          matched: true,
+          subject: newCustomer,
+          type: "cliente",
+          match_type: "created",
+        });
+        
+        toast.success(`Cliente "${suggested.name}" creato con successo!`);
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+      } else {
+        const newCode = `SUP-${timestamp}-${random}`;
+        const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        
+        const { data: newSupplier, error } = await supabase
+          .from("suppliers")
+          .insert({
+            code: newCode,
+            name: suggested.name,
+            tax_id: suggested.tax_id || null,
+            address: suggested.address || null,
+            city: suggested.city || null,
+            email: suggested.email || null,
+            phone: suggested.phone || null,
+            active: true,
+            access_code: accessCode,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        setSelectedSubjectId(newSupplier.id);
+        setFormData((prev) => ({
+          ...prev,
+          supplier_id: newSupplier.id,
+          subject_type: "fornitore",
+        }));
+        
+        setSubjectMatch({
+          matched: true,
+          subject: newSupplier,
+          type: "fornitore",
+          match_type: "created",
+        });
+        
+        toast.success(`Fornitore "${suggested.name}" creato con successo!`);
+        queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      }
       
-      const { data: newSupplier, error } = await supabase
-        .from("suppliers")
-        .insert({
-          code: newCode,
-          name: suggested.name,
-          tax_id: suggested.tax_id || null,
-          address: suggested.address || null,
-          city: suggested.city || null,
-          email: suggested.email || null,
-          phone: suggested.phone || null,
-          active: true,
-          access_code: accessCode,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update form with the new supplier
-      setSelectedSupplierId(newSupplier.id);
-      setFormData((prev) => ({
-        ...prev,
-        supplier_id: newSupplier.id,
-        subject_type: "fornitore",
-      }));
-      
-      // Update supplier match state to show as matched
-      setSupplierMatch({
-        matched: true,
-        supplier: newSupplier,
-        match_type: "created",
-      });
-      
-      toast.success(`Fornitore "${suggested.name}" creato con successo!`);
-      setShowSupplierDialog(false);
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      setShowSubjectDialog(false);
     } catch (error) {
-      console.error("Error creating supplier:", error);
-      toast.error("Errore durante la creazione del fornitore");
+      console.error("Error creating subject:", error);
+      toast.error(`Errore durante la creazione del ${subjectType}`);
     } finally {
-      setIsCreatingSupplier(false);
+      setIsCreatingSubject(false);
     }
   };
 
-  // Skip supplier creation and continue without linking
-  const handleSkipSupplier = () => {
-    setShowSupplierDialog(false);
-    toast.info("Puoi collegare il fornitore in seguito durante la classificazione");
+  // Skip subject creation and continue without linking
+  const handleSkipSubject = () => {
+    setShowSubjectDialog(false);
+    toast.info("Puoi collegare il soggetto in seguito durante la classificazione");
   };
 
   // Dropzone for upload step - MUST be at top level, before any conditional returns
@@ -677,15 +763,17 @@ export default function EntryExitRegisterPage() {
       </Card>
 
       <Card>
-        {/* Supplier Match Info */}
-        {supplierMatch?.matched && supplierMatch.supplier && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
-            <div className="flex items-center gap-2 text-green-700">
+        {/* Subject Match Info */}
+        {subjectMatch?.matched && subjectMatch.subject && (
+          <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg mb-4">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
               <UserCheck className="h-5 w-5" />
               <div>
-                <p className="font-medium">Fornitore: {supplierMatch.supplier.name}</p>
-                {supplierMatch.supplier.tax_id && (
-                  <p className="text-sm text-green-600">P.IVA: {supplierMatch.supplier.tax_id}</p>
+                <p className="font-medium">
+                  {subjectMatch.type === "cliente" ? "Cliente" : "Fornitore"}: {subjectMatch.subject.name}
+                </p>
+                {subjectMatch.subject.tax_id && (
+                  <p className="text-sm text-green-600 dark:text-green-400">P.IVA: {subjectMatch.subject.tax_id}</p>
                 )}
               </div>
             </div>
@@ -838,39 +926,62 @@ export default function EntryExitRegisterPage() {
         </CardContent>
       </Card>
 
-      {/* Supplier Match Dialog */}
-      <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>
+      {/* Subject Match Dialog */}
+      <Dialog open={showSubjectDialog} onOpenChange={setShowSubjectDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Nuovo Fornitore Rilevato
+              Nuovo Soggetto Rilevato
             </DialogTitle>
           </DialogHeader>
           
-          {supplierMatch?.suggested_supplier && (
+          {subjectMatch?.suggested_subject && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                L'AI ha estratto i seguenti dati del fornitore dal documento. Vuoi creare un nuovo fornitore in anagrafica?
+                L'AI ha estratto i seguenti dati dal documento. Non è stato trovato in anagrafica. Scegli se crearlo come cliente o fornitore.
               </p>
+              
+              {/* Toggle Cliente/Fornitore */}
+              <div className="space-y-2">
+                <Label>Tipo Soggetto</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={subjectType === "cliente" ? "default" : "outline"}
+                    className={subjectType === "cliente" ? "bg-blue-600 hover:bg-blue-700" : ""}
+                    onClick={() => setSubjectType("cliente")}
+                  >
+                    Cliente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={subjectType === "fornitore" ? "default" : "outline"}
+                    className={subjectType === "fornitore" ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    onClick={() => setSubjectType("fornitore")}
+                  >
+                    Fornitore
+                  </Button>
+                </div>
+              </div>
               
               <div className="bg-muted p-4 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Nome:</span>
-                  <span className="font-medium">{supplierMatch.suggested_supplier.name || "-"}</span>
+                  <span className="font-medium">{subjectMatch.suggested_subject.name || "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">P.IVA:</span>
-                  <span className="font-medium">{supplierMatch.suggested_supplier.tax_id || "-"}</span>
+                  <span className="font-medium">{subjectMatch.suggested_subject.tax_id || "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Città:</span>
-                  <span className="font-medium">{supplierMatch.suggested_supplier.city || "-"}</span>
+                  <span className="font-medium">{subjectMatch.suggested_subject.city || "-"}</span>
                 </div>
-                {supplierMatch.suggested_supplier.email && (
+                {subjectMatch.suggested_subject.email && (
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Email:</span>
-                    <span className="font-medium">{supplierMatch.suggested_supplier.email}</span>
+                    <span className="font-medium">{subjectMatch.suggested_subject.email}</span>
                   </div>
                 )}
               </div>
@@ -878,16 +989,16 @@ export default function EntryExitRegisterPage() {
           )}
           
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={handleSkipSupplier}>
+            <Button variant="outline" onClick={handleSkipSubject}>
               Salta
             </Button>
-            <Button onClick={handleCreateSupplier} disabled={isCreatingSupplier}>
-              {isCreatingSupplier ? (
+            <Button onClick={handleCreateSubject} disabled={isCreatingSubject}>
+              {isCreatingSubject ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <UserPlus className="h-4 w-4 mr-2" />
               )}
-              Crea Fornitore
+              Crea {subjectType === "cliente" ? "Cliente" : "Fornitore"}
             </Button>
           </DialogFooter>
         </DialogContent>
