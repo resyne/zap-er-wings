@@ -331,7 +331,7 @@ export default function RegistroFatturePage() {
         .from('prima_nota')
         .insert({
           competence_date: invoice.invoice_date,
-          movement_type: invoice.invoice_type === 'acquisto' ? 'uscita' : 'entrata',
+          movement_type: 'economico',
           description: `Fattura ${invoice.invoice_number} - ${invoice.subject_name}`,
           amount: invoice.total_amount,
           imponibile: invoice.imponibile,
