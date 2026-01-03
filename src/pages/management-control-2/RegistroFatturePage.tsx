@@ -51,11 +51,16 @@ interface InvoiceRegistry {
   financial_status: 'da_incassare' | 'da_pagare' | 'incassata' | 'pagata';
   due_date: string | null;
   payment_date: string | null;
+  payment_method: string | null;
   source_document_type: string | null;
   source_document_id: string | null;
   accounting_entry_id: string | null;
   scadenza_id: string | null;
   prima_nota_id: string | null;
+  cost_center_id: string | null;
+  profit_center_id: string | null;
+  cost_account_id: string | null;
+  revenue_account_id: string | null;
   notes: string | null;
   created_at: string;
   registered_at: string | null;
@@ -79,6 +84,13 @@ interface FormData {
   financial_status: FinancialStatus;
   due_date: string;
   payment_date: string;
+  payment_method: string;
+  source_document_type: string;
+  source_document_id: string;
+  cost_center_id: string;
+  profit_center_id: string;
+  cost_account_id: string;
+  revenue_account_id: string;
   notes: string;
   attachment_url: string;
 }
@@ -95,6 +107,13 @@ const initialFormData: FormData = {
   financial_status: 'da_incassare',
   due_date: '',
   payment_date: '',
+  payment_method: '',
+  source_document_type: '',
+  source_document_id: '',
+  cost_center_id: '',
+  profit_center_id: '',
+  cost_account_id: '',
+  revenue_account_id: '',
   notes: '',
   attachment_url: ''
 };
@@ -259,6 +278,93 @@ export default function RegistroFatturePage() {
     }
   });
 
+  // Fetch cost centers
+  const { data: costCenters = [] } = useQuery({
+    queryKey: ['cost-centers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cost_centers')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch profit centers
+  const { data: profitCenters = [] } = useQuery({
+    queryKey: ['profit-centers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profit_centers')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch chart of accounts
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['chart-of-accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chart_of_accounts')
+        .select('id, code, name, account_type')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch DDTs for linking
+  const { data: ddts = [] } = useQuery({
+    queryKey: ['ddts-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ddts')
+        .select('id, ddt_number, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch sales orders for linking
+  const { data: salesOrders = [] } = useQuery({
+    queryKey: ['sales-orders-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select('id, number, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch service reports for linking
+  const { data: serviceReports = [] } = useQuery({
+    queryKey: ['service-reports-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('service_reports')
+        .select('id, intervention_type, intervention_date, technician_name')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const costAccounts = accounts.filter(a => a.account_type === 'cost' || a.account_type === 'opex' || a.account_type === 'expense');
+  const revenueAccounts = accounts.filter(a => a.account_type === 'revenue');
+
   const calculateAmounts = (imponibile: number, ivaRate: number) => {
     const ivaAmount = imponibile * (ivaRate / 100);
     const totalAmount = imponibile + ivaAmount;
@@ -287,6 +393,13 @@ export default function RegistroFatturePage() {
           financial_status: data.financial_status,
           due_date: data.due_date || null,
           payment_date: data.payment_date || null,
+          payment_method: data.payment_method || null,
+          source_document_type: data.source_document_type || null,
+          source_document_id: data.source_document_id || null,
+          cost_center_id: data.cost_center_id || null,
+          profit_center_id: data.profit_center_id || null,
+          cost_account_id: data.cost_account_id || null,
+          revenue_account_id: data.revenue_account_id || null,
           notes: data.notes || null,
           created_by: user?.user?.id
         });
@@ -447,6 +560,13 @@ export default function RegistroFatturePage() {
           financial_status: updates.financial_status,
           due_date: updates.due_date || null,
           payment_date: updates.payment_date || null,
+          payment_method: updates.payment_method || null,
+          source_document_type: updates.source_document_type || null,
+          source_document_id: updates.source_document_id || null,
+          cost_center_id: updates.cost_center_id || null,
+          profit_center_id: updates.profit_center_id || null,
+          cost_account_id: updates.cost_account_id || null,
+          revenue_account_id: updates.revenue_account_id || null,
           notes: updates.notes || null
         })
         .eq('id', invoice.id);
@@ -555,6 +675,13 @@ export default function RegistroFatturePage() {
       financial_status: invoice.financial_status,
       due_date: invoice.due_date || '',
       payment_date: invoice.payment_date || '',
+      payment_method: invoice.payment_method || '',
+      source_document_type: invoice.source_document_type || '',
+      source_document_id: invoice.source_document_id || '',
+      cost_center_id: invoice.cost_center_id || '',
+      profit_center_id: invoice.profit_center_id || '',
+      cost_account_id: invoice.cost_account_id || '',
+      revenue_account_id: invoice.revenue_account_id || '',
       notes: invoice.notes || '',
       attachment_url: invoice.attachment_url || ''
     });
@@ -981,6 +1108,136 @@ export default function RegistroFatturePage() {
                 onChange={(e) => handleFormChange('payment_date', e.target.value)}
               />
             </div>
+            
+            {/* Payment method - shown when paid */}
+            {(formData.financial_status === 'pagata' || formData.financial_status === 'incassata') && (
+              <div className="space-y-2">
+                <Label>Metodo di Pagamento</Label>
+                <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona metodo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
+                    <SelectItem value="contanti">Contanti</SelectItem>
+                    <SelectItem value="carta">Carta di Credito/Debito</SelectItem>
+                    <SelectItem value="assegno">Assegno</SelectItem>
+                    <SelectItem value="riba">RiBa</SelectItem>
+                    <SelectItem value="sdd">SDD (Addebito Diretto)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Document linking */}
+            <div className="space-y-2">
+              <Label>Documento Operativo</Label>
+              <Select value={formData.source_document_type} onValueChange={(v) => {
+                handleFormChange('source_document_type', v);
+                handleFormChange('source_document_id', '');
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Collega documento (opzionale)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessun collegamento</SelectItem>
+                  <SelectItem value="ddt">DDT</SelectItem>
+                  <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
+                  <SelectItem value="service_report">Rapporto Intervento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {formData.source_document_type && (
+              <div className="space-y-2">
+                <Label>Seleziona {formData.source_document_type === 'ddt' ? 'DDT' : formData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
+                <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.source_document_type === 'ddt' && ddts.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
+                    ))}
+                    {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
+                      <SelectItem key={o.id} value={o.id}>{o.number}</SelectItem>
+                    ))}
+                    {formData.source_document_type === 'service_report' && serviceReports.map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Cost center and account for purchases */}
+            {formData.invoice_type === 'acquisto' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Centro di Costo</Label>
+                  <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona centro di costo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {costCenters.map(cc => (
+                        <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conto di Costo</Label>
+                  <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona conto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {costAccounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
+            {/* Profit center and revenue account for sales */}
+            {(formData.invoice_type === 'vendita' || formData.invoice_type === 'nota_credito') && (
+              <>
+                <div className="space-y-2">
+                  <Label>Centro di Ricavo</Label>
+                  <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona centro di ricavo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {profitCenters.map(pc => (
+                        <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conto di Ricavo</Label>
+                  <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona conto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {revenueAccounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
             <div className="col-span-2 space-y-2">
               <Label>Note</Label>
               <Textarea
@@ -1245,6 +1502,136 @@ export default function RegistroFatturePage() {
                 onChange={(e) => handleEditFormChange('payment_date', e.target.value)}
               />
             </div>
+            
+            {/* Payment method - shown when paid */}
+            {(editFormData.financial_status === 'pagata' || editFormData.financial_status === 'incassata') && (
+              <div className="space-y-2">
+                <Label>Metodo di Pagamento</Label>
+                <Select value={editFormData.payment_method} onValueChange={(v) => handleEditFormChange('payment_method', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona metodo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
+                    <SelectItem value="contanti">Contanti</SelectItem>
+                    <SelectItem value="carta">Carta di Credito/Debito</SelectItem>
+                    <SelectItem value="assegno">Assegno</SelectItem>
+                    <SelectItem value="riba">RiBa</SelectItem>
+                    <SelectItem value="sdd">SDD (Addebito Diretto)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Document linking */}
+            <div className="space-y-2">
+              <Label>Documento Operativo</Label>
+              <Select value={editFormData.source_document_type} onValueChange={(v) => {
+                handleEditFormChange('source_document_type', v);
+                handleEditFormChange('source_document_id', '');
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Collega documento (opzionale)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessun collegamento</SelectItem>
+                  <SelectItem value="ddt">DDT</SelectItem>
+                  <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
+                  <SelectItem value="service_report">Rapporto Intervento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {editFormData.source_document_type && (
+              <div className="space-y-2">
+                <Label>Seleziona {editFormData.source_document_type === 'ddt' ? 'DDT' : editFormData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
+                <Select value={editFormData.source_document_id} onValueChange={(v) => handleEditFormChange('source_document_id', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editFormData.source_document_type === 'ddt' && ddts.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
+                    ))}
+                    {editFormData.source_document_type === 'sales_order' && salesOrders.map(o => (
+                      <SelectItem key={o.id} value={o.id}>{o.number}</SelectItem>
+                    ))}
+                    {editFormData.source_document_type === 'service_report' && serviceReports.map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Cost center and account for purchases */}
+            {editFormData.invoice_type === 'acquisto' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Centro di Costo</Label>
+                  <Select value={editFormData.cost_center_id} onValueChange={(v) => handleEditFormChange('cost_center_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona centro di costo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {costCenters.map(cc => (
+                        <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conto di Costo</Label>
+                  <Select value={editFormData.cost_account_id} onValueChange={(v) => handleEditFormChange('cost_account_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona conto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {costAccounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
+            {/* Profit center and revenue account for sales */}
+            {(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'nota_credito') && (
+              <>
+                <div className="space-y-2">
+                  <Label>Centro di Ricavo</Label>
+                  <Select value={editFormData.profit_center_id} onValueChange={(v) => handleEditFormChange('profit_center_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona centro di ricavo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {profitCenters.map(pc => (
+                        <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conto di Ricavo</Label>
+                  <Select value={editFormData.revenue_account_id} onValueChange={(v) => handleEditFormChange('revenue_account_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona conto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nessuno</SelectItem>
+                      {revenueAccounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
             <div className="col-span-2 space-y-2">
               <Label>Note</Label>
               <Textarea
