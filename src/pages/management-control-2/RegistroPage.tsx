@@ -44,6 +44,15 @@ interface QuickEntryForm {
   descrizione: string;
 }
 
+interface DdtScanForm {
+  numero_ddt: string;
+  data_ddt: string;
+  fornitore: string;
+  causale_trasporto: string;
+  direzione: "entrata" | "uscita";
+  note: string;
+}
+
 export default function RegistroPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -52,6 +61,8 @@ export default function RegistroPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [showQuickEntryDialog, setShowQuickEntryDialog] = useState(false);
+  const [showDdtScanDialog, setShowDdtScanDialog] = useState(false);
+  const [ddtUploadedFile, setDdtUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [quickEntryType, setQuickEntryType] = useState<"entrata" | "uscita">("uscita");
   const [quickEntryForm, setQuickEntryForm] = useState<QuickEntryForm>({
     importo: "",
@@ -59,6 +70,14 @@ export default function RegistroPage() {
     soggetto_nome: "",
     riferimento: "",
     descrizione: "",
+  });
+  const [ddtScanForm, setDdtScanForm] = useState<DdtScanForm>({
+    numero_ddt: "",
+    data_ddt: new Date().toISOString().split("T")[0],
+    fornitore: "",
+    causale_trasporto: "",
+    direzione: "entrata",
+    note: "",
   });
 
   // Fetch my recent registrations
@@ -137,7 +156,7 @@ export default function RegistroPage() {
     if (flow === "rapporto") {
       navigate("/support/service-reports");
     } else if (flow === "ddt") {
-      navigate("/wms/ddt");
+      setShowDdtScanDialog(true);
     } else if (flow === "spesa") {
       setQuickEntryType("uscita");
       setShowQuickEntryDialog(true);
@@ -145,6 +164,124 @@ export default function RegistroPage() {
       setQuickEntryType("entrata");
       setShowQuickEntryDialog(true);
     }
+  };
+
+  // DDT upload and AI analysis
+  const handleDdtFileUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `ddt-${Date.now()}.${fileExt}`;
+      const filePath = `ddt-scans/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("accounting-attachments")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("accounting-attachments")
+        .getPublicUrl(filePath);
+
+      setDdtUploadedFile({ name: file.name, url: urlData.publicUrl });
+      
+      // AI Analysis for DDT
+      setIsAnalyzing(true);
+      try {
+        let analysisUrl: string | null = urlData.publicUrl;
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+        if (isPdf) {
+          try {
+            const pngBlob = await pdfFirstPageToPngBlob(file);
+            const previewPath = `ddt-scans/${Date.now()}-preview.png`;
+            await supabase.storage.from("accounting-attachments").upload(previewPath, pngBlob, { contentType: "image/png" });
+            const { data: previewUrlData } = supabase.storage.from("accounting-attachments").getPublicUrl(previewPath);
+            analysisUrl = previewUrlData.publicUrl;
+          } catch {
+            analysisUrl = null;
+          }
+        }
+
+        if (analysisUrl) {
+          const { data: analysisData } = await supabase.functions.invoke("analyze-document", {
+            body: { imageUrl: analysisUrl, documentType: "ddt" },
+          });
+
+          if (analysisData?.success && analysisData?.data) {
+            const extracted = analysisData.data;
+            setDdtScanForm((prev) => ({
+              ...prev,
+              numero_ddt: extracted.document_number || prev.numero_ddt,
+              data_ddt: extracted.document_date || prev.data_ddt,
+              fornitore: extracted.supplier_name || prev.fornitore,
+              causale_trasporto: extracted.transport_reason || prev.causale_trasporto,
+              note: extracted.notes || prev.note,
+            }));
+            toast.success("DDT analizzato con AI!");
+          }
+        }
+      } catch {
+        toast.info("Compila manualmente i dati del DDT");
+      } finally {
+        setIsAnalyzing(false);
+      }
+    } catch {
+      toast.error("Errore upload file DDT");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Create DDT grezzo mutation
+  const createDdtMutation = useMutation({
+    mutationFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      // Generate DDT number if not provided
+      const ddtNumber = ddtScanForm.numero_ddt || `SCAN-${Date.now()}`;
+      
+      const { error } = await supabase.from("ddts").insert({
+        ddt_number: ddtNumber,
+        ddt_data: {
+          numero: ddtNumber,
+          data: ddtScanForm.data_ddt,
+          fornitore: ddtScanForm.fornitore,
+          causale_trasporto: ddtScanForm.causale_trasporto,
+          direzione: ddtScanForm.direzione,
+          note: ddtScanForm.note,
+          allegato_url: ddtUploadedFile?.url,
+          allegato_nome: ddtUploadedFile?.name,
+          stato: "grezzo",
+          scansionato: true,
+        },
+        created_by: userData.user?.id,
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ddts"] });
+      toast.success("DDT grezzo creato con successo!");
+      resetDdtScan();
+    },
+    onError: () => {
+      toast.error("Errore durante la creazione del DDT");
+    },
+  });
+
+  const resetDdtScan = () => {
+    setShowDdtScanDialog(false);
+    setDdtUploadedFile(null);
+    setDdtScanForm({
+      numero_ddt: "",
+      data_ddt: new Date().toISOString().split("T")[0],
+      fornitore: "",
+      causale_trasporto: "",
+      direzione: "entrata",
+      note: "",
+    });
   };
 
   const handleFileUpload = async (file: File) => {
@@ -251,105 +388,105 @@ export default function RegistroPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="px-4 py-4 sm:container sm:mx-auto sm:py-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Registro</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold">Registro</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Registra rapidamente documenti operativi, spese e incassi
         </p>
       </div>
 
-      {/* 4 Main Action Buttons */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* 4 Main Action Buttons - Mobile First Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card 
-          className="cursor-pointer hover:border-primary transition-colors group"
+          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
           onClick={() => handleFlowStart("rapporto")}
         >
-          <CardHeader className="pb-2">
-            <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center mb-2 group-hover:bg-blue-200 transition-colors">
-              <Wrench className="h-6 w-6 text-blue-600" />
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-100 flex items-center justify-center mb-2 group-hover:bg-blue-200 transition-colors">
+              <Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
-            <CardTitle className="text-lg">Genera Rapporto</CardTitle>
-            <CardDescription>Crea un nuovo rapporto di intervento</CardDescription>
+            <CardTitle className="text-sm sm:text-lg leading-tight">Genera Rapporto</CardTitle>
+            <CardDescription className="text-xs sm:text-sm hidden sm:block">Crea un nuovo rapporto di intervento</CardDescription>
           </CardHeader>
         </Card>
 
         <Card 
-          className="cursor-pointer hover:border-primary transition-colors group"
+          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
           onClick={() => handleFlowStart("ddt")}
         >
-          <CardHeader className="pb-2">
-            <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center mb-2 group-hover:bg-purple-200 transition-colors">
-              <Truck className="h-6 w-6 text-purple-600" />
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-purple-100 flex items-center justify-center mb-2 group-hover:bg-purple-200 transition-colors">
+              <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
             </div>
-            <CardTitle className="text-lg">Scansiona DDT</CardTitle>
-            <CardDescription>Registra un documento di trasporto</CardDescription>
+            <CardTitle className="text-sm sm:text-lg leading-tight">Scansiona DDT</CardTitle>
+            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra un documento di trasporto</CardDescription>
           </CardHeader>
         </Card>
 
         <Card 
-          className="cursor-pointer hover:border-primary transition-colors group"
+          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
           onClick={() => handleFlowStart("spesa")}
         >
-          <CardHeader className="pb-2">
-            <div className="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center mb-2 group-hover:bg-red-200 transition-colors">
-              <Receipt className="h-6 w-6 text-red-600" />
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-red-100 flex items-center justify-center mb-2 group-hover:bg-red-200 transition-colors">
+              <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
             </div>
-            <CardTitle className="text-lg">Spesa / Scontrino</CardTitle>
-            <CardDescription>Registra una spesa o scontrino</CardDescription>
+            <CardTitle className="text-sm sm:text-lg leading-tight">Spesa / Scontrino</CardTitle>
+            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra una spesa o scontrino</CardDescription>
           </CardHeader>
         </Card>
 
         <Card 
-          className="cursor-pointer hover:border-primary transition-colors group"
+          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
           onClick={() => handleFlowStart("incasso")}
         >
-          <CardHeader className="pb-2">
-            <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
-              <CreditCard className="h-6 w-6 text-green-600" />
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
+              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
             </div>
-            <CardTitle className="text-lg">Incasso / Pagamento</CardTitle>
-            <CardDescription>Registra un incasso sul campo</CardDescription>
+            <CardTitle className="text-sm sm:text-lg leading-tight">Incasso / Pagamento</CardTitle>
+            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra un incasso sul campo</CardDescription>
           </CardHeader>
         </Card>
       </div>
 
-      {/* AI Upload Zone */}
+      {/* AI Upload Zone - Mobile Optimized */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Upload className="h-5 w-5" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
             Carica documento con AI
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Trascina o scatta foto di un documento per la classificazione automatica
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           <div
             {...getRootProps()}
             className={cn(
-              "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+              "border-2 border-dashed rounded-lg p-6 sm:p-8 text-center cursor-pointer transition-colors",
               isDragActive ? "border-primary bg-primary/5" : "hover:bg-accent/50"
             )}
           >
             <input {...getInputProps()} />
-            <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+            <Upload className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
             {isDragActive ? (
-              <p className="text-primary font-medium">Rilascia il file qui...</p>
+              <p className="text-primary font-medium text-sm sm:text-base">Rilascia il file qui...</p>
             ) : (
               <div>
-                <p className="text-muted-foreground">Trascina un documento o clicca per caricarlo</p>
+                <p className="text-muted-foreground text-sm sm:text-base">Trascina un documento o clicca per caricarlo</p>
                 <p className="text-xs text-muted-foreground mt-1">L'AI riconoscerà automaticamente il tipo di documento</p>
               </div>
             )}
           </div>
           
-          <div className="mt-4">
+          <div className="mt-3 sm:mt-4">
             <label className="block">
-              <Button variant="outline" className="w-full" asChild>
+              <Button variant="outline" className="w-full h-12 sm:h-10 text-base sm:text-sm" asChild>
                 <div className="cursor-pointer">
-                  <Camera className="h-4 w-4 mr-2" />
+                  <Camera className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                   Scatta foto
                 </div>
               </Button>
@@ -368,12 +505,12 @@ export default function RegistroPage() {
         </CardContent>
       </Card>
 
-      {/* My Registrations */}
+      {/* My Registrations - Mobile Optimized */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Le mie registrazioni recenti</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Le mie registrazioni recenti</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           {loadingRegistrations ? (
             <div className="text-center py-8 text-muted-foreground">Caricamento...</div>
           ) : myRegistrations.length === 0 ? (
@@ -381,56 +518,91 @@ export default function RegistroPage() {
               Nessuna registrazione effettuata
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Importo</TableHead>
-                  <TableHead>Metodo</TableHead>
-                  <TableHead>Soggetto</TableHead>
-                  <TableHead>Stato</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-3">
                 {myRegistrations.map((reg: any) => (
-                  <TableRow key={reg.id}>
-                    <TableCell>
-                      {format(new Date(reg.data_movimento), "dd/MM/yyyy", { locale: it })}
-                    </TableCell>
-                    <TableCell>
+                  <div key={reg.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {reg.direzione === "entrata" ? (
                           <ArrowUp className="h-4 w-4 text-green-600" />
                         ) : (
                           <ArrowDown className="h-4 w-4 text-red-600" />
                         )}
-                        <span className={reg.direzione === "entrata" ? "text-green-600" : "text-red-600"}>
-                          {reg.direzione === "entrata" ? "Entrata" : "Uscita"}
+                        <span className={cn("font-medium", reg.direzione === "entrata" ? "text-green-600" : "text-red-600")}>
+                          {formatCurrency(Number(reg.importo))}
                         </span>
                       </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(Number(reg.importo))}
-                    </TableCell>
-                    <TableCell className="capitalize">{reg.metodo_pagamento}</TableCell>
-                    <TableCell>{reg.soggetto_nome || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={reg.stato === "contabilizzato" ? "default" : "secondary"}>
+                      <Badge variant={reg.stato === "contabilizzato" ? "default" : "secondary"} className="text-xs">
                         {reg.stato}
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{format(new Date(reg.data_movimento), "dd/MM/yyyy", { locale: it })}</span>
+                      <span className="capitalize">{reg.metodo_pagamento}</span>
+                    </div>
+                    {reg.soggetto_nome && (
+                      <p className="text-xs text-muted-foreground truncate">{reg.soggetto_nome}</p>
+                    )}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Importo</TableHead>
+                      <TableHead>Metodo</TableHead>
+                      <TableHead>Soggetto</TableHead>
+                      <TableHead>Stato</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myRegistrations.map((reg: any) => (
+                      <TableRow key={reg.id}>
+                        <TableCell>
+                          {format(new Date(reg.data_movimento), "dd/MM/yyyy", { locale: it })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {reg.direzione === "entrata" ? (
+                              <ArrowUp className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <ArrowDown className="h-4 w-4 text-red-600" />
+                            )}
+                            <span className={reg.direzione === "entrata" ? "text-green-600" : "text-red-600"}>
+                              {reg.direzione === "entrata" ? "Entrata" : "Uscita"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(Number(reg.importo))}
+                        </TableCell>
+                        <TableCell className="capitalize">{reg.metodo_pagamento}</TableCell>
+                        <TableCell>{reg.soggetto_nome || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant={reg.stato === "contabilizzato" ? "default" : "secondary"}>
+                            {reg.stato}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Quick Entry Dialog */}
+      {/* Quick Entry Dialog - Mobile Optimized */}
       <Dialog open={showQuickEntryDialog} onOpenChange={setShowQuickEntryDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {quickEntryType === "uscita" ? (
@@ -461,13 +633,13 @@ export default function RegistroPage() {
               {isUploading || isAnalyzing ? (
                 <div className="flex items-center justify-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>{isAnalyzing ? "Analisi AI..." : "Caricamento..."}</span>
+                  <span className="text-sm">{isAnalyzing ? "Analisi AI..." : "Caricamento..."}</span>
                 </div>
               ) : uploadedFile ? (
                 <div className="flex items-center justify-between px-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="text-sm">{uploadedFile.name}</span>
+                    <span className="text-sm truncate max-w-[200px]">{uploadedFile.name}</span>
                   </div>
                   <Button
                     variant="ghost"
@@ -490,13 +662,14 @@ export default function RegistroPage() {
               )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Importo *</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
+                  className="h-12 sm:h-10 text-base sm:text-sm"
                   value={quickEntryForm.importo}
                   onChange={(e) => setQuickEntryForm((prev) => ({ ...prev, importo: e.target.value }))}
                 />
@@ -507,7 +680,7 @@ export default function RegistroPage() {
                   value={quickEntryForm.metodo_pagamento}
                   onValueChange={(value) => setQuickEntryForm((prev) => ({ ...prev, metodo_pagamento: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 sm:h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -523,6 +696,7 @@ export default function RegistroPage() {
               <Label>Soggetto (opzionale)</Label>
               <Input
                 placeholder="Nome cliente/fornitore"
+                className="h-12 sm:h-10"
                 value={quickEntryForm.soggetto_nome}
                 onChange={(e) => setQuickEntryForm((prev) => ({ ...prev, soggetto_nome: e.target.value }))}
               />
@@ -532,6 +706,7 @@ export default function RegistroPage() {
               <Label>Riferimento (opzionale)</Label>
               <Input
                 placeholder="Es. numero scontrino, CRO..."
+                className="h-12 sm:h-10"
                 value={quickEntryForm.riferimento}
                 onChange={(e) => setQuickEntryForm((prev) => ({ ...prev, riferimento: e.target.value }))}
               />
@@ -548,16 +723,194 @@ export default function RegistroPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={resetQuickEntry}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={resetQuickEntry} className="w-full sm:w-auto h-12 sm:h-10">
               Annulla
             </Button>
             <Button 
               onClick={handleQuickEntrySubmit} 
               disabled={createMovimentoMutation.isPending}
-              className={quickEntryType === "uscita" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
+              className={cn(
+                "w-full sm:w-auto h-12 sm:h-10",
+                quickEntryType === "uscita" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+              )}
             >
               {createMovimentoMutation.isPending ? "Salvataggio..." : "Registra"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DDT Scan Dialog - Mobile Optimized */}
+      <Dialog open={showDdtScanDialog} onOpenChange={setShowDdtScanDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-purple-600" />
+              Scansiona DDT
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* DDT File upload area */}
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors hover:bg-accent/50",
+                ddtUploadedFile && "border-green-500 bg-green-50"
+              )}
+              onClick={() => document.getElementById("ddt-file-input")?.click()}
+            >
+              {isUploading || isAnalyzing ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="text-sm">{isAnalyzing ? "Analisi AI..." : "Caricamento..."}</span>
+                </div>
+              ) : ddtUploadedFile ? (
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="text-sm truncate max-w-[200px]">{ddtUploadedFile.name}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDdtUploadedFile(null);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Carica o scatta foto del DDT
+                  </p>
+                </>
+              )}
+              <input
+                id="ddt-file-input"
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleDdtFileUpload(file);
+                }}
+              />
+            </div>
+
+            <div className="mt-2">
+              <label className="block">
+                <Button variant="outline" className="w-full h-12 sm:h-10" asChild>
+                  <div className="cursor-pointer">
+                    <Camera className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
+                    Scatta foto DDT
+                  </div>
+                </Button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleDdtFileUpload(file);
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Direzione *</Label>
+              <Select
+                value={ddtScanForm.direzione}
+                onValueChange={(value: "entrata" | "uscita") => setDdtScanForm((prev) => ({ ...prev, direzione: value }))}
+              >
+                <SelectTrigger className="h-12 sm:h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrata">
+                    <div className="flex items-center gap-2">
+                      <ArrowDown className="h-4 w-4 text-green-600" />
+                      DDT Entrata (merce ricevuta)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="uscita">
+                    <div className="flex items-center gap-2">
+                      <ArrowUp className="h-4 w-4 text-red-600" />
+                      DDT Uscita (merce spedita)
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Numero DDT</Label>
+                <Input
+                  placeholder="Es. 123/2025"
+                  className="h-12 sm:h-10"
+                  value={ddtScanForm.numero_ddt}
+                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, numero_ddt: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data DDT</Label>
+                <Input
+                  type="date"
+                  className="h-12 sm:h-10"
+                  value={ddtScanForm.data_ddt}
+                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, data_ddt: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fornitore / Destinatario</Label>
+              <Input
+                placeholder="Nome azienda"
+                className="h-12 sm:h-10"
+                value={ddtScanForm.fornitore}
+                onChange={(e) => setDdtScanForm((prev) => ({ ...prev, fornitore: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Causale trasporto</Label>
+              <Input
+                placeholder="Es. Vendita, C/Visione, C/Lavorazione..."
+                className="h-12 sm:h-10"
+                value={ddtScanForm.causale_trasporto}
+                onChange={(e) => setDdtScanForm((prev) => ({ ...prev, causale_trasporto: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Note (opzionale)</Label>
+              <Textarea
+                placeholder="Note aggiuntive..."
+                value={ddtScanForm.note}
+                onChange={(e) => setDdtScanForm((prev) => ({ ...prev, note: e.target.value }))}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={resetDdtScan} className="w-full sm:w-auto h-12 sm:h-10">
+              Annulla
+            </Button>
+            <Button 
+              onClick={() => createDdtMutation.mutate()} 
+              disabled={createDdtMutation.isPending}
+              className="w-full sm:w-auto h-12 sm:h-10 bg-purple-600 hover:bg-purple-700"
+            >
+              {createDdtMutation.isPending ? "Salvataggio..." : "Crea DDT Grezzo"}
             </Button>
           </DialogFooter>
         </DialogContent>
