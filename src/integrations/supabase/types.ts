@@ -144,6 +144,131 @@ export type Database = {
           },
         ]
       }
+      accounting_rules: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          incide_ce: boolean
+          is_active: boolean | null
+          iva_mode: Database["public"]["Enums"]["iva_mode"] | null
+          output_template: string
+          priority: number | null
+          rule_id: string
+          stato_finanziario:
+            | Database["public"]["Enums"]["financial_status_type"]
+            | null
+          tipo_evento: Database["public"]["Enums"]["accounting_event_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          incide_ce: boolean
+          is_active?: boolean | null
+          iva_mode?: Database["public"]["Enums"]["iva_mode"] | null
+          output_template: string
+          priority?: number | null
+          rule_id: string
+          stato_finanziario?:
+            | Database["public"]["Enums"]["financial_status_type"]
+            | null
+          tipo_evento: Database["public"]["Enums"]["accounting_event_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          incide_ce?: boolean
+          is_active?: boolean | null
+          iva_mode?: Database["public"]["Enums"]["iva_mode"] | null
+          output_template?: string
+          priority?: number | null
+          rule_id?: string
+          stato_finanziario?:
+            | Database["public"]["Enums"]["financial_status_type"]
+            | null
+          tipo_evento?: Database["public"]["Enums"]["accounting_event_type"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      accounting_template_lines: {
+        Row: {
+          avere_conto_dynamic: string | null
+          avere_conto_type: string
+          created_at: string | null
+          dare_conto_dynamic: string | null
+          dare_conto_type: string
+          id: string
+          importo_type: string
+          line_order: number
+          note: string | null
+          template_id: string
+        }
+        Insert: {
+          avere_conto_dynamic?: string | null
+          avere_conto_type: string
+          created_at?: string | null
+          dare_conto_dynamic?: string | null
+          dare_conto_type: string
+          id?: string
+          importo_type: string
+          line_order: number
+          note?: string | null
+          template_id: string
+        }
+        Update: {
+          avere_conto_dynamic?: string | null
+          avere_conto_type?: string
+          created_at?: string | null
+          dare_conto_dynamic?: string | null
+          dare_conto_type?: string
+          id?: string
+          importo_type?: string
+          line_order?: number
+          note?: string | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_template_lines_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_activity_logs: {
         Row: {
           action_description: string
@@ -6999,6 +7124,50 @@ export type Database = {
         }
         Relationships: []
       }
+      structural_accounts: {
+        Row: {
+          account_type: string
+          category: string
+          chart_account_id: string | null
+          code: string
+          created_at: string | null
+          id: string
+          is_structural: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_type: string
+          category: string
+          chart_account_id?: string | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_structural?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_type?: string
+          category?: string
+          chart_account_id?: string | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_structural?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "structural_accounts_chart_account_id_fkey"
+            columns: ["chart_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -8278,7 +8447,16 @@ export type Database = {
       validate_quote_code: { Args: { input_code: string }; Returns: boolean }
     }
     Enums: {
+      accounting_event_type: "COSTO" | "RICAVO" | "FINANZIARIO" | "ASSESTAMENTO"
       app_role: "admin" | "user" | "moderator"
+      competence_type: "IMMEDIATA" | "RATEIZZATA" | "DIFFERITA"
+      financial_status_type:
+        | "DA_PAGARE"
+        | "DA_INCASSARE"
+        | "PAGATO"
+        | "INCASSATO"
+        | "ANTICIPO_DIPENDENTE"
+        | "RIMBORSO_DIPENDENTE"
       gl_doc_type:
         | "SaleInvoice"
         | "PurchaseInvoice"
@@ -8296,6 +8474,13 @@ export type Database = {
         | "Finance"
         | "Manual"
       gl_status: "draft" | "incomplete" | "posted"
+      iva_mode:
+        | "DOMESTICA_IMPONIBILE"
+        | "CESSIONE_UE_NON_IMPONIBILE"
+        | "CESSIONE_EXTRA_UE_NON_IMPONIBILE"
+        | "VENDITA_RC_EDILE"
+        | "ACQUISTO_RC_EDILE"
+      payment_method_type: "BANCA" | "CASSA" | "CARTA"
       recurrence_type: "none" | "daily" | "weekly" | "monthly" | "yearly"
       rma_status: "open" | "analysis" | "repaired" | "closed"
       serial_status: "in_test" | "approved" | "rejected"
@@ -8451,7 +8636,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      accounting_event_type: ["COSTO", "RICAVO", "FINANZIARIO", "ASSESTAMENTO"],
       app_role: ["admin", "user", "moderator"],
+      competence_type: ["IMMEDIATA", "RATEIZZATA", "DIFFERITA"],
+      financial_status_type: [
+        "DA_PAGARE",
+        "DA_INCASSARE",
+        "PAGATO",
+        "INCASSATO",
+        "ANTICIPO_DIPENDENTE",
+        "RIMBORSO_DIPENDENTE",
+      ],
       gl_doc_type: [
         "SaleInvoice",
         "PurchaseInvoice",
@@ -8471,6 +8666,14 @@ export const Constants = {
         "Manual",
       ],
       gl_status: ["draft", "incomplete", "posted"],
+      iva_mode: [
+        "DOMESTICA_IMPONIBILE",
+        "CESSIONE_UE_NON_IMPONIBILE",
+        "CESSIONE_EXTRA_UE_NON_IMPONIBILE",
+        "VENDITA_RC_EDILE",
+        "ACQUISTO_RC_EDILE",
+      ],
+      payment_method_type: ["BANCA", "CASSA", "CARTA"],
       recurrence_type: ["none", "daily", "weekly", "monthly", "yearly"],
       rma_status: ["open", "analysis", "repaired", "closed"],
       serial_status: ["in_test", "approved", "rejected"],
