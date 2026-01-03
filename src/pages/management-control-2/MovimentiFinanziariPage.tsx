@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { 
   Search, 
   ArrowUp, 
@@ -16,7 +18,8 @@ import {
   Clock, 
   AlertCircle,
   Link2,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -58,6 +61,7 @@ const statoConfig = {
 
 export default function MovimentiFinanziariPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStato, setFilterStato] = useState<string>("all");
   const [filterDirezione, setFilterDirezione] = useState<string>("all");
@@ -73,6 +77,25 @@ export default function MovimentiFinanziariPage() {
       
       if (error) throw error;
       return data as MovimentoFinanziario[];
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("movimenti_finanziari")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
+      queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
+      toast.success("Movimento eliminato");
+    },
+    onError: () => {
+      toast.error("Errore durante l'eliminazione");
     },
   });
 
@@ -289,15 +312,41 @@ export default function MovimentiFinanziariPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {movimento.allegato_url && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => window.open(movimento.allegato_url!, "_blank")}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <div className="flex justify-end gap-1">
+                          {movimento.allegato_url && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => window.open(movimento.allegato_url!, "_blank")}
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Elimina movimento</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Sei sicuro di voler eliminare questo movimento di {formatCurrency(Number(movimento.importo))}? Questa azione non può essere annullata.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(movimento.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Elimina
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
