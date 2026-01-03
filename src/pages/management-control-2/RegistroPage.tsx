@@ -44,13 +44,26 @@ interface QuickEntryForm {
   descrizione: string;
 }
 
+interface DdtLineItem {
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price?: number;
+  total?: number;
+}
+
 interface DdtScanForm {
   numero_ddt: string;
   data_ddt: string;
   fornitore: string;
+  destinatario: string;
+  destinatario_indirizzo: string;
+  destinazione: string;
+  destinazione_indirizzo: string;
   causale_trasporto: string;
   direzione: "entrata" | "uscita";
   note: string;
+  line_items: DdtLineItem[];
 }
 
 export default function RegistroPage() {
@@ -75,9 +88,14 @@ export default function RegistroPage() {
     numero_ddt: "",
     data_ddt: new Date().toISOString().split("T")[0],
     fornitore: "",
+    destinatario: "",
+    destinatario_indirizzo: "",
+    destinazione: "",
+    destinazione_indirizzo: "",
     causale_trasporto: "",
     direzione: "entrata",
     note: "",
+    line_items: [],
   });
 
   // Fetch my recent registrations
@@ -237,8 +255,17 @@ export default function RegistroPage() {
               numero_ddt: extracted.document_number || prev.numero_ddt,
               data_ddt: extracted.document_date || prev.data_ddt,
               fornitore: extracted.supplier_name || prev.fornitore,
+              destinatario: extracted.recipient_name || prev.destinatario,
+              destinatario_indirizzo: extracted.recipient_address 
+                ? `${extracted.recipient_address}${extracted.recipient_city ? `, ${extracted.recipient_city}` : ""}`
+                : prev.destinatario_indirizzo,
+              destinazione: extracted.destination_name || prev.destinazione,
+              destinazione_indirizzo: extracted.destination_address
+                ? `${extracted.destination_address}${extracted.destination_city ? `, ${extracted.destination_city}` : ""}`
+                : prev.destinazione_indirizzo,
               causale_trasporto: extracted.transport_reason || prev.causale_trasporto,
               note: extracted.notes || prev.note,
+              line_items: extracted.line_items || prev.line_items,
             }));
             toast.success("DDT analizzato con AI!");
           }
@@ -263,22 +290,29 @@ export default function RegistroPage() {
       // Generate DDT number if not provided
       const ddtNumber = ddtScanForm.numero_ddt || `SCAN-${Date.now()}`;
       
-      const { error } = await supabase.from("ddts").insert({
+      const ddtData = {
+        numero: ddtNumber,
+        data: ddtScanForm.data_ddt,
+        fornitore: ddtScanForm.fornitore,
+        destinatario: ddtScanForm.destinatario,
+        destinatario_indirizzo: ddtScanForm.destinatario_indirizzo,
+        destinazione: ddtScanForm.destinazione,
+        destinazione_indirizzo: ddtScanForm.destinazione_indirizzo,
+        causale_trasporto: ddtScanForm.causale_trasporto,
+        direzione: ddtScanForm.direzione,
+        note: ddtScanForm.note,
+        line_items: ddtScanForm.line_items as unknown as Record<string, unknown>[],
+        allegato_url: ddtUploadedFile?.url,
+        allegato_nome: ddtUploadedFile?.name,
+        stato: "grezzo",
+        scansionato: true,
+      };
+
+      const { error } = await supabase.from("ddts").insert([{
         ddt_number: ddtNumber,
-        ddt_data: {
-          numero: ddtNumber,
-          data: ddtScanForm.data_ddt,
-          fornitore: ddtScanForm.fornitore,
-          causale_trasporto: ddtScanForm.causale_trasporto,
-          direzione: ddtScanForm.direzione,
-          note: ddtScanForm.note,
-          allegato_url: ddtUploadedFile?.url,
-          allegato_nome: ddtUploadedFile?.name,
-          stato: "grezzo",
-          scansionato: true,
-        },
+        ddt_data: JSON.parse(JSON.stringify(ddtData)),
         created_by: userData.user?.id,
-      });
+      }]);
       
       if (error) throw error;
     },
@@ -299,9 +333,14 @@ export default function RegistroPage() {
       numero_ddt: "",
       data_ddt: new Date().toISOString().split("T")[0],
       fornitore: "",
+      destinatario: "",
+      destinatario_indirizzo: "",
+      destinazione: "",
+      destinazione_indirizzo: "",
       causale_trasporto: "",
       direzione: "entrata",
       note: "",
+      line_items: [],
     });
   };
 
@@ -892,13 +931,55 @@ export default function RegistroPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Fornitore / Destinatario</Label>
+              <Label>Mittente / Fornitore</Label>
               <Input
-                placeholder="Nome azienda"
+                placeholder="Ragione sociale mittente"
                 className="h-12 sm:h-10"
                 value={ddtScanForm.fornitore}
                 onChange={(e) => setDdtScanForm((prev) => ({ ...prev, fornitore: e.target.value }))}
               />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Destinatario</Label>
+                <Input
+                  placeholder="Ragione sociale destinatario"
+                  className="h-12 sm:h-10"
+                  value={ddtScanForm.destinatario}
+                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinatario: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Indirizzo Destinatario</Label>
+                <Input
+                  placeholder="Indirizzo completo"
+                  className="h-12 sm:h-10"
+                  value={ddtScanForm.destinatario_indirizzo}
+                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinatario_indirizzo: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Destinazione (se diversa)</Label>
+                <Input
+                  placeholder="Luogo di consegna"
+                  className="h-12 sm:h-10"
+                  value={ddtScanForm.destinazione}
+                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinazione: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Indirizzo Destinazione</Label>
+                <Input
+                  placeholder="Indirizzo consegna"
+                  className="h-12 sm:h-10"
+                  value={ddtScanForm.destinazione_indirizzo}
+                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinazione_indirizzo: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -910,6 +991,25 @@ export default function RegistroPage() {
                 onChange={(e) => setDdtScanForm((prev) => ({ ...prev, causale_trasporto: e.target.value }))}
               />
             </div>
+
+            {/* Line Items */}
+            {ddtScanForm.line_items.length > 0 && (
+              <div className="space-y-2">
+                <Label>Elementi DDT ({ddtScanForm.line_items.length})</Label>
+                <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
+                  {ddtScanForm.line_items.map((item, idx) => (
+                    <div key={idx} className="p-2 text-sm flex justify-between items-center">
+                      <div className="flex-1">
+                        <span className="font-medium">{item.description}</span>
+                      </div>
+                      <div className="text-muted-foreground text-right">
+                        {item.quantity} {item.unit}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Note (opzionale)</Label>
@@ -931,7 +1031,7 @@ export default function RegistroPage() {
               disabled={createDdtMutation.isPending}
               className="w-full sm:w-auto h-12 sm:h-10 bg-purple-600 hover:bg-purple-700"
             >
-              {createDdtMutation.isPending ? "Salvataggio..." : "Crea DDT Grezzo"}
+              {createDdtMutation.isPending ? "Salvataggio..." : "Carica DDT"}
             </Button>
           </DialogFooter>
         </DialogContent>

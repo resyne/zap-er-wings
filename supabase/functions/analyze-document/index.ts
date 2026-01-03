@@ -59,26 +59,47 @@ serve(async (req) => {
     const model = isPdf ? "openai/gpt-5-mini" : "google/gemini-2.5-flash";
     console.log("Using model:", model, "isPdf:", isPdf);
 
-    const systemPrompt = `Sei un assistente specializzato nell'analisi di documenti contabili italiani (fatture, scontrini, ricevute, estratti conto, rapporti di intervento).
+    const systemPrompt = `Sei un assistente specializzato nell'analisi di documenti contabili italiani (fatture, scontrini, ricevute, estratti conto, rapporti di intervento, DDT).
 
 Analizza l'immagine del documento e estrai i seguenti dati se presenti:
 
 DATI DOCUMENTO:
 - direction: "entrata" se è un incasso/vendita, "uscita" se è una spesa/acquisto
-- document_type: uno tra "fattura", "scontrino", "estratto_conto", "documento_interno", "rapporto_intervento", "altro"
+- document_type: uno tra "fattura", "scontrino", "estratto_conto", "documento_interno", "rapporto_intervento", "ddt", "altro"
+- document_number: numero del documento (es. numero DDT, numero fattura)
 - amount: l'importo totale in formato numerico (es: 150.50)
 - document_date: la data del documento in formato YYYY-MM-DD
 - payment_method: uno tra "contanti", "carta", "bonifico", "anticipo_personale", "non_so" (se identificabile)
 - subject_type: uno tra "cliente", "fornitore", "interno" (se identificabile)
+- transport_reason: causale del trasporto (per DDT: vendita, c/visione, c/lavorazione, reso, etc.)
 - notes: eventuali note o dettagli importanti estratti dal documento
 
-DATI FORNITORE/EMITTENTE (se presente - tipicamente chi emette la fattura):
+DATI FORNITORE/MITTENTE (chi emette/spedisce):
 - supplier_name: ragione sociale o nome del fornitore/emittente
 - supplier_tax_id: partita IVA o codice fiscale del fornitore (formato italiano)
 - supplier_address: indirizzo completo del fornitore
 - supplier_city: città del fornitore
 - supplier_email: email del fornitore se presente
 - supplier_phone: telefono del fornitore se presente
+
+DATI DESTINATARIO (chi riceve, per DDT):
+- recipient_name: ragione sociale o nome del destinatario
+- recipient_tax_id: partita IVA o codice fiscale del destinatario
+- recipient_address: indirizzo completo del destinatario
+- recipient_city: città del destinatario
+
+DATI DESTINAZIONE (luogo di consegna, se diverso dal destinatario):
+- destination_name: nome/ragione sociale della destinazione
+- destination_address: indirizzo completo della destinazione
+- destination_city: città della destinazione
+
+RIGHE/ELEMENTI (per DDT e fatture - estrai tutte le righe):
+- line_items: array di oggetti con { description, quantity, unit, unit_price, total }
+  - description: descrizione articolo/prodotto
+  - quantity: quantità numerica
+  - unit: unità di misura (pz, kg, m, n, etc.)
+  - unit_price: prezzo unitario (se presente)
+  - total: totale riga (se presente)
 
 Rispondi SOLO con i dati trovati, lasciando vuoti i campi non identificabili.
 Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
@@ -114,7 +135,7 @@ Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
             type: "function",
             function: {
               name: "extract_document_data",
-              description: "Estrae i dati strutturati dal documento contabile inclusi i dati del fornitore",
+              description: "Estrae i dati strutturati dal documento contabile inclusi i dati del fornitore, destinatario e righe",
               parameters: {
                 type: "object",
                 properties: {
@@ -125,8 +146,12 @@ Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
                   },
                   document_type: {
                     type: "string",
-                    enum: ["fattura", "scontrino", "estratto_conto", "documento_interno", "rapporto_intervento", "altro"],
+                    enum: ["fattura", "scontrino", "estratto_conto", "documento_interno", "rapporto_intervento", "ddt", "altro"],
                     description: "Tipo di documento",
+                  },
+                  document_number: {
+                    type: "string",
+                    description: "Numero del documento (DDT, fattura, etc.)",
                   },
                   amount: {
                     type: "number",
@@ -146,6 +171,10 @@ Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
                     enum: ["cliente", "fornitore", "interno"],
                     description: "Tipo di soggetto coinvolto",
                   },
+                  transport_reason: {
+                    type: "string",
+                    description: "Causale del trasporto per DDT (vendita, c/visione, c/lavorazione, reso, etc.)",
+                  },
                   notes: {
                     type: "string",
                     description: "Note o dettagli importanti estratti dal documento",
@@ -155,10 +184,10 @@ Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
                     enum: ["high", "medium", "low"],
                     description: "Livello di confidenza nell'estrazione dei dati",
                   },
-                  // Supplier data
+                  // Supplier/Sender data
                   supplier_name: {
                     type: "string",
-                    description: "Ragione sociale o nome del fornitore/emittente",
+                    description: "Ragione sociale o nome del fornitore/emittente/mittente",
                   },
                   supplier_tax_id: {
                     type: "string",
@@ -179,6 +208,66 @@ Per le fatture di acquisto (uscita), il fornitore è chi emette la fattura.`;
                   supplier_phone: {
                     type: "string",
                     description: "Telefono del fornitore",
+                  },
+                  // Recipient data
+                  recipient_name: {
+                    type: "string",
+                    description: "Ragione sociale o nome del destinatario",
+                  },
+                  recipient_tax_id: {
+                    type: "string",
+                    description: "Partita IVA o codice fiscale del destinatario",
+                  },
+                  recipient_address: {
+                    type: "string",
+                    description: "Indirizzo completo del destinatario",
+                  },
+                  recipient_city: {
+                    type: "string",
+                    description: "Città del destinatario",
+                  },
+                  // Destination data
+                  destination_name: {
+                    type: "string",
+                    description: "Nome/ragione sociale della destinazione (se diversa dal destinatario)",
+                  },
+                  destination_address: {
+                    type: "string",
+                    description: "Indirizzo completo della destinazione",
+                  },
+                  destination_city: {
+                    type: "string",
+                    description: "Città della destinazione",
+                  },
+                  // Line items
+                  line_items: {
+                    type: "array",
+                    description: "Righe/elementi del documento (articoli, prodotti)",
+                    items: {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                          description: "Descrizione articolo/prodotto",
+                        },
+                        quantity: {
+                          type: "number",
+                          description: "Quantità",
+                        },
+                        unit: {
+                          type: "string",
+                          description: "Unità di misura (pz, kg, m, n, etc.)",
+                        },
+                        unit_price: {
+                          type: "number",
+                          description: "Prezzo unitario",
+                        },
+                        total: {
+                          type: "number",
+                          description: "Totale riga",
+                        },
+                      },
+                    },
                   },
                 },
                 additionalProperties: false,
