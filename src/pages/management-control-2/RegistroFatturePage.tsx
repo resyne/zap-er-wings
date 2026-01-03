@@ -313,7 +313,7 @@ export default function RegistroFatturePage() {
           imponibile: invoice.imponibile,
           iva_amount: invoice.iva_amount,
           iva_aliquota: invoice.iva_rate,
-          direction: invoice.invoice_type === 'acquisto' ? 'out' : 'in',
+          direction: invoice.invoice_type === 'acquisto' ? 'uscita' : 'entrata',
           document_type: 'fattura',
           document_date: invoice.invoice_date,
           status: 'classificato',
