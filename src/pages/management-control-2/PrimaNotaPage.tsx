@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -10,16 +10,36 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { format, addMonths, startOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
+import { format, addMonths, startOfMonth, endOfQuarter } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
-  Filter, Download
+  Filter, ChevronDown, Receipt, Percent
 } from "lucide-react";
+
+// =====================================================
+// INTERFACES
+// =====================================================
+
+interface PrimaNotaLine {
+  id: string;
+  prima_nota_id: string;
+  line_order: number;
+  chart_account_id: string | null;
+  structural_account_id: string | null;
+  account_type: string;
+  dynamic_account_key: string | null;
+  dare: number;
+  avere: number;
+  description: string | null;
+  chart_account?: { code: string; name: string } | null;
+  structural_account?: { code: string; name: string } | null;
+}
 
 interface PrimaNotaMovement {
   id: string;
@@ -41,6 +61,13 @@ interface PrimaNotaMovement {
   original_movement_id: string | null;
   created_at: string;
   accounting_period: string | null;
+  // IVA fields
+  iva_mode: string | null;
+  iva_aliquota: number | null;
+  imponibile: number | null;
+  iva_amount: number | null;
+  totale: number | null;
+  payment_method: string | null;
   // Joined data
   chart_account?: { code: string; name: string } | null;
   cost_center?: { code: string; name: string } | null;
@@ -50,7 +77,15 @@ interface PrimaNotaMovement {
     document_type: string;
     document_date: string;
     attachment_url: string;
+    iva_mode: string | null;
+    iva_aliquota: number | null;
+    imponibile: number | null;
+    iva_amount: number | null;
+    totale: number | null;
+    payment_method: string | null;
+    financial_status: string | null;
   } | null;
+  lines?: PrimaNotaLine[];
 }
 
 interface PendingEntry {
@@ -69,10 +104,52 @@ interface PendingEntry {
   center_percentage: number | null;
   financial_status: string | null;
   affects_income_statement: boolean | null;
+  payment_method: string | null;
+  // IVA fields
+  iva_mode: string | null;
+  iva_aliquota: number | null;
+  imponibile: number | null;
+  iva_amount: number | null;
+  totale: number | null;
   chart_account?: { code: string; name: string } | null;
   cost_center?: { code: string; name: string } | null;
   profit_center?: { code: string; name: string } | null;
 }
+
+// =====================================================
+// HELPER FUNCTIONS
+// =====================================================
+
+const IVA_MODE_LABELS: Record<string, string> = {
+  DOMESTICA_IMPONIBILE: "IVA Domestica",
+  CESSIONE_UE_NON_IMPONIBILE: "Cessione UE",
+  CESSIONE_EXTRA_UE_NON_IMPONIBILE: "Extra-UE",
+  VENDITA_RC_EDILE: "RC Edile (Vendita)",
+  ACQUISTO_RC_EDILE: "RC Edile (Acquisto)",
+};
+
+const formatIvaMode = (mode: string | null) => {
+  if (!mode) return <span className="text-muted-foreground">-</span>;
+  return (
+    <Badge variant="outline" className="text-xs">
+      {IVA_MODE_LABELS[mode] || mode}
+    </Badge>
+  );
+};
+
+const formatPaymentMethod = (method: string | null) => {
+  if (!method) return "-";
+  const labels: Record<string, string> = {
+    banca: "Banca",
+    cassa: "Cassa",
+    carta: "Carta",
+  };
+  return labels[method] || method;
+};
+
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
 
 export default function PrimaNotaPage() {
   const queryClient = useQueryClient();
@@ -84,6 +161,7 @@ export default function PrimaNotaPage() {
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Calculate date range based on period type
   const getDateRange = () => {
@@ -117,8 +195,7 @@ export default function PrimaNotaPage() {
     }
   };
 
-  // Fetch prima nota movements
-  const dateRange = getDateRange();
+  // Fetch prima nota movements with lines
   const { data: movements = [], isLoading } = useQuery({
     queryKey: ["prima-nota", filterPeriodType, filterPeriod, filterDateFrom, filterDateTo, filterStatus],
     queryFn: async () => {
@@ -129,7 +206,11 @@ export default function PrimaNotaPage() {
           chart_account:chart_of_accounts(code, name),
           cost_center:cost_centers(code, name),
           profit_center:profit_centers(code, name),
-          accounting_entry:accounting_entries(direction, document_type, document_date, attachment_url)
+          accounting_entry:accounting_entries(
+            direction, document_type, document_date, attachment_url,
+            iva_mode, iva_aliquota, imponibile, iva_amount, totale,
+            payment_method, financial_status
+          )
         `)
         .order("competence_date", { ascending: false })
         .order("created_at", { ascending: false });
@@ -143,7 +224,6 @@ export default function PrimaNotaPage() {
           query = query.gte("competence_date", range.from).lte("competence_date", range.to);
         }
       }
-      // filterPeriodType === "all" → no date filter
 
       if (filterStatus !== "all") {
         query = query.eq("status", filterStatus);
@@ -151,6 +231,33 @@ export default function PrimaNotaPage() {
 
       const { data, error } = await query;
       if (error) throw error;
+      
+      // Fetch lines for all movements
+      if (data && data.length > 0) {
+        const movementIds = data.map(m => m.id);
+        const { data: linesData } = await supabase
+          .from("prima_nota_lines")
+          .select(`
+            *,
+            chart_account:chart_of_accounts(code, name),
+            structural_account:structural_accounts(code, name)
+          `)
+          .in("prima_nota_id", movementIds)
+          .order("line_order");
+        
+        // Attach lines to movements
+        const linesMap = new Map<string, PrimaNotaLine[]>();
+        linesData?.forEach(line => {
+          const existing = linesMap.get(line.prima_nota_id) || [];
+          existing.push(line);
+          linesMap.set(line.prima_nota_id, existing);
+        });
+        
+        data.forEach(m => {
+          (m as PrimaNotaMovement).lines = linesMap.get(m.id) || [];
+        });
+      }
+      
       return data as PrimaNotaMovement[];
     },
   });
@@ -165,7 +272,8 @@ export default function PrimaNotaPage() {
           id, direction, document_type, amount, document_date,
           event_type, temporal_competence, recurrence_start_date, recurrence_end_date,
           chart_account_id, cost_center_id, profit_center_id, center_percentage,
-          financial_status, affects_income_statement,
+          financial_status, affects_income_statement, payment_method,
+          iva_mode, iva_aliquota, imponibile, iva_amount, totale,
           chart_account:chart_of_accounts(code, name),
           cost_center:cost_centers(code, name),
           profit_center:profit_centers(code, name)
@@ -178,72 +286,98 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // Generate prima nota from entry
+  // =====================================================
+  // FIX 1 & 2 & 4: Generate prima nota with double-entry lines
+  // =====================================================
   const generateMutation = useMutation({
     mutationFn: async (entry: PendingEntry) => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
 
-      const movementsToCreate: Omit<PrimaNotaMovement, "id" | "created_at" | "chart_account" | "cost_center" | "profit_center" | "accounting_entry">[] = [];
+      // Calculate IVA values
+      const ivaMode = entry.iva_mode || "DOMESTICA_IMPONIBILE";
+      const ivaAliquota = entry.iva_aliquota || 22;
+      const imponibile = entry.imponibile || entry.amount;
+      let ivaAmount = entry.iva_amount || 0;
+      let totale = entry.totale || entry.amount;
 
-      // Base amount (negative for costs, positive for revenues)
-      const baseAmount = entry.direction === "uscita" ? -Math.abs(entry.amount) : Math.abs(entry.amount);
-
-      // CASE A: Immediate competence - 1 movement
-      if (entry.temporal_competence === "immediata" || !entry.temporal_competence) {
-        // Economic movement (if affects income statement)
-        if (entry.affects_income_statement) {
-          movementsToCreate.push({
-            accounting_entry_id: entry.id,
-            movement_type: "economico",
-            competence_date: entry.document_date,
-            amount: baseAmount,
-            chart_account_id: entry.chart_account_id,
-            cost_center_id: entry.cost_center_id,
-            profit_center_id: entry.profit_center_id,
-            center_percentage: entry.center_percentage || 100,
-            description: `${entry.event_type === "ricavo" ? "Ricavo" : "Costo"} - Competenza immediata`,
-            installment_number: null,
-            total_installments: null,
-            status: "generato",
-            rectified_by: null,
-            rectification_reason: null,
-            is_rectification: false,
-            original_movement_id: null,
-            accounting_period: null,
-          });
+      // FIX 3: Validate IVA based on mode
+      if (ivaMode === "DOMESTICA_IMPONIBILE") {
+        // IVA normale: imponibile + iva = totale
+        if (!entry.iva_amount && !entry.totale) {
+          ivaAmount = imponibile * (ivaAliquota / 100);
+          totale = imponibile + ivaAmount;
         }
-
-        // Financial movement (if paid/collected)
-        if (["pagato", "incassato"].includes(entry.financial_status || "")) {
-          movementsToCreate.push({
-            accounting_entry_id: entry.id,
-            movement_type: "finanziario",
-            competence_date: entry.document_date,
-            amount: baseAmount,
-            chart_account_id: null, // No chart account for financial movements
-            cost_center_id: null,
-            profit_center_id: null,
-            center_percentage: null,
-            description: `Movimento finanziario - ${entry.financial_status === "pagato" ? "Pagamento" : "Incasso"}`,
-            installment_number: null,
-            total_installments: null,
-            status: "generato",
-            rectified_by: null,
-            rectification_reason: null,
-            is_rectification: false,
-            original_movement_id: null,
-            accounting_period: null,
-          });
-        }
+      } else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
+        // Non imponibile: IVA = 0, totale = imponibile
+        ivaAmount = 0;
+        totale = imponibile;
+      } else if (ivaMode === "ACQUISTO_RC_EDILE") {
+        // Reverse charge acquisto: IVA calcolata internamente
+        ivaAmount = imponibile * (ivaAliquota / 100);
+        totale = imponibile; // Fornitore fattura solo imponibile
       }
 
+      const isRevenue = entry.event_type === "ricavo" || entry.direction === "entrata";
+      const isPaid = ["pagato", "incassato"].includes(entry.financial_status || "");
+      const paymentMethod = entry.payment_method || "banca";
+
+      // FIX 2: Single movement if paid immediately
+      const movementType = isPaid ? "economico" : "economico";
+      const description = isPaid 
+        ? `${isRevenue ? "Ricavo" : "Costo"} - Pagato subito`
+        : `${isRevenue ? "Ricavo" : "Costo"} - ${entry.temporal_competence === "rateizzata" ? "Rateizzato" : "Competenza immediata"}`;
+
+      // Create movements based on temporal competence
+      const movementsToCreate: any[] = [];
+      const linesToCreate: any[] = [];
+
+      // CASE A: Immediate or deferred competence - single movement
+      if (entry.temporal_competence !== "rateizzata") {
+        const movementId = crypto.randomUUID();
+        
+        movementsToCreate.push({
+          id: movementId,
+          accounting_entry_id: entry.id,
+          movement_type: movementType,
+          competence_date: entry.document_date,
+          amount: isRevenue ? totale : -totale,
+          chart_account_id: entry.chart_account_id,
+          cost_center_id: entry.cost_center_id,
+          profit_center_id: entry.profit_center_id,
+          center_percentage: entry.center_percentage || 100,
+          description,
+          status: "generato",
+          is_rectification: false,
+          iva_mode: ivaMode,
+          iva_aliquota: ivaAliquota,
+          imponibile,
+          iva_amount: ivaAmount,
+          totale,
+          payment_method: isPaid ? paymentMethod : null,
+          created_by: userId,
+        });
+
+        // FIX 1 & 4: Generate double-entry lines
+        const lines = generateDoubleEntryLines(
+          movementId,
+          isRevenue,
+          isPaid,
+          ivaMode,
+          ivaAliquota,
+          imponibile,
+          ivaAmount,
+          totale,
+          paymentMethod,
+          entry.chart_account_id
+        );
+        linesToCreate.push(...lines);
+      }
       // CASE B: Installment competence - N movements
-      if (entry.temporal_competence === "rateizzata" && entry.recurrence_start_date && entry.recurrence_end_date) {
+      else if (entry.recurrence_start_date && entry.recurrence_end_date) {
         const startDate = new Date(entry.recurrence_start_date);
         const endDate = new Date(entry.recurrence_end_date);
         
-        // Calculate number of months
         let months = 0;
         let currentDate = startOfMonth(startDate);
         while (currentDate <= endDate) {
@@ -252,16 +386,20 @@ export default function PrimaNotaPage() {
         }
 
         if (months > 0) {
-          const installmentAmount = baseAmount / months;
+          const installmentImponibile = imponibile / months;
+          const installmentIva = ivaAmount / months;
+          const installmentTotale = totale / months;
           
           for (let i = 0; i < months; i++) {
             const competenceDate = addMonths(startOfMonth(startDate), i);
+            const movementId = crypto.randomUUID();
             
             movementsToCreate.push({
+              id: movementId,
               accounting_entry_id: entry.id,
               movement_type: "economico",
               competence_date: format(competenceDate, "yyyy-MM-dd"),
-              amount: installmentAmount,
+              amount: isRevenue ? installmentTotale : -installmentTotale,
               chart_account_id: entry.chart_account_id,
               cost_center_id: entry.cost_center_id,
               profit_center_id: entry.profit_center_id,
@@ -270,75 +408,53 @@ export default function PrimaNotaPage() {
               installment_number: i + 1,
               total_installments: months,
               status: "generato",
-              rectified_by: null,
-              rectification_reason: null,
               is_rectification: false,
-              original_movement_id: null,
-              accounting_period: null,
+              iva_mode: ivaMode,
+              iva_aliquota: ivaAliquota,
+              imponibile: installmentImponibile,
+              iva_amount: installmentIva,
+              totale: installmentTotale,
+              payment_method: null,
+              created_by: userId,
             });
+
+            // Lines for each installment
+            const lines = generateDoubleEntryLines(
+              movementId,
+              isRevenue,
+              false, // Installments are not paid immediately
+              ivaMode,
+              ivaAliquota,
+              installmentImponibile,
+              installmentIva,
+              installmentTotale,
+              null,
+              entry.chart_account_id
+            );
+            linesToCreate.push(...lines);
           }
         }
       }
 
-      // CASE C: Deferred competence - future movement
-      if (entry.temporal_competence === "differita") {
-        // Create single movement at document date (can be adjusted based on policy)
-        if (entry.affects_income_statement) {
-          movementsToCreate.push({
-            accounting_entry_id: entry.id,
-            movement_type: "economico",
-            competence_date: entry.document_date,
-            amount: baseAmount,
-            chart_account_id: entry.chart_account_id,
-            cost_center_id: entry.cost_center_id,
-            profit_center_id: entry.profit_center_id,
-            center_percentage: entry.center_percentage || 100,
-            description: `${entry.event_type === "ricavo" ? "Ricavo" : "Costo"} - Competenza differita`,
-            installment_number: null,
-            total_installments: null,
-            status: "generato",
-            rectified_by: null,
-            rectification_reason: null,
-            is_rectification: false,
-            original_movement_id: null,
-            accounting_period: null,
-          });
-        }
-      }
-
-      // Financial-only event
-      if (entry.event_type === "evento_finanziario") {
-        movementsToCreate.push({
-          accounting_entry_id: entry.id,
-          movement_type: "finanziario",
-          competence_date: entry.document_date,
-          amount: baseAmount,
-          chart_account_id: null,
-          cost_center_id: null,
-          profit_center_id: null,
-          center_percentage: null,
-          description: "Evento finanziario",
-          installment_number: null,
-          total_installments: null,
-          status: "generato",
-          rectified_by: null,
-          rectification_reason: null,
-          is_rectification: false,
-          original_movement_id: null,
-          accounting_period: null,
-        });
-      }
-
-      // Insert all movements
+      // Insert movements
       if (movementsToCreate.length > 0) {
         const { error: insertError } = await supabase
           .from("prima_nota")
-          .insert(movementsToCreate.map(m => ({ ...m, created_by: userId })));
+          .insert(movementsToCreate);
 
         if (insertError) throw insertError;
+
+        // Insert lines
+        if (linesToCreate.length > 0) {
+          const { error: linesError } = await supabase
+            .from("prima_nota_lines")
+            .insert(linesToCreate);
+
+          if (linesError) throw linesError;
+        }
       }
 
-      // Update entry status to 'registrato'
+      // Update entry status
       const { error: updateError } = await supabase
         .from("accounting_entries")
         .update({ status: "registrato" })
@@ -351,12 +467,153 @@ export default function PrimaNotaPage() {
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
       queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
-      toast.success(`Generati ${count} movimenti di Prima Nota`);
+      toast.success(`Generati ${count} movimenti con scritture in partita doppia`);
     },
     onError: () => {
       toast.error("Errore nella generazione della Prima Nota");
     },
   });
+
+  // Generate double-entry lines based on FIX 4 rules
+  function generateDoubleEntryLines(
+    movementId: string,
+    isRevenue: boolean,
+    isPaid: boolean,
+    ivaMode: string,
+    ivaAliquota: number,
+    imponibile: number,
+    ivaAmount: number,
+    totale: number,
+    paymentMethod: string | null,
+    chartAccountId: string | null
+  ): any[] {
+    const lines: any[] = [];
+    let lineOrder = 1;
+
+    // Determine DARE account (what we receive)
+    const dareAccountKey = isPaid 
+      ? paymentMethod?.toUpperCase() || "BANCA"
+      : isRevenue ? "CREDITI_CLIENTI" : "CONTO_ECONOMICO";
+
+    // FIX 4A: Vendita domestica imponibile
+    if (ivaMode === "DOMESTICA_IMPONIBILE") {
+      // DARE: Metodo pagamento / Crediti clienti = Totale
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "dynamic",
+        dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : (isRevenue ? "CREDITI_CLIENTI" : "DEBITI_FORNITORI"),
+        chart_account_id: null,
+        dare: isRevenue ? totale : 0,
+        avere: isRevenue ? 0 : totale,
+        description: isPaid ? `Incasso/Pagamento ${formatPaymentMethod(paymentMethod)}` : (isRevenue ? "Crediti vs clienti" : "Debiti vs fornitori"),
+      });
+
+      // AVERE: Ricavi/Costi = Imponibile
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "chart",
+        chart_account_id: chartAccountId,
+        dynamic_account_key: null,
+        dare: isRevenue ? 0 : imponibile,
+        avere: isRevenue ? imponibile : 0,
+        description: isRevenue ? "Ricavi" : "Costi",
+      });
+
+      // AVERE: IVA a debito/credito = IVA
+      if (ivaAmount > 0) {
+        lines.push({
+          prima_nota_id: movementId,
+          line_order: lineOrder++,
+          account_type: "dynamic",
+          dynamic_account_key: isRevenue ? "IVA_DEBITO" : "IVA_CREDITO",
+          chart_account_id: null,
+          dare: isRevenue ? 0 : ivaAmount,
+          avere: isRevenue ? ivaAmount : 0,
+          description: `IVA ${ivaAliquota}%`,
+        });
+      }
+    }
+    // FIX 4B: Cessione UE / Extra-UE / RC Vendita - no IVA
+    else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
+      // DARE: Metodo pagamento / Crediti = Totale (= imponibile)
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "dynamic",
+        dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : (isRevenue ? "CREDITI_CLIENTI" : "DEBITI_FORNITORI"),
+        chart_account_id: null,
+        dare: isRevenue ? totale : 0,
+        avere: isRevenue ? 0 : totale,
+        description: isPaid ? `Incasso/Pagamento ${formatPaymentMethod(paymentMethod)}` : (isRevenue ? "Crediti vs clienti" : "Debiti vs fornitori"),
+      });
+
+      // AVERE: Ricavi = Totale
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "chart",
+        chart_account_id: chartAccountId,
+        dynamic_account_key: null,
+        dare: isRevenue ? 0 : totale,
+        avere: isRevenue ? totale : 0,
+        description: `${isRevenue ? "Ricavi" : "Costi"} (${IVA_MODE_LABELS[ivaMode]})`,
+      });
+    }
+    // FIX 4C: Reverse charge acquisto - IVA calcolata
+    else if (ivaMode === "ACQUISTO_RC_EDILE") {
+      // DARE: Costi = Imponibile
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "chart",
+        chart_account_id: chartAccountId,
+        dynamic_account_key: null,
+        dare: imponibile,
+        avere: 0,
+        description: "Costi (RC Edile)",
+      });
+
+      // AVERE: Debiti fornitori / Banca = Imponibile
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "dynamic",
+        dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : "DEBITI_FORNITORI",
+        chart_account_id: null,
+        dare: 0,
+        avere: imponibile,
+        description: isPaid ? `Pagamento ${formatPaymentMethod(paymentMethod)}` : "Debiti vs fornitori",
+      });
+
+      // DARE: IVA a credito = IVA calcolata
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "dynamic",
+        dynamic_account_key: "IVA_CREDITO",
+        chart_account_id: null,
+        dare: ivaAmount,
+        avere: 0,
+        description: `IVA a credito (RC) ${ivaAliquota}%`,
+      });
+
+      // AVERE: IVA a debito = IVA calcolata
+      lines.push({
+        prima_nota_id: movementId,
+        line_order: lineOrder++,
+        account_type: "dynamic",
+        dynamic_account_key: "IVA_DEBITO",
+        chart_account_id: null,
+        dare: 0,
+        avere: ivaAmount,
+        description: `IVA a debito (RC) ${ivaAliquota}%`,
+      });
+    }
+
+    return lines;
+  }
 
   // Register movement
   const registerMutation = useMutation({
@@ -388,7 +645,6 @@ export default function PrimaNotaPage() {
     mutationFn: async ({ movementId, reason }: { movementId: string; reason: string }) => {
       const { data: userData } = await supabase.auth.getUser();
       
-      // Get original movement
       const { data: original, error: fetchError } = await supabase
         .from("prima_nota")
         .select("*")
@@ -397,14 +653,14 @@ export default function PrimaNotaPage() {
 
       if (fetchError || !original) throw fetchError;
 
-      // Create rectification movement (opposite amount)
+      // Create rectification movement
       const { data: rectification, error: insertError } = await supabase
         .from("prima_nota")
         .insert({
           accounting_entry_id: original.accounting_entry_id,
           movement_type: original.movement_type,
           competence_date: original.competence_date,
-          amount: -original.amount, // Opposite amount
+          amount: -original.amount,
           chart_account_id: original.chart_account_id,
           cost_center_id: original.cost_center_id,
           profit_center_id: original.profit_center_id,
@@ -413,12 +669,40 @@ export default function PrimaNotaPage() {
           status: "generato",
           is_rectification: true,
           original_movement_id: movementId,
+          iva_mode: original.iva_mode,
+          iva_aliquota: original.iva_aliquota,
+          imponibile: original.imponibile ? -original.imponibile : null,
+          iva_amount: original.iva_amount ? -original.iva_amount : null,
+          totale: original.totale ? -original.totale : null,
+          payment_method: original.payment_method,
           created_by: userData.user?.id,
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
+
+      // Get original lines and create reversed lines
+      const { data: originalLines } = await supabase
+        .from("prima_nota_lines")
+        .select("*")
+        .eq("prima_nota_id", movementId);
+
+      if (originalLines && originalLines.length > 0) {
+        const reversedLines = originalLines.map(line => ({
+          prima_nota_id: rectification.id,
+          line_order: line.line_order,
+          chart_account_id: line.chart_account_id,
+          structural_account_id: line.structural_account_id,
+          account_type: line.account_type,
+          dynamic_account_key: line.dynamic_account_key,
+          dare: line.avere, // Swap dare/avere
+          avere: line.dare,
+          description: `RETTIFICA: ${line.description}`,
+        }));
+
+        await supabase.from("prima_nota_lines").insert(reversedLines);
+      }
 
       // Mark original as rectified
       const { error: updateError } = await supabase
@@ -444,6 +728,7 @@ export default function PrimaNotaPage() {
     },
   });
 
+  // FIX 7: Status badge with proper states
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: React.ReactNode }> = {
       generato: { variant: "secondary", label: "Generato", icon: <FileText className="h-3 w-3" /> },
@@ -460,20 +745,39 @@ export default function PrimaNotaPage() {
     );
   };
 
+  // Toggle row expansion
+  const toggleRowExpansion = (id: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedRows(newExpanded);
+  };
+
   // Summary calculations
   const summary = movements.reduce(
     (acc, m) => {
-      if (m.status === "rettificato") return acc; // Skip rectified
+      if (m.status === "rettificato") return acc;
+      const imponibile = m.imponibile || Math.abs(m.amount);
+      const iva = m.iva_amount || 0;
+      
       if (m.movement_type === "economico") {
-        if (m.amount > 0) acc.revenues += m.amount;
-        else acc.costs += Math.abs(m.amount);
+        if (m.amount > 0) {
+          acc.revenues += imponibile;
+          acc.ivaDebito += iva;
+        } else {
+          acc.costs += imponibile;
+          acc.ivaCredito += iva;
+        }
       } else {
-        if (m.amount > 0) acc.inflows += m.amount;
-        else acc.outflows += Math.abs(m.amount);
+        if (m.amount > 0) acc.inflows += Math.abs(m.totale || m.amount);
+        else acc.outflows += Math.abs(m.totale || m.amount);
       }
       return acc;
     },
-    { revenues: 0, costs: 0, inflows: 0, outflows: 0 }
+    { revenues: 0, costs: 0, inflows: 0, outflows: 0, ivaDebito: 0, ivaCredito: 0 }
   );
 
   return (
@@ -481,7 +785,7 @@ export default function PrimaNotaPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Prima Nota</h1>
         <p className="text-muted-foreground">
-          Movimenti contabili generati dagli eventi classificati
+          Scritture contabili in partita doppia generate dagli eventi classificati
         </p>
       </div>
 
@@ -510,115 +814,65 @@ export default function PrimaNotaPage() {
               <div className="flex flex-wrap gap-4 items-center">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-sm">Tipo Periodo:</Label>
+                  <Label className="text-sm">Periodo:</Label>
                   <Select value={filterPeriodType} onValueChange={(val) => {
                     setFilterPeriodType(val);
-                    // Reset period value on type change
                     if (val === "month") setFilterPeriod(format(new Date(), "yyyy-MM"));
                     else if (val === "quarter") setFilterPeriod(`${format(new Date(), "yyyy")}-Q${Math.ceil((new Date().getMonth() + 1) / 3)}`);
                     else if (val === "year") setFilterPeriod(format(new Date(), "yyyy"));
                   }}>
-                    <SelectTrigger className="w-36">
+                    <SelectTrigger className="w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="month">Mese</SelectItem>
                       <SelectItem value="quarter">Trimestre</SelectItem>
                       <SelectItem value="year">Anno</SelectItem>
-                      <SelectItem value="custom">Intervallo</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
                       <SelectItem value="all">Tutto</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {filterPeriodType === "month" && (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm">Periodo:</Label>
-                    <Input
-                      type="month"
-                      value={filterPeriod}
-                      onChange={(e) => setFilterPeriod(e.target.value)}
-                      className="w-40"
-                    />
-                  </div>
-                )}
-
-                {filterPeriodType === "quarter" && (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm">Trimestre:</Label>
-                    <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-                      <SelectTrigger className="w-36">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[-1, 0, 1].map(yearOffset => {
-                          const year = new Date().getFullYear() + yearOffset;
-                          return [1, 2, 3, 4].map(q => (
-                            <SelectItem key={`${year}-Q${q}`} value={`${year}-Q${q}`}>
-                              Q{q} {year}
-                            </SelectItem>
-                          ));
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {filterPeriodType === "year" && (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm">Anno:</Label>
-                    <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[-2, -1, 0, 1].map(offset => {
-                          const year = new Date().getFullYear() + offset;
-                          return (
-                            <SelectItem key={year} value={year.toString()}>
-                              {year}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Input
+                    type="month"
+                    value={filterPeriod}
+                    onChange={(e) => setFilterPeriod(e.target.value)}
+                    className="w-40"
+                  />
                 )}
 
                 {filterPeriodType === "custom" && (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm">Da:</Label>
+                  <>
                     <Input
                       type="date"
                       value={filterDateFrom}
                       onChange={(e) => setFilterDateFrom(e.target.value)}
                       className="w-36"
                     />
-                    <Label className="text-sm">A:</Label>
+                    <span>-</span>
                     <Input
                       type="date"
                       value={filterDateTo}
                       onChange={(e) => setFilterDateTo(e.target.value)}
                       className="w-36"
                     />
-                  </div>
+                  </>
                 )}
 
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm">Stato:</Label>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tutti</SelectItem>
-                      <SelectItem value="generato">Generato</SelectItem>
-                      <SelectItem value="registrato">Registrato</SelectItem>
-                      <SelectItem value="bloccato">Bloccato</SelectItem>
-                      <SelectItem value="rettificato">Rettificato</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="Stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti</SelectItem>
+                    <SelectItem value="generato">Generato</SelectItem>
+                    <SelectItem value="registrato">Registrato</SelectItem>
+                    <SelectItem value="bloccato">Bloccato</SelectItem>
+                    <SelectItem value="rettificato">Rettificato</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -629,22 +883,32 @@ export default function PrimaNotaPage() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-green-600">
                   <TrendingUp className="h-5 w-5" />
-                  <span className="text-sm font-medium">Ricavi</span>
+                  <span className="text-sm font-medium">Ricavi (Imponibile)</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">
                   € {summary.revenues.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                 </p>
+                {summary.ivaDebito > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    IVA a debito: € {summary.ivaDebito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                  </p>
+                )}
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-red-600">
                   <TrendingDown className="h-5 w-5" />
-                  <span className="text-sm font-medium">Costi</span>
+                  <span className="text-sm font-medium">Costi (Imponibile)</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">
                   € {summary.costs.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                 </p>
+                {summary.ivaCredito > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    IVA a credito: € {summary.ivaCredito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                  </p>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -679,7 +943,6 @@ export default function PrimaNotaPage() {
               <CardContent className="py-12 text-center">
                 <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-lg font-medium">Nessun movimento per questo periodo</p>
-                <p className="text-muted-foreground">Seleziona un altro periodo o genera nuovi movimenti</p>
               </CardContent>
             </Card>
           ) : (
@@ -689,92 +952,250 @@ export default function PrimaNotaPage() {
                   <table className="w-full">
                     <thead className="bg-muted/50">
                       <tr>
+                        <th className="w-8 p-3"></th>
                         <th className="text-left p-3 text-sm font-medium">Data</th>
                         <th className="text-left p-3 text-sm font-medium">Tipo</th>
                         <th className="text-left p-3 text-sm font-medium">Conto</th>
-                        <th className="text-left p-3 text-sm font-medium">Centro</th>
-                        <th className="text-right p-3 text-sm font-medium">Importo</th>
+                        {/* FIX 5: IVA column */}
+                        <th className="text-center p-3 text-sm font-medium">IVA</th>
+                        {/* FIX 6: Separate amounts */}
+                        <th className="text-right p-3 text-sm font-medium">Imponibile</th>
+                        <th className="text-right p-3 text-sm font-medium">Totale</th>
                         <th className="text-center p-3 text-sm font-medium">Stato</th>
                         <th className="text-center p-3 text-sm font-medium">Azioni</th>
                       </tr>
                     </thead>
                     <tbody>
                       {movements.map((m) => (
-                        <tr 
-                          key={m.id} 
-                          className={`border-t hover:bg-muted/30 transition-colors ${m.is_rectification ? "bg-yellow-50/50" : ""} ${m.status === "rettificato" ? "opacity-50" : ""}`}
-                        >
-                          <td className="p-3 text-sm">
-                            {format(new Date(m.competence_date), "dd/MM/yyyy", { locale: it })}
-                            {m.installment_number && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                ({m.installment_number}/{m.total_installments})
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <Badge variant={m.movement_type === "economico" ? "default" : "outline"}>
-                              {m.movement_type === "economico" ? "Economico" : "Finanziario"}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-sm">
-                            {m.chart_account ? (
-                              <span>{m.chart_account.code} - {m.chart_account.name}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {m.cost_center ? (
-                              <span>{m.cost_center.code} - {m.cost_center.name}</span>
-                            ) : m.profit_center ? (
-                              <span>{m.profit_center.code} - {m.profit_center.name}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className={`p-3 text-sm text-right font-medium ${m.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                            {m.amount >= 0 ? "+" : ""}€ {m.amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="p-3 text-center">
-                            {getStatusBadge(m.status)}
-                          </td>
-                          <td className="p-3 text-center">
-                            <div className="flex justify-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => setSelectedMovement(m)}
-                              >
-                                <Eye className="h-4 w-4" />
+                        <>
+                          <tr 
+                            key={m.id} 
+                            className={`border-t hover:bg-muted/30 transition-colors cursor-pointer ${m.is_rectification ? "bg-yellow-50/50 dark:bg-yellow-900/10" : ""} ${m.status === "rettificato" ? "opacity-50" : ""}`}
+                            onClick={() => toggleRowExpansion(m.id)}
+                          >
+                            <td className="p-3">
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <ChevronDown className={`h-4 w-4 transition-transform ${expandedRows.has(m.id) ? "rotate-180" : ""}`} />
                               </Button>
-                              {m.status === "generato" && (
+                            </td>
+                            <td className="p-3 text-sm">
+                              {format(new Date(m.competence_date), "dd/MM/yyyy", { locale: it })}
+                              {m.installment_number && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({m.installment_number}/{m.total_installments})
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={m.movement_type === "economico" ? "default" : "outline"}>
+                                {m.movement_type === "economico" ? "Economico" : "Finanziario"}
+                              </Badge>
+                              {m.payment_method && (
+                                <Badge variant="secondary" className="ml-1 text-xs">
+                                  {formatPaymentMethod(m.payment_method)}
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="p-3 text-sm">
+                              {m.chart_account ? (
+                                <span>{m.chart_account.code} - {m.chart_account.name}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            {/* FIX 5: IVA reference */}
+                            <td className="p-3 text-center">
+                              {m.iva_mode ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  {formatIvaMode(m.iva_mode)}
+                                  {m.iva_aliquota && m.iva_mode === "DOMESTICA_IMPONIBILE" && (
+                                    <span className="text-xs text-muted-foreground">{m.iva_aliquota}%</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            {/* FIX 6: Imponibile */}
+                            <td className="p-3 text-sm text-right">
+                              {m.imponibile ? (
+                                <span className={m.amount >= 0 ? "text-green-600" : "text-red-600"}>
+                                  € {Math.abs(m.imponibile).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            {/* FIX 6: Totale (prominente) */}
+                            <td className={`p-3 text-sm text-right font-bold ${m.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              € {Math.abs(m.totale || m.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                              {m.iva_amount && m.iva_amount > 0 && (
+                                <div className="text-xs font-normal text-muted-foreground">
+                                  (IVA: € {m.iva_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })})
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {getStatusBadge(m.status)}
+                            </td>
+                            <td className="p-3 text-center">
+                              <div className="flex justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-green-600"
-                                  onClick={() => registerMutation.mutate(m.id)}
+                                  className="h-8 w-8"
+                                  onClick={() => setSelectedMovement(m)}
                                 >
-                                  <CheckCircle className="h-4 w-4" />
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
-                              {m.status === "registrato" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-orange-600"
-                                  onClick={() => {
-                                    setSelectedMovement(m);
-                                    setRectifyDialogOpen(true);
-                                  }}
-                                >
-                                  <Undo2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                                {m.status === "generato" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-green-600"
+                                    onClick={() => registerMutation.mutate(m.id)}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {m.status === "registrato" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-orange-600"
+                                    onClick={() => {
+                                      setSelectedMovement(m);
+                                      setRectifyDialogOpen(true);
+                                    }}
+                                  >
+                                    <Undo2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {/* FIX 1: Expandable double-entry lines */}
+                          {expandedRows.has(m.id) && (
+                            <tr key={`${m.id}-lines`}>
+                              <td colSpan={9} className="bg-muted/20 p-0">
+                                <div className="p-4">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">Scritture Contabili (Partita Doppia)</span>
+                                  </div>
+                                  {m.lines && m.lines.length > 0 ? (
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="w-12">#</TableHead>
+                                          <TableHead>Conto</TableHead>
+                                          <TableHead className="text-right w-32">DARE</TableHead>
+                                          <TableHead className="text-right w-32">AVERE</TableHead>
+                                          <TableHead>Descrizione</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {m.lines.map((line) => (
+                                          <TableRow key={line.id}>
+                                            <TableCell className="font-mono text-xs">{line.line_order}</TableCell>
+                                            <TableCell>
+                                              {line.chart_account ? (
+                                                <span>{line.chart_account.code} - {line.chart_account.name}</span>
+                                              ) : line.structural_account ? (
+                                                <span>{line.structural_account.code} - {line.structural_account.name}</span>
+                                              ) : line.dynamic_account_key ? (
+                                                <Badge variant="outline" className="font-mono text-xs">
+                                                  {line.dynamic_account_key}
+                                                </Badge>
+                                              ) : (
+                                                "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">
+                                              {line.dare > 0 ? (
+                                                <span className="text-blue-600">
+                                                  € {line.dare.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                                </span>
+                                              ) : (
+                                                "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">
+                                              {line.avere > 0 ? (
+                                                <span className="text-green-600">
+                                                  € {line.avere.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                                </span>
+                                              ) : (
+                                                "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                              {line.description}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                        {/* Totals row */}
+                                        <TableRow className="bg-muted/50 font-medium">
+                                          <TableCell colSpan={2} className="text-right">TOTALE</TableCell>
+                                          <TableCell className="text-right font-mono text-blue-600">
+                                            € {m.lines.reduce((sum, l) => sum + l.dare, 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                          </TableCell>
+                                          <TableCell className="text-right font-mono text-green-600">
+                                            € {m.lines.reduce((sum, l) => sum + l.avere, 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                          </TableCell>
+                                          <TableCell>
+                                            {m.lines.reduce((sum, l) => sum + l.dare, 0) === m.lines.reduce((sum, l) => sum + l.avere, 0) ? (
+                                              <Badge variant="default" className="gap-1">
+                                                <CheckCircle className="h-3 w-3" />
+                                                Bilanciato
+                                              </Badge>
+                                            ) : (
+                                              <Badge variant="destructive">Sbilanciato!</Badge>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                      </TableBody>
+                                    </Table>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground italic">
+                                      Nessuna scrittura contabile (movimento precedente alla partita doppia)
+                                    </p>
+                                  )}
+                                  
+                                  {/* FIX 5: IVA section always visible */}
+                                  <div className="mt-4 p-3 bg-background rounded-md border">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Percent className="h-4 w-4 text-muted-foreground" />
+                                      <span className="text-sm font-medium">Riferimento IVA</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Regime</Label>
+                                        <p className="font-medium">{IVA_MODE_LABELS[m.iva_mode || ""] || "Non specificato"}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Aliquota</Label>
+                                        <p className="font-medium">{m.iva_aliquota ? `${m.iva_aliquota}%` : "-"}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Imponibile</Label>
+                                        <p className="font-medium">€ {(m.imponibile || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">IVA</Label>
+                                        <p className="font-medium">€ {(m.iva_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Totale</Label>
+                                        <p className="font-medium">€ {(m.totale || m.amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       ))}
                     </tbody>
                   </table>
@@ -804,8 +1225,8 @@ export default function PrimaNotaPage() {
                         <div
                           className={`p-2 rounded-full ${
                             entry.direction === "entrata"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-red-100 text-red-600"
+                              ? "bg-green-100 text-green-600 dark:bg-green-900/30"
+                              : "bg-red-100 text-red-600 dark:bg-red-900/30"
                           }`}
                         >
                           {entry.direction === "entrata" ? (
@@ -815,15 +1236,23 @@ export default function PrimaNotaPage() {
                           )}
                         </div>
                         <div>
-                          <div className="font-medium">
-                            € {entry.amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                          {/* FIX 6: Show separate amounts */}
+                          <div className="font-bold text-lg">
+                            € {(entry.totale || entry.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(entry.document_date), "dd MMM yyyy", { locale: it })}
-                            {entry.temporal_competence === "rateizzata" && entry.recurrence_start_date && entry.recurrence_end_date && (
-                              <span className="ml-2">
-                                • Rateizzato: {format(new Date(entry.recurrence_start_date), "MMM yyyy", { locale: it })} - {format(new Date(entry.recurrence_end_date), "MMM yyyy", { locale: it })}
-                              </span>
+                          <div className="text-sm text-muted-foreground flex gap-3">
+                            <span>Imponibile: € {(entry.imponibile || entry.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                            {entry.iva_amount && entry.iva_amount > 0 && (
+                              <span>IVA: € {entry.iva_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                            <span>{format(new Date(entry.document_date), "dd MMM yyyy", { locale: it })}</span>
+                            {entry.iva_mode && formatIvaMode(entry.iva_mode)}
+                            {entry.financial_status && (
+                              <Badge variant={["pagato", "incassato"].includes(entry.financial_status) ? "default" : "secondary"} className="text-xs">
+                                {entry.financial_status}
+                              </Badge>
                             )}
                           </div>
                         </div>
@@ -833,11 +1262,8 @@ export default function PrimaNotaPage() {
                           {entry.chart_account && (
                             <div>{entry.chart_account.code} - {entry.chart_account.name}</div>
                           )}
-                          {entry.cost_center && (
-                            <div className="text-muted-foreground">{entry.cost_center.name}</div>
-                          )}
-                          {entry.profit_center && (
-                            <div className="text-muted-foreground">{entry.profit_center.name}</div>
+                          {entry.payment_method && (
+                            <div className="text-muted-foreground">Pagamento: {formatPaymentMethod(entry.payment_method)}</div>
                           )}
                         </div>
                         <Button
@@ -859,13 +1285,13 @@ export default function PrimaNotaPage() {
 
       {/* Movement Detail Dialog */}
       <Dialog open={!!selectedMovement && !rectifyDialogOpen} onOpenChange={(open) => !open && setSelectedMovement(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Dettaglio Movimento</DialogTitle>
           </DialogHeader>
           {selectedMovement && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">Data Competenza</Label>
                   <p className="font-medium">
@@ -877,14 +1303,51 @@ export default function PrimaNotaPage() {
                   <p className="font-medium capitalize">{selectedMovement.movement_type}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Importo</Label>
-                  <p className={`font-medium ${selectedMovement.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    € {selectedMovement.amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div>
                   <Label className="text-xs text-muted-foreground">Stato</Label>
                   <div className="mt-1">{getStatusBadge(selectedMovement.status)}</div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Metodo Pagamento</Label>
+                  <p className="font-medium">{formatPaymentMethod(selectedMovement.payment_method)}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* FIX 6: Prominent amount display */}
+              <Card className="bg-muted/30">
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Imponibile</Label>
+                      <p className="text-xl font-bold">
+                        € {(selectedMovement.imponibile || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">IVA</Label>
+                      <p className="text-xl font-bold">
+                        € {(selectedMovement.iva_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Totale</Label>
+                      <p className={`text-2xl font-bold ${selectedMovement.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        € {Math.abs(selectedMovement.totale || selectedMovement.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* FIX 5: IVA Section */}
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block">Regime IVA</Label>
+                <div className="flex items-center gap-4">
+                  {formatIvaMode(selectedMovement.iva_mode)}
+                  {selectedMovement.iva_aliquota && (
+                    <span className="text-sm">Aliquota: {selectedMovement.iva_aliquota}%</span>
+                  )}
                 </div>
               </div>
 
@@ -899,21 +1362,6 @@ export default function PrimaNotaPage() {
                 </div>
               )}
 
-              {(selectedMovement.cost_center || selectedMovement.profit_center) && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Centro di {selectedMovement.cost_center ? "Costo" : "Ricavo"}</Label>
-                  <p className="font-medium">
-                    {selectedMovement.cost_center 
-                      ? `${selectedMovement.cost_center.code} - ${selectedMovement.cost_center.name}`
-                      : `${selectedMovement.profit_center?.code} - ${selectedMovement.profit_center?.name}`
-                    }
-                    {selectedMovement.center_percentage && selectedMovement.center_percentage < 100 && (
-                      <span className="text-muted-foreground ml-2">({selectedMovement.center_percentage}%)</span>
-                    )}
-                  </p>
-                </div>
-              )}
-
               {selectedMovement.description && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Descrizione</Label>
@@ -922,16 +1370,16 @@ export default function PrimaNotaPage() {
               )}
 
               {selectedMovement.is_rectification && (
-                <div className="bg-yellow-50 p-3 rounded-md">
-                  <p className="text-sm text-yellow-800">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
                     Questo movimento è una rettifica
                   </p>
                 </div>
               )}
 
               {selectedMovement.status === "rettificato" && selectedMovement.rectification_reason && (
-                <div className="bg-red-50 p-3 rounded-md">
-                  <p className="text-sm text-red-800">
+                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+                  <p className="text-sm text-red-800 dark:text-red-200">
                     <strong>Rettificato:</strong> {selectedMovement.rectification_reason}
                   </p>
                 </div>
@@ -949,7 +1397,7 @@ export default function PrimaNotaPage() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              La rettifica creerà un movimento opposto e manterrà lo storico. Il movimento originale non verrà cancellato.
+              La rettifica creerà un movimento opposto con scritture contabili inverse.
             </p>
             <div className="space-y-2">
               <Label>Motivo della rettifica *</Label>
