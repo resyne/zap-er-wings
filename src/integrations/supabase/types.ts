@@ -2769,6 +2769,8 @@ export type Database = {
       invoice_registry: {
         Row: {
           accounting_entry_id: string | null
+          cost_account_id: string | null
+          cost_center_id: string | null
           created_at: string
           created_by: string | null
           due_date: string | null
@@ -2782,9 +2784,12 @@ export type Database = {
           iva_rate: number
           notes: string | null
           payment_date: string | null
+          payment_method: string | null
           prima_nota_id: string | null
+          profit_center_id: string | null
           registered_at: string | null
           registered_by: string | null
+          revenue_account_id: string | null
           scadenza_id: string | null
           source_document_id: string | null
           source_document_type: string | null
@@ -2798,6 +2803,8 @@ export type Database = {
         }
         Insert: {
           accounting_entry_id?: string | null
+          cost_account_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
           due_date?: string | null
@@ -2811,9 +2818,12 @@ export type Database = {
           iva_rate?: number
           notes?: string | null
           payment_date?: string | null
+          payment_method?: string | null
           prima_nota_id?: string | null
+          profit_center_id?: string | null
           registered_at?: string | null
           registered_by?: string | null
+          revenue_account_id?: string | null
           scadenza_id?: string | null
           source_document_id?: string | null
           source_document_type?: string | null
@@ -2827,6 +2837,8 @@ export type Database = {
         }
         Update: {
           accounting_entry_id?: string | null
+          cost_account_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
           due_date?: string | null
@@ -2840,9 +2852,12 @@ export type Database = {
           iva_rate?: number
           notes?: string | null
           payment_date?: string | null
+          payment_method?: string | null
           prima_nota_id?: string | null
+          profit_center_id?: string | null
           registered_at?: string | null
           registered_by?: string | null
+          revenue_account_id?: string | null
           scadenza_id?: string | null
           source_document_id?: string | null
           source_document_type?: string | null
@@ -2863,10 +2878,38 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoice_registry_cost_account_id_fkey"
+            columns: ["cost_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoice_registry_prima_nota_id_fkey"
             columns: ["prima_nota_id"]
             isOneToOne: false
             referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_revenue_account_id_fkey"
+            columns: ["revenue_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
           {
