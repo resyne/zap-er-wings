@@ -286,68 +286,81 @@ Analizza attentamente e suggerisci la classificazione corretta, correggendo la d
       const classification = JSON.parse(toolCall.function.arguments);
       console.log("Classification:", classification);
       
-      // If we have subject data, try to find existing customer or supplier
-      let existingSubject = null;
-      let subjectMatches: any[] = [];
+      // If we have subject data, search BOTH customers AND suppliers to find matches
+      let customerMatch = null;
+      let supplierMatch = null;
+      let customerMatches: any[] = [];
+      let supplierMatches: any[] = [];
       
       if (classification.subject_name || classification.subject_tax_id) {
-        const subjectType = classification.subject_type || (classification.event_type === "ricavo" ? "cliente" : "fornitore");
-        
-        if (subjectType === "cliente") {
-          // Search in customers table
-          let query = supabase.from("customers").select("id, name, company_name, tax_id, city, address");
-          
-          // Search by tax_id first (most reliable)
-          if (classification.subject_tax_id) {
-            const taxId = classification.subject_tax_id.replace(/\s/g, "");
-            const { data: byTaxId } = await query.ilike("tax_id", `%${taxId}%`);
-            if (byTaxId && byTaxId.length > 0) {
-              existingSubject = byTaxId[0];
-              subjectMatches = byTaxId;
-            }
-          }
-          
-          // If no match by tax_id, search by name
-          if (!existingSubject && classification.subject_name) {
-            const { data: byName } = await supabase
-              .from("customers")
-              .select("id, name, company_name, tax_id, city, address")
-              .or(`name.ilike.%${classification.subject_name}%,company_name.ilike.%${classification.subject_name}%`);
-            if (byName && byName.length > 0) {
-              existingSubject = byName[0];
-              subjectMatches = byName;
-            }
-          }
-        } else {
-          // Search in suppliers table
-          let query = supabase.from("suppliers").select("id, name, tax_id, city, address");
-          
-          // Search by tax_id first
-          if (classification.subject_tax_id) {
-            const taxId = classification.subject_tax_id.replace(/\s/g, "");
-            const { data: byTaxId } = await query.ilike("tax_id", `%${taxId}%`);
-            if (byTaxId && byTaxId.length > 0) {
-              existingSubject = byTaxId[0];
-              subjectMatches = byTaxId;
-            }
-          }
-          
-          // If no match by tax_id, search by name
-          if (!existingSubject && classification.subject_name) {
-            const { data: byName } = await supabase
-              .from("suppliers")
-              .select("id, name, tax_id, city, address")
-              .ilike("name", `%${classification.subject_name}%`);
-            if (byName && byName.length > 0) {
-              existingSubject = byName[0];
-              subjectMatches = byName;
-            }
+        // Always search CUSTOMERS
+        if (classification.subject_tax_id) {
+          const taxId = classification.subject_tax_id.replace(/\s/g, "");
+          const { data: byTaxId } = await supabase
+            .from("customers")
+            .select("id, name, company_name, tax_id, city, address")
+            .ilike("tax_id", `%${taxId}%`);
+          if (byTaxId && byTaxId.length > 0) {
+            customerMatch = byTaxId[0];
+            customerMatches = byTaxId;
           }
         }
         
-        classification.existing_subject = existingSubject;
-        classification.subject_matches = subjectMatches;
-        classification.subject_found = !!existingSubject;
+        if (!customerMatch && classification.subject_name) {
+          const { data: byName } = await supabase
+            .from("customers")
+            .select("id, name, company_name, tax_id, city, address")
+            .or(`name.ilike.%${classification.subject_name}%,company_name.ilike.%${classification.subject_name}%`);
+          if (byName && byName.length > 0) {
+            customerMatch = byName[0];
+            customerMatches = byName;
+          }
+        }
+        
+        // Always search SUPPLIERS too
+        if (classification.subject_tax_id) {
+          const taxId = classification.subject_tax_id.replace(/\s/g, "");
+          const { data: byTaxId } = await supabase
+            .from("suppliers")
+            .select("id, name, tax_id, city, address")
+            .ilike("tax_id", `%${taxId}%`);
+          if (byTaxId && byTaxId.length > 0) {
+            supplierMatch = byTaxId[0];
+            supplierMatches = byTaxId;
+          }
+        }
+        
+        if (!supplierMatch && classification.subject_name) {
+          const { data: byName } = await supabase
+            .from("suppliers")
+            .select("id, name, tax_id, city, address")
+            .ilike("name", `%${classification.subject_name}%`);
+          if (byName && byName.length > 0) {
+            supplierMatch = byName[0];
+            supplierMatches = byName;
+          }
+        }
+        
+        // Return both search results - let the frontend decide
+        classification.customer_match = customerMatch;
+        classification.supplier_match = supplierMatch;
+        classification.customer_matches = customerMatches;
+        classification.supplier_matches = supplierMatches;
+        
+        // Set existing_subject based on AI's suggested type
+        const subjectType = classification.subject_type || (classification.event_type === "ricavo" ? "cliente" : "fornitore");
+        if (subjectType === "cliente" && customerMatch) {
+          classification.existing_subject = customerMatch;
+          classification.subject_found = true;
+        } else if (subjectType === "fornitore" && supplierMatch) {
+          classification.existing_subject = supplierMatch;
+          classification.subject_found = true;
+        } else {
+          // Check if found in the OTHER table
+          classification.found_as_customer = !!customerMatch;
+          classification.found_as_supplier = !!supplierMatch;
+          classification.subject_found = false;
+        }
       }
       
       return new Response(
