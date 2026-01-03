@@ -6,15 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { 
-  Plus, 
   Search, 
-  Filter, 
   ArrowUp, 
   ArrowDown, 
   FileText, 
@@ -22,11 +17,11 @@ import {
   Clock, 
   AlertCircle,
   Pencil,
-  Eye,
   Link2
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import ClassificationDialog, { ClassificationFormData } from "@/components/management-control/ClassificationDialog";
 
 interface MovimentoFinanziario {
   id: string;
@@ -54,6 +49,7 @@ interface MovimentoFinanziario {
   note_cfo: string | null;
 }
 
+
 const statoConfig = {
   grezzo: { label: "Grezzo", color: "bg-gray-500", icon: Clock },
   da_verificare: { label: "Da Verificare", color: "bg-yellow-500", icon: AlertCircle },
@@ -62,17 +58,6 @@ const statoConfig = {
   contabilizzato: { label: "Contabilizzato", color: "bg-green-500", icon: CheckCircle },
 };
 
-const tipoAllocazioneOptions = [
-  { value: "incasso_fattura", label: "Incasso fattura" },
-  { value: "pagamento_fattura", label: "Pagamento fattura" },
-  { value: "anticipo_cliente", label: "Anticipo cliente" },
-  { value: "anticipo_fornitore", label: "Anticipo fornitore" },
-  { value: "rimborso_dipendente", label: "Rimborso dipendente" },
-  { value: "spesa_cassa", label: "Spesa cassa/carta" },
-  { value: "giroconto", label: "Giroconto" },
-  { value: "altro", label: "Altro" },
-];
-
 export default function MovimentiFinanziariPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,10 +65,6 @@ export default function MovimentiFinanziariPage() {
   const [filterDirezione, setFilterDirezione] = useState<string>("all");
   const [showClassifyDialog, setShowClassifyDialog] = useState(false);
   const [selectedMovimento, setSelectedMovimento] = useState<MovimentoFinanziario | null>(null);
-  const [classificationData, setClassificationData] = useState({
-    tipo_allocazione: "",
-    note_cfo: "",
-  });
 
   // Fetch movimenti finanziari
   const { data: movimenti = [], isLoading } = useQuery({
@@ -99,18 +80,22 @@ export default function MovimentiFinanziariPage() {
     },
   });
 
-  // Classify mutation
+  // Classify mutation - now with full classification data
   const classifyMutation = useMutation({
-    mutationFn: async ({ id, movimento, data }: { id: string; movimento: MovimentoFinanziario; data: { tipo_allocazione: string; note_cfo: string } }) => {
+    mutationFn: async ({ id, movimento, classificationData }: { 
+      id: string; 
+      movimento: MovimentoFinanziario; 
+      classificationData: ClassificationFormData 
+    }) => {
       const { data: userData } = await supabase.auth.getUser();
       
-      // Update movimento finanziario
+      // Update movimento finanziario to "contabilizzato" since it's fully classified
       const { error: updateError } = await supabase
         .from("movimenti_finanziari")
         .update({
-          tipo_allocazione: data.tipo_allocazione,
-          note_cfo: data.note_cfo,
-          stato: "allocato" as const,
+          tipo_allocazione: classificationData.event_type,
+          note_cfo: classificationData.cfo_notes,
+          stato: "contabilizzato" as const,
           classificato_da: userData.user?.id,
           classificato_at: new Date().toISOString(),
         })
@@ -118,7 +103,7 @@ export default function MovimentiFinanziariPage() {
       
       if (updateError) throw updateError;
 
-      // Create entry in accounting_entries for classification
+      // Create fully classified entry in accounting_entries
       const { error: insertError } = await supabase
         .from("accounting_entries")
         .insert({
@@ -129,10 +114,25 @@ export default function MovimentiFinanziariPage() {
           attachment_url: movimento.allegato_url || "",
           payment_method: movimento.metodo_pagamento,
           subject_type: movimento.soggetto_tipo,
-          note: `${data.tipo_allocazione}${data.note_cfo ? ` - ${data.note_cfo}` : ""} | Soggetto: ${movimento.soggetto_nome || "N/A"}`,
-          status: "da_classificare",
+          note: `Soggetto: ${movimento.soggetto_nome || "N/A"}`,
+          status: "classificato",
           user_id: userData.user?.id,
-          cfo_notes: data.note_cfo,
+          // Full classification fields
+          event_type: classificationData.event_type || null,
+          affects_income_statement: classificationData.affects_income_statement,
+          chart_account_id: classificationData.chart_account_id || null,
+          temporal_competence: classificationData.temporal_competence || null,
+          is_recurring: classificationData.is_recurring,
+          recurrence_period: classificationData.is_recurring ? classificationData.recurrence_period : null,
+          cost_center_id: classificationData.cost_center_id || null,
+          profit_center_id: classificationData.profit_center_id || null,
+          center_percentage: classificationData.center_percentage,
+          economic_subject_type: classificationData.economic_subject_type || null,
+          financial_status: classificationData.financial_status || null,
+          payment_date: classificationData.payment_date || null,
+          cfo_notes: classificationData.cfo_notes || null,
+          classified_by: userData.user?.id,
+          classified_at: new Date().toISOString(),
         });
       
       if (insertError) throw insertError;
@@ -140,7 +140,7 @@ export default function MovimentiFinanziariPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
-      toast.success("Movimento classificato e inviato a Classificazione Eventi");
+      toast.success("Movimento classificato con successo!");
       setShowClassifyDialog(false);
       setSelectedMovimento(null);
     },
@@ -152,23 +152,16 @@ export default function MovimentiFinanziariPage() {
 
   const handleClassify = (movimento: MovimentoFinanziario) => {
     setSelectedMovimento(movimento);
-    setClassificationData({
-      tipo_allocazione: movimento.tipo_allocazione || "",
-      note_cfo: movimento.note_cfo || "",
-    });
     setShowClassifyDialog(true);
   };
 
-  const submitClassification = () => {
-    if (!selectedMovimento || !classificationData.tipo_allocazione) {
-      toast.error("Seleziona il tipo di allocazione");
-      return;
-    }
+  const handleClassificationSubmit = (classificationData: ClassificationFormData) => {
+    if (!selectedMovimento) return;
     
     classifyMutation.mutate({
       id: selectedMovimento.id,
       movimento: selectedMovimento,
-      data: classificationData,
+      classificationData,
     });
   };
 
@@ -366,9 +359,7 @@ export default function MovimentiFinanziariPage() {
                         {movimento.soggetto_nome || "-"}
                       </TableCell>
                       <TableCell>
-                        {movimento.tipo_allocazione ? (
-                          tipoAllocazioneOptions.find((t) => t.value === movimento.tipo_allocazione)?.label || movimento.tipo_allocazione
-                        ) : (
+                        {movimento.tipo_allocazione || (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
@@ -411,87 +402,13 @@ export default function MovimentiFinanziariPage() {
       </Card>
 
       {/* Classification Dialog */}
-      <Dialog open={showClassifyDialog} onOpenChange={setShowClassifyDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Classifica Movimento</DialogTitle>
-          </DialogHeader>
-          
-          {selectedMovimento && (
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Data:</span>
-                  <span className="font-medium">
-                    {format(new Date(selectedMovimento.data_movimento), "dd/MM/yyyy", { locale: it })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Importo:</span>
-                  <span className={`font-medium ${selectedMovimento.direzione === "entrata" ? "text-green-600" : "text-red-600"}`}>
-                    {selectedMovimento.direzione === "entrata" ? "+" : "-"}
-                    {formatCurrency(Number(selectedMovimento.importo))}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Metodo:</span>
-                  <span className="font-medium capitalize">{selectedMovimento.metodo_pagamento}</span>
-                </div>
-                {selectedMovimento.soggetto_nome && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Soggetto:</span>
-                    <span className="font-medium">{selectedMovimento.soggetto_nome}</span>
-                  </div>
-                )}
-                {selectedMovimento.riferimento && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Riferimento:</span>
-                    <span className="font-medium">{selectedMovimento.riferimento}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo Allocazione *</Label>
-                <Select
-                  value={classificationData.tipo_allocazione}
-                  onValueChange={(value) => setClassificationData((prev) => ({ ...prev, tipo_allocazione: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tipo allocazione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tipoAllocazioneOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Note CFO</Label>
-                <Textarea
-                  value={classificationData.note_cfo}
-                  onChange={(e) => setClassificationData((prev) => ({ ...prev, note_cfo: e.target.value }))}
-                  placeholder="Note aggiuntive..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowClassifyDialog(false)}>
-              Annulla
-            </Button>
-            <Button onClick={submitClassification} disabled={classifyMutation.isPending}>
-              {classifyMutation.isPending ? "Salvataggio..." : "Salva Classificazione"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ClassificationDialog
+        open={showClassifyDialog}
+        onOpenChange={setShowClassifyDialog}
+        movimentoData={selectedMovimento}
+        onClassify={handleClassificationSubmit}
+        isPending={classifyMutation.isPending}
+      />
     </div>
   );
 }
