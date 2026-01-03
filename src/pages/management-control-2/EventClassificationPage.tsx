@@ -145,6 +145,7 @@ export default function EventClassificationPage() {
   const [detectedSubject, setDetectedSubject] = useState<DetectedSubject | null>(null);
   const [showSubjectDialog, setShowSubjectDialog] = useState(false);
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
+  const [viewMode, setViewMode] = useState<"da_classificare" | "classificati" | "contabilizzati">("da_classificare");
   
   // Classification form state
   const [classificationForm, setClassificationForm] = useState({
@@ -166,14 +167,24 @@ export default function EventClassificationPage() {
     cfo_notes: "",
   });
 
-  // Fetch entries to classify
+  // Fetch entries based on view mode
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["accounting-entries-to-classify"],
+    queryKey: ["accounting-entries-to-classify", viewMode],
     queryFn: async () => {
+      let statusFilter: string[] = [];
+      
+      if (viewMode === "da_classificare") {
+        statusFilter = ["da_classificare", "in_classificazione", "sospeso"];
+      } else if (viewMode === "classificati") {
+        statusFilter = ["classificato", "pronto_prima_nota"];
+      } else if (viewMode === "contabilizzati") {
+        statusFilter = ["contabilizzato"];
+      }
+      
       const { data, error } = await supabase
         .from("accounting_entries")
         .select("*")
-        .in("status", ["da_classificare", "in_classificazione", "sospeso"])
+        .in("status", statusFilter)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -643,13 +654,81 @@ export default function EventClassificationPage() {
     return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   };
 
+  // Storno mutation for contabilizzati entries
+  const stornoMutation = useMutation({
+    mutationFn: async (entry: AccountingEntry) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      // Create a reversal entry
+      const { error } = await supabase.from("accounting_entries").insert({
+        direction: entry.direction === "entrata" ? "uscita" : "entrata",
+        document_type: "storno",
+        amount: entry.amount,
+        document_date: new Date().toISOString().split("T")[0],
+        attachment_url: "",
+        payment_method: entry.payment_method,
+        subject_type: entry.subject_type,
+        note: `Storno di registrazione ${entry.id}`,
+        status: "contabilizzato",
+        user_id: userData.user?.id,
+        event_type: entry.event_type,
+        affects_income_statement: entry.affects_income_statement,
+        chart_account_id: entry.chart_account_id,
+        temporal_competence: entry.temporal_competence,
+        cost_center_id: entry.cost_center_id,
+        profit_center_id: entry.profit_center_id,
+        center_percentage: entry.center_percentage,
+        economic_subject_type: entry.economic_subject_type,
+        financial_status: entry.financial_status,
+        cfo_notes: `Storno automatico`,
+        classified_by: userData.user?.id,
+        classified_at: new Date().toISOString(),
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      toast.success("Storno creato con successo");
+      setSelectedEntry(null);
+    },
+    onError: () => {
+      toast.error("Errore durante lo storno");
+    },
+  });
+
   return (
     <div className="container mx-auto p-4 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Classificazione Eventi</h1>
         <p className="text-muted-foreground">
-          {entries.length} eventi da classificare
+          Gestisci la classificazione degli eventi contabili
         </p>
+      </div>
+
+      {/* View Mode Tabs */}
+      <div className="flex gap-2 mb-6">
+        <Button
+          variant={viewMode === "da_classificare" ? "default" : "outline"}
+          onClick={() => setViewMode("da_classificare")}
+          size="sm"
+        >
+          Da Classificare
+        </Button>
+        <Button
+          variant={viewMode === "classificati" ? "default" : "outline"}
+          onClick={() => setViewMode("classificati")}
+          size="sm"
+        >
+          Classificati
+        </Button>
+        <Button
+          variant={viewMode === "contabilizzati" ? "default" : "outline"}
+          onClick={() => setViewMode("contabilizzati")}
+          size="sm"
+        >
+          Contabilizzati
+        </Button>
       </div>
 
       {isLoading ? (
@@ -658,8 +737,11 @@ export default function EventClassificationPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-            <p className="text-lg font-medium">Nessun evento da classificare</p>
-            <p className="text-muted-foreground">Tutti gli eventi sono stati classificati</p>
+            <p className="text-lg font-medium">
+              {viewMode === "da_classificare" && "Nessun evento da classificare"}
+              {viewMode === "classificati" && "Nessun evento classificato"}
+              {viewMode === "contabilizzati" && "Nessun evento contabilizzato"}
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -1335,44 +1417,115 @@ export default function EventClassificationPage() {
                 <Separator />
 
                 {/* ACTIONS */}
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <Button
-                    onClick={handleSave}
-                    disabled={saveMutation.isPending}
-                    variant="outline"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Salva Bozza
-                  </Button>
-                  
-                  <Button
-                    onClick={handleRequestIntegration}
-                    disabled={saveMutation.isPending}
-                    variant="outline"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Richiedi Integrazione
-                  </Button>
-                  
-                  <Button
-                    onClick={handleSuspend}
-                    disabled={saveMutation.isPending}
-                    variant="outline"
-                    className="text-amber-600 border-amber-300 hover:bg-amber-50"
-                  >
-                    <Pause className="h-4 w-4 mr-2" />
-                    Sospendi
-                  </Button>
-                  
-                  <Button
-                    onClick={handleSendToPrimaNota}
-                    disabled={saveMutation.isPending}
-                    className="ml-auto bg-green-600 hover:bg-green-700"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Invia a Prima Nota
-                  </Button>
-                </div>
+                {/* Action buttons based on status */}
+                {viewMode === "contabilizzati" ? (
+                  /* For contabilizzati: only storno */
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          <ArrowDown className="h-4 w-4 mr-2" />
+                          Storna Registrazione
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Stornare questa registrazione?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Verrà creata una registrazione di storno con importo e direzione opposta.
+                            La registrazione originale rimarrà inalterata.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => selectedEntry && stornoMutation.mutate(selectedEntry)}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                          >
+                            Conferma Storno
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ) : viewMode === "classificati" ? (
+                  /* For classificati: allow reclassification */
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      onClick={handleSave}
+                      disabled={saveMutation.isPending}
+                      variant="outline"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Salva Modifiche
+                    </Button>
+                    
+                    <Button
+                      onClick={() => {
+                        if (selectedEntry) {
+                          saveMutation.mutate({ id: selectedEntry.id, status: "da_classificare" });
+                        }
+                      }}
+                      disabled={saveMutation.isPending}
+                      variant="outline"
+                      className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                    >
+                      Rimetti in Classificazione
+                    </Button>
+                    
+                    <Button
+                      onClick={handleSendToPrimaNota}
+                      disabled={saveMutation.isPending}
+                      className="ml-auto bg-green-600 hover:bg-green-700"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Invia a Prima Nota
+                    </Button>
+                  </div>
+                ) : (
+                  /* For da_classificare: full actions */
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      onClick={handleSave}
+                      disabled={saveMutation.isPending}
+                      variant="outline"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Salva Bozza
+                    </Button>
+                    
+                    <Button
+                      onClick={handleRequestIntegration}
+                      disabled={saveMutation.isPending}
+                      variant="outline"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Richiedi Integrazione
+                    </Button>
+                    
+                    <Button
+                      onClick={handleSuspend}
+                      disabled={saveMutation.isPending}
+                      variant="outline"
+                      className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                    >
+                      <Pause className="h-4 w-4 mr-2" />
+                      Sospendi
+                    </Button>
+                    
+                    <Button
+                      onClick={handleSendToPrimaNota}
+                      disabled={saveMutation.isPending}
+                      className="ml-auto bg-green-600 hover:bg-green-700"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Invia a Prima Nota
+                    </Button>
+                  </div>
+                )}
 
               </div>
             </ScrollArea>
