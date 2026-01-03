@@ -42,12 +42,22 @@ interface SalesOrder {
   customers?: { name: string; code: string } | null;
 }
 
+interface DdtData {
+  fornitore?: string;
+  destinatario?: string;
+  data?: string;
+  stato?: string;
+  scansionato?: boolean;
+  [key: string]: unknown;
+}
+
 interface DDT {
   id: string;
   ddt_number: string;
   shipping_order_id: string | null;
   customer_id: string | null;
   created_at: string;
+  ddt_data: DdtData | null;
   customers?: { name: string; code: string } | null;
   shipping_orders?: { number: string; status: string } | null;
 }
@@ -134,14 +144,14 @@ export default function DocumentazioneOperativaPage() {
     const { data, error } = await supabase
       .from("ddts")
       .select(`
-        id, ddt_number, shipping_order_id, customer_id, created_at,
+        id, ddt_number, shipping_order_id, customer_id, created_at, ddt_data,
         customers(name, code),
         shipping_orders(number, status)
       `)
       .order("created_at", { ascending: false });
     
     if (error) throw error;
-    setDDTs(data || []);
+    setDDTs((data as DDT[]) || []);
   };
 
   const loadServiceReports = async () => {
@@ -536,13 +546,22 @@ export default function DocumentazioneOperativaPage() {
                   ) : (
                     filteredDDTs.map((ddt) => (
                       <TableRow key={ddt.id}>
-                        <TableCell className="font-medium">{ddt.ddt_number}</TableCell>
-                        <TableCell>{ddt.customers?.name || "-"}</TableCell>
-                        <TableCell>{formatDate(ddt.created_at)}</TableCell>
+                        <TableCell className="font-medium">
+                          {ddt.ddt_number}
+                          {ddt.ddt_data?.scansionato && (
+                            <Badge variant="outline" className="ml-2 text-xs">Scansionato</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {ddt.customers?.name || ddt.ddt_data?.destinatario || ddt.ddt_data?.fornitore || "-"}
+                        </TableCell>
+                        <TableCell>{formatDate(ddt.ddt_data?.data || ddt.created_at)}</TableCell>
                         <TableCell>{ddt.shipping_orders?.number || "-"}</TableCell>
                         <TableCell>
                           {ddt.shipping_orders?.status ? (
                             <StatusBadge status={ddt.shipping_orders.status} />
+                          ) : ddt.ddt_data?.stato ? (
+                            <Badge variant="outline">{ddt.ddt_data.stato}</Badge>
                           ) : (
                             "-"
                           )}
