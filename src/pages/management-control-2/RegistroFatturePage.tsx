@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { 
   Plus, 
   FileCheck, 
@@ -23,7 +26,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Receipt
+  Receipt,
+  Upload,
+  Camera,
+  Loader2,
+  FileText
 } from "lucide-react";
 
 interface InvoiceRegistry {
@@ -51,6 +58,7 @@ interface InvoiceRegistry {
   notes: string | null;
   created_at: string;
   registered_at: string | null;
+  attachment_url?: string | null;
 }
 
 type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
@@ -71,6 +79,7 @@ interface FormData {
   due_date: string;
   payment_date: string;
   notes: string;
+  attachment_url: string;
 }
 
 const initialFormData: FormData = {
@@ -85,7 +94,8 @@ const initialFormData: FormData = {
   financial_status: 'da_incassare',
   due_date: '',
   payment_date: '',
-  notes: ''
+  notes: '',
+  attachment_url: ''
 };
 
 export default function RegistroFatturePage() {
@@ -97,6 +107,133 @@ export default function RegistroFatturePage() {
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRegistry | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  
+  // Drag & drop AI states
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `invoices/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("accounting-attachments")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("accounting-attachments")
+        .getPublicUrl(fileName);
+
+      setUploadedFile({ name: file.name, url: urlData.publicUrl });
+      
+      // AI analysis
+      setIsAnalyzing(true);
+      toast.info("Analizzo la fattura con AI...");
+
+      try {
+        let analysisUrl: string | null = urlData.publicUrl;
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+        if (isPdf) {
+          try {
+            toast.info("PDF rilevato: genero anteprima per analisi AI…");
+            const pngBlob = await pdfFirstPageToPngBlob(file);
+            const previewPath = `invoices/${Date.now()}-preview.png`;
+
+            const { error: previewUploadError } = await supabase.storage
+              .from("accounting-attachments")
+              .upload(previewPath, pngBlob, { contentType: "image/png" });
+
+            if (previewUploadError) throw previewUploadError;
+
+            const { data: previewUrlData } = supabase.storage
+              .from("accounting-attachments")
+              .getPublicUrl(previewPath);
+
+            analysisUrl = previewUrlData.publicUrl;
+          } catch (previewErr) {
+            console.warn("PDF preview generation failed:", previewErr);
+            analysisUrl = null;
+            toast.error("Non riesco a leggere il PDF: compila i dati manualmente");
+          }
+        }
+
+        if (analysisUrl) {
+          const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+            "analyze-invoice",
+            { body: { imageUrl: analysisUrl } }
+          );
+
+          if (analysisError) {
+            console.error("Analysis error:", analysisError);
+            toast.error("Errore nell'analisi AI, compila i dati manualmente");
+          } else if (analysisData?.success && analysisData?.data) {
+            const extracted = analysisData.data;
+            console.log("AI extracted invoice data:", extracted);
+
+            setFormData(prev => ({
+              ...prev,
+              invoice_number: extracted.invoice_number || prev.invoice_number,
+              invoice_date: extracted.invoice_date || format(new Date(), 'yyyy-MM-dd'),
+              invoice_type: extracted.invoice_type || prev.invoice_type,
+              subject_type: extracted.subject_type || prev.subject_type,
+              subject_name: extracted.subject_name || prev.subject_name,
+              imponibile: extracted.imponibile || prev.imponibile,
+              iva_rate: extracted.iva_rate ?? prev.iva_rate,
+              vat_regime: extracted.vat_regime || prev.vat_regime,
+              financial_status: extracted.invoice_type === 'acquisto' ? 'da_pagare' : 'da_incassare',
+              due_date: extracted.due_date || prev.due_date,
+              notes: extracted.notes || prev.notes,
+              attachment_url: urlData.publicUrl
+            }));
+
+            if (extracted.confidence === "high") {
+              toast.success("Fattura analizzata con successo!");
+            } else if (extracted.confidence === "medium") {
+              toast.info("Fattura analizzata, verifica i dati estratti");
+            } else {
+              toast.info("Alcuni dati potrebbero essere incompleti");
+            }
+          } else {
+            toast.info("Non è stato possibile estrarre dati, compila manualmente");
+          }
+        }
+      } catch (aiError) {
+        console.error("AI analysis failed:", aiError);
+        toast.error("Analisi AI non disponibile");
+      } finally {
+        setIsAnalyzing(false);
+      }
+
+      setShowCreateDialog(true);
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Errore durante il caricamento del file");
+    } finally {
+      setIsUploading(false);
+    }
+  }, []);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) handleFileUpload(file);
+  }, [handleFileUpload]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [],
+      "application/pdf": [],
+    },
+    maxFiles: 1,
+    noClick: true,
+    noKeyboard: true,
+  });
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoice-registry', filterType, filterStatus],
@@ -353,17 +490,81 @@ export default function RegistroFatturePage() {
   const { ivaAmount, totalAmount } = calculateAmounts(formData.imponibile, formData.iva_rate);
 
   return (
-    <div className="space-y-6">
+    <div {...getRootProps()} className="space-y-6 relative min-h-[calc(100vh-100px)]">
+      <input {...getInputProps()} />
+      
+      {/* Drag overlay */}
+      {isDragActive && (
+        <div className="fixed inset-0 bg-primary/10 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-card border-2 border-dashed border-primary rounded-xl p-12 text-center">
+            <Upload className="w-16 h-16 mx-auto mb-4 text-primary animate-bounce" />
+            <p className="text-xl font-semibold text-primary">Rilascia la fattura qui</p>
+            <p className="text-muted-foreground mt-2">AI analizzerà automaticamente il documento</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Uploading/Analyzing overlay */}
+      {(isUploading || isAnalyzing) && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-card border rounded-xl p-8 text-center shadow-lg">
+            <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
+            <p className="text-lg font-semibold">
+              {isUploading ? "Caricamento..." : "Analisi AI in corso..."}
+            </p>
+            <p className="text-muted-foreground mt-2">
+              {isAnalyzing ? "Estraggo i dati dalla fattura" : "Attendi qualche secondo"}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Registro Fatture</h1>
           <p className="text-muted-foreground">Gestione fiscale e contabile delle fatture</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuova Fattura
-        </Button>
+        <div className="flex gap-2">
+          <label>
+            <Button variant="outline" asChild>
+              <div className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2" />
+                Carica Fattura
+              </div>
+            </Button>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file);
+              }}
+            />
+          </label>
+          <Button onClick={() => {
+            setUploadedFile(null);
+            setFormData(initialFormData);
+            setShowCreateDialog(true);
+          }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuova Fattura
+          </Button>
+        </div>
       </div>
+
+      {/* Dropzone hint card */}
+      <Card className="border-dashed border-2 border-muted-foreground/20 bg-muted/30">
+        <CardContent className="p-6 text-center">
+          <div className="flex items-center justify-center gap-4">
+            <FileText className="w-8 h-8 text-muted-foreground" />
+            <div className="text-left">
+              <p className="font-medium">Trascina una fattura qui</p>
+              <p className="text-sm text-muted-foreground">AI analizzerà automaticamente e pre-compilerà i dati</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -651,6 +852,26 @@ export default function RegistroFatturePage() {
               />
             </div>
           </div>
+
+          {/* Uploaded file indicator */}
+          {uploadedFile && (
+            <Card className="border-green-500/30 bg-green-500/10">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">Allegato: {uploadedFile.name}</span>
+                  <a 
+                    href={uploadedFile.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-xs text-primary hover:underline ml-auto"
+                  >
+                    Visualizza
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="bg-muted/50">
             <CardContent className="p-4">
