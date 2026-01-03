@@ -19,7 +19,7 @@ import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
-  Filter, ChevronDown, Receipt, Percent
+  Filter, ChevronDown, Receipt, Percent, Trash2
 } from "lucide-react";
 
 // =====================================================
@@ -728,7 +728,35 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // FIX 7: Status badge with proper states
+  // Delete movement mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (movementId: string) => {
+      // First delete the lines
+      const { error: linesError } = await supabase
+        .from("prima_nota_lines")
+        .delete()
+        .eq("prima_nota_id", movementId);
+
+      if (linesError) throw linesError;
+
+      // Then delete the movement itself
+      const { error } = await supabase
+        .from("prima_nota")
+        .delete()
+        .eq("id", movementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      toast.success("Movimento eliminato");
+    },
+    onError: () => {
+      toast.error("Errore nell'eliminazione");
+    },
+  });
+
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: React.ReactNode }> = {
       generato: { variant: "secondary", label: "Generato", icon: <FileText className="h-3 w-3" /> },
@@ -1071,6 +1099,19 @@ export default function PrimaNotaPage() {
                                     <Undo2 className="h-4 w-4" />
                                   </Button>
                                 )}
+                                {/* Delete button for testing */}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    if (confirm("Sei sicuro di voler eliminare questo movimento?")) {
+                                      deleteMutation.mutate(m.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </td>
                           </tr>
