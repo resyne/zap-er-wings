@@ -380,22 +380,42 @@ export default function EventClassificationPage() {
         
         // Handle detected subject (customer or supplier)
         if (c.subject_name) {
+          // Determine the AI-suggested type
+          let suggestedType: "cliente" | "fornitore" = c.subject_type || (c.event_type === "ricavo" ? "cliente" : "fornitore");
+          
+          // Check if we found a match in either table
+          const foundAsCustomer = !!c.customer_match;
+          const foundAsSupplier = !!c.supplier_match;
+          
+          // If AI says fornitore but we found it as cliente, switch
+          if (suggestedType === "fornitore" && foundAsCustomer && !foundAsSupplier) {
+            suggestedType = "cliente";
+          } else if (suggestedType === "cliente" && foundAsSupplier && !foundAsCustomer) {
+            suggestedType = "fornitore";
+          }
+          
+          const existingMatch = suggestedType === "cliente" ? c.customer_match : c.supplier_match;
+          
           const detected: DetectedSubject = {
-            type: c.subject_type || (c.event_type === "ricavo" ? "cliente" : "fornitore"),
+            type: suggestedType,
             name: c.subject_name,
             tax_id: c.subject_tax_id,
             address: c.subject_address,
             city: c.subject_city,
-            existing_id: c.existing_subject?.id,
-            found: c.subject_found || false,
+            existing_id: existingMatch?.id,
+            found: !!existingMatch,
           };
           setDetectedSubject(detected);
+          
+          // Store the full match data for potential type switching
+          (detected as any).customerMatch = c.customer_match;
+          (detected as any).supplierMatch = c.supplier_match;
           
           // If not found, show dialog to create
           if (!detected.found) {
             setShowSubjectDialog(true);
           } else {
-            toast.success(`${detected.type === "cliente" ? "Cliente" : "Fornitore"} trovato in anagrafica: ${c.existing_subject?.name || c.existing_subject?.company_name || detected.name}`);
+            toast.success(`${detected.type === "cliente" ? "Cliente" : "Fornitore"} trovato in anagrafica: ${existingMatch?.name || existingMatch?.company_name || detected.name}`);
           }
         }
         
@@ -1370,14 +1390,93 @@ export default function EventClassificationPage() {
               ) : (
                 <UserPlus className="h-5 w-5 text-orange-600" />
               )}
-              Nuovo {detectedSubject?.type === "cliente" ? "Cliente" : "Fornitore"} Rilevato
+              Nuovo Soggetto Rilevato
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              L'AI ha estratto i seguenti dati del {detectedSubject?.type} dal documento. Vuoi creare un nuovo {detectedSubject?.type} in anagrafica?
+              L'AI ha estratto i seguenti dati dal documento. Verifica il tipo di soggetto e crea in anagrafica se necessario.
             </p>
+            
+            {/* Toggle Cliente / Fornitore */}
+            <div className="flex items-center justify-center gap-4 p-3 bg-muted/50 rounded-lg">
+              <Button
+                type="button"
+                variant={detectedSubject?.type === "cliente" ? "default" : "outline"}
+                size="sm"
+                className={detectedSubject?.type === "cliente" ? "bg-blue-600 hover:bg-blue-700" : ""}
+                onClick={() => {
+                  if (detectedSubject) {
+                    const customerMatch = (detectedSubject as any).customerMatch;
+                    setDetectedSubject({
+                      ...detectedSubject,
+                      type: "cliente",
+                      existing_id: customerMatch?.id,
+                      found: !!customerMatch,
+                    });
+                    if (customerMatch) {
+                      setClassificationForm(prev => ({
+                        ...prev,
+                        economic_subject_type: "cliente",
+                        economic_subject_id: customerMatch.id,
+                      }));
+                    }
+                  }
+                }}
+              >
+                <Building2 className="h-4 w-4 mr-1" />
+                Cliente
+              </Button>
+              <Button
+                type="button"
+                variant={detectedSubject?.type === "fornitore" ? "default" : "outline"}
+                size="sm"
+                className={detectedSubject?.type === "fornitore" ? "bg-orange-600 hover:bg-orange-700" : ""}
+                onClick={() => {
+                  if (detectedSubject) {
+                    const supplierMatch = (detectedSubject as any).supplierMatch;
+                    setDetectedSubject({
+                      ...detectedSubject,
+                      type: "fornitore",
+                      existing_id: supplierMatch?.id,
+                      found: !!supplierMatch,
+                    });
+                    if (supplierMatch) {
+                      setClassificationForm(prev => ({
+                        ...prev,
+                        economic_subject_type: "fornitore",
+                        economic_subject_id: supplierMatch.id,
+                      }));
+                    }
+                  }
+                }}
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Fornitore
+              </Button>
+            </div>
+            
+            {/* Found status */}
+            {detectedSubject?.found ? (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 text-green-700">
+                  <Check className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    Trovato in anagrafica {detectedSubject.type === "cliente" ? "clienti" : "fornitori"}!
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    Non trovato in anagrafica {detectedSubject?.type === "cliente" ? "clienti" : "fornitori"}
+                  </span>
+                </div>
+              </div>
+            )}
             
             <div className="bg-muted/50 p-4 rounded-lg space-y-2">
               <div className="flex justify-between">
@@ -1410,20 +1509,22 @@ export default function EventClassificationPage() {
               variant="outline"
               onClick={() => setShowSubjectDialog(false)}
             >
-              Salta
+              {detectedSubject?.found ? "Chiudi" : "Salta"}
             </Button>
-            <Button
-              onClick={handleCreateSubject}
-              disabled={isCreatingSubject}
-              className={detectedSubject?.type === "cliente" ? "bg-blue-600 hover:bg-blue-700" : "bg-orange-600 hover:bg-orange-700"}
-            >
-              {isCreatingSubject ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4 mr-2" />
-              )}
-              Crea {detectedSubject?.type === "cliente" ? "Cliente" : "Fornitore"}
-            </Button>
+            {!detectedSubject?.found && (
+              <Button
+                onClick={handleCreateSubject}
+                disabled={isCreatingSubject}
+                className={detectedSubject?.type === "cliente" ? "bg-blue-600 hover:bg-blue-700" : "bg-orange-600 hover:bg-orange-700"}
+              >
+                {isCreatingSubject ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <UserPlus className="h-4 w-4 mr-2" />
+                )}
+                Crea {detectedSubject?.type === "cliente" ? "Cliente" : "Fornitore"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
