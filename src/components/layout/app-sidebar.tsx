@@ -132,9 +132,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Anagrafica Materiali", url: "/warehouse/materials", icon: Package2 },
       { title: "Scorte", url: "/wms/stock", icon: Boxes },
       { title: "Movimenti", url: "/wms/movements", icon: Truck },
-      
       { title: "Inventario", url: "/wms/inventory", icon: ClipboardCheck },
-      { title: "Prelievi", url: "/wms/picking", icon: Package },
       { title: "DDT", url: "/wms/ddt", icon: FileText },
     ]
   },
