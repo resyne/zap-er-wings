@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AttachmentPreview } from "@/components/warehouse/AttachmentPreview";
 
 interface VerifyDDTDialogProps {
   open: boolean;
@@ -603,41 +604,14 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
                   </div>
                 );
               }
-              
-              const isPdf = attachmentUrl.toLowerCase().includes('.pdf');
-              
+
+              // Mostra sempre l'anteprima come immagine (PDF → prima pagina)
               return (
-                <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px] flex flex-col">
-                  {isPdf ? (
-                    <>
-                      {/* PDF: mostra embed object invece di iframe per evitare blocchi Chrome */}
-                      <object
-                        data={attachmentUrl}
-                        type="application/pdf"
-                        className="w-full flex-1 min-h-[350px]"
-                      >
-                        {/* Fallback se l'embed non funziona */}
-                        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                          <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-                          <p className="text-muted-foreground mb-4">
-                            Impossibile visualizzare il PDF in anteprima
-                          </p>
-                          <Button variant="outline" asChild>
-                            <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              Apri PDF in nuova scheda
-                            </a>
-                          </Button>
-                        </div>
-                      </object>
-                    </>
-                  ) : (
-                    <img 
-                      src={attachmentUrl} 
-                      alt="DDT" 
-                      className="w-full h-full object-contain"
-                    />
-                  )}
+                <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px]">
+                  <AttachmentPreview
+                    url={attachmentUrl}
+                    alt={`Scansione DDT ${ddt.ddt_number}`}
+                  />
                 </div>
               );
             })()}
