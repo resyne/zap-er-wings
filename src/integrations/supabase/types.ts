@@ -1789,6 +1789,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ddt_items: {
+        Row: {
+          created_at: string
+          ddt_id: string
+          description: string
+          id: string
+          notes: string | null
+          quantity: number
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          ddt_id: string
+          description: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          ddt_id?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddt_items_ddt_id_fkey"
+            columns: ["ddt_id"]
+            isOneToOne: false
+            referencedRelation: "ddts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ddts: {
         Row: {
           admin_status: string | null

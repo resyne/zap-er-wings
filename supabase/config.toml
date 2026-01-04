@@ -69,6 +69,9 @@ verify_jwt = false
 [functions.resend-purchase-order-email]
 verify_jwt = true
 
+[functions.analyze-ddt]
+verify_jwt = false
+
 # Cron Jobs - Scheduled tasks
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
