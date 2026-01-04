@@ -333,14 +333,14 @@ export function UploadDDTDialog({ open, onOpenChange, onSuccess }: UploadDDTDial
           <div className="space-y-2">
             <Label htmlFor="workOrder">Collega a commessa (opzionale)</Label>
             <Select
-              value={formData.workOrderId}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, workOrderId: value }))}
+              value={formData.workOrderId || "none"}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, workOrderId: value === "none" ? "" : value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona commessa..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna commessa</SelectItem>
+                <SelectItem value="none">Nessuna commessa</SelectItem>
                 {workOrders.map((wo) => (
                   <SelectItem key={wo.id} value={wo.id}>
                     {wo.number} - {wo.title}
