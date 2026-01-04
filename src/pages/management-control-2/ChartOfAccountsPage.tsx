@@ -54,6 +54,18 @@ const accountTypes = [
   { value: "equity", label: "Patrimonio Netto", icon: Building2, color: "text-teal-600", bgColor: "bg-teal-50 dark:bg-teal-950", borderColor: "border-teal-200 dark:border-teal-800", section: "Stato Patrimoniale" },
 ];
 
+// Prefissi codice per ogni natura
+const accountCodePrefixes: Record<string, string> = {
+  revenue: "R",
+  cogs: "CD",
+  opex: "CO",
+  depreciation: "AM",
+  extraordinary: "ST",
+  asset: "AT",
+  liability: "PA",
+  equity: "PN",
+};
+
 const macroCategories = [
   "Marketing",
   "Produzione",
@@ -119,6 +131,27 @@ export default function ChartOfAccountsPage() {
   const [formData, setFormData] = useState(defaultFormData);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+
+  // Genera il prossimo codice disponibile per una natura
+  const generateNextCode = (accountType: string): string => {
+    const prefix = accountCodePrefixes[accountType] || "XX";
+    const existingCodes = accounts
+      .filter(a => a.account_type === accountType && a.code?.startsWith(prefix))
+      .map(a => {
+        const match = a.code?.match(new RegExp(`^${prefix}-(\\d+)$`));
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(n => !isNaN(n));
+    
+    const maxNum = existingCodes.length > 0 ? Math.max(...existingCodes) : 0;
+    const nextNum = (maxNum + 1).toString().padStart(3, "0");
+    return `${prefix}-${nextNum}`;
+  };
+
+  const handleAccountTypeChange = (value: string) => {
+    const newCode = !editingAccount ? generateNextCode(value) : formData.code;
+    setFormData({ ...formData, account_type: value, code: newCode });
+  };
 
   useEffect(() => {
     fetchAccounts();
@@ -670,12 +703,15 @@ export default function ChartOfAccountsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="code" className="flex items-center gap-2">
                     Codice Conto
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Auto-generato
+                    </Badge>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-xs">
-                        <p>Utile per esportazioni, integrazioni e ordinamento. Non è obbligatorio seguire la logica civilistica.</p>
+                        <p>Generato automaticamente in base alla natura. Puoi modificarlo se necessario.</p>
                       </TooltipContent>
                     </Tooltip>
                   </Label>
@@ -683,7 +719,8 @@ export default function ChartOfAccountsPage() {
                     id="code"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="Es. C-MKT-01"
+                    placeholder="Seleziona prima la natura"
+                    className={!formData.account_type ? "bg-muted" : ""}
                   />
                 </div>
               </div>
@@ -702,7 +739,7 @@ export default function ChartOfAccountsPage() {
                   </Label>
                   <Select
                     value={formData.account_type}
-                    onValueChange={(value) => setFormData({ ...formData, account_type: value })}
+                    onValueChange={handleAccountTypeChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona natura" />
