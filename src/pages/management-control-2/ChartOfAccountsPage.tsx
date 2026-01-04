@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, HelpCircle, BookOpen, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, HelpCircle, BookOpen, AlertCircle, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Account {
   id: string;
@@ -268,10 +269,33 @@ export default function ChartOfAccountsPage() {
             Gestisci la struttura dei conti per la classificazione degli eventi
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuovo Conto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => {
+            const exportData = accounts.map(a => ({
+              "Codice": a.code || "",
+              "Nome Conto": a.name,
+              "Natura": a.account_type,
+              "Macro-categoria": a.category || "",
+              "Descrizione": a.description || "",
+              "Competenza Default": a.default_competence || "",
+              "Richiede CdC": a.requires_cost_center ? "Sì" : "No",
+              "Visibilità": a.visibility || "",
+              "Attivo": a.is_active ? "Sì" : "No",
+            }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Piano dei Conti");
+            XLSX.writeFile(wb, `piano_dei_conti_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success("Piano dei conti esportato");
+          }}>
+            <Download className="mr-2 h-4 w-4" />
+            Esporta Excel
+          </Button>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuovo Conto
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
