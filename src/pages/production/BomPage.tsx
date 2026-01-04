@@ -1622,13 +1622,13 @@ export default function BomPage() {
               <Label>Prodotto</Label>
               <Select
                 value={selectedProductForLink}
-                onValueChange={setSelectedProductForLink}
+                onValueChange={(v) => setSelectedProductForLink(v === "__none__" ? "" : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona prodotto..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessun prodotto</SelectItem>
+                  <SelectItem value="__none__">Nessun prodotto</SelectItem>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} ({product.code})

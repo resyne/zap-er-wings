@@ -739,13 +739,13 @@ export default function CostCentersPage() {
                   </Label>
                   <Select
                     value={formData.parent_id}
-                    onValueChange={(value) => setFormData({ ...formData, parent_id: value })}
+                    onValueChange={(value) => setFormData({ ...formData, parent_id: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Nessun centro padre" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessun centro padre</SelectItem>
+                      <SelectItem value="__none__">Nessun centro padre</SelectItem>
                       {availableParents.map((center) => (
                         <SelectItem key={center.id} value={center.id}>
                           {center.name}
@@ -768,13 +768,13 @@ export default function CostCentersPage() {
                   </Label>
                   <Select
                     value={formData.responsible_id}
-                    onValueChange={(value) => setFormData({ ...formData, responsible_id: value })}
+                    onValueChange={(value) => setFormData({ ...formData, responsible_id: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Nessun responsabile" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessun responsabile</SelectItem>
+                      <SelectItem value="__none__">Nessun responsabile</SelectItem>
                       {profiles.map((profile) => (
                         <SelectItem key={profile.id} value={profile.id}>
                           {`${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email}
