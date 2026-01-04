@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
+import { AccountSplitManager } from "@/components/management-control/AccountSplitManager";
 import { 
   Plus, 
   FileCheck, 
@@ -33,6 +34,15 @@ import {
   FileText,
   Pencil
 } from "lucide-react";
+
+interface AccountSplitLine {
+  id: string;
+  account_id: string;
+  amount: number;
+  percentage: number;
+  cost_center_id?: string;
+  profit_center_id?: string;
+}
 
 interface InvoiceRegistry {
   id: string;
@@ -129,6 +139,12 @@ export default function RegistroFatturePage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRegistry | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [editFormData, setEditFormData] = useState<FormData>(initialFormData);
+  
+  // Account split states
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [splitLines, setSplitLines] = useState<AccountSplitLine[]>([]);
+  const [editSplitEnabled, setEditSplitEnabled] = useState(false);
+  const [editSplitLines, setEditSplitLines] = useState<AccountSplitLine[]>([]);
   
   // Drag & drop AI states
   const [isUploading, setIsUploading] = useState(false);
@@ -685,6 +701,9 @@ export default function RegistroFatturePage() {
       notes: invoice.notes || '',
       attachment_url: invoice.attachment_url || ''
     });
+    // Reset edit split state
+    setEditSplitEnabled(false);
+    setEditSplitLines([]);
     setShowEditDialog(true);
   };
 
@@ -802,6 +821,8 @@ export default function RegistroFatturePage() {
           <Button onClick={() => {
             setUploadedFile(null);
             setFormData(initialFormData);
+            setSplitEnabled(false);
+            setSplitLines([]);
             setShowCreateDialog(true);
           }}>
             <Plus className="w-4 h-4 mr-2" />
@@ -1246,6 +1267,24 @@ export default function RegistroFatturePage() {
                 placeholder="Note aggiuntive..."
               />
             </div>
+            
+            {/* Account Split Manager */}
+            <div className="col-span-2">
+              <AccountSplitManager
+                enabled={splitEnabled}
+                onEnabledChange={(enabled) => {
+                  setSplitEnabled(enabled);
+                  if (!enabled) setSplitLines([]);
+                }}
+                totalAmount={formData.imponibile}
+                invoiceType={formData.invoice_type}
+                accounts={accounts}
+                costCenters={costCenters}
+                profitCenters={profitCenters}
+                lines={splitLines}
+                onLinesChange={setSplitLines}
+              />
+            </div>
           </div>
 
           {/* Uploaded file indicator */}
@@ -1638,6 +1677,24 @@ export default function RegistroFatturePage() {
                 value={editFormData.notes}
                 onChange={(e) => handleEditFormChange('notes', e.target.value)}
                 rows={3}
+              />
+            </div>
+            
+            {/* Account Split Manager for Edit */}
+            <div className="col-span-2">
+              <AccountSplitManager
+                enabled={editSplitEnabled}
+                onEnabledChange={(enabled) => {
+                  setEditSplitEnabled(enabled);
+                  if (!enabled) setEditSplitLines([]);
+                }}
+                totalAmount={editFormData.imponibile}
+                invoiceType={editFormData.invoice_type}
+                accounts={accounts}
+                costCenters={costCenters}
+                profitCenters={profitCenters}
+                lines={editSplitLines}
+                onLinesChange={setEditSplitLines}
               />
             </div>
             {/* Calcolo automatico importi */}
