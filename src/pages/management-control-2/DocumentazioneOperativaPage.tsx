@@ -57,6 +57,7 @@ interface DDT {
   shipping_order_id: string | null;
   customer_id: string | null;
   created_at: string;
+  unique_code: string | null;
   ddt_data: DdtData | null;
   customers?: { name: string; code: string } | null;
   shipping_orders?: { number: string; status: string } | null;
@@ -144,7 +145,7 @@ export default function DocumentazioneOperativaPage() {
     const { data, error } = await supabase
       .from("ddts")
       .select(`
-        id, ddt_number, shipping_order_id, customer_id, created_at, ddt_data,
+        id, ddt_number, shipping_order_id, customer_id, created_at, ddt_data, unique_code,
         customers(name, code),
         shipping_orders(number, status)
       `)
@@ -567,11 +568,15 @@ export default function DocumentazioneOperativaPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="ghost" asChild>
-                            <Link to={`/warehouse/ddt?id=${ddt.id}`}>
-                              <ExternalLink className="h-4 w-4" />
-                            </Link>
-                          </Button>
+                          {ddt.unique_code ? (
+                            <Button size="sm" variant="ghost" asChild>
+                              <a href={`/ddt/${ddt.unique_code}`} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
