@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -1047,22 +1047,24 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           </ScrollArea>
         </div>
 
-        <div className="flex justify-between items-center gap-2 pt-4 border-t bg-background sticky bottom-0">
-          <div className="text-xs text-muted-foreground">
-            {items.length > 0 && (
-              <Badge variant="secondary">{items.length} articol{items.length === 1 ? 'o' : 'i'}</Badge>
-            )}
+        <DialogFooter className="flex-shrink-0 pt-4 border-t mt-2">
+          <div className="flex justify-between items-center w-full">
+            <div className="text-xs text-muted-foreground">
+              {items.length > 0 && (
+                <Badge variant="secondary">{items.length} articol{items.length === 1 ? 'o' : 'i'}</Badge>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleSubmit} disabled={!isValid || loading} size="lg" className="px-6">
+                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salva DDT
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
-            </Button>
-            <Button onClick={handleSubmit} disabled={!isValid || loading} size="lg" className="px-6">
-              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Salva DDT
-            </Button>
-          </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
