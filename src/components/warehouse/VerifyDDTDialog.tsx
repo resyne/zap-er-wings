@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { 
   Loader2, Building2, User, ArrowDownToLine, ArrowUpFromLine, 
   ExternalLink, Sparkles, Plus, Trash2, Package, FileText,
@@ -325,12 +326,46 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
 
     try {
       setAnalyzing(true);
-      
-      const { data, error } = await supabase.functions.invoke("analyze-ddt", {
-        body: { 
-          imageUrl: attachmentUrl,
-          direction: formData.direction || ddt?.direction || "IN"
+
+      // Se è un PDF, generiamo una preview PNG (prima pagina) e la usiamo per l'AI
+      let urlForAI = attachmentUrl;
+      const isPdf = (() => {
+        try {
+          return new URL(attachmentUrl).pathname.toLowerCase().endsWith(".pdf");
+        } catch {
+          return attachmentUrl.toLowerCase().includes(".pdf");
         }
+      })();
+
+      if (isPdf) {
+        const res = await fetch(attachmentUrl, { cache: "no-store" });
+        if (!res.ok) throw new Error(`Impossibile scaricare il PDF (HTTP ${res.status})`);
+
+        const pdfBlob = await res.blob();
+        const pdfFile = new File([pdfBlob], `ddt-${ddt?.id ?? Date.now()}.pdf`, {
+          type: pdfBlob.type || "application/pdf",
+        });
+
+        const pngBlob = await pdfFirstPageToPngBlob(pdfFile, { maxWidth: 1600, maxScale: 2 });
+
+        const previewPath = `ddt-previews/${ddt?.id ?? Date.now()}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from("accounting-attachments")
+          .upload(previewPath, pngBlob, { upsert: true, contentType: "image/png" });
+
+        if (uploadError) throw uploadError;
+
+        const { data: pub } = supabase.storage.from("accounting-attachments").getPublicUrl(previewPath);
+        if (!pub?.publicUrl) throw new Error("Impossibile ottenere l'URL della preview");
+
+        urlForAI = pub.publicUrl;
+      }
+
+      const { data, error } = await supabase.functions.invoke("analyze-ddt", {
+        body: {
+          imageUrl: urlForAI,
+          direction: formData.direction || ddt?.direction || "IN",
+        },
       });
 
       if (error) throw error;
@@ -340,22 +375,24 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
       if (extractedData) {
         // Auto-fill form fields
         if (extractedData.ddt_number) {
-          setFormData(prev => ({ ...prev, ddtNumber: extractedData.ddt_number }));
+          setFormData((prev) => ({ ...prev, ddtNumber: extractedData.ddt_number }));
         }
         if (extractedData.ddt_date) {
-          setFormData(prev => ({ ...prev, ddtDate: extractedData.ddt_date }));
+          setFormData((prev) => ({ ...prev, ddtDate: extractedData.ddt_date }));
         }
         if (extractedData.notes) {
-          setFormData(prev => ({ ...prev, notes: extractedData.notes }));
+          setFormData((prev) => ({ ...prev, notes: extractedData.notes }));
         }
 
         // Auto-fill items
         if (extractedData.items && Array.isArray(extractedData.items) && extractedData.items.length > 0) {
-          setItems(extractedData.items.map((item: { description?: string; quantity?: number; unit?: string }) => ({
-            description: item.description || "",
-            quantity: item.quantity || 1,
-            unit: item.unit || "pz",
-          })));
+          setItems(
+            extractedData.items.map((item: { description?: string; quantity?: number; unit?: string }) => ({
+              description: item.description || "",
+              quantity: item.quantity || 1,
+              unit: item.unit || "pz",
+            }))
+          );
         }
 
         // Handle counterpart
@@ -367,21 +404,17 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           };
 
           // Try to find existing counterpart
-          const found = await findOrCreateCounterpart(
-            counterpartInfo.name,
-            counterpartInfo.address,
-            counterpartInfo.vat
-          );
+          const found = await findOrCreateCounterpart(counterpartInfo.name, counterpartInfo.address, counterpartInfo.vat);
 
           if (found) {
             counterpartInfo.matched = true;
             counterpartInfo.matchedId = found.id;
-            
+
             // Auto-select the counterpart
             if (formData.counterpartType === "supplier") {
-              setFormData(prev => ({ ...prev, supplierId: found.id }));
+              setFormData((prev) => ({ ...prev, supplierId: found.id }));
             } else {
-              setFormData(prev => ({ ...prev, customerId: found.id }));
+              setFormData((prev) => ({ ...prev, customerId: found.id }));
             }
 
             toast({
@@ -401,10 +434,17 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
         });
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const name = typeof error === "object" && error && "name" in error ? String((error as any).name) : "";
+      const isFetchBlocked = name === "FunctionsFetchError" || message.toLowerCase().includes("failed to fetch");
+
       console.error("Error analyzing DDT:", error);
+
       toast({
         title: "Errore analisi",
-        description: "Impossibile analizzare il documento",
+        description: isFetchBlocked
+          ? "La richiesta all'AI è stata bloccata dal browser/estensioni. Disattiva AdBlock/uBlock/Brave Shields o metti in whitelist *.supabase.co."
+          : "Impossibile analizzare il documento",
         variant: "destructive",
       });
     } finally {
