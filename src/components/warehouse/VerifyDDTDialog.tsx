@@ -593,14 +593,44 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
             
             {(() => {
               const attachmentUrl = getAttachmentUrl(ddt);
-              return attachmentUrl ? (
-                <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px]">
-                  {attachmentUrl.toLowerCase().endsWith('.pdf') ? (
-                    <iframe 
-                      src={attachmentUrl} 
-                      className="w-full h-full"
-                      title="DDT Preview"
-                    />
+              if (!attachmentUrl) {
+                return (
+                  <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
+                    <div className="text-center">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nessun documento allegato</p>
+                    </div>
+                  </div>
+                );
+              }
+              
+              const isPdf = attachmentUrl.toLowerCase().includes('.pdf');
+              
+              return (
+                <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px] flex flex-col">
+                  {isPdf ? (
+                    <>
+                      {/* PDF: mostra embed object invece di iframe per evitare blocchi Chrome */}
+                      <object
+                        data={attachmentUrl}
+                        type="application/pdf"
+                        className="w-full flex-1 min-h-[350px]"
+                      >
+                        {/* Fallback se l'embed non funziona */}
+                        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                          <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                          <p className="text-muted-foreground mb-4">
+                            Impossibile visualizzare il PDF in anteprima
+                          </p>
+                          <Button variant="outline" asChild>
+                            <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Apri PDF in nuova scheda
+                            </a>
+                          </Button>
+                        </div>
+                      </object>
+                    </>
                   ) : (
                     <img 
                       src={attachmentUrl} 
@@ -608,13 +638,6 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
                       className="w-full h-full object-contain"
                     />
                   )}
-                </div>
-              ) : (
-                <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
-                  <div className="text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                    <p>Nessun documento allegato</p>
-                  </div>
                 </div>
               );
             })()}
