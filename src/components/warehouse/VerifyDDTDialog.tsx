@@ -9,13 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, Building2, User, ArrowDownToLine, ArrowUpFromLine, 
   ExternalLink, Sparkles, Plus, Trash2, Package, FileText,
-  Calendar, MapPin, Link2, ClipboardList
+  Calendar, MapPin, Link2, ClipboardList, UserPlus, Check
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VerifyDDTDialogProps {
   open: boolean;
@@ -65,6 +66,14 @@ interface DDTItem {
   notes?: string;
 }
 
+interface ExtractedCounterpart {
+  name: string;
+  address?: string;
+  vat?: string;
+  matched?: boolean;
+  matchedId?: string;
+}
+
 export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDDTDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -73,7 +82,8 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [items, setItems] = useState<DDTItem[]>([]);
-  const [existingItems, setExistingItems] = useState<DDTItem[]>([]);
+  const [extractedCounterpart, setExtractedCounterpart] = useState<ExtractedCounterpart | null>(null);
+  const [creatingCounterpart, setCreatingCounterpart] = useState(false);
   
   const [formData, setFormData] = useState({
     // Identificazione
@@ -101,6 +111,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
     if (open && ddt) {
       loadData();
       loadExistingItems();
+      setExtractedCounterpart(null);
       
       // Pre-fill form with existing data
       setFormData({
@@ -147,13 +158,6 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
         .eq("ddt_id", ddt.id);
       
       if (data && data.length > 0) {
-        setExistingItems(data.map(item => ({
-          id: item.id,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit || "pz",
-          notes: item.notes || "",
-        })));
         setItems(data.map(item => ({
           id: item.id,
           description: item.description,
@@ -163,10 +167,135 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
         })));
       } else {
         setItems([]);
-        setExistingItems([]);
       }
     } catch (error) {
       console.error("Error loading items:", error);
+    }
+  };
+
+  const findOrCreateCounterpart = async (name: string, address?: string, vat?: string): Promise<{ id: string; isNew: boolean } | null> => {
+    const isSupplier = formData.counterpartType === "supplier";
+    const table = isSupplier ? "suppliers" : "customers";
+    
+    // Search by name (case insensitive)
+    const searchName = name.trim().toLowerCase();
+    
+    try {
+      // Try to find existing
+      const { data: existing } = await supabase
+        .from(table)
+        .select("id, name")
+        .ilike("name", `%${searchName}%`)
+        .limit(1);
+      
+      if (existing && existing.length > 0) {
+        return { id: existing[0].id, isNew: false };
+      }
+
+      // If VAT provided, try to find by VAT
+      if (vat) {
+        const { data: existingByVat } = await supabase
+          .from(table)
+          .select("id, name")
+          .eq("tax_id", vat.trim())
+          .limit(1);
+        
+        if (existingByVat && existingByVat.length > 0) {
+          return { id: existingByVat[0].id, isNew: false };
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error finding counterpart:", error);
+      return null;
+    }
+  };
+
+  const createCounterpart = async () => {
+    if (!extractedCounterpart?.name) return;
+
+    setCreatingCounterpart(true);
+    const isSupplier = formData.counterpartType === "supplier";
+    const table = isSupplier ? "suppliers" : "customers";
+
+    try {
+      // Generate code
+      const prefix = isSupplier ? "F" : "C";
+      const { count } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true });
+      
+      const code = `${prefix}${String((count || 0) + 1).padStart(5, "0")}`;
+
+      const insertData: Record<string, unknown> = {
+        code,
+        name: extractedCounterpart.name,
+        address: extractedCounterpart.address || null,
+        tax_id: extractedCounterpart.vat || null,
+        incomplete_registry: true,
+      };
+
+      let data: { id: string } | null = null;
+      let error: Error | null = null;
+      
+      if (isSupplier) {
+        const result = await supabase
+          .from("suppliers")
+          .insert({ 
+            code, 
+            name: extractedCounterpart.name, 
+            address: extractedCounterpart.address || null,
+            tax_id: extractedCounterpart.vat || null,
+            access_code: crypto.randomUUID().substring(0, 8)
+          })
+          .select("id")
+          .single();
+        data = result.data;
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from("customers")
+          .insert({ 
+            code, 
+            name: extractedCounterpart.name, 
+            address: extractedCounterpart.address || null,
+            tax_id: extractedCounterpart.vat || null,
+            incomplete_registry: true 
+          })
+          .select("id")
+          .single();
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) throw error;
+      if (!data) throw new Error("No data returned");
+
+      // Update form and lists
+      if (isSupplier) {
+        setSuppliers(prev => [...prev, { id: data.id, name: extractedCounterpart.name, code }]);
+        setFormData(prev => ({ ...prev, supplierId: data.id }));
+      } else {
+        setCustomers(prev => [...prev, { id: data.id, name: extractedCounterpart.name, code }]);
+        setFormData(prev => ({ ...prev, customerId: data.id }));
+      }
+
+      setExtractedCounterpart(prev => prev ? { ...prev, matched: true, matchedId: data.id } : null);
+
+      toast({
+        title: isSupplier ? "Fornitore creato" : "Cliente creato",
+        description: `${extractedCounterpart.name} è stato aggiunto all'anagrafica`,
+      });
+    } catch (error) {
+      console.error("Error creating counterpart:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare l'anagrafica",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingCounterpart(false);
     }
   };
 
@@ -192,25 +321,64 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
 
       if (error) throw error;
 
-      if (data) {
+      const extractedData = data?.data || data;
+
+      if (extractedData) {
         // Auto-fill form fields
-        if (data.ddt_number) {
-          setFormData(prev => ({ ...prev, ddtNumber: data.ddt_number }));
+        if (extractedData.ddt_number) {
+          setFormData(prev => ({ ...prev, ddtNumber: extractedData.ddt_number }));
         }
-        if (data.ddt_date) {
-          setFormData(prev => ({ ...prev, ddtDate: data.ddt_date }));
+        if (extractedData.ddt_date) {
+          setFormData(prev => ({ ...prev, ddtDate: extractedData.ddt_date }));
         }
-        if (data.notes) {
-          setFormData(prev => ({ ...prev, notes: data.notes }));
+        if (extractedData.notes) {
+          setFormData(prev => ({ ...prev, notes: extractedData.notes }));
         }
 
         // Auto-fill items
-        if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-          setItems(data.items.map((item: { description?: string; quantity?: number; unit?: string }) => ({
+        if (extractedData.items && Array.isArray(extractedData.items) && extractedData.items.length > 0) {
+          setItems(extractedData.items.map((item: { description?: string; quantity?: number; unit?: string }) => ({
             description: item.description || "",
             quantity: item.quantity || 1,
             unit: item.unit || "pz",
           })));
+        }
+
+        // Handle counterpart
+        if (extractedData.counterpart_name) {
+          const counterpartInfo: ExtractedCounterpart = {
+            name: extractedData.counterpart_name,
+            address: extractedData.counterpart_address,
+            vat: extractedData.counterpart_vat,
+          };
+
+          // Try to find existing counterpart
+          const found = await findOrCreateCounterpart(
+            counterpartInfo.name,
+            counterpartInfo.address,
+            counterpartInfo.vat
+          );
+
+          if (found) {
+            counterpartInfo.matched = true;
+            counterpartInfo.matchedId = found.id;
+            
+            // Auto-select the counterpart
+            if (formData.counterpartType === "supplier") {
+              setFormData(prev => ({ ...prev, supplierId: found.id }));
+            } else {
+              setFormData(prev => ({ ...prev, customerId: found.id }));
+            }
+
+            toast({
+              title: "Controparte trovata",
+              description: `${counterpartInfo.name} è già presente in anagrafica`,
+            });
+          } else {
+            counterpartInfo.matched = false;
+          }
+
+          setExtractedCounterpart(counterpartInfo);
         }
 
         toast({
@@ -362,7 +530,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-5xl max-h-[95vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -373,435 +541,417 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-4">
-          <div className="space-y-6 py-4">
-            {/* Allegato e AI */}
-            {ddt.attachment_url && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Documento allegato
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={analyzeWithAI}
-                      disabled={analyzing}
-                    >
-                      {analyzing ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-2 text-amber-500" />
-                      )}
-                      Analizza con AI
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        Apri
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-                <div className="border rounded-lg overflow-hidden bg-muted/30 h-40">
-                  {ddt.attachment_url.toLowerCase().endsWith('.pdf') ? (
-                    <iframe 
-                      src={ddt.attachment_url} 
-                      className="w-full h-full"
-                      title="DDT Preview"
-                    />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Colonna sinistra: Preview scansione */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Documento scansionato
+              </Label>
+              <div className="flex gap-2">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={analyzeWithAI}
+                  disabled={analyzing || !ddt.attachment_url}
+                >
+                  {analyzing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <img 
-                      src={ddt.attachment_url} 
-                      alt="DDT" 
-                      className="w-full h-full object-contain"
-                    />
+                    <Sparkles className="h-4 w-4 mr-2" />
                   )}
+                  Analizza con AI
+                </Button>
+                {ddt.attachment_url && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {ddt.attachment_url ? (
+              <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px]">
+                {ddt.attachment_url.toLowerCase().endsWith('.pdf') ? (
+                  <iframe 
+                    src={ddt.attachment_url} 
+                    className="w-full h-full"
+                    title="DDT Preview"
+                  />
+                ) : (
+                  <img 
+                    src={ddt.attachment_url} 
+                    alt="DDT" 
+                    className="w-full h-full object-contain"
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
+                <div className="text-center">
+                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                  <p>Nessun documento allegato</p>
                 </div>
               </div>
             )}
 
-            <Separator />
+            {/* Alert per controparte estratta */}
+            {extractedCounterpart && !extractedCounterpart.matched && (
+              <Alert className="bg-amber-50 border-amber-200">
+                <UserPlus className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-amber-800">
+                      {formData.counterpartType === "supplier" ? "Fornitore" : "Cliente"} non trovato
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      "{extractedCounterpart.name}" non è in anagrafica
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={createCounterpart}
+                    disabled={creatingCounterpart}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    {creatingCounterpart ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Crea
+                      </>
+                    )}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
 
-            {/* SEZIONE: Identificazione */}
-            <div className="space-y-4">
-              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <ClipboardList className="h-4 w-4" />
-                Identificazione
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Direzione */}
-                <div className="space-y-2">
-                  <Label>Direzione movimento <span className="text-destructive">*</span></Label>
+            {extractedCounterpart?.matched && (
+              <Alert className="bg-green-50 border-green-200">
+                <Check className="h-4 w-4 text-green-600" />
+                <AlertDescription>
+                  <p className="font-medium text-green-800">
+                    {formData.counterpartType === "supplier" ? "Fornitore" : "Cliente"} collegato
+                  </p>
+                  <p className="text-sm text-green-700">
+                    "{extractedCounterpart.name}" trovato in anagrafica
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          {/* Colonna destra: Form */}
+          <ScrollArea className="h-[calc(100vh-280px)] min-h-[400px] pr-4">
+            <div className="space-y-6">
+              {/* SEZIONE: Identificazione */}
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2 text-sm">
+                  <ClipboardList className="h-4 w-4" />
+                  Identificazione
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Direzione */}
+                  <div className="space-y-2">
+                    <Label>Direzione <span className="text-destructive">*</span></Label>
+                    <RadioGroup
+                      value={formData.direction}
+                      onValueChange={(value) => setFormData(prev => ({ 
+                        ...prev, 
+                        direction: value as "IN" | "OUT",
+                        counterpartType: value === "IN" ? "supplier" : "customer",
+                        customerId: "",
+                        supplierId: "",
+                      }))}
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      <div className="relative">
+                        <RadioGroupItem value="IN" id="dir-in" className="peer sr-only" />
+                        <Label
+                          htmlFor="dir-in"
+                          className="flex items-center justify-center gap-1 rounded-lg border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
+                        >
+                          <ArrowDownToLine className="h-4 w-4 text-blue-600" />
+                          IN
+                        </Label>
+                      </div>
+                      <div className="relative">
+                        <RadioGroupItem value="OUT" id="dir-out" className="peer sr-only" />
+                        <Label
+                          htmlFor="dir-out"
+                          className="flex items-center justify-center gap-1 rounded-lg border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
+                        >
+                          <ArrowUpFromLine className="h-4 w-4 text-green-600" />
+                          OUT
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Stato DDT */}
+                  <div className="space-y-2">
+                    <Label>Stato DDT</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as typeof formData.status }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="da_verificare">Da verificare</SelectItem>
+                        <SelectItem value="verificato">Verificato</SelectItem>
+                        <SelectItem value="da_fatturare">Da fatturare</SelectItem>
+                        <SelectItem value="fatturato">Fatturato</SelectItem>
+                        <SelectItem value="annullato">Annullato</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Numero DDT */}
+                  <div className="space-y-2">
+                    <Label>Numero DDT <span className="text-destructive">*</span></Label>
+                    <Input
+                      placeholder="Es. 2026/001"
+                      value={formData.ddtNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ddtNumber: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Data DDT */}
+                  <div className="space-y-2">
+                    <Label>Data DDT</Label>
+                    <Input
+                      type="date"
+                      value={formData.ddtDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ddtDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* SEZIONE: Controparte */}
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2 text-sm">
+                  <Building2 className="h-4 w-4" />
+                  Controparte
+                </h3>
+
+                <div className="space-y-3">
                   <RadioGroup
-                    value={formData.direction}
+                    value={formData.counterpartType}
                     onValueChange={(value) => setFormData(prev => ({ 
                       ...prev, 
-                      direction: value as "IN" | "OUT",
-                      counterpartType: value === "IN" ? "supplier" : "customer",
+                      counterpartType: value as "customer" | "supplier",
                       customerId: "",
                       supplierId: "",
                     }))}
-                    className="grid grid-cols-2 gap-2"
+                    className="grid grid-cols-2 gap-3"
                   >
                     <div className="relative">
-                      <RadioGroupItem value="IN" id="dir-in" className="peer sr-only" />
+                      <RadioGroupItem value="supplier" id="type-supplier" className="peer sr-only" />
                       <Label
-                        htmlFor="dir-in"
-                        className="flex items-center justify-center gap-2 rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                        htmlFor="type-supplier"
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
                       >
-                        <ArrowDownToLine className="h-4 w-4 text-blue-600" />
-                        <span>IN (Entrata)</span>
+                        <Building2 className="h-5 w-5 mb-1 text-orange-600" />
+                        <span className="font-medium text-sm">Fornitore</span>
                       </Label>
                     </div>
                     <div className="relative">
-                      <RadioGroupItem value="OUT" id="dir-out" className="peer sr-only" />
+                      <RadioGroupItem value="customer" id="type-customer" className="peer sr-only" />
                       <Label
-                        htmlFor="dir-out"
-                        className="flex items-center justify-center gap-2 rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                        htmlFor="type-customer"
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
                       >
-                        <ArrowUpFromLine className="h-4 w-4 text-green-600" />
-                        <span>OUT (Uscita)</span>
+                        <User className="h-5 w-5 mb-1 text-blue-600" />
+                        <span className="font-medium text-sm">Cliente</span>
                       </Label>
                     </div>
                   </RadioGroup>
-                </div>
 
-                {/* Stato DDT */}
-                <div className="space-y-2">
-                  <Label>Stato DDT</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as typeof formData.status }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="da_verificare">Da verificare</SelectItem>
-                      <SelectItem value="verificato">Verificato</SelectItem>
-                      <SelectItem value="da_fatturare">Da fatturare</SelectItem>
-                      <SelectItem value="fatturato">Fatturato</SelectItem>
-                      <SelectItem value="annullato">Annullato</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Numero DDT */}
-                <div className="space-y-2">
-                  <Label>Numero DDT <span className="text-destructive">*</span></Label>
-                  <Input
-                    placeholder="Es. 2026/001"
-                    value={formData.ddtNumber}
-                    onChange={(e) => setFormData(prev => ({ ...prev, ddtNumber: e.target.value }))}
-                  />
-                </div>
-
-                {/* Data DDT */}
-                <div className="space-y-2">
-                  <Label>Data DDT</Label>
-                  <Input
-                    type="date"
-                    value={formData.ddtDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, ddtDate: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* SEZIONE: Controparte */}
-            <div className="space-y-4">
-              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <Building2 className="h-4 w-4" />
-                Controparte
-              </h3>
-
-              <div className="space-y-3">
-                <RadioGroup
-                  value={formData.counterpartType}
-                  onValueChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    counterpartType: value as "customer" | "supplier",
-                    customerId: "",
-                    supplierId: "",
-                  }))}
-                  className="grid grid-cols-2 gap-4"
-                >
-                  <div className="relative">
-                    <RadioGroupItem value="supplier" id="type-supplier" className="peer sr-only" />
-                    <Label
-                      htmlFor="type-supplier"
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                  {formData.counterpartType === "supplier" && (
+                    <Select
+                      value={formData.supplierId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, supplierId: value }))}
                     >
-                      <Building2 className="h-6 w-6 mb-2 text-orange-600" />
-                      <span className="font-medium">Fornitore</span>
-                      <span className="text-xs text-muted-foreground">DDT acquisto</span>
-                    </Label>
-                  </div>
-                  <div className="relative">
-                    <RadioGroupItem value="customer" id="type-customer" className="peer sr-only" />
-                    <Label
-                      htmlFor="type-customer"
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona fornitore..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.code} - {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {formData.counterpartType === "customer" && (
+                    <Select
+                      value={formData.customerId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, customerId: value }))}
                     >
-                      <User className="h-6 w-6 mb-2 text-blue-600" />
-                      <span className="font-medium">Cliente</span>
-                      <span className="text-xs text-muted-foreground">DDT vendita</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                {formData.counterpartType === "supplier" && (
-                  <Select
-                    value={formData.supplierId}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, supplierId: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona fornitore..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.code} - {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {formData.counterpartType === "customer" && (
-                  <Select
-                    value={formData.customerId}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, customerId: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona cliente..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.code} - {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* SEZIONE: Merce */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold flex items-center gap-2 text-sm">
-                  <Package className="h-4 w-4" />
-                  Merce
-                </h3>
-                <Button variant="outline" size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Aggiungi riga
-                </Button>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona cliente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.code} - {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
 
-              {items.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground border rounded-lg border-dashed">
-                  <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nessun articolo inserito</p>
-                  <Button variant="link" size="sm" onClick={addItem}>
-                    Aggiungi il primo articolo
+              <Separator />
+
+              {/* SEZIONE: Merce */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold flex items-center gap-2 text-sm">
+                    <Package className="h-4 w-4" />
+                    Merce
+                  </h3>
+                  <Button variant="outline" size="sm" onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Aggiungi
                   </Button>
                 </div>
-              ) : (
+
+                {items.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground border rounded-lg border-dashed">
+                    <Package className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                    <p className="text-sm">Nessun articolo</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((item, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded-lg bg-muted/30">
+                        <div className="col-span-6">
+                          <Input
+                            placeholder="Descrizione..."
+                            value={item.description}
+                            onChange={(e) => updateItem(index, "description", e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <Select
+                            value={item.unit}
+                            onValueChange={(value) => updateItem(index, "unit", value)}
+                          >
+                            <SelectTrigger className="text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pz">pz</SelectItem>
+                              <SelectItem value="kg">kg</SelectItem>
+                              <SelectItem value="lt">lt</SelectItem>
+                              <SelectItem value="mt">mt</SelectItem>
+                              <SelectItem value="mq">mq</SelectItem>
+                              <SelectItem value="mc">mc</SelectItem>
+                              <SelectItem value="conf">conf</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItem(index)}
+                            className="text-destructive hover:text-destructive h-9 w-9"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* SEZIONE: Collegamenti */}
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2 text-sm">
+                  <Link2 className="h-4 w-4" />
+                  Collegamenti
+                </h3>
+
                 <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                      <div className="col-span-6 space-y-1">
-                        <Label className="text-xs">Descrizione</Label>
-                        <Input
-                          placeholder="Descrizione merce..."
-                          value={item.description}
-                          onChange={(e) => updateItem(index, "description", e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-2 space-y-1">
-                        <Label className="text-xs">Quantità</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-                      <div className="col-span-2 space-y-1">
-                        <Label className="text-xs">Unità</Label>
-                        <Select
-                          value={item.unit}
-                          onValueChange={(value) => updateItem(index, "unit", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pz">pz</SelectItem>
-                            <SelectItem value="kg">kg</SelectItem>
-                            <SelectItem value="lt">lt</SelectItem>
-                            <SelectItem value="mt">mt</SelectItem>
-                            <SelectItem value="mq">mq</SelectItem>
-                            <SelectItem value="mc">mc</SelectItem>
-                            <SelectItem value="conf">conf</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-2 flex items-end justify-end h-full pb-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItem(index)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="space-y-2">
+                    <Label>Ordine / Commessa</Label>
+                    <Select
+                      value={formData.workOrderId || "__none__"}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, workOrderId: value === "__none__" ? "" : value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona commessa..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nessuna</SelectItem>
+                        {workOrders.map((wo) => (
+                          <SelectItem key={wo.id} value={wo.id}>
+                            {wo.number} - {wo.title?.substring(0, 30)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Note */}
+              <div className="space-y-2">
+                <Label>Note</Label>
+                <Textarea
+                  placeholder="Note aggiuntive..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+
+              {/* Audit info */}
+              {(ddt.created_at || ddt.uploaded_by) && (
+                <div className="space-y-2 text-xs text-muted-foreground border-t pt-4">
+                  <div className="flex gap-4">
+                    {ddt.created_at && (
+                      <span>Caricato: {new Date(ddt.created_at).toLocaleString("it-IT")}</span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-
-            <Separator />
-
-            {/* SEZIONE: Magazzino */}
-            <div className="space-y-4">
-              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4" />
-                Magazzino
-              </h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Deposito / Sede</Label>
-                  <Select
-                    value={formData.warehouse}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sede-principale">Sede principale</SelectItem>
-                      <SelectItem value="magazzino-esterno">Magazzino esterno</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Stato movimento magazzino</Label>
-                  <Select
-                    value={formData.warehouseStatus}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, warehouseStatus: value as typeof formData.warehouseStatus }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="da_verificare">Da verificare</SelectItem>
-                      <SelectItem value="confermato">Confermato</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* SEZIONE: Collegamenti */}
-            <div className="space-y-4">
-              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <Link2 className="h-4 w-4" />
-                Collegamenti
-              </h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Ordine / Commessa</Label>
-                  <Select
-                    value={formData.workOrderId || "__none__"}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, workOrderId: value === "__none__" ? "" : value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona commessa..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nessuna</SelectItem>
-                      {workOrders.map((wo) => (
-                        <SelectItem key={wo.id} value={wo.id}>
-                          {wo.number} - {wo.title?.substring(0, 30)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Rapporto intervento</Label>
-                  <Input
-                    placeholder="ID rapporto..."
-                    value={formData.serviceReportId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, serviceReportId: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Note */}
-            <div className="space-y-2">
-              <Label>Note</Label>
-              <Textarea
-                placeholder="Note aggiuntive..."
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                rows={3}
-              />
-            </div>
-
-            {/* Audit info */}
-            {(ddt.created_at || ddt.uploaded_by) && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <h3 className="font-semibold flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4" />
-                    Audit
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    {ddt.created_at && (
-                      <div>
-                        <span className="font-medium">Data caricamento:</span>{" "}
-                        {new Date(ddt.created_at).toLocaleString("it-IT")}
-                      </div>
-                    )}
-                    {ddt.uploaded_by && (
-                      <div>
-                        <span className="font-medium">Utente:</span> {ddt.uploaded_by}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
 
         <div className="flex justify-between items-center gap-2 pt-4 border-t">
           <div className="text-xs text-muted-foreground">
