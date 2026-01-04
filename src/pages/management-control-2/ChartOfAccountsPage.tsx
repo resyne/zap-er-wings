@@ -42,10 +42,14 @@ const defaultFormData = {
 };
 
 const accountTypes = [
-  { value: "costo", label: "Costi", icon: TrendingDown, color: "text-red-600", bgColor: "bg-red-50 dark:bg-red-950", borderColor: "border-red-200 dark:border-red-800" },
-  { value: "ricavo", label: "Ricavi", icon: TrendingUp, color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-950", borderColor: "border-green-200 dark:border-green-800" },
-  { value: "patrimoniale", label: "Patrimoniali", icon: Building2, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950", borderColor: "border-blue-200 dark:border-blue-800" },
-  { value: "finanziario", label: "Finanziari", icon: Wallet, color: "text-purple-600", bgColor: "bg-purple-50 dark:bg-purple-950", borderColor: "border-purple-200 dark:border-purple-800" },
+  { value: "cost", label: "Costi Diretti", icon: TrendingDown, color: "text-red-600", bgColor: "bg-red-50 dark:bg-red-950", borderColor: "border-red-200 dark:border-red-800" },
+  { value: "opex", label: "Costi Operativi (OPEX)", icon: TrendingDown, color: "text-orange-600", bgColor: "bg-orange-50 dark:bg-orange-950", borderColor: "border-orange-200 dark:border-orange-800" },
+  { value: "depreciation", label: "Ammortamenti", icon: TrendingDown, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-950", borderColor: "border-amber-200 dark:border-amber-800" },
+  { value: "expense", label: "Spese", icon: TrendingDown, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-950", borderColor: "border-rose-200 dark:border-rose-800" },
+  { value: "extraordinary", label: "Straordinari", icon: Wallet, color: "text-violet-600", bgColor: "bg-violet-50 dark:bg-violet-950", borderColor: "border-violet-200 dark:border-violet-800" },
+  { value: "revenue", label: "Ricavi", icon: TrendingUp, color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-950", borderColor: "border-green-200 dark:border-green-800" },
+  { value: "asset", label: "Attività", icon: Building2, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950", borderColor: "border-blue-200 dark:border-blue-800" },
+  { value: "liability", label: "Passività", icon: Building2, color: "text-slate-600", bgColor: "bg-slate-50 dark:bg-slate-950", borderColor: "border-slate-200 dark:border-slate-800" },
 ];
 
 const macroCategories = [
@@ -231,7 +235,7 @@ export default function ChartOfAccountsPage() {
   };
 
   const incideOnCE = (type: string) => {
-    return type === "costo" || type === "ricavo";
+    return ["cost", "opex", "depreciation", "expense", "revenue", "extraordinary"].includes(type);
   };
 
   const filteredAccounts = accounts.filter((account) => {
@@ -296,8 +300,8 @@ export default function ChartOfAccountsPage() {
   const stats = {
     total: accounts.length,
     active: accounts.filter((a) => a.is_active).length,
-    costi: accounts.filter((a) => a.account_type === "costo").length,
-    ricavi: accounts.filter((a) => a.account_type === "ricavo").length,
+    costi: accounts.filter((a) => ["cost", "opex", "depreciation", "expense"].includes(a.account_type)).length,
+    ricavi: accounts.filter((a) => a.account_type === "revenue").length,
   };
 
   return (
