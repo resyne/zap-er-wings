@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDDTDialog } from "@/components/warehouse/UploadDDTDialog";
 import { VerifyDDTDialog } from "@/components/warehouse/VerifyDDTDialog";
+import { DDTDetailsDialog } from "@/components/warehouse/DDTDetailsDialog";
 
 interface Ddt {
   id: string;
@@ -63,7 +64,9 @@ export default function DdtPage() {
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [ddtToVerify, setDdtToVerify] = useState<Ddt | null>(null);
+  const [ddtToView, setDdtToView] = useState<Ddt | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -163,6 +166,11 @@ export default function DdtPage() {
   const handleVerifyClick = (ddt: Ddt) => {
     setDdtToVerify(ddt);
     setVerifyDialogOpen(true);
+  };
+
+  const handleDetailsClick = (ddt: Ddt) => {
+    setDdtToView(ddt);
+    setDetailsDialogOpen(true);
   };
 
   return (
@@ -372,10 +380,10 @@ export default function DdtPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedDdt(selectedDdt === ddt.id ? null : ddt.id)}
+                            onClick={() => handleDetailsClick(ddt)}
                           >
                             <Eye className="h-3 w-3 mr-1" />
-                            {selectedDdt === ddt.id ? "Chiudi" : "Dettagli"}
+                            Dettagli
                           </Button>
                           {(() => {
                             const attachmentUrl = getAttachmentUrl(ddt);
@@ -504,6 +512,13 @@ export default function DdtPage() {
         open={verifyDialogOpen}
         onOpenChange={setVerifyDialogOpen}
         ddt={ddtToVerify}
+        onSuccess={loadDdts}
+      />
+
+      <DDTDetailsDialog
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+        ddt={ddtToView}
         onSuccess={loadDdts}
       />
     </div>
