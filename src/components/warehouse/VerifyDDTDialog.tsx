@@ -36,9 +36,21 @@ interface VerifyDDTDialogProps {
     work_order_id?: string | null;
     created_at?: string | null;
     uploaded_by?: string | null;
+    ddt_data?: Record<string, unknown> | null;
   } | null;
   onSuccess?: () => void;
 }
+
+// Helper to get attachment URL from ddt (checks both attachment_url and ddt_data.allegato_url)
+const getAttachmentUrl = (ddt: VerifyDDTDialogProps['ddt']): string | null => {
+  if (!ddt) return null;
+  if (ddt.attachment_url) return ddt.attachment_url;
+  if (ddt.ddt_data && typeof ddt.ddt_data === 'object') {
+    const allegatoUrl = (ddt.ddt_data as Record<string, unknown>).allegato_url;
+    if (typeof allegatoUrl === 'string') return allegatoUrl;
+  }
+  return null;
+};
 
 interface Customer {
   id: string;
@@ -300,7 +312,8 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
   };
 
   const analyzeWithAI = async () => {
-    if (!ddt?.attachment_url) {
+    const attachmentUrl = getAttachmentUrl(ddt);
+    if (!attachmentUrl) {
       toast({
         title: "Nessun allegato",
         description: "Non è presente un documento da analizzare",
@@ -314,8 +327,8 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
       
       const { data, error } = await supabase.functions.invoke("analyze-ddt", {
         body: { 
-          imageUrl: ddt.attachment_url,
-          direction: formData.direction || ddt.direction || "IN"
+          imageUrl: attachmentUrl,
+          direction: formData.direction || ddt?.direction || "IN"
         }
       });
 
@@ -549,54 +562,62 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
                 <Package className="h-4 w-4" />
                 Documento scansionato
               </Label>
-              <div className="flex gap-2">
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  onClick={analyzeWithAI}
-                  disabled={analyzing || !ddt.attachment_url}
-                >
-                  {analyzing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 mr-2" />
-                  )}
-                  Analizza con AI
-                </Button>
-                {ddt.attachment_url && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-              </div>
+              {(() => {
+                const attachmentUrl = getAttachmentUrl(ddt);
+                return (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={analyzeWithAI}
+                      disabled={analyzing || !attachmentUrl}
+                    >
+                      {analyzing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      Analizza con AI
+                    </Button>
+                    {attachmentUrl && (
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             
-            {ddt.attachment_url ? (
-              <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px]">
-                {ddt.attachment_url.toLowerCase().endsWith('.pdf') ? (
-                  <iframe 
-                    src={ddt.attachment_url} 
-                    className="w-full h-full"
-                    title="DDT Preview"
-                  />
-                ) : (
-                  <img 
-                    src={ddt.attachment_url} 
-                    alt="DDT" 
-                    className="w-full h-full object-contain"
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
-                <div className="text-center">
-                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                  <p>Nessun documento allegato</p>
+            {(() => {
+              const attachmentUrl = getAttachmentUrl(ddt);
+              return attachmentUrl ? (
+                <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px]">
+                  {attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                    <iframe 
+                      src={attachmentUrl} 
+                      className="w-full h-full"
+                      title="DDT Preview"
+                    />
+                  ) : (
+                    <img 
+                      src={attachmentUrl} 
+                      alt="DDT" 
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
+                  <div className="text-center">
+                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                    <p>Nessun documento allegato</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Alert per controparte estratta */}
             {extractedCounterpart && !extractedCounterpart.matched && (

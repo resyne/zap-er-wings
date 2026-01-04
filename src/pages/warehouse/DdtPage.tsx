@@ -41,6 +41,16 @@ interface Ddt {
   work_orders?: { number: string; title: string } | null;
 }
 
+// Helper to get attachment URL (checks both attachment_url and ddt_data.allegato_url)
+const getAttachmentUrl = (ddt: Ddt): string | null => {
+  if (ddt.attachment_url) return ddt.attachment_url;
+  if (ddt.ddt_data && typeof ddt.ddt_data === 'object') {
+    const allegatoUrl = (ddt.ddt_data as Record<string, unknown>).allegato_url;
+    if (typeof allegatoUrl === 'string') return allegatoUrl;
+  }
+  return null;
+};
+
 type StatusFilter = "all" | "da_verificare" | "verificato" | "fatturato";
 type DirectionFilter = "all" | "IN" | "OUT";
 
@@ -367,13 +377,16 @@ export default function DdtPage() {
                             <Eye className="h-3 w-3 mr-1" />
                             {selectedDdt === ddt.id ? "Chiudi" : "Dettagli"}
                           </Button>
-                          {ddt.attachment_url && (
-                            <Button size="sm" variant="ghost" asChild>
-                              <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
+                          {(() => {
+                            const attachmentUrl = getAttachmentUrl(ddt);
+                            return attachmentUrl && (
+                              <Button size="sm" variant="ghost" asChild>
+                                <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            );
+                          })()}
                           {ddt.unique_code && ddt.html_content && (
                             <Button size="sm" variant="ghost" asChild>
                               <a href={`/ddt/${ddt.unique_code}`} target="_blank" rel="noopener noreferrer">
@@ -442,29 +455,32 @@ export default function DdtPage() {
             </div>
 
             {/* Preview per DDT con allegato */}
-            {selectedDdtDetails.attachment_url && (
-              <div className="mt-4">
-                <h4 className="font-medium mb-3">Documento allegato</h4>
-                <div className="border rounded-lg overflow-hidden bg-white">
-                  {selectedDdtDetails.attachment_url.endsWith(".pdf") ? (
-                    <iframe
-                      src={selectedDdtDetails.attachment_url}
-                      className="w-full h-[500px]"
-                      title="Anteprima DDT"
-                    />
-                  ) : (
-                    <img 
-                      src={selectedDdtDetails.attachment_url} 
-                      alt="DDT" 
-                      className="max-w-full h-auto max-h-[500px] mx-auto"
-                    />
-                  )}
+            {(() => {
+              const attachmentUrl = getAttachmentUrl(selectedDdtDetails);
+              return attachmentUrl && (
+                <div className="mt-4">
+                  <h4 className="font-medium mb-3">Documento allegato</h4>
+                  <div className="border rounded-lg overflow-hidden bg-white">
+                    {attachmentUrl.endsWith(".pdf") ? (
+                      <iframe
+                        src={attachmentUrl}
+                        className="w-full h-[500px]"
+                        title="Anteprima DDT"
+                      />
+                    ) : (
+                      <img 
+                        src={attachmentUrl} 
+                        alt="DDT" 
+                        className="max-w-full h-auto max-h-[500px] mx-auto"
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Preview per DDT generati */}
-            {selectedDdtDetails.html_content && !selectedDdtDetails.attachment_url && (
+            {selectedDdtDetails.html_content && !getAttachmentUrl(selectedDdtDetails) && (
               <div className="mt-4">
                 <h4 className="font-medium mb-3">Anteprima Documento</h4>
                 <div 
