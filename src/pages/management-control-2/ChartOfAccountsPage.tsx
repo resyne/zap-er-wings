@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, HelpCircle, BookOpen, AlertCircle, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, BookOpen, Download, ChevronDown, ChevronRight, TrendingDown, TrendingUp, Building2, Wallet, Layers, HelpCircle, AlertCircle } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface Account {
@@ -42,10 +42,10 @@ const defaultFormData = {
 };
 
 const accountTypes = [
-  { value: "costo", label: "Costo" },
-  { value: "ricavo", label: "Ricavo" },
-  { value: "patrimoniale", label: "Patrimoniale" },
-  { value: "finanziario", label: "Finanziario" },
+  { value: "costo", label: "Costi", icon: TrendingDown, color: "text-red-600", bgColor: "bg-red-50 dark:bg-red-950", borderColor: "border-red-200 dark:border-red-800" },
+  { value: "ricavo", label: "Ricavi", icon: TrendingUp, color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-950", borderColor: "border-green-200 dark:border-green-800" },
+  { value: "patrimoniale", label: "Patrimoniali", icon: Building2, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950", borderColor: "border-blue-200 dark:border-blue-800" },
+  { value: "finanziario", label: "Finanziari", icon: Wallet, color: "text-purple-600", bgColor: "bg-purple-50 dark:bg-purple-950", borderColor: "border-purple-200 dark:border-purple-800" },
 ];
 
 const macroCategories = [
@@ -249,6 +249,50 @@ export default function ChartOfAccountsPage() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  // Raggruppa per natura e poi per categoria
+  const groupedAccounts = useMemo(() => {
+    const groups: Record<string, Record<string, Account[]>> = {};
+    
+    accountTypes.forEach(type => {
+      groups[type.value] = {};
+    });
+    
+    filteredAccounts.forEach(account => {
+      const type = account.account_type || "altro";
+      const category = account.category || "Senza categoria";
+      
+      if (!groups[type]) groups[type] = {};
+      if (!groups[type][category]) groups[type][category] = [];
+      
+      groups[type][category].push(account);
+    });
+    
+    // Ordina per codice all'interno di ogni categoria
+    Object.keys(groups).forEach(type => {
+      Object.keys(groups[type]).forEach(category => {
+        groups[type][category].sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+      });
+    });
+    
+    return groups;
+  }, [filteredAccounts]);
+
+  const [expandedTypes, setExpandedTypes] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    accountTypes.forEach(t => { initial[t.value] = true; });
+    return initial;
+  });
+
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  const toggleType = (type: string) => {
+    setExpandedTypes(prev => ({ ...prev, [type]: !prev[type] }));
+  };
+
+  const toggleCategory = (key: string) => {
+    setExpandedCategories(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const stats = {
     total: accounts.length,
     active: accounts.filter((a) => a.is_active).length,
@@ -368,114 +412,193 @@ export default function ChartOfAccountsPage() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Codice</TableHead>
-                <TableHead>Nome Conto</TableHead>
-                <TableHead>Natura</TableHead>
-                <TableHead>Macro-categoria</TableHead>
-                <TableHead className="text-center">Incide CE</TableHead>
-                <TableHead className="text-center">Richiede CdC</TableHead>
-                <TableHead className="text-center">Stato</TableHead>
-                <TableHead className="text-right">Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Caricamento...
-                  </TableCell>
-                </TableRow>
-              ) : filteredAccounts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Nessun conto trovato
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredAccounts.map((account) => (
-                  <TableRow key={account.id} className={!account.is_active ? "opacity-50" : ""}>
-                    <TableCell className="font-mono text-sm">
-                      {account.code || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{account.name}</span>
-                        {account.description && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-xs text-muted-foreground truncate max-w-[300px] cursor-help">
-                                {account.description.slice(0, 50)}...
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-md">
-                              <p>{account.description}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getAccountTypeBadge(account.account_type)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{account.category || "-"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {incideOnCE(account.account_type) ? (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                          Sì
+      {/* Grouped Accounts */}
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Caricamento...
+          </CardContent>
+        </Card>
+      ) : filteredAccounts.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Nessun conto trovato</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {accountTypes.map(typeConfig => {
+            const typeData = groupedAccounts[typeConfig.value] || {};
+            const categories = Object.keys(typeData).sort();
+            const totalInType = categories.reduce((sum, cat) => sum + typeData[cat].length, 0);
+            
+            if (totalInType === 0) return null;
+            
+            const Icon = typeConfig.icon;
+            
+            return (
+              <Collapsible
+                key={typeConfig.value}
+                open={expandedTypes[typeConfig.value]}
+                onOpenChange={() => toggleType(typeConfig.value)}
+              >
+                <Card className={`border-2 ${typeConfig.borderColor}`}>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className={`cursor-pointer hover:bg-muted/50 transition-colors ${typeConfig.bgColor}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {expandedTypes[typeConfig.value] ? (
+                            <ChevronDown className={`h-5 w-5 ${typeConfig.color}`} />
+                          ) : (
+                            <ChevronRight className={`h-5 w-5 ${typeConfig.color}`} />
+                          )}
+                          <Icon className={`h-6 w-6 ${typeConfig.color}`} />
+                          <div>
+                            <CardTitle className={`text-xl ${typeConfig.color}`}>
+                              {typeConfig.label}
+                            </CardTitle>
+                            <CardDescription>
+                              {totalInType} conti in {categories.length} categorie
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="text-lg px-3 py-1">
+                          {totalInType}
                         </Badge>
-                      ) : (
-                        <Badge variant="secondary">No</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {account.requires_cost_center ? (
-                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
-                          Sì
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">No</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Switch
-                        checked={account.is_active ?? true}
-                        onCheckedChange={() => handleToggleActive(account)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenDialog(account)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setAccountToDelete(account);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-4">
+                      <div className="space-y-2">
+                        {categories.map(category => {
+                          const categoryKey = `${typeConfig.value}-${category}`;
+                          const categoryAccounts = typeData[category];
+                          const isExpanded = expandedCategories[categoryKey] ?? true;
+                          
+                          return (
+                            <Collapsible
+                              key={categoryKey}
+                              open={isExpanded}
+                              onOpenChange={() => toggleCategory(categoryKey)}
+                            >
+                              <div className="border rounded-lg overflow-hidden">
+                                <CollapsibleTrigger asChild>
+                                  <div className="flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors">
+                                    <div className="flex items-center gap-2">
+                                      {isExpanded ? (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                      <span className="font-medium">{category}</span>
+                                      <Badge variant="outline" className="ml-2">
+                                        {categoryAccounts.length}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </CollapsibleTrigger>
+                                
+                                <CollapsibleContent>
+                                  <div className="divide-y">
+                                    {categoryAccounts.map(account => (
+                                      <div
+                                        key={account.id}
+                                        className={`flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors ${
+                                          !account.is_active ? "opacity-50" : ""
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                          <code className="text-sm font-mono bg-muted px-2 py-1 rounded min-w-[80px] text-center">
+                                            {account.code || "---"}
+                                          </code>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-medium truncate">{account.name}</div>
+                                            {account.description && (
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <p className="text-xs text-muted-foreground truncate max-w-md cursor-help">
+                                                    {account.description}
+                                                  </p>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" className="max-w-md">
+                                                  <p>{account.description}</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-4">
+                                          <div className="flex items-center gap-2">
+                                            {account.requires_cost_center && (
+                                              <Tooltip>
+                                                <TooltipTrigger>
+                                                  <Badge variant="outline" className="text-xs">
+                                                    CdC
+                                                  </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Richiede Centro di Costo</TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                            {incideOnCE(account.account_type) && (
+                                              <Tooltip>
+                                                <TooltipTrigger>
+                                                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs">
+                                                    CE
+                                                  </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Incide sul Conto Economico</TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                          
+                                          <Switch
+                                            checked={account.is_active ?? true}
+                                            onCheckedChange={() => handleToggleActive(account)}
+                                          />
+                                          
+                                          <div className="flex gap-1">
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8"
+                                              onClick={() => handleOpenDialog(account)}
+                                            >
+                                              <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8"
+                                              onClick={() => {
+                                                setAccountToDelete(account);
+                                                setDeleteDialogOpen(true);
+                                              }}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </CollapsibleContent>
+                              </div>
+                            </Collapsible>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            );
+          })}
+        </div>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
