@@ -395,14 +395,49 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           );
         }
 
-        // Handle counterpart
-        if (extractedData.counterpart_name) {
-          const counterpartInfo: ExtractedCounterpart = {
+        // Logica per determinare fornitore/cliente:
+        // Se il DESTINATARIO contiene "climatel" → è un DDT fornitore (noi riceviamo), usare INTESTAZIONE come fornitore
+        // Se il DESTINATARIO NON contiene "climatel" → è un DDT cliente (noi spediamo), usare DESTINATARIO come cliente
+        const destinatarioName = extractedData.destinatario_name?.toLowerCase() || "";
+        const isClimatelDestinatario = destinatarioName.includes("climatel");
+
+        let counterpartInfo: ExtractedCounterpart | null = null;
+        let detectedCounterpartType: "supplier" | "customer" = "supplier";
+
+        if (isClimatelDestinatario) {
+          // DDT Fornitore: noi siamo il destinatario, usare INTESTAZIONE come fornitore
+          detectedCounterpartType = "supplier";
+          if (extractedData.intestazione_name) {
+            counterpartInfo = {
+              name: extractedData.intestazione_name,
+              address: extractedData.intestazione_address,
+              vat: extractedData.intestazione_vat,
+            };
+          }
+          setFormData((prev) => ({ ...prev, direction: "IN", counterpartType: "supplier" }));
+        } else {
+          // DDT Cliente: noi spediamo, usare DESTINATARIO come cliente
+          detectedCounterpartType = "customer";
+          if (extractedData.destinatario_name) {
+            counterpartInfo = {
+              name: extractedData.destinatario_name,
+              address: extractedData.destinatario_address || extractedData.destinazione_address,
+              vat: extractedData.destinatario_vat,
+            };
+          }
+          setFormData((prev) => ({ ...prev, direction: "OUT", counterpartType: "customer" }));
+        }
+
+        // Handle counterpart - fallback to old format if new fields not present
+        if (!counterpartInfo && extractedData.counterpart_name) {
+          counterpartInfo = {
             name: extractedData.counterpart_name,
             address: extractedData.counterpart_address,
             vat: extractedData.counterpart_vat,
           };
+        }
 
+        if (counterpartInfo) {
           // Try to find existing counterpart
           const found = await findOrCreateCounterpart(counterpartInfo.name, counterpartInfo.address, counterpartInfo.vat);
 
@@ -411,7 +446,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
             counterpartInfo.matchedId = found.id;
 
             // Auto-select the counterpart
-            if (formData.counterpartType === "supplier") {
+            if (detectedCounterpartType === "supplier") {
               setFormData((prev) => ({ ...prev, supplierId: found.id }));
             } else {
               setFormData((prev) => ({ ...prev, customerId: found.id }));
