@@ -171,7 +171,7 @@ export function EditDebtDialog({ open, onOpenChange, onSuccess, invoiceId }: Edi
 
           <div className="space-y-2">
             <Label htmlFor="category">Categoria</Label>
-            <Select value={formData.category} onValueChange={(value) => handleChange("category", value)}>
+            <Select value={formData.category || undefined} onValueChange={(value) => handleChange("category", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona categoria" />
               </SelectTrigger>
