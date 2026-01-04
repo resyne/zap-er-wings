@@ -708,7 +708,19 @@ export default function ChartOfAccountsPage() {
                       <SelectValue placeholder="Seleziona natura" />
                     </SelectTrigger>
                     <SelectContent>
-                      {accountTypes.map((type) => (
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Conto Economico
+                      </div>
+                      {accountTypes.filter(t => t.section === "Conto Economico").map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                      <div className="my-1 border-t border-border" />
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Stato Patrimoniale
+                      </div>
+                      {accountTypes.filter(t => t.section === "Stato Patrimoniale").map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
                         </SelectItem>
