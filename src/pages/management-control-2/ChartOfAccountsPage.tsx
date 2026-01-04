@@ -480,19 +480,17 @@ export default function ChartOfAccountsPage() {
               <Pencil className="h-4 w-4" />
             </Button>
 
-            {!isHeader && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => {
-                  setAccountToDelete(node);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                setAccountToDelete(node);
+                setDeleteDialogOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
           </div>
         </div>
 
