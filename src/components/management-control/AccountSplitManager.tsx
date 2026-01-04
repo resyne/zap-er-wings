@@ -197,13 +197,13 @@ export function AccountSplitManager({
                   <Label className="text-xs">{centerLabel}</Label>
                   <Select 
                     value={isCost ? (line.cost_center_id || '') : (line.profit_center_id || '')}
-                    onValueChange={(v) => updateLine(line.id, isCost ? 'cost_center_id' : 'profit_center_id', v)}
+                    onValueChange={(v) => updateLine(line.id, isCost ? 'cost_center_id' : 'profit_center_id', v === "__none__" ? '' : v)}
                   >
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Centro" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {centers.map(c => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.code} - {c.name}

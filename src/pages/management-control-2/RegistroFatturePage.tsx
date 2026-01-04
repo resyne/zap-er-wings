@@ -1158,14 +1158,15 @@ export default function RegistroFatturePage() {
             <div className="space-y-2">
               <Label>Documento Operativo</Label>
               <Select value={formData.source_document_type} onValueChange={(v) => {
-                handleFormChange('source_document_type', v);
+                const next = v === "__none__" ? "" : v;
+                handleFormChange('source_document_type', next);
                 handleFormChange('source_document_id', '');
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Collega documento (opzionale)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessun collegamento</SelectItem>
+                  <SelectItem value="__none__">Nessun collegamento</SelectItem>
                   <SelectItem value="ddt">DDT</SelectItem>
                   <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
                   <SelectItem value="service_report">Rapporto Intervento</SelectItem>
@@ -1200,12 +1201,12 @@ export default function RegistroFatturePage() {
               <>
                 <div className="space-y-2">
                   <Label>Centro di Costo</Label>
-                  <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v)}>
+                  <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona centro di costo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {costCenters.map(cc => (
                         <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
                       ))}
@@ -1214,12 +1215,12 @@ export default function RegistroFatturePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Conto di Costo</Label>
-                  <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v)}>
+                  <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona conto" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {costAccounts.map(a => (
                         <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
                       ))}
@@ -1234,12 +1235,12 @@ export default function RegistroFatturePage() {
               <>
                 <div className="space-y-2">
                   <Label>Centro di Ricavo</Label>
-                  <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v)}>
+                  <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona centro di ricavo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {profitCenters.map(pc => (
                         <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
                       ))}
@@ -1248,12 +1249,12 @@ export default function RegistroFatturePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Conto di Ricavo</Label>
-                  <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v)}>
+                  <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona conto" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {revenueAccounts.map(a => (
                         <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
                       ))}
@@ -1570,14 +1571,15 @@ export default function RegistroFatturePage() {
             <div className="space-y-2">
               <Label>Documento Operativo</Label>
               <Select value={editFormData.source_document_type} onValueChange={(v) => {
-                handleEditFormChange('source_document_type', v);
+                const next = v === "__none__" ? "" : v;
+                handleEditFormChange('source_document_type', next);
                 handleEditFormChange('source_document_id', '');
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Collega documento (opzionale)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessun collegamento</SelectItem>
+                  <SelectItem value="__none__">Nessun collegamento</SelectItem>
                   <SelectItem value="ddt">DDT</SelectItem>
                   <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
                   <SelectItem value="service_report">Rapporto Intervento</SelectItem>
@@ -1612,12 +1614,12 @@ export default function RegistroFatturePage() {
               <>
                 <div className="space-y-2">
                   <Label>Centro di Costo</Label>
-                  <Select value={editFormData.cost_center_id} onValueChange={(v) => handleEditFormChange('cost_center_id', v)}>
+                  <Select value={editFormData.cost_center_id} onValueChange={(v) => handleEditFormChange('cost_center_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona centro di costo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {costCenters.map(cc => (
                         <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
                       ))}
@@ -1626,12 +1628,12 @@ export default function RegistroFatturePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Conto di Costo</Label>
-                  <Select value={editFormData.cost_account_id} onValueChange={(v) => handleEditFormChange('cost_account_id', v)}>
+                  <Select value={editFormData.cost_account_id} onValueChange={(v) => handleEditFormChange('cost_account_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona conto" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {costAccounts.map(a => (
                         <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
                       ))}
@@ -1646,12 +1648,12 @@ export default function RegistroFatturePage() {
               <>
                 <div className="space-y-2">
                   <Label>Centro di Ricavo</Label>
-                  <Select value={editFormData.profit_center_id} onValueChange={(v) => handleEditFormChange('profit_center_id', v)}>
+                  <Select value={editFormData.profit_center_id} onValueChange={(v) => handleEditFormChange('profit_center_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona centro di ricavo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {profitCenters.map(pc => (
                         <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
                       ))}
@@ -1660,12 +1662,12 @@ export default function RegistroFatturePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Conto di Ricavo</Label>
-                  <Select value={editFormData.revenue_account_id} onValueChange={(v) => handleEditFormChange('revenue_account_id', v)}>
+                  <Select value={editFormData.revenue_account_id} onValueChange={(v) => handleEditFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona conto" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
                       {revenueAccounts.map(a => (
                         <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
                       ))}
