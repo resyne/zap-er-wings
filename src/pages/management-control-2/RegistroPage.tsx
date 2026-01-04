@@ -205,7 +205,7 @@ export default function RegistroPage() {
     }
   };
 
-  // DDT upload and AI analysis
+  // DDT upload (solo upload, senza analisi AI - l'analisi viene fatta nella pagina DDT durante la verifica)
   const handleDdtFileUpload = async (file: File) => {
     setIsUploading(true);
     try {
@@ -224,57 +224,7 @@ export default function RegistroPage() {
         .getPublicUrl(filePath);
 
       setDdtUploadedFile({ name: file.name, url: urlData.publicUrl });
-      
-      // AI Analysis for DDT
-      setIsAnalyzing(true);
-      try {
-        let analysisUrl: string | null = urlData.publicUrl;
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
-        if (isPdf) {
-          try {
-            const pngBlob = await pdfFirstPageToPngBlob(file);
-            const previewPath = `ddt-scans/${Date.now()}-preview.png`;
-            await supabase.storage.from("accounting-attachments").upload(previewPath, pngBlob, { contentType: "image/png" });
-            const { data: previewUrlData } = supabase.storage.from("accounting-attachments").getPublicUrl(previewPath);
-            analysisUrl = previewUrlData.publicUrl;
-          } catch {
-            analysisUrl = null;
-          }
-        }
-
-        if (analysisUrl) {
-          const { data: analysisData } = await supabase.functions.invoke("analyze-document", {
-            body: { imageUrl: analysisUrl, documentType: "ddt" },
-          });
-
-          if (analysisData?.success && analysisData?.data) {
-            const extracted = analysisData.data;
-            setDdtScanForm((prev) => ({
-              ...prev,
-              numero_ddt: extracted.document_number || prev.numero_ddt,
-              data_ddt: extracted.document_date || prev.data_ddt,
-              fornitore: extracted.supplier_name || prev.fornitore,
-              destinatario: extracted.recipient_name || prev.destinatario,
-              destinatario_indirizzo: extracted.recipient_address 
-                ? `${extracted.recipient_address}${extracted.recipient_city ? `, ${extracted.recipient_city}` : ""}`
-                : prev.destinatario_indirizzo,
-              destinazione: extracted.destination_name || prev.destinazione,
-              destinazione_indirizzo: extracted.destination_address
-                ? `${extracted.destination_address}${extracted.destination_city ? `, ${extracted.destination_city}` : ""}`
-                : prev.destinazione_indirizzo,
-              causale_trasporto: extracted.transport_reason || prev.causale_trasporto,
-              note: extracted.notes || prev.note,
-              line_items: extracted.line_items || prev.line_items,
-            }));
-            toast.success("DDT analizzato con AI!");
-          }
-        }
-      } catch {
-        toast.info("Compila manualmente i dati del DDT");
-      } finally {
-        setIsAnalyzing(false);
-      }
+      toast.success("File DDT caricato!");
     } catch {
       toast.error("Errore upload file DDT");
     } finally {
@@ -801,13 +751,13 @@ export default function RegistroPage() {
         </DialogContent>
       </Dialog>
 
-      {/* DDT Scan Dialog - Mobile Optimized */}
+      {/* DDT Upload Dialog - Semplificato senza analisi AI */}
       <Dialog open={showDdtScanDialog} onOpenChange={setShowDdtScanDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-purple-600" />
-              Scansiona DDT
+              Carica DDT
             </DialogTitle>
           </DialogHeader>
 
@@ -815,15 +765,15 @@ export default function RegistroPage() {
             {/* DDT File upload area */}
             <div
               className={cn(
-                "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors hover:bg-accent/50",
+                "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:bg-accent/50",
                 ddtUploadedFile && "border-green-500 bg-green-50"
               )}
               onClick={() => document.getElementById("ddt-file-input")?.click()}
             >
-              {isUploading || isAnalyzing ? (
+              {isUploading ? (
                 <div className="flex items-center justify-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm">{isAnalyzing ? "Analisi AI..." : "Caricamento..."}</span>
+                  <span className="text-sm">Caricamento...</span>
                 </div>
               ) : ddtUploadedFile ? (
                 <div className="flex items-center justify-between px-2">
@@ -844,9 +794,12 @@ export default function RegistroPage() {
                 </div>
               ) : (
                 <>
-                  <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    Carica o scatta foto del DDT
+                    Carica foto o PDF del DDT
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    L'analisi AI verrà effettuata durante la verifica
                   </p>
                 </>
               )}
@@ -862,7 +815,7 @@ export default function RegistroPage() {
               />
             </div>
 
-            <div className="mt-2">
+            <div>
               <label className="block">
                 <Button variant="outline" className="w-full h-12 sm:h-10" asChild>
                   <div className="cursor-pointer">
@@ -909,108 +862,6 @@ export default function RegistroPage() {
               </Select>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Numero DDT</Label>
-                <Input
-                  placeholder="Es. 123/2025"
-                  className="h-12 sm:h-10"
-                  value={ddtScanForm.numero_ddt}
-                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, numero_ddt: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Data DDT</Label>
-                <Input
-                  type="date"
-                  className="h-12 sm:h-10"
-                  value={ddtScanForm.data_ddt}
-                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, data_ddt: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Mittente / Fornitore</Label>
-              <Input
-                placeholder="Ragione sociale mittente"
-                className="h-12 sm:h-10"
-                value={ddtScanForm.fornitore}
-                onChange={(e) => setDdtScanForm((prev) => ({ ...prev, fornitore: e.target.value }))}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Destinatario</Label>
-                <Input
-                  placeholder="Ragione sociale destinatario"
-                  className="h-12 sm:h-10"
-                  value={ddtScanForm.destinatario}
-                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinatario: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Indirizzo Destinatario</Label>
-                <Input
-                  placeholder="Indirizzo completo"
-                  className="h-12 sm:h-10"
-                  value={ddtScanForm.destinatario_indirizzo}
-                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinatario_indirizzo: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Destinazione (se diversa)</Label>
-                <Input
-                  placeholder="Luogo di consegna"
-                  className="h-12 sm:h-10"
-                  value={ddtScanForm.destinazione}
-                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinazione: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Indirizzo Destinazione</Label>
-                <Input
-                  placeholder="Indirizzo consegna"
-                  className="h-12 sm:h-10"
-                  value={ddtScanForm.destinazione_indirizzo}
-                  onChange={(e) => setDdtScanForm((prev) => ({ ...prev, destinazione_indirizzo: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Causale trasporto</Label>
-              <Input
-                placeholder="Es. Vendita, C/Visione, C/Lavorazione..."
-                className="h-12 sm:h-10"
-                value={ddtScanForm.causale_trasporto}
-                onChange={(e) => setDdtScanForm((prev) => ({ ...prev, causale_trasporto: e.target.value }))}
-              />
-            </div>
-
-            {/* Line Items */}
-            {ddtScanForm.line_items.length > 0 && (
-              <div className="space-y-2">
-                <Label>Elementi DDT ({ddtScanForm.line_items.length})</Label>
-                <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
-                  {ddtScanForm.line_items.map((item, idx) => (
-                    <div key={idx} className="p-2 text-sm flex justify-between items-center">
-                      <div className="flex-1">
-                        <span className="font-medium">{item.description}</span>
-                      </div>
-                      <div className="text-muted-foreground text-right">
-                        {item.quantity} {item.unit}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label>Note (opzionale)</Label>
               <Textarea
@@ -1028,7 +879,7 @@ export default function RegistroPage() {
             </Button>
             <Button 
               onClick={() => createDdtMutation.mutate()} 
-              disabled={createDdtMutation.isPending}
+              disabled={createDdtMutation.isPending || !ddtUploadedFile}
               className="w-full sm:w-auto h-12 sm:h-10 bg-purple-600 hover:bg-purple-700"
             >
               {createDdtMutation.isPending ? "Salvataggio..." : "Carica DDT"}
