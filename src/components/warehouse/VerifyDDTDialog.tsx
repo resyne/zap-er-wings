@@ -590,12 +590,43 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
             .insert(itemsToInsert);
 
           if (itemsError) throw itemsError;
+
+          // Get current user
+          const { data: { user } } = await supabase.auth.getUser();
+
+          // Create stock movements for each item
+          const movementType = formData.direction === "IN" ? "carico" : "scarico";
+          const stockMovements = itemsToInsert.map(item => ({
+            movement_date: formData.ddtDate ? new Date(formData.ddtDate).toISOString() : new Date().toISOString(),
+            movement_type: movementType,
+            origin_type: "DDT" as const,
+            ddt_id: ddt.id,
+            item_description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || "pz",
+            warehouse: "sede-principale",
+            status: "proposto" as const,
+            customer_id: formData.counterpartType === "customer" ? formData.customerId : null,
+            supplier_id: formData.counterpartType === "supplier" ? formData.supplierId : null,
+            work_order_id: formData.workOrderId || null,
+            created_by: user?.id || null,
+            notes: `Movimento da DDT ${formData.ddtNumber}`,
+          }));
+
+          const { error: movementsError } = await supabase
+            .from("stock_movements")
+            .insert(stockMovements);
+
+          if (movementsError) {
+            console.error("Error creating stock movements:", movementsError);
+            // Don't throw - movements are secondary
+          }
         }
       }
 
       toast({
         title: "DDT completato",
-        description: `DDT ${formData.ddtNumber} salvato con successo`,
+        description: `DDT ${formData.ddtNumber} salvato con successo${items.length > 0 ? ` - ${items.length} movimenti creati` : ""}`,
       });
 
       onOpenChange(false);

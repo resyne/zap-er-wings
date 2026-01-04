@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,252 +8,199 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, ArrowUpDown, TrendingUp, TrendingDown, Package } from "lucide-react";
+import { Plus, Search, ArrowUpDown, TrendingUp, TrendingDown, Package, FileText, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface StockMovement {
   id: string;
-  item_code: string;
-  item_name: string;
-  movement_type: "in" | "out" | "adjustment";
+  movement_date: string;
+  movement_type: "carico" | "scarico";
+  origin_type: string;
+  ddt_id: string | null;
+  item_description: string;
   quantity: number;
   unit: string;
-  reference_document?: string;
-  reason: string;
-  location_from?: string;
-  location_to?: string;
-  user_name: string;
+  warehouse: string;
+  status: "proposto" | "confermato" | "annullato";
+  customer_id: string | null;
+  supplier_id: string | null;
+  work_order_id: string | null;
   created_at: string;
-  cost_per_unit?: number;
+  created_by: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  notes: string | null;
+  ddts?: { ddt_number: string } | null;
+  customers?: { name: string } | null;
+  suppliers?: { name: string } | null;
+  work_orders?: { number: string } | null;
 }
 
+const statusConfig = {
+  proposto: { label: "Proposto", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  confermato: { label: "Confermato", color: "bg-green-50 text-green-700 border-green-200" },
+  annullato: { label: "Annullato", color: "bg-red-50 text-red-700 border-red-200" },
+};
+
 export default function MovementsPage() {
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
-  // Mock data for movements
-  useEffect(() => {
-    const mockData: StockMovement[] = [
-      {
-        id: "1",
-        item_code: "ITM-001",
-        item_name: "Filtro acqua standard",
-        movement_type: "in",
-        quantity: 50,
-        unit: "pcs",
-        reference_document: "PO-2024-001",
-        reason: "Carico da acquisto",
-        location_to: "A-01-A",
-        user_name: "Mario Rossi",
-        created_at: "2024-01-20T10:30:00Z",
-        cost_per_unit: 15.50
-      },
-      {
-        id: "2",
-        item_code: "ITM-002",
-        item_name: "Cartuccia carboni attivi",
-        movement_type: "out",
-        quantity: 10,
-        unit: "pcs",
-        reference_document: "SO-2024-005",
-        reason: "Prelievo per ordine cliente",
-        location_from: "A-01-B",
-        user_name: "Laura Bianchi",
-        created_at: "2024-01-19T14:15:00Z"
-      },
-      {
-        id: "3",
-        item_code: "ITM-001",
-        item_name: "Filtro acqua standard",
-        movement_type: "adjustment",
-        quantity: -5,
-        unit: "pcs",
-        reason: "Rettifica inventario - articoli danneggiati",
-        location_from: "A-01-A",
-        user_name: "Giuseppe Verde",
-        created_at: "2024-01-18T16:45:00Z"
-      },
-      {
-        id: "4",
-        item_code: "ITM-003",
-        item_name: "Valvola di sicurezza",
-        movement_type: "in",
-        quantity: 25,
-        unit: "pcs",
-        reference_document: "PO-2024-002",
-        reason: "Carico da acquisto",
-        location_to: "B-02-A",
-        user_name: "Mario Rossi",
-        created_at: "2024-01-17T09:20:00Z",
-        cost_per_unit: 45.00
-      }
-    ];
-    
-    setMovements(mockData);
-    setLoading(false);
-  }, []);
+  const { data: movements = [], isLoading } = useQuery({
+    queryKey: ["stock-movements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select(`
+          *,
+          ddts(ddt_number),
+          customers(name),
+          suppliers(name),
+          work_orders(number)
+        `)
+        .order("movement_date", { ascending: false });
+
+      if (error) throw error;
+      return data as StockMovement[];
+    },
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: async (movementId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("stock_movements")
+        .update({
+          status: "confermato",
+          confirmed_at: new Date().toISOString(),
+          confirmed_by: user?.id,
+        })
+        .eq("id", movementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      toast({ title: "Movimento confermato" });
+    },
+    onError: () => {
+      toast({ title: "Errore", description: "Impossibile confermare il movimento", variant: "destructive" });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (movementId: string) => {
+      const { error } = await supabase
+        .from("stock_movements")
+        .update({ status: "annullato" })
+        .eq("id", movementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      toast({ title: "Movimento annullato" });
+    },
+    onError: () => {
+      toast({ title: "Errore", description: "Impossibile annullare il movimento", variant: "destructive" });
+    },
+  });
 
   const filteredMovements = movements.filter(movement => {
-    const matchesSearch = movement.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         movement.item_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         movement.reason.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = movement.item_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         movement.ddts?.ddt_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         movement.notes?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = selectedType === "all" || movement.movement_type === selectedType;
-    return matchesSearch && matchesType;
+    const matchesStatus = selectedStatus === "all" || movement.status === selectedStatus;
+    return matchesSearch && matchesType && matchesStatus;
   });
 
   const getMovementTypeInfo = (type: string) => {
     switch (type) {
-      case "in":
+      case "carico":
         return { 
           label: "Carico", 
-          color: "default" as const, 
           icon: TrendingUp,
           bgColor: "bg-green-50 text-green-700 border-green-200"
         };
-      case "out":
+      case "scarico":
         return { 
           label: "Scarico", 
-          color: "secondary" as const, 
           icon: TrendingDown,
           bgColor: "bg-red-50 text-red-700 border-red-200"
-        };
-      case "adjustment":
-        return { 
-          label: "Rettifica", 
-          color: "outline" as const, 
-          icon: ArrowUpDown,
-          bgColor: "bg-blue-50 text-blue-700 border-blue-200"
         };
       default:
         return { 
           label: "Sconosciuto", 
-          color: "outline" as const, 
           icon: Package,
-          bgColor: "bg-gray-50 text-gray-700 border-gray-200"
+          bgColor: "bg-muted text-muted-foreground border-border"
         };
     }
   };
 
-  const movementSummary = {
-    totalMovements: movements.length,
+  const stats = {
+    total: movements.length,
+    proposed: movements.filter(m => m.status === "proposto").length,
+    confirmed: movements.filter(m => m.status === "confermato").length,
     todayMovements: movements.filter(m => 
       new Date(m.created_at).toDateString() === new Date().toDateString()
     ).length,
-    totalValue: movements
-      .filter(m => m.cost_per_unit)
-      .reduce((sum, m) => sum + (Math.abs(m.quantity) * (m.cost_per_unit || 0)), 0)
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Movimenti Stock</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Movimenti Magazzino</h1>
           <p className="text-muted-foreground">
-            Storico dei movimenti di magazzino
+            Storico e gestione dei movimenti di carico/scarico
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nuovo Movimento
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Nuovo Movimento Stock</DialogTitle>
-              <DialogDescription>
-                Registra un movimento di carico o scarico
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="item">Articolo</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona articolo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ITM-001">ITM-001 - Filtro acqua standard</SelectItem>
-                    <SelectItem value="ITM-002">ITM-002 - Cartuccia carboni attivi</SelectItem>
-                    <SelectItem value="ITM-003">ITM-003 - Valvola di sicurezza</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="type">Tipo Movimento</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="in">Carico</SelectItem>
-                    <SelectItem value="out">Scarico</SelectItem>
-                    <SelectItem value="adjustment">Rettifica</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="quantity">Quantità</Label>
-                <Input id="quantity" type="number" placeholder="0" />
-              </div>
-              <div>
-                <Label htmlFor="location">Ubicazione</Label>
-                <Input id="location" placeholder="Es: A-01-A" />
-              </div>
-              <div>
-                <Label htmlFor="reference">Documento Riferimento</Label>
-                <Input id="reference" placeholder="Es: PO-2024-001" />
-              </div>
-              <div>
-                <Label htmlFor="reason">Motivo</Label>
-                <Textarea id="reason" placeholder="Descrizione movimento" rows={3} />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Annulla
-                </Button>
-                <Button onClick={() => setIsDialogOpen(false)}>
-                  Registra Movimento
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Movimenti Totali</CardTitle>
+            <CardTitle className="text-sm font-medium">Totale Movimenti</CardTitle>
             <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{movementSummary.totalMovements}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Da Confermare</CardTitle>
+            <Package className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">{stats.proposed}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Confermati</CardTitle>
+            <Check className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.confirmed}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Oggi</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{movementSummary.todayMovements}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valore Movimentato</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{movementSummary.totalValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{stats.todayMovements}</div>
           </CardContent>
         </Card>
       </div>
@@ -269,7 +216,7 @@ export default function MovementsPage() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Cerca per articolo, codice o motivo..."
+                  placeholder="Cerca per articolo, DDT o note..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8"
@@ -277,14 +224,24 @@ export default function MovementsPage() {
               </div>
             </div>
             <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Tipo movimento" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti i tipi</SelectItem>
-                <SelectItem value="in">Carico</SelectItem>
-                <SelectItem value="out">Scarico</SelectItem>
-                <SelectItem value="adjustment">Rettifica</SelectItem>
+                <SelectItem value="carico">Carico</SelectItem>
+                <SelectItem value="scarico">Scarico</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Stato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                <SelectItem value="proposto">Proposto</SelectItem>
+                <SelectItem value="confermato">Confermato</SelectItem>
+                <SelectItem value="annullato">Annullato</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -305,26 +262,27 @@ export default function MovementsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
-                  <TableHead>Articolo</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Origine</TableHead>
+                  <TableHead>Articolo</TableHead>
                   <TableHead className="text-right">Quantità</TableHead>
-                  <TableHead>Ubicazione</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Utente</TableHead>
-                  <TableHead className="text-right">Valore</TableHead>
+                  <TableHead>Deposito</TableHead>
+                  <TableHead>Controparte</TableHead>
+                  <TableHead>Commessa</TableHead>
+                  <TableHead>Stato</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      Caricamento...
+                    <TableCell colSpan={10} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : filteredMovements.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       Nessun movimento trovato
                     </TableCell>
                   </TableRow>
@@ -332,45 +290,75 @@ export default function MovementsPage() {
                   filteredMovements.map((movement) => {
                     const typeInfo = getMovementTypeInfo(movement.movement_type);
                     const TypeIcon = typeInfo.icon;
+                    const statusInfo = statusConfig[movement.status];
                     
                     return (
                       <TableRow key={movement.id}>
                         <TableCell>
-                          {format(new Date(movement.created_at), "dd/MM/yyyy HH:mm", { locale: it })}
+                          {format(new Date(movement.movement_date), "dd/MM/yyyy", { locale: it })}
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <div className="font-medium">{movement.item_code}</div>
-                            <div className="text-sm text-muted-foreground">{movement.item_name}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={typeInfo.color} className="gap-1">
+                          <Badge variant="outline" className={`gap-1 ${typeInfo.bgColor}`}>
                             <TypeIcon className="h-3 w-3" />
                             {typeInfo.label}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">{movement.origin_type}</span>
+                            {movement.ddts?.ddt_number && (
+                              <span className="text-xs text-muted-foreground">
+                                ({movement.ddts.ddt_number})
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate" title={movement.item_description}>
+                            {movement.item_description}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
-                          <span className={movement.quantity > 0 ? "text-green-600" : "text-red-600"}>
-                            {movement.quantity > 0 ? "+" : ""}{movement.quantity} {movement.unit}
+                          <span className={movement.movement_type === "carico" ? "text-green-600" : "text-red-600"}>
+                            {movement.movement_type === "carico" ? "+" : "-"}{movement.quantity} {movement.unit}
                           </span>
                         </TableCell>
+                        <TableCell>{movement.warehouse}</TableCell>
                         <TableCell>
-                          {movement.location_from && movement.location_to ? 
-                            `${movement.location_from} → ${movement.location_to}` :
-                            movement.location_from || movement.location_to || "-"
-                          }
+                          {movement.customers?.name || movement.suppliers?.name || "-"}
                         </TableCell>
-                        <TableCell>{movement.reference_document || "-"}</TableCell>
-                        <TableCell className="max-w-xs truncate" title={movement.reason}>
-                          {movement.reason}
+                        <TableCell>
+                          {movement.work_orders?.number || "-"}
                         </TableCell>
-                        <TableCell>{movement.user_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={statusInfo.color}>
+                            {statusInfo.label}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right">
-                          {movement.cost_per_unit ? 
-                            `€${(Math.abs(movement.quantity) * movement.cost_per_unit).toFixed(2)}` : 
-                            "-"
-                          }
+                          {movement.status === "proposto" && (
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => confirmMutation.mutate(movement.id)}
+                                disabled={confirmMutation.isPending}
+                                title="Conferma"
+                              >
+                                <Check className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => cancelMutation.mutate(movement.id)}
+                                disabled={cancelMutation.isPending}
+                                title="Annulla"
+                              >
+                                <X className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

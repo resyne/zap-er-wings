@@ -7752,6 +7752,98 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          ddt_id: string | null
+          id: string
+          item_description: string
+          movement_date: string
+          movement_type: string
+          notes: string | null
+          origin_type: string
+          quantity: number
+          status: string
+          supplier_id: string | null
+          unit: string | null
+          warehouse: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          ddt_id?: string | null
+          id?: string
+          item_description: string
+          movement_date?: string
+          movement_type: string
+          notes?: string | null
+          origin_type?: string
+          quantity: number
+          status?: string
+          supplier_id?: string | null
+          unit?: string | null
+          warehouse?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          ddt_id?: string | null
+          id?: string
+          item_description?: string
+          movement_date?: string
+          movement_type?: string
+          notes?: string | null
+          origin_type?: string
+          quantity?: number
+          status?: string
+          supplier_id?: string | null
+          unit?: string | null
+          warehouse?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_ddt_id_fkey"
+            columns: ["ddt_id"]
+            isOneToOne: false
+            referencedRelation: "ddts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       structural_accounts: {
         Row: {
           account_type: string
