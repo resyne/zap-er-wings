@@ -26,6 +26,7 @@ interface Account {
   requires_cost_center: boolean | null;
   visibility: string | null;
   is_active: boolean | null;
+  is_header: boolean | null;
   created_at: string;
 }
 
@@ -301,7 +302,10 @@ export default function ChartOfAccountsPage() {
     return ["revenue", "cogs", "opex", "depreciation", "extraordinary"].includes(type);
   };
 
-  const filteredAccounts = accounts.filter((account) => {
+  // Escludi i conti header (non selezionabili) dalla lista principale
+  const selectableAccounts = accounts.filter(a => !a.is_header);
+  
+  const filteredAccounts = selectableAccounts.filter((account) => {
     const matchesSearch =
       account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (account.code && account.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -361,10 +365,10 @@ export default function ChartOfAccountsPage() {
   };
 
   const stats = {
-    total: accounts.length,
-    active: accounts.filter((a) => a.is_active).length,
-    costi: accounts.filter((a) => ["cogs", "opex", "depreciation"].includes(a.account_type)).length,
-    ricavi: accounts.filter((a) => a.account_type === "revenue").length,
+    total: selectableAccounts.length,
+    active: selectableAccounts.filter((a) => a.is_active).length,
+    costi: selectableAccounts.filter((a) => ["cogs", "opex", "depreciation"].includes(a.account_type)).length,
+    ricavi: selectableAccounts.filter((a) => a.account_type === "revenue").length,
   };
 
   return (
