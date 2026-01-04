@@ -1791,40 +1791,85 @@ export type Database = {
       }
       ddts: {
         Row: {
+          admin_status: string | null
+          attachment_url: string | null
+          counterpart_type: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
           ddt_data: Json | null
           ddt_number: string
+          direction: string | null
+          document_date: string | null
           html_content: string | null
           id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          invoiced: boolean | null
+          notes: string | null
+          official_document_date: string | null
           pdf_data: string | null
           shipping_order_id: string | null
+          status: string | null
+          supplier_id: string | null
           unique_code: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          work_order_id: string | null
         }
         Insert: {
+          admin_status?: string | null
+          attachment_url?: string | null
+          counterpart_type?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           ddt_data?: Json | null
           ddt_number: string
+          direction?: string | null
+          document_date?: string | null
           html_content?: string | null
           id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoiced?: boolean | null
+          notes?: string | null
+          official_document_date?: string | null
           pdf_data?: string | null
           shipping_order_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
           unique_code?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          work_order_id?: string | null
         }
         Update: {
+          admin_status?: string | null
+          attachment_url?: string | null
+          counterpart_type?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           ddt_data?: Json | null
           ddt_number?: string
+          direction?: string | null
+          document_date?: string | null
           html_content?: string | null
           id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoiced?: boolean | null
+          notes?: string | null
+          official_document_date?: string | null
           pdf_data?: string | null
           shipping_order_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
           unique_code?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          work_order_id?: string | null
         }
         Relationships: [
           {
@@ -1839,6 +1884,20 @@ export type Database = {
             columns: ["shipping_order_id"]
             isOneToOne: false
             referencedRelation: "shipping_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddts_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
         ]
