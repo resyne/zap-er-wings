@@ -42,14 +42,16 @@ const defaultFormData = {
 };
 
 const accountTypes = [
-  { value: "cost", label: "Costi Diretti", icon: TrendingDown, color: "text-red-600", bgColor: "bg-red-50 dark:bg-red-950", borderColor: "border-red-200 dark:border-red-800" },
-  { value: "opex", label: "Costi Operativi (OPEX)", icon: TrendingDown, color: "text-orange-600", bgColor: "bg-orange-50 dark:bg-orange-950", borderColor: "border-orange-200 dark:border-orange-800" },
-  { value: "depreciation", label: "Ammortamenti", icon: TrendingDown, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-950", borderColor: "border-amber-200 dark:border-amber-800" },
-  { value: "expense", label: "Spese", icon: TrendingDown, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-950", borderColor: "border-rose-200 dark:border-rose-800" },
-  { value: "extraordinary", label: "Straordinari", icon: Wallet, color: "text-violet-600", bgColor: "bg-violet-50 dark:bg-violet-950", borderColor: "border-violet-200 dark:border-violet-800" },
-  { value: "revenue", label: "Ricavi", icon: TrendingUp, color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-950", borderColor: "border-green-200 dark:border-green-800" },
-  { value: "asset", label: "Attività", icon: Building2, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950", borderColor: "border-blue-200 dark:border-blue-800" },
-  { value: "liability", label: "Passività", icon: Building2, color: "text-slate-600", bgColor: "bg-slate-50 dark:bg-slate-950", borderColor: "border-slate-200 dark:border-slate-800" },
+  // Conto Economico
+  { value: "revenue", label: "Ricavi", icon: TrendingUp, color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-950", borderColor: "border-green-200 dark:border-green-800", section: "Conto Economico" },
+  { value: "cogs", label: "Costi Diretti (COGS)", icon: TrendingDown, color: "text-red-600", bgColor: "bg-red-50 dark:bg-red-950", borderColor: "border-red-200 dark:border-red-800", section: "Conto Economico" },
+  { value: "opex", label: "Costi Operativi (OPEX)", icon: TrendingDown, color: "text-orange-600", bgColor: "bg-orange-50 dark:bg-orange-950", borderColor: "border-orange-200 dark:border-orange-800", section: "Conto Economico" },
+  { value: "depreciation", label: "Ammortamenti", icon: TrendingDown, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-950", borderColor: "border-amber-200 dark:border-amber-800", section: "Conto Economico" },
+  { value: "extraordinary", label: "Proventi e Oneri Straordinari", icon: Wallet, color: "text-violet-600", bgColor: "bg-violet-50 dark:bg-violet-950", borderColor: "border-violet-200 dark:border-violet-800", section: "Conto Economico" },
+  // Stato Patrimoniale
+  { value: "asset", label: "Attività", icon: Building2, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950", borderColor: "border-blue-200 dark:border-blue-800", section: "Stato Patrimoniale" },
+  { value: "liability", label: "Passività", icon: Building2, color: "text-slate-600", bgColor: "bg-slate-50 dark:bg-slate-950", borderColor: "border-slate-200 dark:border-slate-800", section: "Stato Patrimoniale" },
+  { value: "equity", label: "Patrimonio Netto", icon: Building2, color: "text-teal-600", bgColor: "bg-teal-50 dark:bg-teal-950", borderColor: "border-teal-200 dark:border-teal-800", section: "Stato Patrimoniale" },
 ];
 
 const macroCategories = [
@@ -263,7 +265,7 @@ export default function ChartOfAccountsPage() {
   };
 
   const incideOnCE = (type: string) => {
-    return ["cost", "opex", "depreciation", "expense", "revenue", "extraordinary"].includes(type);
+    return ["revenue", "cogs", "opex", "depreciation", "extraordinary"].includes(type);
   };
 
   const filteredAccounts = accounts.filter((account) => {
@@ -328,7 +330,7 @@ export default function ChartOfAccountsPage() {
   const stats = {
     total: accounts.length,
     active: accounts.filter((a) => a.is_active).length,
-    costi: accounts.filter((a) => ["cost", "opex", "depreciation", "expense"].includes(a.account_type)).length,
+    costi: accounts.filter((a) => ["cogs", "opex", "depreciation"].includes(a.account_type)).length,
     ricavi: accounts.filter((a) => a.account_type === "revenue").length,
   };
 
