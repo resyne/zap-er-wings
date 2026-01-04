@@ -33,31 +33,33 @@ serve(async (req) => {
     console.log('Direction:', direction);
 
     const systemPrompt = `Sei un assistente specializzato nell'analisi di Documenti di Trasporto (DDT) italiani.
-Analizza l'immagine del DDT e estrai le seguenti informazioni DISTINTE:
+Analizza l'immagine del DDT ed estrai le seguenti informazioni DISTINTE e SENZA CONFONDERLE:
 
-1. INTESTAZIONE (in alto nel documento, è l'azienda che EMETTE il DDT):
-   - intestazione_name: Nome/Ragione sociale dell'azienda emittente
-   - intestazione_address: Indirizzo dell'azienda emittente
-   - intestazione_vat: Partita IVA dell'azienda emittente
+1) INTESTAZIONE (in alto nel documento: azienda che EMETTE il DDT / fornitore quando il DDT è in entrata)
+   - intestazione_name
+   - intestazione_address
+   - intestazione_vat
 
-2. DESTINATARIO (a chi è destinata la merce, spesso indicato come "Destinatario" o "Cliente"):
-   - destinatario_name: Nome/Ragione sociale del destinatario
-   - destinatario_address: Indirizzo del destinatario
-   - destinatario_vat: Partita IVA del destinatario
+2) DESTINATARIO (a chi è destinata la merce; spesso "Destinatario" / "Cliente")
+   - destinatario_name
+   - destinatario_address
+   - destinatario_vat
 
-3. DESTINAZIONE (dove viene consegnata la merce, può essere diverso dal destinatario):
-   - destinazione_address: Indirizzo di destinazione/consegna
+3) DESTINAZIONE (luogo di consegna; può essere diverso dal destinatario)
+   - destinazione_address
 
-4. DATI DDT:
-   - ddt_number: Numero del DDT
-   - ddt_date: Data del DDT in formato YYYY-MM-DD
+4) DATI DDT
+   - ddt_number
+   - ddt_date (YYYY-MM-DD)
 
-5. ARTICOLI:
-   - items: Lista degli articoli trasportati
+5) ARTICOLI
+   - items: lista righe (description, quantity, unit)
 
-6. notes: Causale del trasporto o note
+6) notes: causale trasporto / note
 
-IMPORTANTE: Intestazione e Destinatario sono due entità DIVERSE. L'intestazione è chi emette il documento (di solito in alto con logo), il destinatario è chi riceve la merce.
+REGOLA AZIENDA (IMPORTANTISSIMA): "CLIMATEL di Elefante Pasquale" è la NOSTRA azienda.
+- Se il DESTINATARIO è (uguale o molto simile a) "CLIMATEL di Elefante Pasquale" → è un DDT FORNITORE / IN ENTRATA: il FORNITORE va preso dall'INTESTAZIONE.
+- Se il DESTINATARIO è diverso → è un DDT CLIENTE / IN USCITA: il CLIENTE è il DESTINATARIO.
 
 Se un campo non è leggibile o non presente, usa null.`;
 
@@ -76,7 +78,13 @@ Se un campo non è leggibile o non presente, usa null.`;
             content: [
               {
                 type: 'text',
-                text: `Analizza questo DDT ed estrai i dati strutturati. Ricorda: INTESTAZIONE = chi emette il DDT (in alto), DESTINATARIO = chi riceve la merce, DESTINAZIONE = dove viene consegnata.`
+                text: `Analizza questo DDT ed estrai i dati strutturati.
+
+Regole chiave:
+- INTESTAZIONE = chi emette il DDT (in alto, spesso con logo)
+- DESTINATARIO = chi riceve la merce
+- DESTINAZIONE = dove viene consegnata
+- "CLIMATEL di Elefante Pasquale" è la nostra azienda: se è il DESTINATARIO → DDT fornitore (fornitore = INTESTAZIONE); altrimenti → DDT cliente.`
               },
               {
                 type: 'image_url',
@@ -91,34 +99,39 @@ Se un campo non è leggibile o non presente, usa null.`;
             function: {
               name: 'extract_ddt_data',
               description: 'Estrae i dati strutturati dal DDT distinguendo intestazione, destinatario e destinazione',
-              parameters: {
-                type: 'object',
-                properties: {
-                  intestazione_name: { type: 'string', description: 'Nome azienda che EMETTE il DDT (in alto nel documento)' },
-                  intestazione_address: { type: 'string', description: 'Indirizzo azienda emittente' },
-                  intestazione_vat: { type: 'string', description: 'Partita IVA azienda emittente' },
-                  destinatario_name: { type: 'string', description: 'Nome destinatario della merce' },
-                  destinatario_address: { type: 'string', description: 'Indirizzo destinatario' },
-                  destinatario_vat: { type: 'string', description: 'Partita IVA destinatario' },
-                  destinazione_address: { type: 'string', description: 'Indirizzo di destinazione/consegna (può essere diverso dal destinatario)' },
-                  ddt_number: { type: 'string', description: 'Numero DDT' },
-                  ddt_date: { type: 'string', description: 'Data DDT in formato YYYY-MM-DD' },
-                  items: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        description: { type: 'string' },
-                        quantity: { type: 'number' },
-                        unit: { type: 'string' }
-                      },
-                      required: ['description', 'quantity']
-                    }
-                  },
-                  notes: { type: 'string', description: 'Causale o note' }
-                },
-                required: ['items']
-              }
+               parameters: {
+                 type: 'object',
+                 properties: {
+                   ddt_tipo: {
+                     type: 'string',
+                     enum: ['fornitore', 'cliente'],
+                     description: 'Classificazione: "fornitore" se il destinatario è CLIMATEL (DDT in entrata), altrimenti "cliente" (DDT in uscita)'
+                   },
+                   intestazione_name: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Nome azienda che EMETTE il DDT (in alto nel documento)' },
+                   intestazione_address: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Indirizzo azienda emittente' },
+                   intestazione_vat: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Partita IVA azienda emittente' },
+                   destinatario_name: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Nome destinatario della merce' },
+                   destinatario_address: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Indirizzo destinatario' },
+                   destinatario_vat: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Partita IVA destinatario' },
+                   destinazione_address: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Indirizzo di destinazione/consegna (può essere diverso dal destinatario)' },
+                   ddt_number: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Numero DDT' },
+                   ddt_date: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Data DDT in formato YYYY-MM-DD' },
+                   items: {
+                     type: 'array',
+                     items: {
+                       type: 'object',
+                       properties: {
+                         description: { type: 'string' },
+                         quantity: { type: 'number' },
+                         unit: { anyOf: [{ type: 'string' }, { type: 'null' }] }
+                       },
+                       required: ['description', 'quantity']
+                     }
+                   },
+                   notes: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Causale o note' }
+                 },
+                 required: ['items']
+               }
             }
           }
         ],
