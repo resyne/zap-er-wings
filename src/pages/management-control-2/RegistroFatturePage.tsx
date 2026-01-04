@@ -378,7 +378,11 @@ export default function RegistroFatturePage() {
     }
   });
 
-  const costAccounts = accounts.filter(a => a.account_type === 'cost' || a.account_type === 'opex' || a.account_type === 'expense');
+  // Filtro conti per costi: cogs, opex, depreciation, extraordinary (escludi headers)
+  const costAccounts = accounts.filter(a => 
+    ['cogs', 'opex', 'depreciation', 'extraordinary', 'cost', 'expense'].includes(a.account_type)
+  );
+  // Filtro conti per ricavi
   const revenueAccounts = accounts.filter(a => a.account_type === 'revenue');
 
   const calculateAmounts = (imponibile: number, ivaRate: number) => {

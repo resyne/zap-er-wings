@@ -56,9 +56,10 @@ export function AccountSplitManager({
   className
 }: AccountSplitManagerProps) {
   const isCost = invoiceType === 'acquisto';
+  // Filtro conti: per costi include cogs, opex, depreciation, extraordinary; per ricavi solo revenue
   const filteredAccounts = accounts.filter(a => 
     isCost 
-      ? (a.account_type === 'cost' || a.account_type === 'opex' || a.account_type === 'expense')
+      ? ['cogs', 'opex', 'depreciation', 'extraordinary', 'cost', 'expense'].includes(a.account_type)
       : a.account_type === 'revenue'
   );
   const centers = isCost ? costCenters : profitCenters;
