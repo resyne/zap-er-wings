@@ -802,6 +802,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          is_header: boolean | null
           level: number | null
           name: string
           parent_code: string | null
@@ -819,6 +820,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_header?: boolean | null
           level?: number | null
           name: string
           parent_code?: string | null
@@ -836,6 +838,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_header?: boolean | null
           level?: number | null
           name?: string
           parent_code?: string | null
