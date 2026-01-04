@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, ArrowUpDown, TrendingUp, TrendingDown, Package, FileText, Check, X, Loader2 } from "lucide-react";
+import { Search, ArrowUpDown, TrendingUp, TrendingDown, Package, FileText, Check, X, Loader2, Pencil, Ban } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
+import { EditMovementDialog } from "@/components/warehouse/EditMovementDialog";
 
 interface StockMovement {
   id: string;
@@ -23,7 +24,7 @@ interface StockMovement {
   quantity: number;
   unit: string;
   warehouse: string;
-  status: "proposto" | "confermato" | "annullato";
+  status: "proposto" | "confermato" | "annullato" | "escluso";
   customer_id: string | null;
   supplier_id: string | null;
   work_order_id: string | null;
@@ -38,10 +39,11 @@ interface StockMovement {
   work_orders?: { number: string } | null;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   proposto: { label: "Proposto", color: "bg-amber-50 text-amber-700 border-amber-200" },
   confermato: { label: "Confermato", color: "bg-green-50 text-green-700 border-green-200" },
   annullato: { label: "Annullato", color: "bg-red-50 text-red-700 border-red-200" },
+  escluso: { label: "Escluso", color: "bg-slate-50 text-slate-700 border-slate-200" },
 };
 
 export default function MovementsPage() {
@@ -52,6 +54,8 @@ export default function MovementsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [caricoDialogOpen, setCaricoDialogOpen] = useState(false);
   const [scaricoDialogOpen, setScaricoDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedMovement, setSelectedMovement] = useState<StockMovement | null>(null);
 
   const { data: movements = [], isLoading } = useQuery({
     queryKey: ["stock-movements"],
@@ -112,6 +116,29 @@ export default function MovementsPage() {
       toast({ title: "Errore", description: "Impossibile annullare il movimento", variant: "destructive" });
     },
   });
+
+  const excludeMutation = useMutation({
+    mutationFn: async (movementId: string) => {
+      const { error } = await supabase
+        .from("stock_movements")
+        .update({ status: "escluso" })
+        .eq("id", movementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      toast({ title: "Movimento escluso", description: "Il movimento è stato escluso e non influisce sulle scorte" });
+    },
+    onError: () => {
+      toast({ title: "Errore", description: "Impossibile escludere il movimento", variant: "destructive" });
+    },
+  });
+
+  const handleEditClick = (movement: StockMovement) => {
+    setSelectedMovement(movement);
+    setEditDialogOpen(true);
+  };
 
   const filteredMovements = movements.filter(movement => {
     const matchesSearch = movement.item_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -239,6 +266,7 @@ export default function MovementsPage() {
                 <SelectItem value="all">Tutti gli stati</SelectItem>
                 <SelectItem value="proposto">Proposto</SelectItem>
                 <SelectItem value="confermato">Confermato</SelectItem>
+                <SelectItem value="escluso">Escluso</SelectItem>
                 <SelectItem value="annullato">Annullato</SelectItem>
               </SelectContent>
             </Select>
@@ -340,11 +368,28 @@ export default function MovementsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                onClick={() => handleEditClick(movement)}
+                                title="Modifica"
+                              >
+                                <Pencil className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => confirmMutation.mutate(movement.id)}
                                 disabled={confirmMutation.isPending}
                                 title="Conferma"
                               >
                                 <Check className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => excludeMutation.mutate(movement.id)}
+                                disabled={excludeMutation.isPending}
+                                title="Escludi (non influisce sulle scorte)"
+                              >
+                                <Ban className="h-4 w-4 text-slate-500" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -377,6 +422,11 @@ export default function MovementsPage() {
         open={scaricoDialogOpen} 
         onOpenChange={setScaricoDialogOpen} 
         movementType="scarico" 
+      />
+      <EditMovementDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        movement={selectedMovement}
       />
     </div>
   );
