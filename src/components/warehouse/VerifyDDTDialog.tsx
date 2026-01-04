@@ -734,14 +734,14 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
                 <div className="space-y-2">
                   <Label>Ordine / Commessa</Label>
                   <Select
-                    value={formData.workOrderId}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, workOrderId: value }))}
+                    value={formData.workOrderId || "__none__"}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, workOrderId: value === "__none__" ? "" : value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleziona commessa..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuna</SelectItem>
+                      <SelectItem value="__none__">Nessuna</SelectItem>
                       {workOrders.map((wo) => (
                         <SelectItem key={wo.id} value={wo.id}>
                           {wo.number} - {wo.title?.substring(0, 30)}

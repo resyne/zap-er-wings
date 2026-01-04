@@ -356,7 +356,7 @@ export default function DdtPage() {
                               onClick={() => handleVerifyClick(ddt)}
                             >
                               <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Verifica
+                              Completa
                             </Button>
                           )}
                           <Button
