@@ -620,7 +620,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[95vh]">
+      <DialogContent className="max-w-5xl max-h-[95vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -631,7 +631,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
           {/* Colonna sinistra: Preview scansione */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -740,7 +740,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           </div>
 
           {/* Colonna destra: Form */}
-          <ScrollArea className="h-[calc(100vh-280px)] min-h-[400px] pr-4">
+          <ScrollArea className="h-[calc(95vh-320px)] min-h-[300px] pr-4">
             <div className="space-y-6">
               {/* SEZIONE: Identificazione */}
               <div className="space-y-4">
@@ -1047,7 +1047,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
           </ScrollArea>
         </div>
 
-        <div className="flex justify-between items-center gap-2 pt-4 border-t">
+        <div className="flex justify-between items-center gap-2 pt-4 border-t bg-background sticky bottom-0">
           <div className="text-xs text-muted-foreground">
             {items.length > 0 && (
               <Badge variant="secondary">{items.length} articol{items.length === 1 ? 'o' : 'i'}</Badge>
@@ -1057,9 +1057,9 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
-            <Button onClick={handleSubmit} disabled={!isValid || loading}>
+            <Button onClick={handleSubmit} disabled={!isValid || loading} size="lg" className="px-6">
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Completa DDT
+              Salva DDT
             </Button>
           </div>
         </div>
