@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -32,7 +34,9 @@ import {
   Camera,
   Loader2,
   FileText,
-  Pencil
+  Pencil,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -87,6 +91,7 @@ interface FormData {
   invoice_date: string;
   invoice_type: InvoiceType;
   subject_type: SubjectType;
+  subject_id: string;
   subject_name: string;
   imponibile: number;
   iva_rate: number;
@@ -110,6 +115,7 @@ const initialFormData: FormData = {
   invoice_date: format(new Date(), 'yyyy-MM-dd'),
   invoice_type: 'vendita',
   subject_type: 'cliente',
+  subject_id: '',
   subject_name: '',
   imponibile: 0,
   iva_rate: 22,
@@ -145,6 +151,12 @@ export default function RegistroFatturePage() {
   const [splitLines, setSplitLines] = useState<AccountSplitLine[]>([]);
   const [editSplitEnabled, setEditSplitEnabled] = useState(false);
   const [editSplitLines, setEditSplitLines] = useState<AccountSplitLine[]>([]);
+  
+  // Subject search states
+  const [subjectSearchOpen, setSubjectSearchOpen] = useState(false);
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const [editSubjectSearchOpen, setEditSubjectSearchOpen] = useState(false);
+  const [editSubjectSearch, setEditSubjectSearch] = useState("");
   
   // Drag & drop AI states
   const [isUploading, setIsUploading] = useState(false);
@@ -378,6 +390,73 @@ export default function RegistroFatturePage() {
     }
   });
 
+  // Fetch customers
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, company_name, email, tax_id')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch suppliers
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name, email, tax_id')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Filter subjects based on invoice type
+  const getSubjects = (invoiceType: InvoiceType) => {
+    if (invoiceType === 'vendita') {
+      return customers.map(c => ({ 
+        id: c.id, 
+        name: c.company_name || c.name, 
+        secondary: c.name !== (c.company_name || c.name) ? c.name : c.tax_id,
+        type: 'cliente' as SubjectType
+      }));
+    } else {
+      return suppliers.map(s => ({ 
+        id: s.id, 
+        name: s.name, 
+        secondary: s.tax_id,
+        type: 'fornitore' as SubjectType
+      }));
+    }
+  };
+
+  // Filtered subjects for search
+  const filteredSubjects = useMemo(() => {
+    const subjects = getSubjects(formData.invoice_type);
+    if (!subjectSearch.trim()) return subjects;
+    const searchLower = subjectSearch.toLowerCase();
+    return subjects.filter(s => 
+      s.name.toLowerCase().includes(searchLower) || 
+      (s.secondary && s.secondary.toLowerCase().includes(searchLower))
+    );
+  }, [customers, suppliers, formData.invoice_type, subjectSearch]);
+
+  // Filtered edit subjects
+  const filteredEditSubjects = useMemo(() => {
+    const subjects = getSubjects(editFormData.invoice_type);
+    if (!editSubjectSearch.trim()) return subjects;
+    const searchLower = editSubjectSearch.toLowerCase();
+    return subjects.filter(s => 
+      s.name.toLowerCase().includes(searchLower) || 
+      (s.secondary && s.secondary.toLowerCase().includes(searchLower))
+    );
+  }, [customers, suppliers, editFormData.invoice_type, editSubjectSearch]);
+
   // Filtro conti per costi: cogs, opex, depreciation, extraordinary (escludi headers)
   const costAccounts = accounts.filter(a => 
     ['cogs', 'opex', 'depreciation', 'extraordinary', 'cost', 'expense'].includes(a.account_type)
@@ -403,6 +482,7 @@ export default function RegistroFatturePage() {
           invoice_date: data.invoice_date,
           invoice_type: data.invoice_type,
           subject_type: data.subject_type,
+          subject_id: data.subject_id || null,
           subject_name: data.subject_name,
           imponibile: data.imponibile,
           iva_rate: data.iva_rate,
@@ -571,6 +651,7 @@ export default function RegistroFatturePage() {
           invoice_date: updates.invoice_date,
           invoice_type: updates.invoice_type,
           subject_type: updates.subject_type,
+          subject_id: updates.subject_id || null,
           subject_name: updates.subject_name,
           imponibile: updates.imponibile,
           iva_rate: updates.iva_rate,
@@ -688,6 +769,7 @@ export default function RegistroFatturePage() {
       invoice_date: invoice.invoice_date,
       invoice_type: invoice.invoice_type,
       subject_type: invoice.subject_type,
+      subject_id: invoice.subject_id || '',
       subject_name: invoice.subject_name,
       imponibile: invoice.imponibile,
       iva_rate: invoice.iva_rate,
@@ -1047,24 +1129,82 @@ export default function RegistroFatturePage() {
             </div>
             <div className="space-y-2">
               <Label>Tipo *</Label>
-              <Select value={formData.invoice_type} onValueChange={(v) => handleFormChange('invoice_type', v)}>
+              <Select 
+                value={formData.invoice_type} 
+                onValueChange={(v) => {
+                  handleFormChange('invoice_type', v);
+                  // Reset subject when switching type
+                  handleFormChange('subject_id', '');
+                  handleFormChange('subject_name', '');
+                  handleFormChange('subject_type', v === 'vendita' ? 'cliente' : 'fornitore');
+                  handleFormChange('financial_status', v === 'vendita' ? 'da_incassare' : 'da_pagare');
+                  setSubjectSearch('');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="vendita">Vendita</SelectItem>
-                  <SelectItem value="acquisto">Acquisto</SelectItem>
+                  <SelectItem value="vendita">Vendita (Cliente)</SelectItem>
+                  <SelectItem value="acquisto">Acquisto (Fornitore)</SelectItem>
                   <SelectItem value="nota_credito">Nota Credito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Soggetto ({formData.subject_type === 'cliente' ? 'Cliente' : 'Fornitore'}) *</Label>
-              <Input
-                value={formData.subject_name}
-                onChange={(e) => handleFormChange('subject_name', e.target.value)}
-                placeholder="Nome soggetto"
-              />
+              <Label>{formData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
+              <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={subjectSearchOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.subject_name || `Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder={`Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                      value={subjectSearch}
+                      onValueChange={setSubjectSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>Nessun risultato trovato</CommandEmpty>
+                      <CommandGroup className="max-h-60 overflow-auto">
+                        {filteredSubjects.map((subject) => (
+                          <CommandItem
+                            key={subject.id}
+                            value={subject.id}
+                            onSelect={() => {
+                              handleFormChange('subject_id', subject.id);
+                              handleFormChange('subject_name', subject.name);
+                              handleFormChange('subject_type', subject.type);
+                              setSubjectSearchOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.subject_id === subject.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{subject.name}</span>
+                              {subject.secondary && (
+                                <span className="text-xs text-muted-foreground">{subject.secondary}</span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Imponibile *</Label>
@@ -1460,24 +1600,81 @@ export default function RegistroFatturePage() {
             </div>
             <div className="space-y-2">
               <Label>Tipo *</Label>
-              <Select value={editFormData.invoice_type} onValueChange={(v) => handleEditFormChange('invoice_type', v)}>
+              <Select 
+                value={editFormData.invoice_type} 
+                onValueChange={(v) => {
+                  handleEditFormChange('invoice_type', v);
+                  // Reset subject when switching type
+                  handleEditFormChange('subject_id', '');
+                  handleEditFormChange('subject_name', '');
+                  handleEditFormChange('subject_type', v === 'vendita' ? 'cliente' : 'fornitore');
+                  setEditSubjectSearch('');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="vendita">Vendita</SelectItem>
-                  <SelectItem value="acquisto">Acquisto</SelectItem>
+                  <SelectItem value="vendita">Vendita (Cliente)</SelectItem>
+                  <SelectItem value="acquisto">Acquisto (Fornitore)</SelectItem>
                   <SelectItem value="nota_credito">Nota Credito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Soggetto ({editFormData.subject_type === 'cliente' ? 'Cliente' : 'Fornitore'}) *</Label>
-              <Input
-                value={editFormData.subject_name}
-                onChange={(e) => handleEditFormChange('subject_name', e.target.value)}
-                placeholder="Nome soggetto"
-              />
+              <Label>{editFormData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
+              <Popover open={editSubjectSearchOpen} onOpenChange={setEditSubjectSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={editSubjectSearchOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {editFormData.subject_name || `Cerca ${editFormData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder={`Cerca ${editFormData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                      value={editSubjectSearch}
+                      onValueChange={setEditSubjectSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>Nessun risultato trovato</CommandEmpty>
+                      <CommandGroup className="max-h-60 overflow-auto">
+                        {filteredEditSubjects.map((subject) => (
+                          <CommandItem
+                            key={subject.id}
+                            value={subject.id}
+                            onSelect={() => {
+                              handleEditFormChange('subject_id', subject.id);
+                              handleEditFormChange('subject_name', subject.name);
+                              handleEditFormChange('subject_type', subject.type);
+                              setEditSubjectSearchOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                editFormData.subject_id === subject.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{subject.name}</span>
+                              {subject.secondary && (
+                                <span className="text-xs text-muted-foreground">{subject.secondary}</span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Imponibile *</Label>
