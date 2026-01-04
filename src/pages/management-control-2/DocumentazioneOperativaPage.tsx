@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, getYear, getMonth } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   Search, 
@@ -19,8 +19,12 @@ import {
   Wrench, 
   Receipt, 
   CheckCircle2, 
-  Clock
+  Clock,
+  Calendar,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface UnifiedDocument {
   id: string;
@@ -35,10 +39,18 @@ interface UnifiedDocument {
   rawData: any;
 }
 
+const MONTH_NAMES = [
+  "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+  "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+];
+
 export default function DocumentazioneOperativaPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [invoiceFilter, setInvoiceFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
   
   const [documents, setDocuments] = useState<UnifiedDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -250,6 +262,12 @@ export default function DocumentazioneOperativaPage() {
     }
   };
 
+  // Get available years from documents
+  const availableYears = [...new Set(documents
+    .filter(d => d.date)
+    .map(d => getYear(new Date(d.date)))
+  )].sort((a, b) => b - a);
+
   // Stats
   const stats = {
     total: documents.length,
@@ -269,8 +287,74 @@ export default function DocumentazioneOperativaPage() {
     const matchesInvoice = invoiceFilter === "all" || 
       (invoiceFilter === "invoiced" && doc.invoiced) ||
       (invoiceFilter === "pending" && !doc.invoiced);
-    return matchesSearch && matchesType && matchesInvoice;
+    
+    // Year filter
+    let matchesYear = true;
+    if (yearFilter !== "all" && doc.date) {
+      matchesYear = getYear(new Date(doc.date)) === parseInt(yearFilter);
+    }
+    
+    // Month filter
+    let matchesMonth = true;
+    if (monthFilter !== "all" && doc.date) {
+      matchesMonth = getMonth(new Date(doc.date)) === parseInt(monthFilter);
+    }
+    
+    return matchesSearch && matchesType && matchesInvoice && matchesYear && matchesMonth;
   });
+
+  // Group documents by year and month
+  const groupedDocuments = filteredDocuments.reduce((acc, doc) => {
+    if (!doc.date) {
+      const key = "senza-data";
+      if (!acc[key]) acc[key] = { label: "Senza data", year: 0, month: -1, docs: [] };
+      acc[key].docs.push(doc);
+      return acc;
+    }
+    
+    const date = new Date(doc.date);
+    const year = getYear(date);
+    const month = getMonth(date);
+    const key = `${year}-${month}`;
+    
+    if (!acc[key]) {
+      acc[key] = {
+        label: `${MONTH_NAMES[month]} ${year}`,
+        year,
+        month,
+        docs: []
+      };
+    }
+    acc[key].docs.push(doc);
+    return acc;
+  }, {} as Record<string, { label: string; year: number; month: number; docs: UnifiedDocument[] }>);
+
+  // Sort periods by date descending
+  const sortedPeriods = Object.entries(groupedDocuments)
+    .sort(([, a], [, b]) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+  const togglePeriod = (key: string) => {
+    setExpandedPeriods(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedPeriods(new Set(sortedPeriods.map(([key]) => key)));
+  };
+
+  const collapseAll = () => {
+    setExpandedPeriods(new Set());
+  };
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
@@ -357,6 +441,29 @@ export default function DocumentazioneOperativaPage() {
             className="pl-10"
           />
         </div>
+        <Select value={yearFilter} onValueChange={setYearFilter}>
+          <SelectTrigger className="w-[140px]">
+            <Calendar className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Anno" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti gli anni</SelectItem>
+            {availableYears.map(year => (
+              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Mese" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i mesi</SelectItem>
+            {MONTH_NAMES.map((name, idx) => (
+              <SelectItem key={idx} value={idx.toString()}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Tipo documento" />
@@ -380,86 +487,140 @@ export default function DocumentazioneOperativaPage() {
         </Select>
       </div>
 
-      {/* Unified Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Numero</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Importo</TableHead>
-                <TableHead>Fatturazione</TableHead>
-                <TableHead className="text-right">Azione</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Caricamento...
-                  </TableCell>
-                </TableRow>
-              ) : filteredDocuments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nessun documento trovato
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredDocuments.map((doc) => (
-                  <TableRow key={`${doc.type}-${doc.id}`}>
-                    <TableCell>
-                      <Badge variant="outline" className={getDocTypeBadgeColor(doc.type)}>
-                        <span className="flex items-center gap-1">
-                          {getDocTypeIcon(doc.type)}
-                          {getDocTypeLabel(doc.type)}
-                        </span>
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{doc.number}</TableCell>
-                    <TableCell>{doc.customer}</TableCell>
-                    <TableCell>{formatDate(doc.date)}</TableCell>
-                    <TableCell>{formatCurrency(doc.amount)}</TableCell>
-                    <TableCell>
-                      {doc.invoiced ? (
-                        <div className="flex flex-col">
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Fatturato
-                          </Badge>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {doc.invoice_number} - {formatDate(doc.invoice_date)}
-                          </span>
+      {/* Expand/Collapse controls */}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={expandAll}>
+          Espandi tutti
+        </Button>
+        <Button variant="outline" size="sm" onClick={collapseAll}>
+          Comprimi tutti
+        </Button>
+      </div>
+
+      {/* Documents grouped by period */}
+      {loading ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Caricamento...
+          </CardContent>
+        </Card>
+      ) : sortedPeriods.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Nessun documento trovato
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {sortedPeriods.map(([key, period]) => {
+            const isExpanded = expandedPeriods.has(key);
+            const pendingCount = period.docs.filter(d => !d.invoiced).length;
+            const invoicedCount = period.docs.filter(d => d.invoiced).length;
+            
+            return (
+              <Card key={key}>
+                <Collapsible open={isExpanded} onOpenChange={() => togglePeriod(key)}>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <Calendar className="h-5 w-5 text-primary" />
+                          <CardTitle className="text-lg">{period.label}</CardTitle>
+                          <Badge variant="secondary">{period.docs.length} documenti</Badge>
                         </div>
-                      ) : (
-                        <Badge variant="outline" className="text-yellow-600 border-yellow-300">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Da fatturare
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {!doc.invoiced && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleMarkAsInvoiced(doc)}
-                        >
-                          <Receipt className="h-4 w-4 mr-1" />
-                          Registra Fattura
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        <div className="flex gap-2">
+                          {pendingCount > 0 && (
+                            <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {pendingCount} da fatturare
+                            </Badge>
+                          )}
+                          {invoicedCount > 0 && (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              {invoicedCount} fatturati
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent className="p-0 border-t">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Numero</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Data</TableHead>
+                            <TableHead>Importo</TableHead>
+                            <TableHead>Fatturazione</TableHead>
+                            <TableHead className="text-right">Azione</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {period.docs.map((doc) => (
+                            <TableRow key={`${doc.type}-${doc.id}`}>
+                              <TableCell>
+                                <Badge variant="outline" className={getDocTypeBadgeColor(doc.type)}>
+                                  <span className="flex items-center gap-1">
+                                    {getDocTypeIcon(doc.type)}
+                                    {getDocTypeLabel(doc.type)}
+                                  </span>
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-medium">{doc.number}</TableCell>
+                              <TableCell>{doc.customer}</TableCell>
+                              <TableCell>{formatDate(doc.date)}</TableCell>
+                              <TableCell>{formatCurrency(doc.amount)}</TableCell>
+                              <TableCell>
+                                {doc.invoiced ? (
+                                  <div className="flex flex-col">
+                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Fatturato
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground mt-1">
+                                      {doc.invoice_number} - {formatDate(doc.invoice_date)}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Da fatturare
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {!doc.invoiced && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleMarkAsInvoiced(doc)}
+                                  >
+                                    <Receipt className="h-4 w-4 mr-1" />
+                                    Registra Fattura
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Invoice Registration Dialog */}
       <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
