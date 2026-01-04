@@ -33,21 +33,33 @@ serve(async (req) => {
     console.log('Direction:', direction);
 
     const systemPrompt = `Sei un assistente specializzato nell'analisi di Documenti di Trasporto (DDT) italiani.
-Analizza l'immagine del DDT e estrai le seguenti informazioni in formato JSON:
+Analizza l'immagine del DDT e estrai le seguenti informazioni DISTINTE:
 
-1. counterpart_name: Nome dell'azienda ${direction === 'IN' ? 'mittente (fornitore)' : 'destinataria (cliente)'}
-2. counterpart_address: Indirizzo completo ${direction === 'IN' ? 'del fornitore' : 'del cliente'}
-3. counterpart_vat: Partita IVA ${direction === 'IN' ? 'del fornitore' : 'del cliente'} (se presente)
-4. ddt_number: Numero del DDT
-5. ddt_date: Data del DDT in formato YYYY-MM-DD
-6. items: Array di oggetti con:
-   - description: Descrizione dell'articolo/materiale
-   - quantity: Quantità numerica
-   - unit: Unità di misura (pz, kg, m, etc.)
-7. notes: Eventuali note o causale del trasporto
+1. INTESTAZIONE (in alto nel documento, è l'azienda che EMETTE il DDT):
+   - intestazione_name: Nome/Ragione sociale dell'azienda emittente
+   - intestazione_address: Indirizzo dell'azienda emittente
+   - intestazione_vat: Partita IVA dell'azienda emittente
 
-Se un campo non è leggibile o non presente, usa null.
-Rispondi SOLO con il JSON valido, senza testo aggiuntivo.`;
+2. DESTINATARIO (a chi è destinata la merce, spesso indicato come "Destinatario" o "Cliente"):
+   - destinatario_name: Nome/Ragione sociale del destinatario
+   - destinatario_address: Indirizzo del destinatario
+   - destinatario_vat: Partita IVA del destinatario
+
+3. DESTINAZIONE (dove viene consegnata la merce, può essere diverso dal destinatario):
+   - destinazione_address: Indirizzo di destinazione/consegna
+
+4. DATI DDT:
+   - ddt_number: Numero del DDT
+   - ddt_date: Data del DDT in formato YYYY-MM-DD
+
+5. ARTICOLI:
+   - items: Lista degli articoli trasportati
+
+6. notes: Causale del trasporto o note
+
+IMPORTANTE: Intestazione e Destinatario sono due entità DIVERSE. L'intestazione è chi emette il documento (di solito in alto con logo), il destinatario è chi riceve la merce.
+
+Se un campo non è leggibile o non presente, usa null.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -64,7 +76,7 @@ Rispondi SOLO con il JSON valido, senza testo aggiuntivo.`;
             content: [
               {
                 type: 'text',
-                text: `Analizza questo DDT (direzione: ${direction === 'IN' ? 'merce ricevuta' : 'merce consegnata'}) ed estrai i dati strutturati.`
+                text: `Analizza questo DDT ed estrai i dati strutturati. Ricorda: INTESTAZIONE = chi emette il DDT (in alto), DESTINATARIO = chi riceve la merce, DESTINAZIONE = dove viene consegnata.`
               },
               {
                 type: 'image_url',
@@ -78,13 +90,17 @@ Rispondi SOLO con il JSON valido, senza testo aggiuntivo.`;
             type: 'function',
             function: {
               name: 'extract_ddt_data',
-              description: 'Estrae i dati strutturati dal DDT',
+              description: 'Estrae i dati strutturati dal DDT distinguendo intestazione, destinatario e destinazione',
               parameters: {
                 type: 'object',
                 properties: {
-                  counterpart_name: { type: 'string', description: 'Nome azienda controparte' },
-                  counterpart_address: { type: 'string', description: 'Indirizzo controparte' },
-                  counterpart_vat: { type: 'string', description: 'Partita IVA controparte' },
+                  intestazione_name: { type: 'string', description: 'Nome azienda che EMETTE il DDT (in alto nel documento)' },
+                  intestazione_address: { type: 'string', description: 'Indirizzo azienda emittente' },
+                  intestazione_vat: { type: 'string', description: 'Partita IVA azienda emittente' },
+                  destinatario_name: { type: 'string', description: 'Nome destinatario della merce' },
+                  destinatario_address: { type: 'string', description: 'Indirizzo destinatario' },
+                  destinatario_vat: { type: 'string', description: 'Partita IVA destinatario' },
+                  destinazione_address: { type: 'string', description: 'Indirizzo di destinazione/consegna (può essere diverso dal destinatario)' },
                   ddt_number: { type: 'string', description: 'Numero DDT' },
                   ddt_date: { type: 'string', description: 'Data DDT in formato YYYY-MM-DD' },
                   items: {
@@ -99,7 +115,7 @@ Rispondi SOLO con il JSON valido, senza testo aggiuntivo.`;
                       required: ['description', 'quantity']
                     }
                   },
-                  notes: { type: 'string', description: 'Note o causale' }
+                  notes: { type: 'string', description: 'Causale o note' }
                 },
                 required: ['items']
               }
