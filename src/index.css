@@ -126,9 +126,17 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    font-size: 13px; /* Base font reduced for compact ERP UI */
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-size: 14px;
+  }
+
+  /* Compact spacing for ERP */
+  .container {
+    @apply px-3 py-2;
   }
 }
 
