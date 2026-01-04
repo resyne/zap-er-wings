@@ -4,16 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, ArrowUpDown, TrendingUp, TrendingDown, Package, FileText, Check, X, Loader2 } from "lucide-react";
+import { Search, ArrowUpDown, TrendingUp, TrendingDown, Package, FileText, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 
 interface StockMovement {
   id: string;
@@ -52,6 +50,8 @@ export default function MovementsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [caricoDialogOpen, setCaricoDialogOpen] = useState(false);
+  const [scaricoDialogOpen, setScaricoDialogOpen] = useState(false);
 
   const { data: movements = [], isLoading } = useQuery({
     queryKey: ["stock-movements"],
@@ -125,23 +125,11 @@ export default function MovementsPage() {
   const getMovementTypeInfo = (type: string) => {
     switch (type) {
       case "carico":
-        return { 
-          label: "Carico", 
-          icon: TrendingUp,
-          bgColor: "bg-green-50 text-green-700 border-green-200"
-        };
+        return { label: "Carico", icon: TrendingUp, bgColor: "bg-green-50 text-green-700 border-green-200" };
       case "scarico":
-        return { 
-          label: "Scarico", 
-          icon: TrendingDown,
-          bgColor: "bg-red-50 text-red-700 border-red-200"
-        };
+        return { label: "Scarico", icon: TrendingDown, bgColor: "bg-red-50 text-red-700 border-red-200" };
       default:
-        return { 
-          label: "Sconosciuto", 
-          icon: Package,
-          bgColor: "bg-muted text-muted-foreground border-border"
-        };
+        return { label: "Sconosciuto", icon: Package, bgColor: "bg-muted text-muted-foreground border-border" };
     }
   };
 
@@ -162,6 +150,16 @@ export default function MovementsPage() {
           <p className="text-muted-foreground">
             Storico e gestione dei movimenti di carico/scarico
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setCaricoDialogOpen(true)} className="bg-green-600 hover:bg-green-700">
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Carico Merci
+          </Button>
+          <Button onClick={() => setScaricoDialogOpen(true)} variant="destructive">
+            <TrendingDown className="mr-2 h-4 w-4" />
+            Scarico Merci
+          </Button>
         </div>
       </div>
 
@@ -369,6 +367,17 @@ export default function MovementsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ManualMovementDialog 
+        open={caricoDialogOpen} 
+        onOpenChange={setCaricoDialogOpen} 
+        movementType="carico" 
+      />
+      <ManualMovementDialog 
+        open={scaricoDialogOpen} 
+        onOpenChange={setScaricoDialogOpen} 
+        movementType="scarico" 
+      />
     </div>
   );
 }

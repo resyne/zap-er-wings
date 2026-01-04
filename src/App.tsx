@@ -37,7 +37,6 @@ import StockPage from "./pages/warehouse/StockPage";
 import MovementsPage from "./pages/warehouse/MovementsPage";
 
 import InventoryPage from "./pages/warehouse/InventoryPage";
-import PickingPage from "./pages/warehouse/PickingPage";
 import DdtPage from "./pages/warehouse/DdtPage";
 import SuppliersPage from "./pages/procurement/SuppliersPage";
 import RfqPage from "./pages/procurement/RfqPage";
@@ -155,7 +154,6 @@ const App = () => (
                 <Route path="wms/movements" element={<MovementsPage />} />
                 
                 <Route path="wms/inventory" element={<InventoryPage />} />
-                <Route path="wms/picking" element={<PickingPage />} />
                 <Route path="wms/ddt" element={<DdtPage />} />
                 <Route path="procurement/suppliers" element={<SuppliersPage />} />
                 <Route path="procurement/rfq" element={<RfqPage />} />
