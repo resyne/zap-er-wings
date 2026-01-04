@@ -66,6 +66,34 @@ const macroCategories = [
   "Finanza",
 ];
 
+// Mappatura categorie inglesi -> italiano
+const categoryTranslations: Record<string, string> = {
+  software: "Software",
+  main: "Principale",
+  utilities: "Utenze",
+  extraordinary_costs: "Costi Straordinari",
+  consulting: "Consulenze",
+  other_opex: "Altri OPEX",
+  other_cogs: "Altri COGS",
+  installations: "Installazioni",
+  personnel: "Personale",
+  recurring: "Ricorrenti",
+  machines: "Macchinari",
+  spot_services: "Servizi Spot",
+  transport: "Trasporti",
+  service: "Servizi",
+  extraordinary: "Straordinari",
+  marketing: "Marketing",
+  returns_discounts: "Resi e Sconti",
+  materials: "Materiali",
+  direct_labor: "Manodopera Diretta",
+};
+
+const translateCategory = (category: string | null): string => {
+  if (!category) return "Senza categoria";
+  return categoryTranslations[category] || category;
+};
+
 const competenceOptions = [
   { value: "immediata", label: "Immediata" },
   { value: "differita", label: "Spesso differita" },
@@ -497,7 +525,7 @@ export default function ChartOfAccountsPage() {
                                       ) : (
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                       )}
-                                      <span className="font-medium">{category}</span>
+                                      <span className="font-medium">{translateCategory(category)}</span>
                                       <Badge variant="outline" className="ml-2">
                                         {categoryAccounts.length}
                                       </Badge>
