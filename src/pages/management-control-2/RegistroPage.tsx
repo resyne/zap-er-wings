@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { ServiceReportDialog } from "@/components/registro/ServiceReportDialog";
 
 type FlowType = "rapporto" | "ddt" | "spesa" | "incasso" | null;
 
@@ -67,7 +67,6 @@ interface DdtScanForm {
 }
 
 export default function RegistroPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeFlow, setActiveFlow] = useState<FlowType>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -75,6 +74,7 @@ export default function RegistroPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [showQuickEntryDialog, setShowQuickEntryDialog] = useState(false);
   const [showDdtScanDialog, setShowDdtScanDialog] = useState(false);
+  const [showServiceReportDialog, setShowServiceReportDialog] = useState(false);
   const [ddtUploadedFile, setDdtUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [quickEntryType, setQuickEntryType] = useState<"entrata" | "uscita">("uscita");
   const [quickEntryForm, setQuickEntryForm] = useState<QuickEntryForm>({
@@ -193,7 +193,7 @@ export default function RegistroPage() {
 
   const handleFlowStart = (flow: FlowType) => {
     if (flow === "rapporto") {
-      navigate("/support/service-reports");
+      setShowServiceReportDialog(true);
     } else if (flow === "ddt") {
       setShowDdtScanDialog(true);
     } else if (flow === "spesa") {
@@ -887,6 +887,12 @@ export default function RegistroPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Service Report Dialog */}
+      <ServiceReportDialog 
+        open={showServiceReportDialog} 
+        onOpenChange={setShowServiceReportDialog} 
+      />
     </div>
   );
 }
