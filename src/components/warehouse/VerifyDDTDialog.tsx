@@ -348,17 +348,15 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
 
         const pngBlob = await pdfFirstPageToPngBlob(pdfFile, { maxWidth: 1600, maxScale: 2 });
 
-        const previewPath = `ddt-previews/${ddt?.id ?? Date.now()}.png`;
-        const { error: uploadError } = await supabase.storage
-          .from("accounting-attachments")
-          .upload(previewPath, pngBlob, { upsert: true, contentType: "image/png" });
+        // Evitiamo upload su Storage (può fallire per policy): passiamo l'immagine in base64 direttamente alla function.
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error ?? new Error("Impossibile convertire la preview in base64"));
+          reader.readAsDataURL(pngBlob);
+        });
 
-        if (uploadError) throw uploadError;
-
-        const { data: pub } = supabase.storage.from("accounting-attachments").getPublicUrl(previewPath);
-        if (!pub?.publicUrl) throw new Error("Impossibile ottenere l'URL della preview");
-
-        urlForAI = pub.publicUrl;
+        urlForAI = dataUrl;
       }
 
       const { data, error } = await supabase.functions.invoke("analyze-ddt", {
@@ -369,8 +367,11 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
       });
 
       if (error) throw error;
+      if (data?.success === false) {
+        throw new Error(data.error || "AI analysis failed");
+      }
 
-      const extractedData = data?.data || data;
+      const extractedData = data?.data ?? data;
 
       if (extractedData) {
         // Auto-fill form fields
