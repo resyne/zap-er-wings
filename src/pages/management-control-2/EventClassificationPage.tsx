@@ -147,7 +147,7 @@ export default function EventClassificationPage() {
   const [detectedSubject, setDetectedSubject] = useState<DetectedSubject | null>(null);
   const [showSubjectDialog, setShowSubjectDialog] = useState(false);
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
-  const [viewMode, setViewMode] = useState<"da_classificare" | "classificati" | "contabilizzati" | "storico">("da_classificare");
+  const [viewMode, setViewMode] = useState<"da_classificare" | "da_sistemare" | "classificati" | "contabilizzati" | "storico">("da_classificare");
   
   // Fuzzy match state
   const [showSimilarDialog, setShowSimilarDialog] = useState(false);
@@ -180,7 +180,9 @@ export default function EventClassificationPage() {
       let statusFilter: string[] = [];
       
       if (viewMode === "da_classificare") {
-        statusFilter = ["da_classificare", "in_classificazione", "sospeso", "da_correggere"];
+        statusFilter = ["da_classificare", "in_classificazione", "sospeso"];
+      } else if (viewMode === "da_sistemare") {
+        statusFilter = ["da_correggere"];
       } else if (viewMode === "classificati") {
         statusFilter = ["classificato", "pronto_prima_nota"];
       } else if (viewMode === "contabilizzati") {
@@ -1115,6 +1117,14 @@ export default function EventClassificationPage() {
           Da Classificare
         </Button>
         <Button
+          variant={viewMode === "da_sistemare" ? "default" : "outline"}
+          onClick={() => setViewMode("da_sistemare")}
+          size="sm"
+          className={viewMode !== "da_sistemare" ? "border-amber-300 text-amber-700 hover:bg-amber-50" : "bg-amber-500 hover:bg-amber-600"}
+        >
+          Da Sistemare
+        </Button>
+        <Button
           variant={viewMode === "classificati" ? "default" : "outline"}
           onClick={() => setViewMode("classificati")}
           size="sm"
@@ -1145,6 +1155,7 @@ export default function EventClassificationPage() {
             <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
             <p className="text-lg font-medium">
               {viewMode === "da_classificare" && "Nessun evento da classificare"}
+              {viewMode === "da_sistemare" && "Nessun evento da sistemare"}
               {viewMode === "classificati" && "Nessun evento classificato"}
               {viewMode === "contabilizzati" && "Nessun evento contabilizzato"}
               {viewMode === "storico" && "Nessun evento in storico"}
