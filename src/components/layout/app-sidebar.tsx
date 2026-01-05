@@ -173,7 +173,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Registro", url: "/management-control-2/registro", icon: FileText },
       { title: "Movimenti Finanziari", url: "/management-control-2/movimenti-finanziari", icon: DollarSign },
-      { title: "Classificazione Eventi", url: "/management-control-2/classification", icon: ClipboardCheck },
+      
       { title: "Piano dei Conti", url: "/management-control-2/chart-of-accounts", icon: BookOpen },
       { title: "Centri di Costo/Ricavo", url: "/management-control-2/cost-centers", icon: Building2 },
       { title: "Motore Contabile", url: "/management-control-2/accounting-engine", icon: Settings },
