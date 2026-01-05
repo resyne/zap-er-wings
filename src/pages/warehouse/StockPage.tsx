@@ -53,6 +53,7 @@ export default function StockPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPurchaseOrderDialogOpen, setIsPurchaseOrderDialogOpen] = useState(false);
   const [isEmailPreviewOpen, setIsEmailPreviewOpen] = useState(false);
@@ -220,7 +221,8 @@ export default function StockPage() {
                          material.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || material.category === selectedCategory;
     const matchesType = selectedType === "all" || material.material_type === selectedType;
-    return matchesSearch && matchesCategory && matchesType;
+    const matchesSupplier = selectedSupplier === "all" || material.supplier_id === selectedSupplier;
+    return matchesSearch && matchesCategory && matchesType && matchesSupplier;
   });
 
   const getStockStatus = (material: Material) => {
@@ -633,6 +635,19 @@ export default function StockPage() {
                   {types.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Fornitore" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i fornitori</SelectItem>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
