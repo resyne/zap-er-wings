@@ -47,7 +47,10 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
-  Archive
+  Archive,
+  RefreshCw,
+  Undo2,
+  Lock
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -73,7 +76,7 @@ interface InvoiceRegistry {
   iva_amount: number;
   total_amount: number;
   vat_regime: 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
-  status: 'bozza' | 'registrata';
+  status: RegistryStatus;
   financial_status: 'da_incassare' | 'da_pagare' | 'incassata' | 'pagata';
   due_date: string | null;
   payment_date: string | null;
@@ -98,6 +101,16 @@ interface InvoiceRegistry {
   service_report_id?: string | null;
   // Split conti economici (JSON dal database)
   account_splits?: AccountSplitLine[] | null | unknown;
+  // Campi audit storno
+  stornato?: boolean;
+  data_storno?: string | null;
+  utente_storno?: string | null;
+  motivo_storno?: string | null;
+  scrittura_stornata_id?: string | null;
+  scrittura_storno_id?: string | null;
+  contabilizzazione_valida?: boolean;
+  periodo_chiuso?: boolean;
+  evento_lockato?: boolean;
 }
 
 // Tipi evento del registro contabile
@@ -108,12 +121,16 @@ type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 're
 type FinancialStatus = 'da_incassare' | 'da_pagare' | 'incassata' | 'pagata';
 
 // Stati obbligatori del registro contabile
-type RegistryStatus = 'da_classificare' | 'non_rilevante' | 'contabilizzato' | 'archiviato';
+type RegistryStatus = 'bozza' | 'registrata' | 'da_classificare' | 'da_riclassificare' | 'non_rilevante' | 'contabilizzato' | 'rettificato' | 'archiviato';
 
 const REGISTRY_STATUSES = [
+  { value: 'bozza', label: 'Bozza', color: 'bg-slate-500/20 text-slate-600 border-slate-500/30' },
+  { value: 'registrata', label: 'Registrata', color: 'bg-primary/20 text-primary border-primary/30' },
   { value: 'da_classificare', label: 'Da Classificare', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30' },
+  { value: 'da_riclassificare', label: 'Da Riclassificare', color: 'bg-orange-500/20 text-orange-600 border-orange-500/30' },
   { value: 'non_rilevante', label: 'Non Rilevante Fiscalmente', color: 'bg-gray-500/20 text-gray-600 border-gray-500/30' },
   { value: 'contabilizzato', label: 'Contabilizzato', color: 'bg-green-500/20 text-green-600 border-green-500/30' },
+  { value: 'rettificato', label: 'Rettificato (Bloccato)', color: 'bg-red-500/20 text-red-600 border-red-500/30' },
   { value: 'archiviato', label: 'Archiviato', color: 'bg-blue-500/20 text-blue-600 border-blue-500/30' },
 ];
 
@@ -1611,6 +1628,216 @@ export default function RegistroContabilePage() {
     }
   });
 
+  // =====================================================
+  // RIGENERA PRIMA NOTA - Per eventi stornati/da_riclassificare
+  // =====================================================
+  const regeneratePrimaNotaMutation = useMutation({
+    mutationFn: async (invoice: InvoiceRegistry) => {
+      // Verifica che sia uno stato valido per rigenerazione
+      if (invoice.status === 'rettificato' || invoice.periodo_chiuso || invoice.evento_lockato) {
+        throw new Error('Evento bloccato/rettificato. La rigenerazione non è consentita.');
+      }
+      
+      if (invoice.status !== 'da_riclassificare') {
+        throw new Error('Solo eventi in stato "Da Riclassificare" possono essere rigenerati.');
+      }
+
+      const { data: user } = await supabase.auth.getUser();
+      const now = new Date().toISOString();
+      
+      // Determina parametri
+      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
+      const paymentMethod = invoice.payment_method || 'bonifico';
+      const eventType = isAcquisto ? 'costo' : 'ricavo';
+
+      // 1. Crea nuovo accounting_entry
+      const { data: accountingEntry, error: accountingError } = await supabase
+        .from('accounting_entries')
+        .insert({
+          amount: invoice.total_amount,
+          imponibile: invoice.imponibile,
+          iva_amount: invoice.iva_amount,
+          iva_aliquota: invoice.iva_rate,
+          direction: isAcquisto ? 'uscita' : 'entrata',
+          document_type: 'fattura',
+          document_date: invoice.invoice_date,
+          status: 'classificato',
+          event_type: eventType,
+          financial_status: invoice.financial_status,
+          subject_type: invoice.subject_type,
+          iva_mode: 'DOMESTICA_IMPONIBILE',
+          payment_method: isPaid ? paymentMethod : null,
+          attachment_url: invoice.attachment_url || '',
+          user_id: user?.user?.id,
+          cost_center_id: invoice.cost_center_id || null,
+          profit_center_id: invoice.profit_center_id || null,
+          chart_account_id: isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id
+        })
+        .select()
+        .single();
+
+      if (accountingError) throw accountingError;
+
+      // 2. Crea nuova prima nota
+      const primaNotaAmount = isAcquisto ? -invoice.total_amount : invoice.total_amount;
+
+      const { data: primaNota, error: primaNotaError } = await supabase
+        .from('prima_nota')
+        .insert({
+          competence_date: invoice.invoice_date,
+          movement_type: 'economico',
+          description: `[RIGENERATO] Fattura ${invoice.invoice_number} - ${invoice.subject_name}`,
+          amount: primaNotaAmount,
+          imponibile: invoice.imponibile,
+          iva_amount: invoice.iva_amount,
+          iva_aliquota: invoice.iva_rate,
+          iva_mode: 'DOMESTICA_IMPONIBILE',
+          payment_method: isPaid ? paymentMethod : null,
+          status: 'registrato',
+          accounting_entry_id: accountingEntry.id,
+          cost_center_id: invoice.cost_center_id || null,
+          profit_center_id: invoice.profit_center_id || null,
+          chart_account_id: isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id,
+          created_by: user?.user?.id,
+        })
+        .select()
+        .single();
+
+      if (primaNotaError) throw primaNotaError;
+
+      // 3. Genera linee partita doppia
+      const primaNotaLines: any[] = [];
+      let lineOrder = 1;
+      const accountSplits = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
+      const hasSplit = accountSplits.length > 0;
+
+      if (isAcquisto) {
+        // AVERE: Debiti fornitori / Pagamento
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'DEBITI_FORNITORI',
+          chart_account_id: null,
+          dare: 0,
+          avere: invoice.total_amount,
+          description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
+        });
+
+        // DARE: Costi
+        if (hasSplit) {
+          for (const split of accountSplits as AccountSplitLine[]) {
+            primaNotaLines.push({
+              prima_nota_id: primaNota.id,
+              line_order: lineOrder++,
+              account_type: 'chart',
+              chart_account_id: split.account_id,
+              dynamic_account_key: null,
+              dare: split.amount,
+              avere: 0,
+              description: 'Costi',
+            });
+          }
+        } else {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'chart',
+            chart_account_id: invoice.cost_account_id || null,
+            dynamic_account_key: null,
+            dare: invoice.imponibile,
+            avere: 0,
+            description: 'Costi',
+          });
+        }
+
+        // DARE: IVA a credito
+        if (invoice.iva_amount > 0) {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'dynamic',
+            dynamic_account_key: 'IVA_CREDITO',
+            chart_account_id: null,
+            dare: invoice.iva_amount,
+            avere: 0,
+            description: `IVA ${invoice.iva_rate}%`,
+          });
+        }
+      } else {
+        // VENDITA (Ricavo)
+        // DARE: Crediti clienti / Incasso
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'CREDITI_CLIENTI',
+          chart_account_id: null,
+          dare: invoice.total_amount,
+          avere: 0,
+          description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
+        });
+
+        // AVERE: Ricavi
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'chart',
+          chart_account_id: invoice.revenue_account_id || null,
+          dynamic_account_key: null,
+          dare: 0,
+          avere: invoice.imponibile,
+          description: 'Ricavi',
+        });
+
+        // AVERE: IVA a debito
+        if (invoice.iva_amount > 0) {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'dynamic',
+            dynamic_account_key: 'IVA_DEBITO',
+            chart_account_id: null,
+            dare: 0,
+            avere: invoice.iva_amount,
+            description: `IVA ${invoice.iva_rate}%`,
+          });
+        }
+      }
+
+      // Inserisci linee
+      if (primaNotaLines.length > 0) {
+        const { error: linesError } = await supabase
+          .from('prima_nota_lines')
+          .insert(primaNotaLines);
+        if (linesError) throw linesError;
+      }
+
+      // 4. Aggiorna evento nel registro con nuovi riferimenti
+      const { error: updateError } = await supabase
+        .from('invoice_registry')
+        .update({
+          status: 'contabilizzato',
+          accounting_entry_id: accountingEntry.id,
+          prima_nota_id: primaNota.id,
+          contabilizzazione_valida: true,
+          // Mantieni traccia storno come audit
+        })
+        .eq('id', invoice.id);
+
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      toast.success('Prima Nota rigenerata! Evento ora contabilizzato.');
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['prima-nota'] });
+    },
+    onError: (error) => {
+      toast.error('Errore rigenerazione: ' + error.message);
+    }
+  });
+
   const handleFormChange = (field: string, value: string | number) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
@@ -1691,10 +1918,27 @@ export default function RegistroContabilePage() {
     setShowEditDialog(true);
   };
 
-  const filteredInvoices = invoices.filter(inv => 
-    inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inv.subject_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInvoices = invoices.filter(inv => {
+    const matchesSearch = inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.subject_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtro per status
+    let matchesStatus = true;
+    if (filterStatus === 'stornati') {
+      matchesStatus = inv.stornato === true || inv.status === 'da_riclassificare';
+    } else if (filterStatus === 'da_riclassificare') {
+      matchesStatus = inv.status === 'da_riclassificare';
+    } else if (filterStatus === 'rettificato') {
+      matchesStatus = inv.status === 'rettificato';
+    } else if (filterStatus !== 'all') {
+      matchesStatus = inv.status === filterStatus;
+    }
+    
+    // Filtro per tipo
+    const matchesType = filterType === 'all' || inv.invoice_type === filterType;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
 
   // Filter events based on search
   const filteredEvents = eventsToClassify.filter(evt => 
@@ -1836,6 +2080,8 @@ export default function RegistroContabilePage() {
     daIncassare: invoices.filter(i => i.financial_status === 'da_incassare').reduce((sum, i) => sum + i.total_amount, 0),
     daPagare: invoices.filter(i => i.financial_status === 'da_pagare').reduce((sum, i) => sum + i.total_amount, 0),
     daClassificare: eventsToClassify.length,
+    daRiclassificare: invoices.filter(i => i.status === 'da_riclassificare' || i.stornato).length,
+    rettificati: invoices.filter(i => i.status === 'rettificato').length,
     daFatturare: opStats.pending
   };
 
@@ -1858,18 +2104,28 @@ export default function RegistroContabilePage() {
       : <Badge variant="outline" className="border-muted-foreground/30"><Clock className="w-3 h-3 mr-1" />Bozza</Badge>;
   };
 
-  const getRegistryStatusBadge = (status: RegistryStatus) => {
+  const getRegistryStatusBadge = (status: RegistryStatus, stornato?: boolean) => {
     const statusConfig = REGISTRY_STATUSES.find(s => s.value === status);
     if (!statusConfig) return <Badge variant="outline">{status}</Badge>;
     
-    const icon = {
+    const iconMap: Record<string, React.ReactNode> = {
+      'bozza': <Clock className="w-3 h-3 mr-1" />,
+      'registrata': <CheckCircle2 className="w-3 h-3 mr-1" />,
       'da_classificare': <AlertCircle className="w-3 h-3 mr-1" />,
+      'da_riclassificare': <RefreshCw className="w-3 h-3 mr-1" />,
       'non_rilevante': <Clock className="w-3 h-3 mr-1" />,
       'contabilizzato': <CheckCircle2 className="w-3 h-3 mr-1" />,
+      'rettificato': <Lock className="w-3 h-3 mr-1" />,
       'archiviato': <FileCheck className="w-3 h-3 mr-1" />,
-    }[status];
+    };
+    const icon = iconMap[status];
     
-    return <Badge className={statusConfig.color}>{icon}{statusConfig.label}</Badge>;
+    return (
+      <div className="flex items-center gap-1">
+        <Badge className={statusConfig.color}>{icon}{statusConfig.label}</Badge>
+        {stornato && <Badge variant="destructive" className="text-xs">Stornato</Badge>}
+      </div>
+    );
   };
 
   const getFinancialStatusBadge = (status: string) => {
@@ -2051,6 +2307,24 @@ export default function RegistroContabilePage() {
             </div>
           </CardContent>
         </Card>
+        {/* Card per eventi stornati/da riclassificare */}
+        {stats.daRiclassificare > 0 && (
+          <Card 
+            className={`cursor-pointer transition-all border-orange-500/50 bg-orange-500/5 ${filterStatus === 'stornati' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-500/10'}`}
+            onClick={() => setFilterStatus(filterStatus === 'stornati' ? 'all' : 'stornati')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-orange-600">Da Riclassificare</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.daRiclassificare}</p>
+                  <p className="text-xs text-muted-foreground">Post-storno</p>
+                </div>
+                <RefreshCw className="w-8 h-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card>
@@ -2078,13 +2352,33 @@ export default function RegistroContabilePage() {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Stato" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti gli stati</SelectItem>
                 <SelectItem value="bozza">Bozza</SelectItem>
                 <SelectItem value="registrata">Registrata</SelectItem>
+                <SelectItem value="contabilizzato">Contabilizzato</SelectItem>
+                <SelectItem value="stornati">
+                  <div className="flex items-center gap-2">
+                    <Undo2 className="w-3 h-3 text-orange-500" />
+                    Stornati / Da Riclassificare
+                  </div>
+                </SelectItem>
+                <SelectItem value="da_riclassificare">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-3 h-3 text-orange-500" />
+                    Solo Da Riclassificare
+                  </div>
+                </SelectItem>
+                <SelectItem value="rettificato">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-3 h-3 text-red-500" />
+                    Rettificato (Bloccato)
+                  </div>
+                </SelectItem>
+                <SelectItem value="archiviato">Archiviato</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -2468,55 +2762,103 @@ export default function RegistroContabilePage() {
                     <TableCell className="text-right">€{invoice.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-right text-muted-foreground">€{invoice.iva_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-right font-semibold">€{invoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                    <TableCell>{getRegistryStatusBadge(invoice.status as RegistryStatus, invoice.stornato)}</TableCell>
                     <TableCell>{getFinancialStatusBadge(invoice.financial_status)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => openEditDialog(invoice)}
-                        >
-                          <Pencil className="w-4 h-4 mr-1" />
-                          Modifica
-                        </Button>
-                        {invoice.status === 'bozza' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => {
-                              setSelectedInvoice(invoice);
-                              setShowRegisterDialog(true);
-                            }}
-                          >
-                            <FileCheck className="w-4 h-4 mr-1" />
-                            Registra
-                          </Button>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {/* EVENTO DA RICLASSIFICARE (post-storno) */}
+                        {invoice.status === 'da_riclassificare' && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => openEditDialog(invoice)}
+                              className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                            >
+                              <Pencil className="w-4 h-4 mr-1" />
+                              Correggi
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                if (confirm('Rigenerare la Prima Nota per questo evento? Verranno create nuove scritture contabili.')) {
+                                  regeneratePrimaNotaMutation.mutate(invoice);
+                                }
+                              }}
+                              disabled={regeneratePrimaNotaMutation.isPending}
+                              className="bg-primary"
+                            >
+                              <RefreshCw className="w-4 h-4 mr-1" />
+                              Rigenera Prima Nota
+                            </Button>
+                          </>
                         )}
-                        {invoice.scadenza_id && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => window.location.href = '/management-control-2/scadenziario'}
-                          >
-                            <LinkIcon className="w-4 h-4 mr-1" />
-                            Scadenza
-                          </Button>
+                        
+                        {/* EVENTO RETTIFICATO (bloccato) */}
+                        {invoice.status === 'rettificato' && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Lock className="w-4 h-4" />
+                            <span className="text-sm">Bloccato - Solo consultazione</span>
+                          </div>
                         )}
-                        {/* Elimina: solo per bozze non contabilizzate */}
-                        {invoice.status === 'bozza' && (
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm('Sei sicuro di voler eliminare questo elemento dal registro contabile?')) {
-                                deleteInvoiceMutation.mutate(invoice);
-                              }
-                            }}
-                            title="Elimina (solo per bozze)"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                        
+                        {/* EVENTO NORMALE (bozza, registrata, contabilizzato) */}
+                        {!['da_riclassificare', 'rettificato'].includes(invoice.status) && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => openEditDialog(invoice)}
+                            >
+                              <Pencil className="w-4 h-4 mr-1" />
+                              Modifica
+                            </Button>
+                            {invoice.status === 'bozza' && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedInvoice(invoice);
+                                  setShowRegisterDialog(true);
+                                }}
+                              >
+                                <FileCheck className="w-4 h-4 mr-1" />
+                                Registra
+                              </Button>
+                            )}
+                            {invoice.scadenza_id && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => window.location.href = '/management-control-2/scadenziario'}
+                              >
+                                <LinkIcon className="w-4 h-4 mr-1" />
+                                Scadenza
+                              </Button>
+                            )}
+                            {/* Elimina: solo per bozze non contabilizzate */}
+                            {invoice.status === 'bozza' && (
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Sei sicuro di voler eliminare questo elemento dal registro contabile?')) {
+                                    deleteInvoiceMutation.mutate(invoice);
+                                  }
+                                }}
+                                title="Elimina (solo per bozze)"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+
+                        {/* Info storno se presente */}
+                        {invoice.stornato && invoice.motivo_storno && (
+                          <div className="text-xs text-muted-foreground ml-2">
+                            <span className="font-medium">Motivo storno:</span> {invoice.motivo_storno}
+                          </div>
                         )}
                       </div>
                     </TableCell>

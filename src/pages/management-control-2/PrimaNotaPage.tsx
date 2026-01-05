@@ -617,10 +617,11 @@ export default function PrimaNotaPage() {
   }
 
 
-  // Rectify movement
+  // Rectify movement - with automatic Registro Contabile update
   const rectifyMutation = useMutation({
     mutationFn: async ({ movementId, reason }: { movementId: string; reason: string }) => {
       const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
       
       const { data: original, error: fetchError } = await supabase
         .from("prima_nota")
@@ -652,7 +653,7 @@ export default function PrimaNotaPage() {
           iva_amount: original.iva_amount ? -original.iva_amount : null,
           totale: original.totale ? -original.totale : null,
           payment_method: original.payment_method,
-          created_by: userData.user?.id,
+          created_by: userId,
         })
         .select()
         .single();
@@ -692,10 +693,48 @@ export default function PrimaNotaPage() {
         .eq("id", movementId);
 
       if (updateError) throw updateError;
+
+      // =====================================================
+      // AUTOMATISMO POST-STORNO: Aggiorna Registro Contabile
+      // =====================================================
+      // Trova l'evento collegato a questa scrittura (via prima_nota_id)
+      const { data: linkedEvent } = await supabase
+        .from("invoice_registry")
+        .select("id, periodo_chiuso, evento_lockato")
+        .eq("prima_nota_id", movementId)
+        .maybeSingle();
+
+      if (linkedEvent) {
+        const isPeriodoClosed = linkedEvent.periodo_chiuso || linkedEvent.evento_lockato;
+        
+        // Aggiorna l'evento nel Registro Contabile
+        const { error: registryError } = await supabase
+          .from("invoice_registry")
+          .update({
+            // 1.1 Stato evento
+            status: isPeriodoClosed ? "rettificato" : "da_riclassificare",
+            // 1.2 Validità contabile
+            contabilizzazione_valida: false,
+            // 1.3 Tracciamento storno (audit)
+            stornato: true,
+            data_storno: new Date().toISOString(),
+            utente_storno: userId,
+            motivo_storno: reason,
+            scrittura_stornata_id: movementId,
+            scrittura_storno_id: rectification.id,
+          })
+          .eq("id", linkedEvent.id);
+
+        if (registryError) {
+          console.error("Errore aggiornamento Registro Contabile:", registryError);
+          // Non blocchiamo lo storno, ma loggiamo l'errore
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
-      toast.success("Movimento rettificato");
+      queryClient.invalidateQueries({ queryKey: ["invoice-registry"] });
+      toast.success("Movimento rettificato - Evento aggiornato nel Registro Contabile");
       setRectifyDialogOpen(false);
       setRectificationReason("");
       setSelectedMovement(null);

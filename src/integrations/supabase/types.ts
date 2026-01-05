@@ -2873,11 +2873,15 @@ export type Database = {
         Row: {
           account_splits: Json | null
           accounting_entry_id: string | null
+          contabilizzazione_valida: boolean | null
           cost_account_id: string | null
           cost_center_id: string | null
           created_at: string
           created_by: string | null
+          data_storno: string | null
           due_date: string | null
+          event_type: string | null
+          evento_lockato: boolean | null
           financial_status: string
           id: string
           imponibile: number
@@ -2886,33 +2890,43 @@ export type Database = {
           invoice_type: string
           iva_amount: number
           iva_rate: number
+          motivo_storno: string | null
           notes: string | null
           payment_date: string | null
           payment_method: string | null
+          periodo_chiuso: boolean | null
           prima_nota_id: string | null
           profit_center_id: string | null
           registered_at: string | null
           registered_by: string | null
           revenue_account_id: string | null
           scadenza_id: string | null
+          scrittura_stornata_id: string | null
+          scrittura_storno_id: string | null
           source_document_id: string | null
           source_document_type: string | null
           status: string
+          stornato: boolean | null
           subject_id: string | null
           subject_name: string
           subject_type: string
           total_amount: number
           updated_at: string
+          utente_storno: string | null
           vat_regime: string
         }
         Insert: {
           account_splits?: Json | null
           accounting_entry_id?: string | null
+          contabilizzazione_valida?: boolean | null
           cost_account_id?: string | null
           cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
+          data_storno?: string | null
           due_date?: string | null
+          event_type?: string | null
+          evento_lockato?: boolean | null
           financial_status?: string
           id?: string
           imponibile?: number
@@ -2921,33 +2935,43 @@ export type Database = {
           invoice_type: string
           iva_amount?: number
           iva_rate?: number
+          motivo_storno?: string | null
           notes?: string | null
           payment_date?: string | null
           payment_method?: string | null
+          periodo_chiuso?: boolean | null
           prima_nota_id?: string | null
           profit_center_id?: string | null
           registered_at?: string | null
           registered_by?: string | null
           revenue_account_id?: string | null
           scadenza_id?: string | null
+          scrittura_stornata_id?: string | null
+          scrittura_storno_id?: string | null
           source_document_id?: string | null
           source_document_type?: string | null
           status?: string
+          stornato?: boolean | null
           subject_id?: string | null
           subject_name: string
           subject_type: string
           total_amount?: number
           updated_at?: string
+          utente_storno?: string | null
           vat_regime?: string
         }
         Update: {
           account_splits?: Json | null
           accounting_entry_id?: string | null
+          contabilizzazione_valida?: boolean | null
           cost_account_id?: string | null
           cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
+          data_storno?: string | null
           due_date?: string | null
+          event_type?: string | null
+          evento_lockato?: boolean | null
           financial_status?: string
           id?: string
           imponibile?: number
@@ -2956,23 +2980,29 @@ export type Database = {
           invoice_type?: string
           iva_amount?: number
           iva_rate?: number
+          motivo_storno?: string | null
           notes?: string | null
           payment_date?: string | null
           payment_method?: string | null
+          periodo_chiuso?: boolean | null
           prima_nota_id?: string | null
           profit_center_id?: string | null
           registered_at?: string | null
           registered_by?: string | null
           revenue_account_id?: string | null
           scadenza_id?: string | null
+          scrittura_stornata_id?: string | null
+          scrittura_storno_id?: string | null
           source_document_id?: string | null
           source_document_type?: string | null
           status?: string
+          stornato?: boolean | null
           subject_id?: string | null
           subject_name?: string
           subject_type?: string
           total_amount?: number
           updated_at?: string
+          utente_storno?: string | null
           vat_regime?: string
         }
         Relationships: [
@@ -3023,6 +3053,20 @@ export type Database = {
             columns: ["scadenza_id"]
             isOneToOne: false
             referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_scrittura_stornata_id_fkey"
+            columns: ["scrittura_stornata_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_registry_scrittura_storno_id_fkey"
+            columns: ["scrittura_storno_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
             referencedColumns: ["id"]
           },
         ]
