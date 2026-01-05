@@ -55,33 +55,29 @@ serve(async (req) => {
     const model = isPdf ? "openai/gpt-5-mini" : "google/gemini-2.5-flash";
     console.log("Using model:", model);
 
-    const systemPrompt = `Sei un assistente specializzato nell'analisi di fatture italiane (fatture di vendita, acquisto, note di credito).
+    const systemPrompt = `Sei un assistente specializzato nell'analisi di fatture italiane (fatture di vendita, fatture di acquisto, note di credito).
 
-Analizza l'immagine della fattura e estrai i seguenti dati:
+ESTRAI SEMPRE LE DUE PARTI:
+- supplier_* = Cedente/Prestatore (chi emette) => fornitore
+- customer_* = Cessionario/Committente (destinatario) => cliente
 
 DATI FATTURA:
 - invoice_number: numero della fattura
 - invoice_date: data della fattura in formato YYYY-MM-DD
-- invoice_type: "vendita" se siamo noi che emettiamo, "acquisto" se riceviamo da fornitore, "nota_credito" se è una nota di credito
-- subject_name: nome/ragione sociale del cliente o fornitore
-- subject_type: "cliente" se vendiamo, "fornitore" se acquistiamo
+- invoice_type: "vendita" | "acquisto" | "nota_credito" (se chiaramente identificabile)
 - imponibile: importo imponibile (senza IVA)
 - iva_rate: aliquota IVA (es: 22, 10, 4, 0)
 - iva_amount: importo IVA
 - total_amount: importo totale
-- vat_regime: "domestica_imponibile" per operazioni normali, "ue_non_imponibile" per UE, "extra_ue" per paesi extra-UE, "reverse_charge" per reverse charge
+- vat_regime: "domestica_imponibile" | "ue_non_imponibile" | "extra_ue" | "reverse_charge"
 - due_date: data scadenza pagamento in formato YYYY-MM-DD (se presente)
 - payment_method: metodo di pagamento se indicato
 - notes: eventuali note importanti
 
-DATI SOGGETTO:
-- subject_tax_id: partita IVA del cliente/fornitore
-- subject_address: indirizzo
-- subject_city: città
-- subject_email: email se presente
-- subject_phone: telefono se presente
-
-Rispondi SOLO con i dati trovati. Per le fatture di acquisto (riceviamo), il fornitore è chi emette.`;
+LINEE GUIDA IMPORTANTI:
+- Non scambiare Cedente/Prestatore e Cessionario/Committente.
+- Compila i campi *_tax_id con la P.IVA (se presente).
+- Rispondi SOLO con i dati trovati, senza testo libero.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -129,16 +125,7 @@ Rispondi SOLO con i dati trovati. Per le fatture di acquisto (riceviamo), il for
                   invoice_type: {
                     type: "string",
                     enum: ["vendita", "acquisto", "nota_credito"],
-                    description: "Tipo di fattura",
-                  },
-                  subject_name: {
-                    type: "string",
-                    description: "Nome/ragione sociale del cliente o fornitore",
-                  },
-                  subject_type: {
-                    type: "string",
-                    enum: ["cliente", "fornitore"],
-                    description: "Tipo di soggetto",
+                    description: "Tipo di fattura (se chiaramente identificabile)",
                   },
                   imponibile: {
                     type: "number",
@@ -173,6 +160,69 @@ Rispondi SOLO con i dati trovati. Per le fatture di acquisto (riceviamo), il for
                     type: "string",
                     description: "Note importanti dalla fattura",
                   },
+
+                  // Cedente/Prestatore (fornitore)
+                  supplier_name: {
+                    type: "string",
+                    description: "Ragione sociale del Cedente/Prestatore (chi emette)",
+                  },
+                  supplier_tax_id: {
+                    type: "string",
+                    description: "Partita IVA del Cedente/Prestatore",
+                  },
+                  supplier_address: {
+                    type: "string",
+                    description: "Indirizzo del Cedente/Prestatore",
+                  },
+                  supplier_city: {
+                    type: "string",
+                    description: "Città del Cedente/Prestatore",
+                  },
+                  supplier_email: {
+                    type: "string",
+                    description: "Email del Cedente/Prestatore",
+                  },
+                  supplier_phone: {
+                    type: "string",
+                    description: "Telefono del Cedente/Prestatore",
+                  },
+
+                  // Cessionario/Committente (cliente/destinatario)
+                  customer_name: {
+                    type: "string",
+                    description: "Ragione sociale del Cessionario/Committente (destinatario)",
+                  },
+                  customer_tax_id: {
+                    type: "string",
+                    description: "Partita IVA del Cessionario/Committente",
+                  },
+                  customer_address: {
+                    type: "string",
+                    description: "Indirizzo del Cessionario/Committente",
+                  },
+                  customer_city: {
+                    type: "string",
+                    description: "Città del Cessionario/Committente",
+                  },
+                  customer_email: {
+                    type: "string",
+                    description: "Email del Cessionario/Committente",
+                  },
+                  customer_phone: {
+                    type: "string",
+                    description: "Telefono del Cessionario/Committente",
+                  },
+
+                  // Backward compatibility (UI può ignorarli)
+                  subject_name: {
+                    type: "string",
+                    description: "Nome/ragione sociale del cliente o fornitore",
+                  },
+                  subject_type: {
+                    type: "string",
+                    enum: ["cliente", "fornitore"],
+                    description: "Tipo di soggetto",
+                  },
                   subject_tax_id: {
                     type: "string",
                     description: "Partita IVA del soggetto",
@@ -193,6 +243,7 @@ Rispondi SOLO con i dati trovati. Per le fatture di acquisto (riceviamo), il for
                     type: "string",
                     description: "Telefono del soggetto",
                   },
+
                   confidence: {
                     type: "string",
                     enum: ["high", "medium", "low"],
