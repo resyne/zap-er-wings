@@ -134,7 +134,7 @@ const initialFormData: FormData = {
   attachment_url: ''
 };
 
-export default function RegistroFatturePage() {
+export default function RegistroContabilePage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -293,7 +293,7 @@ export default function RegistroFatturePage() {
         .select('*')
         .order('invoice_date', { ascending: false });
 
-      if (filterType !== 'all') {
+      if (filterType !== 'all' && filterType !== 'da_classificare' && filterType !== 'scontrino') {
         query = query.eq('invoice_type', filterType);
       }
       if (filterStatus !== 'all') {
@@ -303,6 +303,21 @@ export default function RegistroFatturePage() {
       const { data, error } = await query;
       if (error) throw error;
       return data as InvoiceRegistry[];
+    }
+  });
+
+  // Fetch eventi da classificare (accounting_entries)
+  const { data: eventsToClassify = [], isLoading: isLoadingEvents } = useQuery({
+    queryKey: ['accounting-entries-to-classify'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounting_entries')
+        .select('*')
+        .in('status', ['da_classificare', 'in_classificazione', 'sospeso'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
     }
   });
 
@@ -798,11 +813,18 @@ export default function RegistroFatturePage() {
     inv.subject_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Filter events based on search
+  const filteredEvents = eventsToClassify.filter(evt => 
+    (evt.note || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (evt.document_type || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const stats = {
     bozze: invoices.filter(i => i.status === 'bozza').length,
     registrate: invoices.filter(i => i.status === 'registrata').length,
     daIncassare: invoices.filter(i => i.financial_status === 'da_incassare').reduce((sum, i) => sum + i.total_amount, 0),
-    daPagare: invoices.filter(i => i.financial_status === 'da_pagare').reduce((sum, i) => sum + i.total_amount, 0)
+    daPagare: invoices.filter(i => i.financial_status === 'da_pagare').reduce((sum, i) => sum + i.total_amount, 0),
+    daClassificare: eventsToClassify.length
   };
 
   const getTypeBadge = (type: string) => {
@@ -883,8 +905,8 @@ export default function RegistroFatturePage() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Registro Fatture</h1>
-          <p className="text-muted-foreground">Gestione fiscale e contabile delle fatture</p>
+          <h1 className="text-3xl font-bold">Registro Contabile</h1>
+          <p className="text-muted-foreground">Fatture, scontrini, spese e incassi</p>
         </div>
         <div className="flex gap-2">
           <label>
@@ -930,7 +952,21 @@ export default function RegistroFatturePage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card 
+          className={`cursor-pointer transition-all ${filterType === 'da_classificare' ? 'ring-2 ring-primary' : 'hover:bg-muted/50'}`}
+          onClick={() => setFilterType(filterType === 'da_classificare' ? 'all' : 'da_classificare')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Da Classificare</p>
+                <p className="text-2xl font-bold text-amber-500">{stats.daClassificare}</p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-amber-500" />
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -997,7 +1033,7 @@ export default function RegistroFatturePage() {
                 <SelectItem value="all">Tutti i tipi</SelectItem>
                 <SelectItem value="vendita">Vendita</SelectItem>
                 <SelectItem value="acquisto">Acquisto</SelectItem>
-                <SelectItem value="nota_credito">Nota Credito</SelectItem>
+                <SelectItem value="da_classificare">Da Classificare</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1014,7 +1050,78 @@ export default function RegistroFatturePage() {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Vista Eventi da Classificare */}
+      {filterType === 'da_classificare' ? (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Direzione</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Tipo Doc.</TableHead>
+                  <TableHead className="text-right">Importo</TableHead>
+                  <TableHead>Metodo Pag.</TableHead>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingEvents ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">Caricamento...</TableCell>
+                  </TableRow>
+                ) : filteredEvents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Nessun evento da classificare
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredEvents.map((event) => (
+                    <TableRow 
+                      key={event.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => window.location.href = '/management-control-2/classificazione-eventi'}
+                    >
+                      <TableCell>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
+                          event.direction === 'entrata' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {event.direction === 'entrata' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
+                          <span className="capitalize">{event.direction}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{format(new Date(event.document_date), 'dd/MM/yyyy', { locale: it })}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{event.document_type}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        €{event.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="capitalize">{event.payment_method || '-'}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Da Classificare
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="outline">
+                          Classifica
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -1104,6 +1211,7 @@ export default function RegistroFatturePage() {
           </Table>
         </CardContent>
       </Card>
+      )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-2xl">
