@@ -876,31 +876,7 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
               })()}
             </div>
             
-            {(() => {
-              const attachmentUrl = getAttachmentUrl(ddt);
-              if (!attachmentUrl) {
-                return (
-                  <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
-                    <div className="text-center">
-                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                      <p>Nessun documento allegato</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Mostra sempre l'anteprima come immagine (PDF → prima pagina)
-              return (
-                <div className="border rounded-lg overflow-hidden bg-muted/30 h-[calc(100vh-280px)] min-h-[400px]">
-                  <AttachmentPreview
-                    url={attachmentUrl}
-                    alt={`Scansione DDT ${ddt.ddt_number}`}
-                  />
-                </div>
-              );
-            })()}
-
-            {/* Alert per controparte estratta */}
+            {/* Alert per controparte estratta - sopra l'anteprima */}
             {extractedCounterpart && !extractedCounterpart.matched && (
               <Alert className="bg-amber-50 border-amber-200">
                 <UserPlus className="h-4 w-4 text-amber-600" />
@@ -945,6 +921,30 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
                 </AlertDescription>
               </Alert>
             )}
+
+            {(() => {
+              const attachmentUrl = getAttachmentUrl(ddt);
+              if (!attachmentUrl) {
+                return (
+                  <div className="border rounded-lg border-dashed flex items-center justify-center h-[400px] text-muted-foreground">
+                    <div className="text-center">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nessun documento allegato</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Mostra sempre l'anteprima come immagine (PDF → prima pagina)
+              return (
+                <div className="border rounded-lg overflow-hidden bg-muted/30 flex-1 min-h-[300px]">
+                  <AttachmentPreview
+                    url={attachmentUrl}
+                    alt={`Scansione DDT ${ddt.ddt_number}`}
+                  />
+                </div>
+              );
+            })()}
           </div>
 
           {/* Colonna destra: Form */}
