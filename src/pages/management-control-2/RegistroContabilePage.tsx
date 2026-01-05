@@ -94,6 +94,16 @@ type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
 type FinancialStatus = 'da_incassare' | 'da_pagare' | 'incassata' | 'pagata';
 
+// Stati obbligatori del registro contabile
+type RegistryStatus = 'da_classificare' | 'non_rilevante' | 'contabilizzato' | 'archiviato';
+
+const REGISTRY_STATUSES = [
+  { value: 'da_classificare', label: 'Da Classificare', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30' },
+  { value: 'non_rilevante', label: 'Non Rilevante Fiscalmente', color: 'bg-gray-500/20 text-gray-600 border-gray-500/30' },
+  { value: 'contabilizzato', label: 'Contabilizzato', color: 'bg-green-500/20 text-green-600 border-green-500/30' },
+  { value: 'archiviato', label: 'Archiviato', color: 'bg-blue-500/20 text-blue-600 border-blue-500/30' },
+];
+
 // Tipi di spesa per dipendenti
 const EXPENSE_TYPES = [
   { value: 'carburante', label: 'Carburante' },
@@ -901,6 +911,20 @@ export default function RegistroContabilePage() {
       : <Badge variant="outline" className="border-muted-foreground/30"><Clock className="w-3 h-3 mr-1" />Bozza</Badge>;
   };
 
+  const getRegistryStatusBadge = (status: RegistryStatus) => {
+    const statusConfig = REGISTRY_STATUSES.find(s => s.value === status);
+    if (!statusConfig) return <Badge variant="outline">{status}</Badge>;
+    
+    const icon = {
+      'da_classificare': <AlertCircle className="w-3 h-3 mr-1" />,
+      'non_rilevante': <Clock className="w-3 h-3 mr-1" />,
+      'contabilizzato': <CheckCircle2 className="w-3 h-3 mr-1" />,
+      'archiviato': <FileCheck className="w-3 h-3 mr-1" />,
+    }[status];
+    
+    return <Badge className={statusConfig.color}>{icon}{statusConfig.label}</Badge>;
+  };
+
   const getFinancialStatusBadge = (status: string) => {
     switch (status) {
       case 'da_incassare':
@@ -1161,10 +1185,7 @@ export default function RegistroContabilePage() {
                       </TableCell>
                       <TableCell className="capitalize">{event.payment_method || '-'}</TableCell>
                       <TableCell>
-                        <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Da Classificare
-                        </Badge>
+                        {getRegistryStatusBadge((event.status as RegistryStatus) || 'da_classificare')}
                       </TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline">
@@ -2539,10 +2560,61 @@ export default function RegistroContabilePage() {
                   </div>
                 </div>
               )}
+
+              {/* Stato finale della registrazione */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label>Stato Finale *</Label>
+                <Select 
+                  value={formData.event_type === 'spesa_dipendente' || formData.event_type === 'incasso_dipendente' 
+                    ? 'non_rilevante' 
+                    : 'contabilizzato'}
+                  disabled
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REGISTRY_STATUSES.filter(s => s.value !== 'da_classificare').map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {formData.event_type === 'spesa_dipendente' || formData.event_type === 'incasso_dipendente' 
+                    ? 'Spese/incassi dipendenti non generano contabilità ufficiale'
+                    : 'Le fatture vengono contabilizzate automaticamente'}
+                </p>
+              </div>
             </div>
           )}
 
           <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                if (!selectedEvent) return;
+                try {
+                  const { error } = await supabase
+                    .from('accounting_entries')
+                    .update({ 
+                      status: 'non_rilevante',
+                      classified_at: new Date().toISOString()
+                    })
+                    .eq('id', selectedEvent.id);
+                  
+                  if (error) throw error;
+                  
+                  toast.success('Marcato come non rilevante fiscalmente');
+                  setShowClassifyDialog(false);
+                  setSelectedEvent(null);
+                  queryClient.invalidateQueries({ queryKey: ['accounting-entries-to-classify'] });
+                } catch (err: any) {
+                  toast.error('Errore: ' + err.message);
+                }
+              }}
+            >
+              Non Rilevante
+            </Button>
             <Button variant="outline" onClick={() => setShowClassifyDialog(false)}>
               Annulla
             </Button>
@@ -2550,10 +2622,13 @@ export default function RegistroContabilePage() {
               onClick={async () => {
                 if (!selectedEvent) return;
                 try {
+                  const isFiscal = isFiscalDocument(formData.event_type);
+                  const newStatus: RegistryStatus = isFiscal ? 'contabilizzato' : 'non_rilevante';
+                  
                   const { error } = await supabase
                     .from('accounting_entries')
                     .update({ 
-                      status: 'classificato',
+                      status: newStatus,
                       event_type: formData.event_type,
                       cost_center_id: formData.cost_center_id || null,
                       profit_center_id: formData.profit_center_id || null,
@@ -2563,7 +2638,7 @@ export default function RegistroContabilePage() {
                   
                   if (error) throw error;
                   
-                  toast.success('Evento classificato con successo');
+                  toast.success(isFiscal ? 'Evento contabilizzato!' : 'Evento classificato');
                   setShowClassifyDialog(false);
                   setSelectedEvent(null);
                   queryClient.invalidateQueries({ queryKey: ['accounting-entries-to-classify'] });
@@ -2572,7 +2647,7 @@ export default function RegistroContabilePage() {
                 }
               }}
             >
-              Classifica
+              {isFiscalDocument(formData.event_type) ? 'Contabilizza' : 'Classifica'}
             </Button>
           </DialogFooter>
         </DialogContent>
