@@ -982,36 +982,21 @@ export default function PrimaNotaPage() {
   // - If financial account (banca/carta/cassa) is in DARE → ENTRATA (inflow)
   const summary = movements.reduce(
     (acc, m) => {
-      if (m.status === "rettificato") return acc;
+      // Exclude both rectified movements AND their rectifications from the economic summary
+      // When a movement is rectified, its original is excluded (status="rettificato")
+      // and the rectification entry should also be excluded since it only serves to neutralize
+      if (m.status === "rettificato" || m.is_rectification) return acc;
+      
       const imponibile = m.imponibile || Math.abs(m.amount);
       const iva = m.iva_amount || 0;
       
-      // Economic part: Ricavi e Costi
-      // For rectifications (is_rectification = true), the sign is already inverted
-      // A rectification of a revenue has negative amount/imponibile
-      // A rectification of a cost has positive amount/imponibile
-      if (m.is_rectification) {
-        // For rectifications, we need to reverse: 
-        // - If original was revenue (amount was positive), the rectification has negative amount → subtract from revenues
-        // - If original was cost (amount was negative), the rectification has positive amount → subtract from costs
-        if (m.amount < 0) {
-          // This rectifies a revenue (original amount was positive)
-          acc.revenues += imponibile; // imponibile is negative, so this subtracts
-          acc.ivaDebito += iva;
-        } else {
-          // This rectifies a cost (original amount was negative)  
-          acc.costs += Math.abs(imponibile); // Use absolute since we're subtracting costs
-          acc.ivaCredito += iva;
-        }
+      // Economic part: Ricavi e Costi (only for active non-rectification movements)
+      if (m.amount > 0) {
+        acc.revenues += imponibile;
+        acc.ivaDebito += iva;
       } else {
-        // Normal entries
-        if (m.amount > 0) {
-          acc.revenues += imponibile;
-          acc.ivaDebito += iva;
-        } else {
-          acc.costs += imponibile;
-          acc.ivaCredito += iva;
-        }
+        acc.costs += imponibile;
+        acc.ivaCredito += iva;
       }
       
       // Financial part: Entrate e Uscite from prima_nota_lines
