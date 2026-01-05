@@ -84,6 +84,8 @@ export default function ServiceReportsPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [workOrderSearchOpen, setWorkOrderSearchOpen] = useState(false);
+  const [workOrderSearch, setWorkOrderSearch] = useState("");
   const [reports, setReports] = useState<ServiceReport[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
@@ -129,6 +131,20 @@ export default function ServiceReportsPage() {
     });
   }, [customers, customerSearch]);
 
+  // Filtered work orders for search
+  const filteredWorkOrders = useMemo(() => {
+    if (!workOrderSearch.trim()) return workOrders;
+    const searchLower = workOrderSearch.toLowerCase();
+    return workOrders.filter(wo => {
+      const number = (wo.number || '').toLowerCase();
+      const title = (wo.title || '').toLowerCase();
+      const description = (wo.description || '').toLowerCase();
+      return number.includes(searchLower) || 
+             title.includes(searchLower) ||
+             description.includes(searchLower);
+    });
+  }, [workOrders, workOrderSearch]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -155,25 +171,18 @@ export default function ServiceReportsPage() {
       if (techniciansError) throw techniciansError;
       setTechnicians(techniciansData || []);
 
-      // Load work orders (both service and production)
-      const [serviceOrdersRes, productionOrdersRes] = await Promise.all([
-        supabase
-          .from('service_work_orders')
-          .select('id, number, title, description, customer_id, contact_id, location')
-          .in('status', ['planned', 'in_progress']),
-        supabase
-          .from('work_orders')
-          .select('id, number, title, description, customer_id, location')
-          .in('status', ['planned', 'in_progress'])
-      ]);
+      // Load work orders (only production work orders, not completed)
+      const { data: productionOrdersData, error: productionOrdersError } = await supabase
+        .from('work_orders')
+        .select('id, number, title, description, customer_id, location')
+        .neq('status', 'completato')
+        .order('number', { ascending: false });
 
-      if (serviceOrdersRes.error) throw serviceOrdersRes.error;
-      if (productionOrdersRes.error) throw productionOrdersRes.error;
+      if (productionOrdersError) throw productionOrdersError;
 
-      const serviceOrders: WorkOrder[] = (serviceOrdersRes.data || []).map(wo => ({ ...wo, type: 'service' as const }));
-      const productionOrders: WorkOrder[] = (productionOrdersRes.data || []).map(wo => ({ ...wo, type: 'production' as const }));
+      const productionOrders: WorkOrder[] = (productionOrdersData || []).map(wo => ({ ...wo, type: 'production' as const }));
       
-      setWorkOrders([...serviceOrders, ...productionOrders]);
+      setWorkOrders(productionOrders);
 
       // Load existing reports with customers relation
       const { data: reportsData, error: reportsError } = await supabase
@@ -782,24 +791,68 @@ export default function ServiceReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 sm:px-6 space-y-3">
-              <Select onValueChange={handleWorkOrderSelect}>
-                <SelectTrigger className="h-12 text-base">
-                  <SelectValue placeholder="Seleziona commessa..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {workOrders.map((workOrder) => (
-                    <SelectItem key={workOrder.id} value={workOrder.id} className="py-3">
-                      {workOrder.number} - {workOrder.title} ({workOrder.type === 'service' ? 'CdL' : 'CdP'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={workOrderSearchOpen} onOpenChange={setWorkOrderSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={workOrderSearchOpen}
+                    className="w-full h-12 justify-between text-base font-normal"
+                  >
+                    {selectedWorkOrder ? (
+                      <span className="truncate">
+                        {selectedWorkOrder.number} - {selectedWorkOrder.title} (CdP)
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Seleziona commessa...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[calc(100vw-24px)] sm:w-[500px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput 
+                      placeholder="Cerca per numero o titolo..." 
+                      value={workOrderSearch}
+                      onValueChange={setWorkOrderSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>Nessuna commessa trovata</CommandEmpty>
+                      <CommandGroup>
+                        {filteredWorkOrders.map((workOrder) => (
+                          <CommandItem
+                            key={workOrder.id}
+                            value={workOrder.id}
+                            onSelect={() => {
+                              handleWorkOrderSelect(workOrder.id);
+                              setWorkOrderSearchOpen(false);
+                              setWorkOrderSearch("");
+                            }}
+                            className="py-3"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedWorkOrder?.id === workOrder.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{workOrder.number} - {workOrder.title}</span>
+                              <span className="text-xs text-muted-foreground">CdP</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
 
               {selectedWorkOrder && (
                 <div className="p-3 bg-muted rounded-lg text-sm">
                   <h4 className="font-medium mb-1">{selectedWorkOrder.number} - {selectedWorkOrder.title}</h4>
                   <p className="text-muted-foreground text-xs">
-                    {selectedWorkOrder.type === 'service' ? 'CdL' : 'CdP'}
+                    Commessa di Produzione
                     {selectedWorkOrder.location && ` • ${selectedWorkOrder.location}`}
                   </p>
                 </div>
