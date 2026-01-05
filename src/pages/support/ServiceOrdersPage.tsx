@@ -21,6 +21,9 @@ import { ScheduleInstallationDialog } from "@/components/support/ScheduleInstall
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek } from "date-fns";
 import { it } from "date-fns/locale";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileServiceOrderList } from "@/components/support/MobileServiceOrderList";
+import { MobileServiceOrderDetails } from "@/components/support/MobileServiceOrderDetails";
 
 interface ServiceWorkOrder {
   id: string;
@@ -127,6 +130,10 @@ export default function WorkOrdersServicePage() {
   });
   const { toast } = useToast();
   const { executeWithUndo } = useUndoableAction();
+  const isMobile = useIsMobile();
+
+  // Mobile details state
+  const [showMobileDetails, setShowMobileDetails] = useState(false);
 
   // Handle URL param to auto-open order details
   useEffect(() => {
@@ -932,6 +939,52 @@ export default function WorkOrdersServicePage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Status counts for mobile filters
+  const statusCounts = {
+    all: serviceWorkOrders.length,
+    da_programmare: serviceWorkOrders.filter(wo => wo.status === 'da_programmare').length,
+    programmata: serviceWorkOrders.filter(wo => wo.status === 'programmata').length,
+    completata: serviceWorkOrders.filter(wo => wo.status === 'completata').length,
+  };
+
+  // Mobile handlers
+  const handleMobileViewDetails = (workOrder: ServiceWorkOrder) => {
+    setSelectedWorkOrder(workOrder);
+    setShowMobileDetails(true);
+  };
+
+  const handleMobileClose = () => {
+    setShowMobileDetails(false);
+    setSelectedWorkOrder(null);
+  };
+
+  const handleMobileEdit = () => {
+    if (selectedWorkOrder) {
+      setFormData({
+        title: selectedWorkOrder.title,
+        description: selectedWorkOrder.description || "",
+        customer_id: selectedWorkOrder.customer_id || "",
+        assigned_to: selectedWorkOrder.assigned_to || "",
+        priority: selectedWorkOrder.priority || "medium",
+        scheduled_date: selectedWorkOrder.scheduled_date || "",
+        estimated_hours: selectedWorkOrder.estimated_hours?.toString() || "",
+        location: selectedWorkOrder.location || "",
+        equipment_needed: selectedWorkOrder.equipment_needed || "",
+        notes: selectedWorkOrder.notes || ""
+      });
+      setShowMobileDetails(false);
+      setShowEditDialog(true);
+    }
+  };
+
+  const handleMobileSchedule = () => {
+    if (selectedWorkOrder) {
+      setWorkOrderToSchedule(selectedWorkOrder);
+      setShowMobileDetails(false);
+      setShowScheduleDialog(true);
+    }
+  };
+
   // Calendar view helpers
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -1023,6 +1076,202 @@ export default function WorkOrdersServicePage() {
       });
     }
   };
+
+  // Mobile view
+  if (isMobile) {
+    return (
+      <div className="h-full flex flex-col p-4">
+        <div className="mb-4">
+          <h1 className="text-xl font-bold text-foreground">Commesse di Lavoro</h1>
+        </div>
+
+        <MobileServiceOrderList
+          workOrders={filteredWorkOrders}
+          onViewDetails={handleMobileViewDetails}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusCounts={statusCounts}
+        />
+
+        {/* Mobile Details Overlay */}
+        {showMobileDetails && selectedWorkOrder && (
+          <MobileServiceOrderDetails
+            workOrder={selectedWorkOrder}
+            onClose={handleMobileClose}
+            onEdit={handleMobileEdit}
+            onArchive={() => {
+              handleArchive(selectedWorkOrder.id);
+              handleMobileClose();
+            }}
+            onDelete={() => {
+              handleDeleteWorkOrder(selectedWorkOrder.id);
+              handleMobileClose();
+            }}
+            onStatusChange={(newStatus) => updateWorkOrderStatus(selectedWorkOrder.id, newStatus)}
+            onSchedule={handleMobileSchedule}
+            onGenerateReport={() => {
+              handleGenerateReport(selectedWorkOrder);
+              handleMobileClose();
+            }}
+            onTakeOwnership={() => {
+              handleTakeOwnership(selectedWorkOrder.id);
+            }}
+            leadPhotos={leadPhotos}
+            loadingPhotos={loadingPhotos}
+            salesOrderItems={salesOrderItems}
+          />
+        )}
+
+        {/* Edit Dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Modifica Commessa di Lavoro</DialogTitle>
+              <DialogDescription>
+                {selectedWorkOrder?.number} - Modifica i dettagli della commessa di lavoro
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit_title">Titolo *</Label>
+                <Input
+                  id="edit_title"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  placeholder="Titolo della commessa di lavoro"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_customer">Cliente</Label>
+                <Select value={formData.customer_id} onValueChange={(value) => handleInputChange('customer_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un cliente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit_assigned_to">Assegnato a</Label>
+                <Select value={formData.assigned_to} onValueChange={(value) => handleInputChange('assigned_to', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona tecnico..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {technicians.map((technician) => (
+                      <SelectItem key={technician.id} value={technician.id}>
+                        {technician.first_name} {technician.last_name} ({technician.employee_code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_priority">Priorità</Label>
+                  <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona priorità" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Bassa</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_estimated_hours">Ore Stimate</Label>
+                  <Input
+                    id="edit_estimated_hours"
+                    type="number"
+                    step="0.5"
+                    value={formData.estimated_hours}
+                    onChange={(e) => handleInputChange('estimated_hours', e.target.value)}
+                    placeholder="8.0"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_scheduled_date">Data Programmata Intervento</Label>
+                  <Input
+                    id="edit_scheduled_date"
+                    type="datetime-local"
+                    value={formData.scheduled_date}
+                    onChange={(e) => handleInputChange('scheduled_date', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_location">Ubicazione</Label>
+                  <Input
+                    id="edit_location"
+                    value={formData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder="Indirizzo o ubicazione dell'intervento"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_equipment_needed">Attrezzatura Necessaria</Label>
+                <Textarea
+                  id="edit_equipment_needed"
+                  value={formData.equipment_needed}
+                  onChange={(e) => handleInputChange('equipment_needed', e.target.value)}
+                  placeholder="Strumenti e attrezzature necessarie..."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_description">Descrizione</Label>
+                <Textarea
+                  id="edit_description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Descrizione del lavoro da eseguire..."
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_notes">Note</Label>
+                <Textarea
+                  id="edit_notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Note aggiuntive..."
+                  rows={2}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                  Annulla
+                </Button>
+                <Button onClick={handleEditWorkOrder} disabled={loading}>
+                  {loading ? "Salvando..." : "Salva Modifiche"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <ScheduleInstallationDialog
+          open={showScheduleDialog}
+          onOpenChange={setShowScheduleDialog}
+          onSchedule={handleScheduleInstallation}
+          workOrderNumber={workOrderToSchedule?.number}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6">
