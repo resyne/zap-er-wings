@@ -35,6 +35,8 @@ import { ArticleBomDisplay } from "@/components/production/ArticleBomDisplay";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductionTimeline } from "@/components/production/ProductionTimeline";
 import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
+import { MobileWorkOrderList } from "@/components/production/MobileWorkOrderList";
+import { MobileWorkOrderDetails } from "@/components/production/MobileWorkOrderDetails";
 
 interface WorkOrder {
   id: string;
@@ -1817,6 +1819,130 @@ ${allOrdersHTML}
 
   const workOrderStatuses = ['da_fare', 'in_lavorazione', 'in_test', 'pronto', 'completato', 'standby', 'bloccato'];
 
+  // Mobile view - completely different layout
+  if (isMobile) {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        {/* Mobile Header */}
+        <div className="p-3 border-b bg-background">
+          <h1 className="text-lg font-bold">Commesse di Produzione</h1>
+          <p className="text-xs text-muted-foreground">{filteredWorkOrders.length} commesse</p>
+        </div>
+
+        {/* Mobile List */}
+        <div className="flex-1 overflow-auto p-3">
+          <MobileWorkOrderList
+            workOrders={filteredWorkOrders}
+            onViewDetails={handleViewDetails}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            statusCounts={statusCounts}
+          />
+        </div>
+
+        {/* Mobile Details - Full screen overlay */}
+        {showDetailsDialog && selectedWO && (
+          <MobileWorkOrderDetails
+            workOrder={selectedWO}
+            onClose={() => setShowDetailsDialog(false)}
+            onStatusChange={handleStatusChange}
+            onEdit={() => {
+              setShowDetailsDialog(false);
+              handleEdit(selectedWO);
+            }}
+            onDelete={() => {
+              setShowDetailsDialog(false);
+              handleDelete(selectedWO.id);
+            }}
+            onArchive={() => {
+              setShowDetailsDialog(false);
+              handleArchive(selectedWO.id, selectedWO.archived || false);
+            }}
+            onTakeOwnership={() => handleTakeOwnership(selectedWO.id)}
+            onDownloadReport={() => handleDownloadDetailedReport(selectedWO)}
+            leadPhotos={leadPhotos}
+            loadingPhotos={loadingPhotos}
+          />
+        )}
+
+        {/* Create/Edit Dialog still uses default dialog on mobile */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{selectedWO ? 'Modifica Commessa' : 'Nuova Commessa'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Titolo *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Titolo della commessa"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer_id">Cliente</Label>
+                <Select value={formData.customer_id} onValueChange={(value) => setFormData({ ...formData, customer_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Priorità</Label>
+                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Bassa</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Note</Label>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsDialogOpen(false)}>
+                  Annulla
+                </Button>
+                <Button type="submit" className="flex-1">
+                  {selectedWO ? 'Salva' : 'Crea'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <CreateCustomerDialog
+          open={showCreateCustomer}
+          onOpenChange={setShowCreateCustomer}
+          onCustomerCreated={handleCustomerCreated}
+        />
+      </div>
+    );
+  }
+
+  // Desktop view - original layout
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -1835,29 +1961,29 @@ ${allOrdersHTML}
       </Breadcrumb>
 
       {/* Header */}
-      <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className={isMobile ? "text-2xl font-bold tracking-tight" : "text-3xl font-bold tracking-tight"}>
+          <h1 className="text-3xl font-bold tracking-tight">
             Commesse di Produzione (CdP)
           </h1>
-          <p className={isMobile ? "text-sm text-muted-foreground" : "text-muted-foreground"}>
+          <p className="text-muted-foreground">
             Pianifica e monitora le commesse di produzione durante il loro ciclo di vita. Per creare una nuova commessa, utilizza la sezione Ordini.
           </p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className={isMobile ? "grid grid-cols-2 gap-2" : "grid grid-cols-1 md:grid-cols-10 gap-4"}>
+      <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
         {Object.entries(statusCounts).map(([status, count]) => (
           <Card 
             key={status} 
             className={`cursor-pointer transition-colors ${statusFilter === status ? 'ring-2 ring-primary' : ''}`}
             onClick={() => setStatusFilter(status)}
           >
-            <CardContent className={isMobile ? "p-2" : "p-4"}>
+            <CardContent className="p-4">
               <div className="text-center">
-                <div className={isMobile ? "text-lg font-bold" : "text-2xl font-bold"}>{count}</div>
-                <div className={isMobile ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground capitalize"}>
+                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-sm text-muted-foreground capitalize">
                   {status === 'all' ? 'Tutti' : 
                    status === 'active' ? 'Attivi' :
                    status === 'da_fare' ? 'Da Fare' :
@@ -1878,55 +2004,54 @@ ${allOrdersHTML}
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className={isMobile ? "text-base" : ""}>Ricerca e Filtri</CardTitle>
+          <CardTitle>Ricerca e Filtri</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={isMobile ? "space-y-3" : "flex items-center space-x-4"}>
+          <div className="flex items-center space-x-4">
             <div className="relative flex-1">
-              <Search className={isMobile ? "absolute left-2 top-2 h-3 w-3 text-muted-foreground" : "absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"} />
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={isMobile ? "Cerca..." : "Cerca commesse di produzione..."}
+                placeholder="Cerca commesse di produzione..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={isMobile ? "pl-7 h-8 text-sm" : "pl-8"}
+                className="pl-8"
               />
             </div>
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "timeline")} className={isMobile ? "w-full" : ""}>
-              <TabsList className={isMobile ? "w-full grid grid-cols-3" : ""}>
-                <TabsTrigger value="table" className={isMobile ? "text-xs py-1" : ""}>
-                  <List className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
-                  {!isMobile && "Tabella"}
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "kanban" | "timeline")}>
+              <TabsList>
+                <TabsTrigger value="table">
+                  <List className="h-4 w-4 mr-2" />
+                  Tabella
                 </TabsTrigger>
-                <TabsTrigger value="kanban" className={isMobile ? "text-xs py-1" : ""}>
-                  <LayoutGrid className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
-                  {!isMobile && "Kanban"}
+                <TabsTrigger value="kanban">
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Kanban
                 </TabsTrigger>
-                <TabsTrigger value="timeline" className={isMobile ? "text-xs py-1" : ""}>
-                  <CalendarIcon className={isMobile ? "h-3 w-3" : "h-4 w-4 mr-2"} />
-                  {!isMobile && "Timeline"}
+                <TabsTrigger value="timeline">
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Timeline
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className={isMobile ? "flex gap-2" : "flex gap-2"}>
+            <div className="flex gap-2">
               <Button 
                 variant={showArchivedOrders ? "default" : "outline"} 
-                size={isMobile ? "sm" : "sm"}
-                className={isMobile ? "flex-1 text-xs h-8" : ""}
+                size="sm"
                 onClick={() => setShowArchivedOrders(!showArchivedOrders)}
               >
-                {isMobile ? (showArchivedOrders ? "Nascondi" : "Archiviati") : (showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati")}
+                {showArchivedOrders ? "Nascondi Archiviati" : "Mostra Archiviati"}
               </Button>
-              <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8" : ""} onClick={() => setShowFiltersDialog(true)}>
-                <Filter className={isMobile ? "h-3 w-3" : "mr-2 h-4 w-4"} />
-                {!isMobile && "Filtri"}
+              <Button variant="outline" size="sm" onClick={() => setShowFiltersDialog(true)}>
+                <Filter className="mr-2 h-4 w-4" />
+                Filtri
               </Button>
-              <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8" : ""} onClick={handleExport}>
-                <Download className={isMobile ? "h-3 w-3" : "mr-2 h-4 w-4"} />
-                {!isMobile && "Esporta"}
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Esporta
               </Button>
-              <Button variant="outline" size={isMobile ? "sm" : "sm"} className={isMobile ? "flex-1 text-xs h-8 gap-1" : "gap-2"} onClick={handleDownloadReport}>
-                <FileDown className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
-                {!isMobile && "Report PDF"}
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadReport}>
+                <FileDown className="h-4 w-4" />
+                Report PDF
               </Button>
             </div>
           </div>
