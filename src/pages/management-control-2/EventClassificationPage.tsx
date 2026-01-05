@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
   Save, MessageSquare, Pause, Send, AlertCircle, Image, Trash2, HelpCircle, Sparkles, Loader2, UserPlus, Building2, Check
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
+import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
 
 interface DetectedSubject {
   type: "cliente" | "fornitore";
@@ -147,6 +149,10 @@ export default function EventClassificationPage() {
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
   const [viewMode, setViewMode] = useState<"da_classificare" | "classificati" | "contabilizzati">("da_classificare");
   
+  // Fuzzy match state
+  const [showSimilarDialog, setShowSimilarDialog] = useState(false);
+  const [similarMatches, setSimilarMatches] = useState<SubjectMatch[]>([]);
+  const [pendingSubjectName, setPendingSubjectName] = useState<string>("");
   // Classification form state
   const [classificationForm, setClassificationForm] = useState({
     event_type: "",
@@ -231,6 +237,32 @@ export default function EventClassificationPage() {
         .order("code");
       if (error) throw error;
       return data as ChartAccount[];
+    },
+  });
+
+  // Fetch customers for fuzzy matching
+  const { data: allCustomers = [] } = useQuery({
+    queryKey: ["all-customers-for-matching"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, code, tax_id")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch suppliers for fuzzy matching
+  const { data: allSuppliers = [] } = useQuery({
+    queryKey: ["all-suppliers-for-matching"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("id, name, code, tax_id")
+        .order("name");
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -442,8 +474,80 @@ export default function EventClassificationPage() {
     }
   };
 
+  // Check for similar subjects before creating
+  const checkForSimilarSubjects = () => {
+    if (!detectedSubject) return;
+    
+    const subjectName = detectedSubject.name;
+    const subjectList = detectedSubject.type === "cliente" ? allCustomers : allSuppliers;
+    
+    const matches = findSimilarSubjects(subjectName, subjectList, 0.5);
+    
+    if (matches.length > 0) {
+      // Found similar subjects - show the dialog
+      setPendingSubjectName(subjectName);
+      setSimilarMatches(matches);
+      setShowSimilarDialog(true);
+      setShowSubjectDialog(false);
+    } else {
+      // No similar subjects found - proceed with creation
+      createNewSubject();
+    }
+  };
+
+  // Handle similar subject dialog action
+  const handleSimilarSubjectAction = async (action: SimilarSubjectAction, selectedMatch?: SubjectMatch) => {
+    if (!detectedSubject) return;
+    
+    setIsCreatingSubject(true);
+    try {
+      if (action === "use_existing" && selectedMatch) {
+        // Use existing subject
+        setClassificationForm(prev => ({
+          ...prev,
+          economic_subject_type: detectedSubject.type,
+          economic_subject_id: selectedMatch.id,
+        }));
+        setDetectedSubject(prev => prev ? { ...prev, existing_id: selectedMatch.id, found: true } : null);
+        toast.success(`Collegato a "${selectedMatch.name}" esistente`);
+      } else if (action === "update_existing" && selectedMatch) {
+        // Update existing subject name
+        if (detectedSubject.type === "cliente") {
+          await supabase
+            .from("customers")
+            .update({ name: detectedSubject.name, company_name: detectedSubject.name })
+            .eq("id", selectedMatch.id);
+        } else {
+          await supabase
+            .from("suppliers")
+            .update({ name: detectedSubject.name })
+            .eq("id", selectedMatch.id);
+        }
+        
+        setClassificationForm(prev => ({
+          ...prev,
+          economic_subject_type: detectedSubject.type,
+          economic_subject_id: selectedMatch.id,
+        }));
+        setDetectedSubject(prev => prev ? { ...prev, existing_id: selectedMatch.id, found: true } : null);
+        queryClient.invalidateQueries({ queryKey: detectedSubject.type === "cliente" ? ["all-customers-for-matching"] : ["all-suppliers-for-matching"] });
+        toast.success(`"${selectedMatch.name}" aggiornato a "${detectedSubject.name}"`);
+      } else if (action === "create_new") {
+        // Create new subject
+        await createNewSubject();
+      }
+      
+      setShowSimilarDialog(false);
+    } catch (err) {
+      console.error("Error handling similar subject action:", err);
+      toast.error("Errore durante l'operazione");
+    } finally {
+      setIsCreatingSubject(false);
+    }
+  };
+
   // Create new customer or supplier
-  const handleCreateSubject = async () => {
+  const createNewSubject = async () => {
     if (!detectedSubject) return;
     
     setIsCreatingSubject(true);
@@ -472,6 +576,7 @@ export default function EventClassificationPage() {
         }));
         
         setDetectedSubject(prev => prev ? { ...prev, existing_id: data.id, found: true } : null);
+        queryClient.invalidateQueries({ queryKey: ["all-customers-for-matching"] });
         toast.success(`Cliente "${detectedSubject.name}" creato con successo!`);
       } else {
         // Generate random access code and unique code for supplier
@@ -500,6 +605,7 @@ export default function EventClassificationPage() {
         }));
         
         setDetectedSubject(prev => prev ? { ...prev, existing_id: data.id, found: true } : null);
+        queryClient.invalidateQueries({ queryKey: ["all-suppliers-for-matching"] });
         toast.success(`Fornitore "${detectedSubject.name}" creato con successo!`);
       }
       
@@ -1668,7 +1774,7 @@ export default function EventClassificationPage() {
             </Button>
             {!detectedSubject?.found && (
               <Button
-                onClick={handleCreateSubject}
+                onClick={checkForSimilarSubjects}
                 disabled={isCreatingSubject}
                 className={detectedSubject?.type === "cliente" ? "bg-blue-600 hover:bg-blue-700" : "bg-orange-600 hover:bg-orange-700"}
               >
@@ -1683,6 +1789,17 @@ export default function EventClassificationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Similar Subject Dialog */}
+      <SimilarSubjectDialog
+        open={showSimilarDialog}
+        onOpenChange={setShowSimilarDialog}
+        newName={pendingSubjectName || detectedSubject?.name || ""}
+        matches={similarMatches}
+        subjectType={detectedSubject?.type || "fornitore"}
+        onAction={handleSimilarSubjectAction}
+        isLoading={isCreatingSubject}
+      />
     </div>
   );
 }
