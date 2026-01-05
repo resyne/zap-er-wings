@@ -50,8 +50,8 @@ interface StatusConfig {
 
 const statusOptions: StatusConfig[] = [
   { key: 'all', label: 'Tutte', color: 'bg-primary' },
-  { key: 'da_programmare', label: 'Da Prog.', color: 'bg-blue-500' },
-  { key: 'programmata', label: 'Progr.', color: 'bg-yellow-500' },
+  { key: 'da_fare', label: 'Da Fare', color: 'bg-blue-500' },
+  { key: 'stand_by', label: 'Stand By', color: 'bg-yellow-500' },
   { key: 'completata', label: 'Compl.', color: 'bg-green-500' },
 ];
 
