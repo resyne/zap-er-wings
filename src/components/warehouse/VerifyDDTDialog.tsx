@@ -19,6 +19,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AttachmentPreview } from "@/components/warehouse/AttachmentPreview";
+import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
+import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
 
 interface VerifyDDTDialogProps {
   open: boolean;
@@ -98,6 +100,13 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
   const [items, setItems] = useState<DDTItem[]>([]);
   const [extractedCounterpart, setExtractedCounterpart] = useState<ExtractedCounterpart | null>(null);
   const [creatingCounterpart, setCreatingCounterpart] = useState(false);
+  
+  // Similar subject dialog state
+  const [similarDialogOpen, setSimilarDialogOpen] = useState(false);
+  const [similarMatches, setSimilarMatches] = useState<SubjectMatch[]>([]);
+  const [pendingCounterpartName, setPendingCounterpartName] = useState("");
+  const [pendingCounterpartType, setPendingCounterpartType] = useState<"cliente" | "fornitore">("fornitore");
+  const [pendingCounterpartInfo, setPendingCounterpartInfo] = useState<ExtractedCounterpart | null>(null);
   
   const [formData, setFormData] = useState({
     // Identificazione
@@ -187,42 +196,189 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
     }
   };
 
-  const findOrCreateCounterpart = async (name: string, address?: string, vat?: string): Promise<{ id: string; isNew: boolean } | null> => {
-    const isSupplier = formData.counterpartType === "supplier";
+  const findCounterpartWithFuzzyMatch = async (
+    name: string, 
+    address?: string, 
+    vat?: string,
+    counterpartType: "supplier" | "customer" = formData.counterpartType as "supplier" | "customer"
+  ): Promise<{ 
+    found: boolean; 
+    exactMatch?: { id: string; name: string }; 
+    similarMatches?: SubjectMatch[];
+    noMatch?: boolean;
+  }> => {
+    const isSupplier = counterpartType === "supplier";
     const table = isSupplier ? "suppliers" : "customers";
-    
-    // Search by name (case insensitive)
-    const searchName = name.trim().toLowerCase();
+    const searchName = name.trim();
     
     try {
-      // Try to find existing
-      const { data: existing } = await supabase
-        .from(table)
-        .select("id, name")
-        .ilike("name", `%${searchName}%`)
-        .limit(1);
-      
-      if (existing && existing.length > 0) {
-        return { id: existing[0].id, isNew: false };
-      }
-
-      // If VAT provided, try to find by VAT
+      // First check for exact VAT match
       if (vat) {
         const { data: existingByVat } = await supabase
           .from(table)
-          .select("id, name")
+          .select("id, name, code, tax_id")
           .eq("tax_id", vat.trim())
           .limit(1);
         
         if (existingByVat && existingByVat.length > 0) {
-          return { id: existingByVat[0].id, isNew: false };
+          return { found: true, exactMatch: { id: existingByVat[0].id, name: existingByVat[0].name } };
         }
       }
 
-      return null;
+      // Fetch all subjects for fuzzy matching
+      const { data: allSubjects } = await supabase
+        .from(table)
+        .select("id, name, code, tax_id")
+        .order("name");
+
+      if (!allSubjects || allSubjects.length === 0) {
+        return { found: false, noMatch: true };
+      }
+
+      // Check for exact name match first (case insensitive)
+      const exactMatch = allSubjects.find(
+        s => s.name.toLowerCase().trim() === searchName.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        return { found: true, exactMatch: { id: exactMatch.id, name: exactMatch.name } };
+      }
+
+      // Use fuzzy matching with 90% threshold
+      const matches = findSimilarSubjects(searchName, allSubjects, 0.9);
+      
+      if (matches.length > 0) {
+        // Found similar subjects, show dialog
+        return { found: false, similarMatches: matches };
+      }
+
+      // No matches found
+      return { found: false, noMatch: true };
     } catch (error) {
       console.error("Error finding counterpart:", error);
-      return null;
+      return { found: false, noMatch: true };
+    }
+  };
+
+  const handleSimilarSubjectAction = async (action: SimilarSubjectAction, selectedMatch?: SubjectMatch) => {
+    setCreatingCounterpart(true);
+    const isSupplier = pendingCounterpartType === "fornitore";
+    const table = isSupplier ? "suppliers" : "customers";
+
+    try {
+      if (action === "use_existing" && selectedMatch) {
+        // Use the existing subject
+        if (isSupplier) {
+          setFormData(prev => ({ ...prev, supplierId: selectedMatch.id }));
+        } else {
+          setFormData(prev => ({ ...prev, customerId: selectedMatch.id }));
+        }
+        
+        if (pendingCounterpartInfo) {
+          setExtractedCounterpart({ ...pendingCounterpartInfo, matched: true, matchedId: selectedMatch.id });
+        }
+        
+        toast({
+          title: "Controparte selezionata",
+          description: `Collegato a "${selectedMatch.name}"`,
+        });
+      } else if (action === "update_existing" && selectedMatch) {
+        // Update the existing subject with the new name
+        const { error } = await supabase
+          .from(table)
+          .update({ 
+            name: pendingCounterpartName,
+            address: pendingCounterpartInfo?.address || undefined,
+            tax_id: pendingCounterpartInfo?.vat || undefined,
+          })
+          .eq("id", selectedMatch.id);
+        
+        if (error) throw error;
+
+        if (isSupplier) {
+          setSuppliers(prev => prev.map(s => s.id === selectedMatch.id ? { ...s, name: pendingCounterpartName } : s));
+          setFormData(prev => ({ ...prev, supplierId: selectedMatch.id }));
+        } else {
+          setCustomers(prev => prev.map(c => c.id === selectedMatch.id ? { ...c, name: pendingCounterpartName } : c));
+          setFormData(prev => ({ ...prev, customerId: selectedMatch.id }));
+        }
+        
+        if (pendingCounterpartInfo) {
+          setExtractedCounterpart({ ...pendingCounterpartInfo, matched: true, matchedId: selectedMatch.id });
+        }
+        
+        toast({
+          title: "Anagrafica aggiornata",
+          description: `Nome aggiornato a "${pendingCounterpartName}"`,
+        });
+      } else if (action === "create_new") {
+        // Create new subject
+        const prefix = isSupplier ? "F" : "C";
+        const { count } = await supabase
+          .from(table)
+          .select("*", { count: "exact", head: true });
+        
+        const code = `${prefix}${String((count || 0) + 1).padStart(5, "0")}`;
+
+        let newId: string;
+        
+        if (isSupplier) {
+          const { data, error } = await supabase
+            .from("suppliers")
+            .insert({ 
+              code, 
+              name: pendingCounterpartName, 
+              address: pendingCounterpartInfo?.address || null,
+              tax_id: pendingCounterpartInfo?.vat || null,
+              access_code: crypto.randomUUID().substring(0, 8)
+            })
+            .select("id")
+            .single();
+          
+          if (error) throw error;
+          newId = data.id;
+          
+          setSuppliers(prev => [...prev, { id: newId, name: pendingCounterpartName, code }]);
+          setFormData(prev => ({ ...prev, supplierId: newId }));
+        } else {
+          const { data, error } = await supabase
+            .from("customers")
+            .insert({ 
+              code, 
+              name: pendingCounterpartName, 
+              address: pendingCounterpartInfo?.address || null,
+              tax_id: pendingCounterpartInfo?.vat || null,
+              incomplete_registry: true 
+            })
+            .select("id")
+            .single();
+          
+          if (error) throw error;
+          newId = data.id;
+          
+          setCustomers(prev => [...prev, { id: newId, name: pendingCounterpartName, code }]);
+          setFormData(prev => ({ ...prev, customerId: newId }));
+        }
+        
+        if (pendingCounterpartInfo) {
+          setExtractedCounterpart({ ...pendingCounterpartInfo, matched: true, matchedId: newId });
+        }
+        
+        toast({
+          title: isSupplier ? "Fornitore creato" : "Cliente creato",
+          description: `${pendingCounterpartName} aggiunto all'anagrafica`,
+        });
+      }
+    } catch (error) {
+      console.error("Error handling similar subject action:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile completare l'operazione",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingCounterpart(false);
+      setSimilarDialogOpen(false);
     }
   };
 
@@ -439,29 +595,49 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
         }
 
         if (counterpartInfo) {
-          // Try to find existing counterpart
-          const found = await findOrCreateCounterpart(counterpartInfo.name, counterpartInfo.address, counterpartInfo.vat);
+          // Try to find existing counterpart with fuzzy matching
+          const result = await findCounterpartWithFuzzyMatch(
+            counterpartInfo.name, 
+            counterpartInfo.address, 
+            counterpartInfo.vat,
+            detectedCounterpartType
+          );
 
-          if (found) {
+          if (result.found && result.exactMatch) {
+            // Exact match found, auto-select
             counterpartInfo.matched = true;
-            counterpartInfo.matchedId = found.id;
+            counterpartInfo.matchedId = result.exactMatch.id;
 
-            // Auto-select the counterpart
             if (detectedCounterpartType === "supplier") {
-              setFormData((prev) => ({ ...prev, supplierId: found.id }));
+              setFormData((prev) => ({ ...prev, supplierId: result.exactMatch!.id }));
             } else {
-              setFormData((prev) => ({ ...prev, customerId: found.id }));
+              setFormData((prev) => ({ ...prev, customerId: result.exactMatch!.id }));
             }
 
             toast({
               title: "Controparte trovata",
               description: `${counterpartInfo.name} è già presente in anagrafica`,
             });
-          } else {
+            setExtractedCounterpart(counterpartInfo);
+          } else if (result.similarMatches && result.similarMatches.length > 0) {
+            // Similar matches found, show dialog
             counterpartInfo.matched = false;
+            setExtractedCounterpart(counterpartInfo);
+            setPendingCounterpartName(counterpartInfo.name);
+            setPendingCounterpartType(detectedCounterpartType === "supplier" ? "fornitore" : "cliente");
+            setPendingCounterpartInfo(counterpartInfo);
+            setSimilarMatches(result.similarMatches);
+            setSimilarDialogOpen(true);
+            
+            toast({
+              title: "Soggetto simile trovato",
+              description: "Seleziona come procedere",
+            });
+          } else {
+            // No matches, offer to create new
+            counterpartInfo.matched = false;
+            setExtractedCounterpart(counterpartInfo);
           }
-
-          setExtractedCounterpart(counterpartInfo);
         }
 
         toast({
@@ -650,7 +826,8 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
      (formData.counterpartType === "supplier" && formData.supplierId));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[95vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -1098,5 +1275,17 @@ export function VerifyDDTDialog({ open, onOpenChange, ddt, onSuccess }: VerifyDD
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    {/* Similar Subject Dialog */}
+    <SimilarSubjectDialog
+      open={similarDialogOpen}
+      onOpenChange={setSimilarDialogOpen}
+      newName={pendingCounterpartName}
+      matches={similarMatches}
+      subjectType={pendingCounterpartType}
+      onAction={handleSimilarSubjectAction}
+      isLoading={creatingCounterpart}
+    />
+  </>
   );
 }
