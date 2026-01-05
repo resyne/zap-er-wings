@@ -39,6 +39,7 @@ interface Lead {
   status: string;
   pipeline?: string;
   country?: string;
+  city?: string;
   archived?: boolean;
   notes?: string;
   assigned_to?: string;
@@ -367,6 +368,7 @@ export default function LeadsPage() {
         status: newLead.status,
         pipeline: newLead.pipeline || selectedPipeline,
         country: newLead.country,
+        city: newLead.city,
         priority: newLead.priority,
         notes: newLead.notes,
         next_activity_type: newLead.next_activity_type,
@@ -546,7 +548,7 @@ export default function LeadsPage() {
       pec: "",
       sdi_code: "",
       address: "",
-      city: "",
+      city: lead.city || "",
       province: "",
       postal_code: "",
       shipping_address: "",
@@ -610,6 +612,7 @@ export default function LeadsPage() {
         status: newLead.status,
         pipeline: newLead.pipeline,
         country: newLead.country,
+        city: newLead.city,
         priority: newLead.priority,
         notes: newLead.notes,
         next_activity_type: newLead.next_activity_type,
@@ -1216,6 +1219,15 @@ export default function LeadsPage() {
                           <option key={country} value={country} />
                         ))}
                       </datalist>
+                    </div>
+                    <div>
+                      <Label htmlFor="city_create">Città</Label>
+                      <Input
+                        id="city_create"
+                        value={newLead.city}
+                        onChange={(e) => setNewLead({...newLead, city: e.target.value})}
+                        placeholder="es. Milano"
+                      />
                     </div>
                     <div className="col-span-2">
                       <Label htmlFor="shipping_address">Indirizzo di Spedizione (se diverso)</Label>
@@ -2395,7 +2407,9 @@ export default function LeadsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">{selectedLead.country || '-'}</span>
+                      <span className="text-sm">
+                        {selectedLead.city ? `${selectedLead.city}, ` : ''}{selectedLead.country || '-'}
+                      </span>
                     </div>
                   </div>
                 </CollapsibleContent>
@@ -2877,6 +2891,15 @@ export default function LeadsPage() {
                   <option key={country} value={country} />
                 ))}
               </datalist>
+            </div>
+            <div>
+              <Label htmlFor="edit_city">Città</Label>
+              <Input
+                id="edit_city"
+                value={newLead.city}
+                onChange={(e) => setNewLead({...newLead, city: e.target.value})}
+                placeholder="es. Milano"
+              />
             </div>
             <div className="col-span-2">
               <Label htmlFor="edit_notes">Note</Label>

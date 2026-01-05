@@ -3405,6 +3405,7 @@ export type Database = {
         Row: {
           archived: boolean | null
           assigned_to: string | null
+          city: string | null
           company_name: string
           configurator_has_quote: boolean | null
           configurator_history: Json | null
@@ -3441,6 +3442,7 @@ export type Database = {
         Insert: {
           archived?: boolean | null
           assigned_to?: string | null
+          city?: string | null
           company_name: string
           configurator_has_quote?: boolean | null
           configurator_history?: Json | null
@@ -3477,6 +3479,7 @@ export type Database = {
         Update: {
           archived?: boolean | null
           assigned_to?: string | null
+          city?: string | null
           company_name?: string
           configurator_has_quote?: boolean | null
           configurator_history?: Json | null
