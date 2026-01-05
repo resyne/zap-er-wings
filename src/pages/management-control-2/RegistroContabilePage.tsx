@@ -362,6 +362,81 @@ export default function RegistroContabilePage() {
                   ? (supplierTaxId || '')
                   : (subjectType === 'fornitore' ? (supplierTaxId || '') : (customerTaxId || ''));
 
+            // Map AI payment method to our format
+            const mapPaymentMethod = (aiMethod?: string): string => {
+              if (!aiMethod) return '';
+              const map: Record<string, string> = {
+                'bonifico': 'bonifico',
+                'carta': 'carta',
+                'contanti': 'contanti',
+                'assegno': 'assegno',
+                'pos': 'pos'
+              };
+              return map[aiMethod.toLowerCase()] || '';
+            };
+
+            // Find matching cost center based on AI hint
+            const findCostCenter = (hint?: string): string => {
+              if (!hint || costCenters.length === 0) return '';
+              const hintLower = hint.toLowerCase();
+              const match = costCenters.find(cc => 
+                cc.name.toLowerCase().includes(hintLower) || 
+                cc.code.toLowerCase().includes(hintLower)
+              );
+              return match?.id || '';
+            };
+
+            // Find matching account based on AI hint and expense category
+            const findAccount = (accountHint?: string, expenseCategory?: string): string => {
+              if (accounts.length === 0) return '';
+              
+              // Try account hint first
+              if (accountHint) {
+                const hintLower = accountHint.toLowerCase();
+                const match = accounts.find(acc => 
+                  acc.name.toLowerCase().includes(hintLower) ||
+                  hintLower.includes(acc.name.toLowerCase())
+                );
+                if (match) return match.id;
+              }
+
+              // Try expense category mapping
+              if (expenseCategory) {
+                const categoryMap: Record<string, string[]> = {
+                  'carburante': ['carburante', 'carburanti', 'benzina', 'gasolio'],
+                  'pedaggi': ['pedaggi', 'autostrada', 'autostrade'],
+                  'materiali': ['materiali', 'materie prime', 'acquisti'],
+                  'servizi': ['servizi', 'prestazioni'],
+                  'consulenza': ['consulenza', 'consulenze', 'professionali'],
+                  'utenze': ['utenze', 'telefono', 'energia', 'gas', 'acqua'],
+                  'affitto': ['affitto', 'locazione', 'canoni'],
+                  'manutenzione': ['manutenzione', 'riparazioni'],
+                  'assicurazioni': ['assicurazione', 'assicurazioni'],
+                  'formazione': ['formazione', 'corsi'],
+                  'marketing': ['marketing', 'pubblicità', 'promozione'],
+                  'trasporti': ['trasporti', 'spedizioni', 'corriere']
+                };
+
+                const keywords = categoryMap[expenseCategory] || [];
+                for (const keyword of keywords) {
+                  const match = accounts.find(acc => 
+                    acc.name.toLowerCase().includes(keyword)
+                  );
+                  if (match) return match.id;
+                }
+              }
+
+              return '';
+            };
+
+            // Build notes with invoice description
+            const buildNotes = (existingNotes?: string, description?: string): string => {
+              const parts: string[] = [];
+              if (description) parts.push(`Oggetto: ${description}`);
+              if (existingNotes) parts.push(existingNotes);
+              return parts.join('\n');
+            };
+
             setFormData(prev => ({
               ...prev,
               event_type: eventType,
@@ -375,7 +450,11 @@ export default function RegistroContabilePage() {
               vat_regime: extracted.vat_regime || prev.vat_regime,
               financial_status: financialStatus,
               due_date: extracted.due_date || prev.due_date,
-              notes: extracted.notes || prev.notes,
+              payment_method: mapPaymentMethod(extracted.payment_method) || prev.payment_method,
+              cost_center_id: findCostCenter(extracted.cost_center_hint) || prev.cost_center_id,
+              cost_account_id: findAccount(extracted.account_hint, extracted.expense_category) || prev.cost_account_id,
+              expense_type: extracted.expense_category || prev.expense_type,
+              notes: buildNotes(extracted.notes, extracted.invoice_description) || prev.notes,
               attachment_url: urlData.publicUrl
             }));
 

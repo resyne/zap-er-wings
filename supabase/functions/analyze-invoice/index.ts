@@ -71,12 +71,20 @@ DATI FATTURA:
 - total_amount: importo totale
 - vat_regime: "domestica_imponibile" | "ue_non_imponibile" | "extra_ue" | "reverse_charge"
 - due_date: data scadenza pagamento in formato YYYY-MM-DD (se presente)
-- payment_method: metodo di pagamento se indicato
+- payment_method: metodo di pagamento (bonifico, carta, contanti, assegno, pos)
+- payment_terms: termini di pagamento (es: "30gg", "60gg", "rimessa diretta")
 - notes: eventuali note importanti
+
+CLASSIFICAZIONE CONTABILE (suggerisci in base alla descrizione/oggetto fattura):
+- expense_category: categoria spesa (es: "carburante", "pedaggi", "materiali", "servizi", "consulenza", "utenze", "affitto", "manutenzione", "assicurazioni", "formazione", "marketing", "altro")
+- cost_center_hint: suggerimento centro di costo (es: "produzione", "amministrazione", "commerciale", "logistica")
+- account_hint: suggerimento conto contabile (es: "acquisti materie prime", "spese telefoniche", "carburanti", "consulenze")
+- invoice_description: descrizione/oggetto principale della fattura (cosa è stato acquistato/venduto)
 
 LINEE GUIDA IMPORTANTI:
 - Non scambiare Cedente/Prestatore e Cessionario/Committente.
 - Compila i campi *_tax_id con la P.IVA (se presente).
+- Analizza la descrizione delle voci fattura per suggerire categoria e conto.
 - Rispondi SOLO con i dati trovati, senza testo libero.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -94,7 +102,7 @@ LINEE GUIDA IMPORTANTI:
             content: [
               {
                 type: "text",
-                text: "Analizza questa fattura e estrai tutti i dati fiscali e contabili.",
+                text: "Analizza questa fattura e estrai tutti i dati fiscali e contabili. Suggerisci anche la classificazione contabile appropriata.",
               },
               {
                 type: "image_url",
@@ -110,7 +118,7 @@ LINEE GUIDA IMPORTANTI:
             type: "function",
             function: {
               name: "extract_invoice_data",
-              description: "Estrae i dati strutturati dalla fattura",
+              description: "Estrae i dati strutturati dalla fattura e suggerisce classificazione contabile",
               parameters: {
                 type: "object",
                 properties: {
@@ -154,11 +162,36 @@ LINEE GUIDA IMPORTANTI:
                   },
                   payment_method: {
                     type: "string",
+                    enum: ["bonifico", "carta", "contanti", "assegno", "pos"],
                     description: "Metodo di pagamento",
+                  },
+                  payment_terms: {
+                    type: "string",
+                    description: "Termini di pagamento (es: 30gg, 60gg)",
                   },
                   notes: {
                     type: "string",
                     description: "Note importanti dalla fattura",
+                  },
+
+                  // Classificazione contabile
+                  expense_category: {
+                    type: "string",
+                    enum: ["carburante", "pedaggi", "materiali", "servizi", "consulenza", "utenze", "affitto", "manutenzione", "assicurazioni", "formazione", "marketing", "trasporti", "altro"],
+                    description: "Categoria di spesa suggerita",
+                  },
+                  cost_center_hint: {
+                    type: "string",
+                    enum: ["produzione", "amministrazione", "commerciale", "logistica", "assistenza", "direzione"],
+                    description: "Centro di costo suggerito",
+                  },
+                  account_hint: {
+                    type: "string",
+                    description: "Nome/tipo conto contabile suggerito (es: acquisti materie prime, spese telefoniche)",
+                  },
+                  invoice_description: {
+                    type: "string",
+                    description: "Descrizione/oggetto principale della fattura",
                   },
 
                   // Cedente/Prestatore (fornitore)
@@ -211,37 +244,6 @@ LINEE GUIDA IMPORTANTI:
                   customer_phone: {
                     type: "string",
                     description: "Telefono del Cessionario/Committente",
-                  },
-
-                  // Backward compatibility (UI può ignorarli)
-                  subject_name: {
-                    type: "string",
-                    description: "Nome/ragione sociale del cliente o fornitore",
-                  },
-                  subject_type: {
-                    type: "string",
-                    enum: ["cliente", "fornitore"],
-                    description: "Tipo di soggetto",
-                  },
-                  subject_tax_id: {
-                    type: "string",
-                    description: "Partita IVA del soggetto",
-                  },
-                  subject_address: {
-                    type: "string",
-                    description: "Indirizzo del soggetto",
-                  },
-                  subject_city: {
-                    type: "string",
-                    description: "Città del soggetto",
-                  },
-                  subject_email: {
-                    type: "string",
-                    description: "Email del soggetto",
-                  },
-                  subject_phone: {
-                    type: "string",
-                    description: "Telefono del soggetto",
                   },
 
                   confidence: {
