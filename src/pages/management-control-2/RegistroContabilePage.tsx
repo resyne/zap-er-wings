@@ -150,6 +150,8 @@ interface FormData {
   // Campi specifici per spese/incassi dipendenti
   expense_type: string;
   service_report_id: string;
+  employee_id: string;
+  employee_name: string;
 }
 
 const initialFormData: FormData = {
@@ -176,7 +178,9 @@ const initialFormData: FormData = {
   notes: '',
   attachment_url: '',
   expense_type: '',
-  service_report_id: ''
+  service_report_id: '',
+  employee_id: '',
+  employee_name: ''
 };
 
 // Helper per determinare se un tipo evento è una fattura (documento fiscale)
@@ -461,6 +465,28 @@ export default function RegistroContabilePage() {
       return data;
     }
   });
+
+  // Fetch employees (technicians)
+  const { data: employeesRaw = [] } = useQuery({
+    queryKey: ['employees-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('technicians')
+        .select('id, first_name, last_name, email, position')
+        .eq('active', true)
+        .order('last_name');
+      if (error) throw error;
+      return data;
+    }
+  });
+  
+  // Map employees with full name
+  const employees = employeesRaw.map(e => ({
+    id: e.id,
+    name: `${e.first_name || ''} ${e.last_name || ''}`.trim(),
+    email: e.email,
+    role: e.position
+  }));
 
   // Fetch customers
   const { data: customers = [] } = useQuery({
@@ -865,7 +891,9 @@ export default function RegistroContabilePage() {
       notes: invoice.notes || '',
       attachment_url: invoice.attachment_url || '',
       expense_type: invoice.expense_type || '',
-      service_report_id: invoice.service_report_id || ''
+      service_report_id: invoice.service_report_id || '',
+      employee_id: '',
+      employee_name: ''
     });
     // Reset edit split state
     setEditSplitEnabled(false);
@@ -2488,35 +2516,94 @@ export default function RegistroContabilePage() {
                 </div>
               )}
 
-              {/* Form per spese/incassi dipendenti */}
+              {/* Form per spese dipendenti - CAMPI OBBLIGATORI */}
               {formData.event_type === 'spesa_dipendente' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tipo Spesa *</Label>
-                    <Select value={formData.expense_type} onValueChange={(v) => setFormData(prev => ({ ...prev, expense_type: v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPENSE_TYPES.map(t => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-4">
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm font-medium mb-2">Campi obbligatori per spese dipendente:</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Tipo Spesa *</Label>
+                      <Select value={formData.expense_type} onValueChange={(v) => setFormData(prev => ({ ...prev, expense_type: v }))}>
+                        <SelectTrigger className={!formData.expense_type ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Seleziona tipo spesa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPENSE_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Centro di Costo *</Label>
+                      <Select value={formData.cost_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, cost_center_id: v === "__none__" ? "" : v }))}>
+                        <SelectTrigger className={!formData.cost_center_id ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Seleziona centro" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {costCenters.map(cc => (
+                            <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Metodo di Pagamento *</Label>
+                      <Select value={formData.payment_method} onValueChange={(v) => setFormData(prev => ({ ...prev, payment_method: v }))}>
+                        <SelectTrigger className={!formData.payment_method ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Seleziona metodo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map(pm => (
+                            <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dipendente che ha sostenuto la spesa *</Label>
+                      <Select value={formData.employee_id} onValueChange={(v) => {
+                        const emp = employees.find(e => e.id === v);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          employee_id: v === "__none__" ? "" : v,
+                          employee_name: emp ? emp.name : ""
+                        }));
+                      }}>
+                        <SelectTrigger className={!formData.employee_id ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Seleziona dipendente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees.map(e => (
+                            <SelectItem key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Centro di Costo</Label>
-                    <Select value={formData.cost_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, cost_center_id: v === "__none__" ? "" : v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Nessuno</SelectItem>
-                        {costCenters.map(cc => (
-                          <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Documento allegato (scontrino/ricevuta) *</Label>
+                    {selectedEvent?.attachment_url ? (
+                      <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        <span className="text-sm">Documento presente</span>
+                        <a 
+                          href={selectedEvent.attachment_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline ml-auto"
+                        >
+                          Visualizza
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                        <span className="text-sm text-destructive">Nessun documento allegato</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
