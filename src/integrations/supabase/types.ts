@@ -1833,6 +1833,7 @@ export type Database = {
       ddts: {
         Row: {
           admin_status: string | null
+          archived: boolean | null
           attachment_url: string | null
           counterpart_type: string | null
           created_at: string
@@ -1860,6 +1861,7 @@ export type Database = {
         }
         Insert: {
           admin_status?: string | null
+          archived?: boolean | null
           attachment_url?: string | null
           counterpart_type?: string | null
           created_at?: string
@@ -1887,6 +1889,7 @@ export type Database = {
         }
         Update: {
           admin_status?: string | null
+          archived?: boolean | null
           attachment_url?: string | null
           counterpart_type?: string | null
           created_at?: string
@@ -7050,6 +7053,7 @@ export type Database = {
       service_reports: {
         Row: {
           amount: number | null
+          archived: boolean | null
           contact_id: string | null
           created_at: string
           customer_id: string | null
@@ -7075,6 +7079,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          archived?: boolean | null
           contact_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -7100,6 +7105,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          archived?: boolean | null
           contact_id?: string | null
           created_at?: string
           customer_id?: string | null
