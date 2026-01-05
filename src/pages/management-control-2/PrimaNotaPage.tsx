@@ -1097,6 +1097,63 @@ export default function PrimaNotaPage() {
             </CardContent>
           </Card>
 
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-green-600">
+                  <TrendingUp className="h-5 w-5" />
+                  <span className="text-sm font-medium">Ricavi (Imponibile)</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">
+                  € {summary.revenues.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+                {summary.ivaDebito > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    IVA a debito: € {summary.ivaDebito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-red-600">
+                  <TrendingDown className="h-5 w-5" />
+                  <span className="text-sm font-medium">Costi (Imponibile)</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">
+                  € {summary.costs.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+                {summary.ivaCredito > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    IVA a credito: € {summary.ivaCredito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <ArrowUp className="h-5 w-5" />
+                  <span className="text-sm font-medium">Entrate</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">
+                  € {summary.inflows.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-orange-600">
+                  <ArrowDown className="h-5 w-5" />
+                  <span className="text-sm font-medium">Uscite</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">
+                  € {summary.outflows.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Movements List */}
           {isLoading ? (
@@ -1119,6 +1176,10 @@ export default function PrimaNotaPage() {
                         <th className="text-left p-3 text-sm font-medium">Data</th>
                         <th className="text-left p-3 text-sm font-medium">Tipo</th>
                         <th className="text-left p-3 text-sm font-medium">Conto</th>
+                        {/* FIX 5: IVA column */}
+                        <th className="text-center p-3 text-sm font-medium">IVA</th>
+                        {/* FIX 6: Separate amounts */}
+                        <th className="text-right p-3 text-sm font-medium">Imponibile</th>
                         <th className="text-right p-3 text-sm font-medium">Totale</th>
                         <th className="text-center p-3 text-sm font-medium">Stato</th>
                         <th className="text-center p-3 text-sm font-medium">Azioni</th>
@@ -1162,8 +1223,37 @@ export default function PrimaNotaPage() {
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </td>
+                            {/* FIX 5: IVA reference */}
+                            <td className="p-3 text-center">
+                              {m.iva_mode ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  {formatIvaMode(m.iva_mode)}
+                                  {m.iva_aliquota && m.iva_mode === "DOMESTICA_IMPONIBILE" && (
+                                    <span className="text-xs text-muted-foreground">{m.iva_aliquota}%</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            {/* FIX 6: Imponibile */}
+                            <td className="p-3 text-sm text-right">
+                              {m.imponibile ? (
+                                <span className={m.amount >= 0 ? "text-green-600" : "text-red-600"}>
+                                  € {Math.abs(m.imponibile).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            {/* FIX 6: Totale (prominente) */}
                             <td className={`p-3 text-sm text-right font-bold ${m.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
                               € {Math.abs(m.totale || m.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                              {m.iva_amount && m.iva_amount > 0 && (
+                                <div className="text-xs font-normal text-muted-foreground">
+                                  (IVA: € {m.iva_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })})
+                                </div>
+                              )}
                             </td>
                             <td className="p-3 text-center">
                               {getStatusBadge(m.status)}
