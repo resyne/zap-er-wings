@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { 
   Plus, Search, FileText, ExternalLink, Calendar, Eye, 
   ArrowDownToLine, ArrowUpFromLine, CheckCircle2, Clock, 
-  AlertCircle, XCircle, Receipt
+  AlertCircle, XCircle, Receipt, Trash2
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -171,6 +172,39 @@ export default function DdtPage() {
   const handleDetailsClick = (ddt: Ddt) => {
     setDdtToView(ddt);
     setDetailsDialogOpen(true);
+  };
+
+  const handleDeleteDdt = async (ddtId: string) => {
+    try {
+      // First delete related ddt_items
+      const { error: itemsError } = await supabase
+        .from("ddt_items")
+        .delete()
+        .eq("ddt_id", ddtId);
+      
+      if (itemsError) throw itemsError;
+
+      // Then delete the DDT
+      const { error } = await supabase
+        .from("ddts")
+        .delete()
+        .eq("id", ddtId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "DDT eliminato",
+        description: "Il DDT è stato eliminato con successo",
+      });
+      loadDdts();
+    } catch (error) {
+      console.error("Error deleting DDT:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il DDT",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -402,6 +436,30 @@ export default function DdtPage() {
                               </a>
                             </Button>
                           )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Eliminare questo DDT?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Stai per eliminare il DDT "{ddt.ddt_number}". Questa azione non può essere annullata.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => handleDeleteDdt(ddt.id)}
+                                >
+                                  Elimina
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
