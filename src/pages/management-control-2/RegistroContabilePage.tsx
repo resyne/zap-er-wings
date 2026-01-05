@@ -1556,8 +1556,15 @@ export default function RegistroContabilePage() {
   });
 
   // Mutation per eliminare dal registro contabile
+  // IMPORTANTE: Solo per elementi NON contabilizzati (bozza)
+  // Per elementi contabilizzati, usare storno dalla Prima Nota
   const deleteInvoiceMutation = useMutation({
     mutationFn: async (invoice: InvoiceRegistry) => {
+      // BLOCCO: Non eliminare se già contabilizzato (ha prima_nota)
+      if (invoice.prima_nota_id && invoice.status === 'registrata') {
+        throw new Error('Evento già contabilizzato. Per annullarlo, usare la funzione Storno dalla Prima Nota.');
+      }
+      
       // Elimina nell'ordine corretto rispettando le foreign keys
       
       // 1. Elimina invoice_registry (riferisce prima_nota)
@@ -1567,7 +1574,7 @@ export default function RegistroContabilePage() {
         .eq('id', invoice.id);
       if (registryError) throw registryError;
 
-      // 2. Elimina prima_nota se esiste (riferisce accounting_entries)
+      // 2. Elimina prima_nota se esiste (solo per bozze)
       if (invoice.prima_nota_id) {
         const { error: primaNotaError } = await supabase
           .from('prima_nota')
@@ -1600,7 +1607,7 @@ export default function RegistroContabilePage() {
       queryClient.invalidateQueries({ queryKey: ['accounting-events'] });
     },
     onError: (error) => {
-      toast.error('Errore eliminazione: ' + error.message);
+      toast.error('Errore: ' + error.message);
     }
   });
 
@@ -2495,18 +2502,22 @@ export default function RegistroContabilePage() {
                             Scadenza
                           </Button>
                         )}
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Sei sicuro di voler eliminare questo elemento dal registro contabile?')) {
-                              deleteInvoiceMutation.mutate(invoice);
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {/* Elimina: solo per bozze non contabilizzate */}
+                        {invoice.status === 'bozza' && (
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Sei sicuro di voler eliminare questo elemento dal registro contabile?')) {
+                                deleteInvoiceMutation.mutate(invoice);
+                              }
+                            }}
+                            title="Elimina (solo per bozze)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
