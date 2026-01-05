@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addMonths, startOfMonth } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, ExternalLink, 
@@ -662,7 +662,7 @@ export default function EventClassificationPage() {
     saveMutation.mutate({ id: selectedEntry.id, status: "richiesta_integrazione" });
   };
 
-  const handleSendToPrimaNota = () => {
+  const handleSendToPrimaNota = async () => {
     if (!selectedEntry) return;
     
     const errors = validateForPrimaNota();
@@ -671,7 +671,172 @@ export default function EventClassificationPage() {
       return;
     }
     
-    saveMutation.mutate({ id: selectedEntry.id, status: "pronto_prima_nota" });
+    // Generate prima nota directly instead of just setting status
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      // Get form data for prima nota generation
+      const entry = {
+        id: selectedEntry.id,
+        direction: selectedEntry.direction,
+        document_type: selectedEntry.document_type,
+        amount: selectedEntry.amount,
+        document_date: selectedEntry.document_date,
+        event_type: classificationForm.event_type,
+        temporal_competence: classificationForm.temporal_competence,
+        recurrence_start_date: classificationForm.recurrence_start_date,
+        recurrence_end_date: classificationForm.recurrence_end_date,
+        chart_account_id: classificationForm.chart_account_id,
+        cost_center_id: classificationForm.cost_center_id,
+        profit_center_id: classificationForm.profit_center_id,
+        center_percentage: classificationForm.center_percentage,
+        financial_status: classificationForm.financial_status || getDefaultFinancialStatus(selectedEntry.direction),
+        affects_income_statement: classificationForm.affects_income_statement,
+        payment_method: selectedEntry.payment_method,
+      };
+
+      // Calculate IVA values
+      const ivaMode = "DOMESTICA_IMPONIBILE";
+      const ivaAliquota = 22;
+      const imponibile = entry.amount;
+      let ivaAmount = 0;
+      let totale = entry.amount;
+
+      if (ivaMode === "DOMESTICA_IMPONIBILE") {
+        ivaAmount = imponibile * (ivaAliquota / 100);
+        totale = imponibile + ivaAmount;
+      }
+
+      const isRevenue = entry.event_type === "ricavo" || entry.direction === "entrata";
+      const isPaid = ["pagato", "incassato"].includes(entry.financial_status || "");
+      const paymentMethod = entry.payment_method || "banca";
+      const description = isPaid 
+        ? `${isRevenue ? "Ricavo" : "Costo"} - Pagato subito`
+        : `${isRevenue ? "Ricavo" : "Costo"} - Competenza immediata`;
+
+      const movementsToCreate: any[] = [];
+
+      // CASE A: Immediate or deferred competence - single movement
+      if (entry.temporal_competence !== "rateizzata") {
+        const movementId = crypto.randomUUID();
+        
+        movementsToCreate.push({
+          id: movementId,
+          accounting_entry_id: entry.id,
+          movement_type: "economico",
+          competence_date: entry.document_date,
+          amount: isRevenue ? totale : -totale,
+          chart_account_id: entry.chart_account_id,
+          cost_center_id: entry.cost_center_id,
+          profit_center_id: entry.profit_center_id,
+          center_percentage: entry.center_percentage || 100,
+          description,
+          status: "generato",
+          is_rectification: false,
+          iva_mode: ivaMode,
+          iva_aliquota: ivaAliquota,
+          imponibile,
+          iva_amount: ivaAmount,
+          totale,
+          payment_method: isPaid ? paymentMethod : null,
+          created_by: userId,
+        });
+      }
+      // CASE B: Installment competence - N movements
+      else if (entry.recurrence_start_date && entry.recurrence_end_date) {
+        const startDate = new Date(entry.recurrence_start_date);
+        const endDate = new Date(entry.recurrence_end_date);
+        
+        let months = 0;
+        let currentDate = startOfMonth(startDate);
+        while (currentDate <= endDate) {
+          months++;
+          currentDate = addMonths(currentDate, 1);
+        }
+
+        if (months > 0) {
+          const installmentImponibile = imponibile / months;
+          const installmentIva = ivaAmount / months;
+          const installmentTotale = totale / months;
+          
+          for (let i = 0; i < months; i++) {
+            const competenceDate = addMonths(startOfMonth(startDate), i);
+            const movementId = crypto.randomUUID();
+            
+            movementsToCreate.push({
+              id: movementId,
+              accounting_entry_id: entry.id,
+              movement_type: "economico",
+              competence_date: format(competenceDate, "yyyy-MM-dd"),
+              amount: isRevenue ? installmentTotale : -installmentTotale,
+              chart_account_id: entry.chart_account_id,
+              cost_center_id: entry.cost_center_id,
+              profit_center_id: entry.profit_center_id,
+              center_percentage: entry.center_percentage || 100,
+              description: `Competenza rateizzata ${i + 1}/${months}`,
+              installment_number: i + 1,
+              total_installments: months,
+              status: "generato",
+              is_rectification: false,
+              iva_mode: ivaMode,
+              iva_aliquota: ivaAliquota,
+              imponibile: installmentImponibile,
+              iva_amount: installmentIva,
+              totale: installmentTotale,
+              payment_method: null,
+              created_by: userId,
+            });
+          }
+        }
+      }
+
+      // Insert movements
+      if (movementsToCreate.length > 0) {
+        const { error: insertError } = await supabase
+          .from("prima_nota")
+          .insert(movementsToCreate);
+
+        if (insertError) throw insertError;
+      }
+
+      // Update entry status and classification fields
+      const updateData: Record<string, unknown> = {
+        status: "contabilizzato",
+        event_type: classificationForm.event_type || null,
+        affects_income_statement: classificationForm.affects_income_statement,
+        chart_account_id: classificationForm.chart_account_id || null,
+        temporal_competence: classificationForm.temporal_competence,
+        is_recurring: classificationForm.is_recurring,
+        recurrence_period: classificationForm.is_recurring ? classificationForm.recurrence_period : null,
+        recurrence_start_date: classificationForm.temporal_competence === "rateizzata" ? classificationForm.recurrence_start_date || null : null,
+        recurrence_end_date: classificationForm.temporal_competence === "rateizzata" ? classificationForm.recurrence_end_date || null : null,
+        cost_center_id: classificationForm.cost_center_id || null,
+        profit_center_id: classificationForm.profit_center_id || null,
+        center_percentage: classificationForm.center_percentage,
+        economic_subject_type: classificationForm.economic_subject_type || null,
+        financial_status: classificationForm.financial_status || null,
+        payment_date: classificationForm.payment_date || null,
+        cfo_notes: classificationForm.cfo_notes || null,
+        classified_by: userId,
+        classified_at: new Date().toISOString(),
+      };
+
+      const { error: updateError } = await supabase
+        .from("accounting_entries")
+        .update(updateData)
+        .eq("id", selectedEntry.id);
+
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      toast.success(`Prima Nota generata con ${movementsToCreate.length} movimenti`);
+      setSelectedEntry(null);
+    } catch (error) {
+      console.error("Error generating prima nota:", error);
+      toast.error("Errore durante la generazione della Prima Nota");
+    }
   };
 
   const getDocumentTypeLabel = (value: string) => {
