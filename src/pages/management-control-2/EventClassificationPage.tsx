@@ -147,7 +147,7 @@ export default function EventClassificationPage() {
   const [detectedSubject, setDetectedSubject] = useState<DetectedSubject | null>(null);
   const [showSubjectDialog, setShowSubjectDialog] = useState(false);
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
-  const [viewMode, setViewMode] = useState<"da_classificare" | "classificati" | "contabilizzati">("da_classificare");
+  const [viewMode, setViewMode] = useState<"da_classificare" | "classificati" | "contabilizzati" | "storico">("da_classificare");
   
   // Fuzzy match state
   const [showSimilarDialog, setShowSimilarDialog] = useState(false);
@@ -180,11 +180,13 @@ export default function EventClassificationPage() {
       let statusFilter: string[] = [];
       
       if (viewMode === "da_classificare") {
-        statusFilter = ["da_classificare", "in_classificazione", "sospeso"];
+        statusFilter = ["da_classificare", "in_classificazione", "sospeso", "da_correggere"];
       } else if (viewMode === "classificati") {
         statusFilter = ["classificato", "pronto_prima_nota"];
       } else if (viewMode === "contabilizzati") {
         statusFilter = ["contabilizzato"];
+      } else if (viewMode === "storico") {
+        statusFilter = ["annullato", "stornato"];
       }
       
       const { data, error } = await supabase
@@ -853,6 +855,12 @@ export default function EventClassificationPage() {
       in_classificazione: { variant: "outline", label: "In classificazione" },
       sospeso: { variant: "destructive", label: "Sospeso" },
       richiesta_integrazione: { variant: "outline", label: "Richiesta integrazione" },
+      classificato: { variant: "default", label: "Classificato" },
+      pronto_prima_nota: { variant: "default", label: "Pronto Prima Nota" },
+      contabilizzato: { variant: "default", label: "Contabilizzato" },
+      da_correggere: { variant: "destructive", label: "Da correggere" },
+      annullato: { variant: "outline", label: "Annullato" },
+      stornato: { variant: "outline", label: "Stornato" },
     };
     const config = variants[status] || { variant: "secondary", label: status };
     return <Badge variant={config.variant}>{config.label}</Badge>;
@@ -942,7 +950,7 @@ export default function EventClassificationPage() {
         payment_method: entry.payment_method,
         subject_type: entry.subject_type,
         note: `Storno di registrazione ${entry.id}`,
-        status: "contabilizzato",
+        status: "stornato",
         user_id: userData.user?.id,
         event_type: entry.event_type,
         affects_income_statement: entry.affects_income_statement,
@@ -959,6 +967,14 @@ export default function EventClassificationPage() {
       });
       
       if (error) throw error;
+
+      // Update original entry to stornato
+      const { error: updateError } = await supabase
+        .from("accounting_entries")
+        .update({ status: "stornato" })
+        .eq("id", entry.id);
+      
+      if (updateError) throw updateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
@@ -967,6 +983,116 @@ export default function EventClassificationPage() {
     },
     onError: () => {
       toast.error("Errore durante lo storno");
+    },
+  });
+
+  // Mutation for marking as "da_correggere" (with automatic storno)
+  const markForCorrectionMutation = useMutation({
+    mutationFn: async (entry: AccountingEntry) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      // First, create a reversal entry for the prima nota
+      const { error: stornoError } = await supabase.from("accounting_entries").insert({
+        direction: entry.direction === "entrata" ? "uscita" : "entrata",
+        document_type: "storno",
+        amount: entry.amount,
+        document_date: new Date().toISOString().split("T")[0],
+        attachment_url: "",
+        payment_method: entry.payment_method,
+        subject_type: entry.subject_type,
+        note: `Storno automatico per correzione di ${entry.id}`,
+        status: "stornato",
+        user_id: userData.user?.id,
+        event_type: entry.event_type,
+        affects_income_statement: entry.affects_income_statement,
+        chart_account_id: entry.chart_account_id,
+        temporal_competence: entry.temporal_competence,
+        cost_center_id: entry.cost_center_id,
+        profit_center_id: entry.profit_center_id,
+        center_percentage: entry.center_percentage,
+        economic_subject_type: entry.economic_subject_type,
+        financial_status: entry.financial_status,
+        cfo_notes: `Storno automatico per correzione`,
+        classified_by: userData.user?.id,
+        classified_at: new Date().toISOString(),
+      });
+      
+      if (stornoError) throw stornoError;
+
+      // Then, mark the original entry as "da_correggere"
+      const { error: updateError } = await supabase
+        .from("accounting_entries")
+        .update({ 
+          status: "da_correggere",
+          cfo_notes: `${entry.cfo_notes ? entry.cfo_notes + "\n" : ""}[${new Date().toLocaleString("it-IT")}] Messo in correzione - storno generato automaticamente`
+        })
+        .eq("id", entry.id);
+      
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      toast.success("Registrazione messa in correzione. Storno prima nota generato.");
+      setSelectedEntry(null);
+    },
+    onError: () => {
+      toast.error("Errore durante l'operazione");
+    },
+  });
+
+  // Mutation for marking as "annullato"
+  const markAsCancelledMutation = useMutation({
+    mutationFn: async (entry: AccountingEntry) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      // First, create a reversal entry for the prima nota
+      const { error: stornoError } = await supabase.from("accounting_entries").insert({
+        direction: entry.direction === "entrata" ? "uscita" : "entrata",
+        document_type: "storno",
+        amount: entry.amount,
+        document_date: new Date().toISOString().split("T")[0],
+        attachment_url: "",
+        payment_method: entry.payment_method,
+        subject_type: entry.subject_type,
+        note: `Storno per annullamento di ${entry.id}`,
+        status: "stornato",
+        user_id: userData.user?.id,
+        event_type: entry.event_type,
+        affects_income_statement: entry.affects_income_statement,
+        chart_account_id: entry.chart_account_id,
+        temporal_competence: entry.temporal_competence,
+        cost_center_id: entry.cost_center_id,
+        profit_center_id: entry.profit_center_id,
+        center_percentage: entry.center_percentage,
+        economic_subject_type: entry.economic_subject_type,
+        financial_status: entry.financial_status,
+        cfo_notes: `Storno per annullamento`,
+        classified_by: userData.user?.id,
+        classified_at: new Date().toISOString(),
+      });
+      
+      if (stornoError) throw stornoError;
+
+      // Then, mark the original entry as "annullato"
+      const { error: updateError } = await supabase
+        .from("accounting_entries")
+        .update({ 
+          status: "annullato",
+          cfo_notes: `${entry.cfo_notes ? entry.cfo_notes + "\n" : ""}[${new Date().toLocaleString("it-IT")}] Annullato - storno generato automaticamente`
+        })
+        .eq("id", entry.id);
+      
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      toast.success("Registrazione annullata. Storno prima nota generato.");
+      setSelectedEntry(null);
+    },
+    onError: () => {
+      toast.error("Errore durante l'annullamento");
     },
   });
 
@@ -980,7 +1106,7 @@ export default function EventClassificationPage() {
       </div>
 
       {/* View Mode Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         <Button
           variant={viewMode === "da_classificare" ? "default" : "outline"}
           onClick={() => setViewMode("da_classificare")}
@@ -1002,6 +1128,13 @@ export default function EventClassificationPage() {
         >
           Contabilizzati
         </Button>
+        <Button
+          variant={viewMode === "storico" ? "default" : "outline"}
+          onClick={() => setViewMode("storico")}
+          size="sm"
+        >
+          Storico
+        </Button>
       </div>
 
       {isLoading ? (
@@ -1014,6 +1147,7 @@ export default function EventClassificationPage() {
               {viewMode === "da_classificare" && "Nessun evento da classificare"}
               {viewMode === "classificati" && "Nessun evento classificato"}
               {viewMode === "contabilizzati" && "Nessun evento contabilizzato"}
+              {viewMode === "storico" && "Nessun evento in storico"}
             </p>
           </CardContent>
         </Card>
@@ -1692,16 +1826,79 @@ export default function EventClassificationPage() {
                 {/* ACTIONS */}
                 {/* Action buttons based on status */}
                 {viewMode === "contabilizzati" ? (
-                  /* For contabilizzati: only storno */
+                  /* For contabilizzati: storno, da correggere, annulla */
                   <div className="flex flex-wrap gap-3 pt-2">
+                    {/* Metti in Correzione */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
                           variant="outline"
-                          className="text-red-600 border-red-300 hover:bg-red-50"
+                          className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                        >
+                          <Pause className="h-4 w-4 mr-2" />
+                          Da Correggere
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Mettere in correzione?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Verrà creato uno storno automatico della prima nota generata.
+                            La registrazione tornerà modificabile per essere corretta e ricontabilizzata.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => selectedEntry && markForCorrectionMutation.mutate(selectedEntry)}
+                            className="bg-amber-600 text-white hover:bg-amber-700"
+                          >
+                            Conferma Correzione
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Annulla */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Annulla Registrazione
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Annullare questa registrazione?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Verrà creato uno storno automatico della prima nota.
+                            La registrazione sarà marcata come annullata (non eliminata).
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => selectedEntry && markAsCancelledMutation.mutate(selectedEntry)}
+                            className="bg-gray-600 text-white hover:bg-gray-700"
+                          >
+                            Conferma Annullamento
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Storno manuale */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="text-red-600 border-red-300 hover:bg-red-50 ml-auto"
                         >
                           <ArrowDown className="h-4 w-4 mr-2" />
-                          Storna Registrazione
+                          Storna Manualmente
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -1709,7 +1906,7 @@ export default function EventClassificationPage() {
                           <AlertDialogTitle>Stornare questa registrazione?</AlertDialogTitle>
                           <AlertDialogDescription>
                             Verrà creata una registrazione di storno con importo e direzione opposta.
-                            La registrazione originale rimarrà inalterata.
+                            Entrambe le registrazioni saranno spostate nello storico.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -1723,6 +1920,13 @@ export default function EventClassificationPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                  </div>
+                ) : viewMode === "storico" ? (
+                  /* For storico: read-only, no actions */
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <p className="text-sm text-muted-foreground italic">
+                      Registrazione in archivio storico - sola lettura
+                    </p>
                   </div>
                 ) : viewMode === "classificati" ? (
                   /* For classificati: allow reclassification */
