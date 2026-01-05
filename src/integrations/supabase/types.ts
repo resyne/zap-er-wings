@@ -7765,6 +7765,7 @@ export type Database = {
           ddt_id: string | null
           id: string
           item_description: string
+          material_id: string | null
           movement_date: string
           movement_type: string
           notes: string | null
@@ -7785,6 +7786,7 @@ export type Database = {
           ddt_id?: string | null
           id?: string
           item_description: string
+          material_id?: string | null
           movement_date?: string
           movement_type: string
           notes?: string | null
@@ -7805,6 +7807,7 @@ export type Database = {
           ddt_id?: string | null
           id?: string
           item_description?: string
+          material_id?: string | null
           movement_date?: string
           movement_type?: string
           notes?: string | null
@@ -7829,6 +7832,13 @@ export type Database = {
             columns: ["ddt_id"]
             isOneToOne: false
             referencedRelation: "ddts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
             referencedColumns: ["id"]
           },
           {
