@@ -152,7 +152,7 @@ export default function RegistroPage() {
       // Also create entry in accounting_entries for classification
       const { error: accError } = await supabase.from("accounting_entries").insert({
         direction: movimento.direzione,
-        document_type: "movimento_finanziario",
+        document_type: "scontrino",
         amount: movimento.importo,
         document_date: today,
         attachment_url: movimento.allegato_url || "",
