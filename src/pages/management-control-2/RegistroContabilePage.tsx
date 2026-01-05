@@ -1010,6 +1010,12 @@ export default function RegistroContabilePage() {
       const { data: user } = await supabase.auth.getUser();
       const now = new Date().toISOString();
 
+      // Determina se è un costo o un ricavo
+      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const eventType = isAcquisto ? 'costo' : 'ricavo';
+      const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
+      const paymentMethod = invoice.payment_method || 'bonifico';
+
       const { data: accountingEntry, error: accountingError } = await supabase
         .from('accounting_entries')
         .insert({
@@ -1017,19 +1023,28 @@ export default function RegistroContabilePage() {
           imponibile: invoice.imponibile,
           iva_amount: invoice.iva_amount,
           iva_aliquota: invoice.iva_rate,
-          direction: invoice.invoice_type === 'acquisto' ? 'uscita' : 'entrata',
+          direction: isAcquisto ? 'uscita' : 'entrata',
           document_type: 'fattura',
           document_date: invoice.invoice_date,
           status: 'classificato',
+          event_type: eventType,
           financial_status: invoice.financial_status,
           subject_type: invoice.subject_type,
-          attachment_url: '',
-          user_id: user?.user?.id
+          iva_mode: 'DOMESTICA_IMPONIBILE',
+          payment_method: isPaid ? paymentMethod : null,
+          attachment_url: invoice.attachment_url || '',
+          user_id: user?.user?.id,
+          cost_center_id: invoice.cost_center_id || null,
+          profit_center_id: invoice.profit_center_id || null,
+          chart_account_id: isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id
         })
         .select()
         .single();
 
       if (accountingError) throw accountingError;
+
+      // L'importo è negativo per i costi, positivo per i ricavi
+      const primaNotaAmount = isAcquisto ? -invoice.total_amount : invoice.total_amount;
 
       const { data: primaNota, error: primaNotaError } = await supabase
         .from('prima_nota')
@@ -1037,18 +1052,115 @@ export default function RegistroContabilePage() {
           competence_date: invoice.invoice_date,
           movement_type: 'economico',
           description: `Fattura ${invoice.invoice_number} - ${invoice.subject_name}`,
-          amount: invoice.total_amount,
+          amount: primaNotaAmount,
           imponibile: invoice.imponibile,
           iva_amount: invoice.iva_amount,
           iva_aliquota: invoice.iva_rate,
-          payment_method: 'bonifico',
+          iva_mode: 'DOMESTICA_IMPONIBILE',
+          payment_method: isPaid ? paymentMethod : null,
           status: 'registrato',
-          accounting_entry_id: accountingEntry.id
+          accounting_entry_id: accountingEntry.id,
+          cost_center_id: invoice.cost_center_id || null,
+          profit_center_id: invoice.profit_center_id || null,
+          chart_account_id: isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id
         })
         .select()
         .single();
 
       if (primaNotaError) throw primaNotaError;
+
+      // Genera le linee di partita doppia
+      const primaNotaLines = [];
+      let lineOrder = 1;
+
+      if (isAcquisto) {
+        // ACQUISTO (Costo)
+        // DARE: Debiti vs fornitori / Banca = Totale
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'DEBITI_FORNITORI',
+          chart_account_id: null,
+          dare: 0,
+          avere: invoice.total_amount,
+          description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
+        });
+
+        // AVERE: Costi = Imponibile
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'chart',
+          chart_account_id: invoice.cost_account_id || null,
+          dynamic_account_key: null,
+          dare: invoice.imponibile,
+          avere: 0,
+          description: 'Costi',
+        });
+
+        // DARE: IVA a credito = IVA
+        if (invoice.iva_amount > 0) {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'dynamic',
+            dynamic_account_key: 'IVA_CREDITO',
+            chart_account_id: null,
+            dare: invoice.iva_amount,
+            avere: 0,
+            description: `IVA a credito ${invoice.iva_rate}%`,
+          });
+        }
+      } else {
+        // VENDITA (Ricavo)
+        // DARE: Crediti vs clienti / Banca = Totale
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'CREDITI_CLIENTI',
+          chart_account_id: null,
+          dare: invoice.total_amount,
+          avere: 0,
+          description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
+        });
+
+        // AVERE: Ricavi = Imponibile
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'chart',
+          chart_account_id: invoice.revenue_account_id || null,
+          dynamic_account_key: null,
+          dare: 0,
+          avere: invoice.imponibile,
+          description: 'Ricavi',
+        });
+
+        // AVERE: IVA a debito = IVA
+        if (invoice.iva_amount > 0) {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'dynamic',
+            dynamic_account_key: 'IVA_DEBITO',
+            chart_account_id: null,
+            dare: 0,
+            avere: invoice.iva_amount,
+            description: `IVA a debito ${invoice.iva_rate}%`,
+          });
+        }
+      }
+
+      // Inserisci le linee di partita doppia
+      if (primaNotaLines.length > 0) {
+        const { error: linesError } = await supabase
+          .from('prima_nota_lines')
+          .insert(primaNotaLines);
+
+        if (linesError) throw linesError;
+      }
 
       let scadenzaId = null;
       if (invoice.financial_status === 'da_incassare' || invoice.financial_status === 'da_pagare') {
