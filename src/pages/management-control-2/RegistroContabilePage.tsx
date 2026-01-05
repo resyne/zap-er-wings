@@ -36,7 +36,8 @@ import {
   FileText,
   Pencil,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Trash2
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -839,6 +840,55 @@ export default function RegistroContabilePage() {
     }
   });
 
+  // Mutation per eliminare dal registro contabile
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: async (invoice: InvoiceRegistry) => {
+      // Elimina nell'ordine corretto rispettando le foreign keys
+      
+      // 1. Elimina invoice_registry (riferisce prima_nota)
+      const { error: registryError } = await supabase
+        .from('invoice_registry')
+        .delete()
+        .eq('id', invoice.id);
+      if (registryError) throw registryError;
+
+      // 2. Elimina prima_nota se esiste (riferisce accounting_entries)
+      if (invoice.prima_nota_id) {
+        const { error: primaNotaError } = await supabase
+          .from('prima_nota')
+          .delete()
+          .eq('id', invoice.prima_nota_id);
+        if (primaNotaError) throw primaNotaError;
+      }
+
+      // 3. Elimina accounting_entry se esiste
+      if (invoice.accounting_entry_id) {
+        const { error: entryError } = await supabase
+          .from('accounting_entries')
+          .delete()
+          .eq('id', invoice.accounting_entry_id);
+        if (entryError) throw entryError;
+      }
+
+      // 4. Elimina scadenza se esiste
+      if (invoice.scadenza_id) {
+        const { error: scadenzaError } = await supabase
+          .from('scadenze')
+          .delete()
+          .eq('id', invoice.scadenza_id);
+        if (scadenzaError) throw scadenzaError;
+      }
+    },
+    onSuccess: () => {
+      toast.success('Elemento eliminato dal registro contabile');
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-events'] });
+    },
+    onError: (error) => {
+      toast.error('Errore eliminazione: ' + error.message);
+    }
+  });
+
   const handleFormChange = (field: string, value: string | number) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
@@ -1309,6 +1359,18 @@ export default function RegistroContabilePage() {
                             Scadenza
                           </Button>
                         )}
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Sei sicuro di voler eliminare questo elemento dal registro contabile?')) {
+                              deleteInvoiceMutation.mutate(invoice);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
