@@ -1097,63 +1097,6 @@ export default function PrimaNotaPage() {
             </CardContent>
           </Card>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-green-600">
-                  <TrendingUp className="h-5 w-5" />
-                  <span className="text-sm font-medium">Ricavi (Imponibile)</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.revenues.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-                {summary.ivaDebito > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    IVA a debito: € {summary.ivaDebito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-600">
-                  <TrendingDown className="h-5 w-5" />
-                  <span className="text-sm font-medium">Costi (Imponibile)</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.costs.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-                {summary.ivaCredito > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    IVA a credito: € {summary.ivaCredito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-blue-600">
-                  <ArrowUp className="h-5 w-5" />
-                  <span className="text-sm font-medium">Entrate</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.inflows.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-orange-600">
-                  <ArrowDown className="h-5 w-5" />
-                  <span className="text-sm font-medium">Uscite</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.outflows.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
 
           {/* Movements List */}
           {isLoading ? (
