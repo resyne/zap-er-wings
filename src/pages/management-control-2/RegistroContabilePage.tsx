@@ -1276,21 +1276,127 @@ export default function RegistroContabilePage() {
 
       // Se la fattura è registrata, aggiorna anche prima nota e accounting entry
       if (invoice.status === 'registrata') {
+        const isAcquisto = updates.invoice_type === 'acquisto';
+        const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
+        const paymentMethod = updates.payment_method || 'bonifico';
+        const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
+
         // Aggiorna prima nota se esiste
         if (invoice.prima_nota_id) {
           const { error: primaNotaError } = await supabase
             .from('prima_nota')
             .update({
               description: `Fattura ${updates.invoice_number} - ${updates.subject_name}`,
-              amount: totalAmount,
+              amount: primaNotaAmount,
               imponibile: updates.imponibile,
               iva_amount: ivaAmount,
               iva_aliquota: updates.iva_rate,
-              competence_date: updates.invoice_date
+              competence_date: updates.invoice_date,
+              payment_method: isPaid ? paymentMethod : null
             })
             .eq('id', invoice.prima_nota_id);
 
           if (primaNotaError) throw primaNotaError;
+
+          // Rigenera le linee di partita doppia se cambia lo stato finanziario
+          // Elimina le vecchie linee
+          await supabase
+            .from('prima_nota_lines')
+            .delete()
+            .eq('prima_nota_id', invoice.prima_nota_id);
+
+          // Genera le nuove linee
+          const primaNotaLines = [];
+          let lineOrder = 1;
+
+          if (isAcquisto) {
+            // ACQUISTO (Costo)
+            // AVERE: Contropartita (Debiti fornitori o metodo pagamento)
+            primaNotaLines.push({
+              prima_nota_id: invoice.prima_nota_id,
+              line_order: lineOrder++,
+              account_type: 'dynamic',
+              dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'DEBITI_FORNITORI',
+              chart_account_id: null,
+              dare: 0,
+              avere: totalAmount,
+              description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
+            });
+
+            // DARE: Costi = Imponibile
+            primaNotaLines.push({
+              prima_nota_id: invoice.prima_nota_id,
+              line_order: lineOrder++,
+              account_type: 'chart',
+              chart_account_id: updates.cost_account_id || null,
+              dynamic_account_key: 'CONTO_COSTI',
+              dare: updates.imponibile,
+              avere: 0,
+              description: 'Costi',
+            });
+
+            // DARE: IVA a credito
+            if (ivaAmount > 0) {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'dynamic',
+                dynamic_account_key: 'IVA_CREDITO',
+                chart_account_id: null,
+                dare: ivaAmount,
+                avere: 0,
+                description: `IVA a credito ${updates.iva_rate}%`,
+              });
+            }
+          } else {
+            // VENDITA (Ricavo)
+            // DARE: Contropartita (Crediti clienti o metodo pagamento)
+            primaNotaLines.push({
+              prima_nota_id: invoice.prima_nota_id,
+              line_order: lineOrder++,
+              account_type: 'dynamic',
+              dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'CREDITI_CLIENTI',
+              chart_account_id: null,
+              dare: totalAmount,
+              avere: 0,
+              description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
+            });
+
+            // AVERE: Ricavi = Imponibile
+            primaNotaLines.push({
+              prima_nota_id: invoice.prima_nota_id,
+              line_order: lineOrder++,
+              account_type: 'chart',
+              chart_account_id: updates.revenue_account_id || null,
+              dynamic_account_key: 'CONTO_RICAVI',
+              dare: 0,
+              avere: updates.imponibile,
+              description: 'Ricavi',
+            });
+
+            // AVERE: IVA a debito
+            if (ivaAmount > 0) {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'dynamic',
+                dynamic_account_key: 'IVA_DEBITO',
+                chart_account_id: null,
+                dare: 0,
+                avere: ivaAmount,
+                description: `IVA a debito ${updates.iva_rate}%`,
+              });
+            }
+          }
+
+          // Inserisci le nuove linee
+          if (primaNotaLines.length > 0) {
+            const { error: linesError } = await supabase
+              .from('prima_nota_lines')
+              .insert(primaNotaLines);
+
+            if (linesError) throw linesError;
+          }
         }
 
         // Aggiorna accounting entry se esiste
@@ -1303,9 +1409,11 @@ export default function RegistroContabilePage() {
               iva_amount: ivaAmount,
               iva_aliquota: updates.iva_rate,
               document_date: updates.invoice_date,
-              direction: updates.invoice_type === 'acquisto' ? 'uscita' : 'entrata',
+              direction: isAcquisto ? 'uscita' : 'entrata',
               financial_status: updates.financial_status,
-              subject_type: updates.subject_type
+              subject_type: updates.subject_type,
+              payment_method: isPaid ? paymentMethod : null,
+              payment_date: isPaid ? (updates.payment_date || updates.invoice_date) : null
             })
             .eq('id', invoice.accounting_entry_id);
 
@@ -1314,15 +1422,20 @@ export default function RegistroContabilePage() {
 
         // Aggiorna scadenza se esiste
         if (invoice.scadenza_id) {
+          // Se pagata/incassata, chiudi la scadenza
+          const scadenzaStato = isPaid ? 'saldata' : 'aperta';
+          const importoResiduo = isPaid ? 0 : totalAmount;
+
           const { error: scadenzaError } = await supabase
             .from('scadenze')
             .update({
               soggetto_nome: updates.subject_name,
               soggetto_tipo: updates.subject_type,
               importo_totale: totalAmount,
-              importo_residuo: totalAmount,
+              importo_residuo: importoResiduo,
               data_documento: updates.invoice_date,
-              data_scadenza: updates.due_date || updates.invoice_date
+              data_scadenza: updates.due_date || updates.invoice_date,
+              stato: scadenzaStato
             })
             .eq('id', invoice.scadenza_id);
 
