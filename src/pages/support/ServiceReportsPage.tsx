@@ -171,18 +171,18 @@ export default function ServiceReportsPage() {
       if (techniciansError) throw techniciansError;
       setTechnicians(techniciansData || []);
 
-      // Load work orders (only production work orders, not completed)
-      const { data: productionOrdersData, error: productionOrdersError } = await supabase
-        .from('work_orders')
-        .select('id, number, title, description, customer_id, location')
-        .neq('status', 'completato')
+      // Load service work orders (Commesse di Lavoro, not completed)
+      const { data: serviceOrdersData, error: serviceOrdersError } = await supabase
+        .from('service_work_orders')
+        .select('id, number, title, description, customer_id, contact_id, location')
+        .neq('status', 'completata')
         .order('number', { ascending: false });
 
-      if (productionOrdersError) throw productionOrdersError;
+      if (serviceOrdersError) throw serviceOrdersError;
 
-      const productionOrders: WorkOrder[] = (productionOrdersData || []).map(wo => ({ ...wo, type: 'production' as const }));
+      const serviceOrders: WorkOrder[] = (serviceOrdersData || []).map(wo => ({ ...wo, type: 'service' as const }));
       
-      setWorkOrders(productionOrders);
+      setWorkOrders(serviceOrders);
 
       // Load existing reports with customers relation
       const { data: reportsData, error: reportsError } = await supabase
@@ -801,7 +801,7 @@ export default function ServiceReportsPage() {
                   >
                     {selectedWorkOrder ? (
                       <span className="truncate">
-                        {selectedWorkOrder.number} - {selectedWorkOrder.title} (CdP)
+                        {selectedWorkOrder.number} - {selectedWorkOrder.title} (CdL)
                       </span>
                     ) : (
                       <span className="text-muted-foreground">Seleziona commessa...</span>
@@ -838,7 +838,7 @@ export default function ServiceReportsPage() {
                             />
                             <div className="flex flex-col">
                               <span className="font-medium">{workOrder.number} - {workOrder.title}</span>
-                              <span className="text-xs text-muted-foreground">CdP</span>
+                              <span className="text-xs text-muted-foreground">CdL</span>
                             </div>
                           </CommandItem>
                         ))}
@@ -852,7 +852,7 @@ export default function ServiceReportsPage() {
                 <div className="p-3 bg-muted rounded-lg text-sm">
                   <h4 className="font-medium mb-1">{selectedWorkOrder.number} - {selectedWorkOrder.title}</h4>
                   <p className="text-muted-foreground text-xs">
-                    Commessa di Produzione
+                    Commessa di Lavoro
                     {selectedWorkOrder.location && ` • ${selectedWorkOrder.location}`}
                   </p>
                 </div>
