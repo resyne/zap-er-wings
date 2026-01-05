@@ -311,7 +311,7 @@ export default function RegistroPage() {
         .from("accounting-attachments")
         .getPublicUrl(filePath);
 
-      setUploadedFile({ name: file.name, url: urlData.publicUrl });
+      const uploadedFileData = { name: file.name, url: urlData.publicUrl };
       
       // AI Analysis
       setIsAnalyzing(true);
@@ -338,16 +338,72 @@ export default function RegistroPage() {
 
           if (analysisData?.success && analysisData?.data) {
             const extracted = analysisData.data;
-            setQuickEntryForm((prev) => ({
-              ...prev,
-              importo: extracted.amount ? String(extracted.amount) : prev.importo,
-              soggetto_nome: extracted.supplier_name || prev.soggetto_nome,
-              descrizione: extracted.notes || prev.descrizione,
-            }));
-            toast.success("Documento analizzato!");
+            const docType = extracted.document_type?.toLowerCase();
+            
+            // Open appropriate dialog based on document type
+            if (docType === "ddt") {
+              // It's a DDT - open DDT dialog with extracted data
+              setDdtUploadedFile(uploadedFileData);
+              setDdtScanForm({
+                numero_ddt: extracted.document_number || "",
+                data_ddt: extracted.document_date || new Date().toISOString().split("T")[0],
+                fornitore: extracted.supplier_name || "",
+                destinatario: extracted.recipient_name || "",
+                destinatario_indirizzo: extracted.recipient_address || "",
+                destinazione: extracted.destination_name || "",
+                destinazione_indirizzo: extracted.destination_address || "",
+                causale_trasporto: extracted.transport_reason || "",
+                direzione: extracted.direction === "uscita" ? "uscita" : "entrata",
+                note: extracted.notes || "",
+                line_items: extracted.line_items || [],
+              });
+              setShowDdtScanDialog(true);
+              toast.success("DDT riconosciuto e dati estratti!");
+            } else if (docType === "scontrino" || docType === "fattura" || docType === "ricevuta" || docType === "estratto_conto") {
+              // It's an expense/receipt - open expense dialog
+              setUploadedFile(uploadedFileData);
+              const isEntrata = extracted.direction === "entrata";
+              setQuickEntryType(isEntrata ? "entrata" : "uscita");
+              setQuickEntryForm({
+                importo: extracted.amount ? String(extracted.amount) : "",
+                metodo_pagamento: extracted.payment_method === "contanti" ? "cassa" : 
+                                  extracted.payment_method === "carta" ? "carta" : 
+                                  extracted.payment_method === "bonifico" ? "banca" : "cassa",
+                soggetto_nome: extracted.supplier_name || "",
+                riferimento: extracted.document_number || "",
+                descrizione: extracted.notes || "",
+              });
+              setShowQuickEntryDialog(true);
+              toast.success(`${docType === "scontrino" ? "Scontrino" : "Documento"} riconosciuto e dati estratti!`);
+            } else {
+              // Unknown type - default to expense dialog
+              setUploadedFile(uploadedFileData);
+              setQuickEntryType("uscita");
+              setQuickEntryForm((prev) => ({
+                ...prev,
+                importo: extracted.amount ? String(extracted.amount) : prev.importo,
+                soggetto_nome: extracted.supplier_name || prev.soggetto_nome,
+                descrizione: extracted.notes || prev.descrizione,
+              }));
+              setShowQuickEntryDialog(true);
+              toast.success("Documento analizzato - verifica i dati estratti");
+            }
+          } else {
+            // No AI data - open expense dialog as default
+            setUploadedFile(uploadedFileData);
+            setShowQuickEntryDialog(true);
+            toast.info("Compila manualmente i dati");
           }
+        } else {
+          // No analysis possible - open expense dialog
+          setUploadedFile(uploadedFileData);
+          setShowQuickEntryDialog(true);
+          toast.info("Compila manualmente i dati");
         }
       } catch {
+        // Error in analysis - open expense dialog as fallback
+        setUploadedFile(uploadedFileData);
+        setShowQuickEntryDialog(true);
         toast.info("Compila manualmente i dati");
       } finally {
         setIsAnalyzing(false);
