@@ -209,7 +209,7 @@ export function MobileWorkOrderDetails({
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="px-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="px-3 pb-2">
           <TabsList className="w-full grid grid-cols-4 h-9">
             <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
             <TabsTrigger value="articles" className="text-xs">Articoli</TabsTrigger>
@@ -222,189 +222,191 @@ export function MobileWorkOrderDetails({
       {/* Content */}
       <ScrollArea className="flex-1">
         <div className="p-3">
-          <TabsContent value="info" className="mt-0 space-y-3">
-            {/* Customer info card */}
-            {workOrder.customers && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Cliente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <p className="font-medium">
-                    {workOrder.customers.company_name || workOrder.customers.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {workOrder.customers.code}
-                  </p>
-                  {workOrder.customers.phone && (
-                    <a 
-                      href={`tel:${workOrder.customers.phone}`}
-                      className="flex items-center gap-2 text-sm text-primary"
-                    >
-                      <Phone className="h-3 w-3" />
-                      {workOrder.customers.phone}
-                    </a>
-                  )}
-                  {(workOrder.customers.address || workOrder.customers.city) && (
-                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      {[workOrder.customers.address, workOrder.customers.city].filter(Boolean).join(', ')}
+          {activeTab === "info" && (
+            <div className="space-y-3">
+              {/* Customer info card */}
+              {workOrder.customers && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Cliente
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="font-medium">
+                      {workOrder.customers.company_name || workOrder.customers.name}
                     </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    <p className="text-sm text-muted-foreground">
+                      {workOrder.customers.code}
+                    </p>
+                    {workOrder.customers.phone && (
+                      <a 
+                        href={`tel:${workOrder.customers.phone}`}
+                        className="flex items-center gap-2 text-sm text-primary"
+                      >
+                        <Phone className="h-3 w-3" />
+                        {workOrder.customers.phone}
+                      </a>
+                    )}
+                    {(workOrder.customers.address || workOrder.customers.city) && (
+                      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {[workOrder.customers.address, workOrder.customers.city].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Dates */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Date
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs">Inizio pianificato</p>
-                    <p className="font-medium">{formatDate(workOrder.planned_start_date)}</p>
+              {/* Dates */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Date
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Inizio pianificato</p>
+                      <p className="font-medium">{formatDate(workOrder.planned_start_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Fine pianificata</p>
+                      <p className="font-medium">{formatDate(workOrder.planned_end_date)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Fine pianificata</p>
-                    <p className="font-medium">{formatDate(workOrder.planned_end_date)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Assignment */}
-            {workOrder.technician && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Assegnato a
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-medium">
-                    {workOrder.technician.first_name} {workOrder.technician.last_name}
-                  </p>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Links */}
-            {(workOrder.sales_orders || workOrder.leads || workOrder.offers) && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <ExternalLink className="h-4 w-4" />
-                    Collegamenti
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {workOrder.sales_orders && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Ordine vendita</span>
-                      <Badge variant="outline">{workOrder.sales_orders.number}</Badge>
-                    </div>
-                  )}
-                  {workOrder.leads && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Lead</span>
-                      <Link to={`/crm/leads?id=${workOrder.leads.id}`}>
-                        <Badge variant="outline" className="cursor-pointer hover:bg-accent">
-                          {workOrder.leads.company_name}
-                        </Badge>
-                      </Link>
-                    </div>
-                  )}
-                  {workOrder.offers && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Offerta</span>
-                      <Badge variant="outline">{workOrder.offers.number}</Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+              {/* Assignment */}
+              {workOrder.technician && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Assegnato a
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="font-medium">
+                      {workOrder.technician.first_name} {workOrder.technician.last_name}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Notes */}
-            {workOrder.notes && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Note
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm whitespace-pre-wrap">{workOrder.notes}</p>
-                </CardContent>
-              </Card>
-            )}
+              {/* Links */}
+              {(workOrder.sales_orders || workOrder.leads || workOrder.offers) && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <ExternalLink className="h-4 w-4" />
+                      Collegamenti
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {workOrder.sales_orders && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Ordine vendita</span>
+                        <Badge variant="outline">{workOrder.sales_orders.number}</Badge>
+                      </div>
+                    )}
+                    {workOrder.leads && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Lead</span>
+                        <Link to={`/crm/leads?id=${workOrder.leads.id}`}>
+                          <Badge variant="outline" className="cursor-pointer hover:bg-accent">
+                            {workOrder.leads.company_name}
+                          </Badge>
+                        </Link>
+                      </div>
+                    )}
+                    {workOrder.offers && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Offerta</span>
+                        <Badge variant="outline">{workOrder.offers.number}</Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Lead Photos */}
-            {(leadPhotos.length > 0 || loadingPhotos) && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Foto cliente</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loadingPhotos ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="aspect-square rounded-lg" />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      {leadPhotos.map((photo, index) => {
-                        const isVideo = photo.type?.startsWith('video/') || 
-                          /\.(mp4|mov|avi|webm|mkv)$/i.test(photo.name);
-                        return (
-                          <div
-                            key={index}
-                            className="aspect-square rounded-lg overflow-hidden cursor-pointer relative"
-                            onClick={() => setSelectedMedia({ url: photo.url, name: photo.name, isVideo })}
-                          >
-                            {isVideo ? (
-                              <video
-                                src={photo.url}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <img
-                                src={photo.url}
-                                alt={photo.name}
-                                className="w-full h-full object-cover"
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+              {/* Notes */}
+              {workOrder.notes && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Note
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm whitespace-pre-wrap">{workOrder.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
 
-          <TabsContent value="articles" className="mt-0">
+              {/* Lead Photos */}
+              {(leadPhotos.length > 0 || loadingPhotos) && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Foto cliente</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingPhotos ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {[1, 2, 3].map((i) => (
+                          <Skeleton key={i} className="aspect-square rounded-lg" />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        {leadPhotos.map((photo, index) => {
+                          const isVideo = photo.type?.startsWith('video/') || 
+                            /\.(mp4|mov|avi|webm|mkv)$/i.test(photo.name);
+                          return (
+                            <div
+                              key={index}
+                              className="aspect-square rounded-lg overflow-hidden cursor-pointer relative"
+                              onClick={() => setSelectedMedia({ url: photo.url, name: photo.name, isVideo })}
+                            >
+                              {isVideo ? (
+                                <video
+                                  src={photo.url}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <img
+                                  src={photo.url}
+                                  alt={photo.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {activeTab === "articles" && (
             <WorkOrderArticles workOrderId={workOrder.id} articleText="" />
-          </TabsContent>
+          )}
 
-          <TabsContent value="comments" className="mt-0">
+          {activeTab === "comments" && (
             <WorkOrderComments workOrderId={workOrder.id} />
-          </TabsContent>
+          )}
 
-          <TabsContent value="history" className="mt-0">
+          {activeTab === "history" && (
             <WorkOrderActivityLog workOrderId={workOrder.id} />
-          </TabsContent>
+          )}
         </div>
       </ScrollArea>
 
