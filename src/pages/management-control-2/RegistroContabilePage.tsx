@@ -44,7 +44,8 @@ import {
   Wrench,
   Calendar,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Archive
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -529,8 +530,9 @@ export default function RegistroContabilePage() {
   // State for operational documents filters
   const [opDocTypeFilter, setOpDocTypeFilter] = useState("all");
   const [opInvoiceFilter, setOpInvoiceFilter] = useState("all");
-  const [opYearFilter, setOpYearFilter] = useState<string>("all");
+  const [opYearFilter, setOpYearFilter] = useState<string>("2026");
   const [opMonthFilter, setOpMonthFilter] = useState<string>("all");
+  const [opArchivedFilter, setOpArchivedFilter] = useState<string>("active"); // active, archived, all
   const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
 
   // State for operational document invoicing dialog
@@ -541,6 +543,31 @@ export default function RegistroContabilePage() {
     invoice_date: format(new Date(), 'yyyy-MM-dd'),
     imponibile: 0,
     iva_rate: 22
+  });
+
+  // Mutation to archive operational document
+  const archiveDocMutation = useMutation({
+    mutationFn: async (doc: OperationalDocument) => {
+      const table = doc.type === "order" 
+        ? "sales_orders" 
+        : doc.type === "ddt" 
+          ? "ddts" 
+          : "service_reports";
+
+      const { error } = await supabase
+        .from(table)
+        .update({ archived: true })
+        .eq("id", doc.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Documento archiviato');
+      refetchOperational();
+    },
+    onError: (error) => {
+      toast.error('Errore: ' + error.message);
+    }
   });
 
   // Mutation to create invoice from operational document
@@ -1095,6 +1122,11 @@ export default function RegistroContabilePage() {
       (opInvoiceFilter === "invoiced" && doc.invoiced) ||
       (opInvoiceFilter === "pending" && !doc.invoiced);
     
+    // Archive filter: by default hide archived
+    const matchesArchived = opArchivedFilter === "all" || 
+      (opArchivedFilter === "active" && !doc.archived) ||
+      (opArchivedFilter === "archived" && doc.archived);
+    
     let matchesYear = true;
     if (opYearFilter !== "all" && doc.date) {
       matchesYear = getYear(new Date(doc.date)) === parseInt(opYearFilter);
@@ -1105,7 +1137,7 @@ export default function RegistroContabilePage() {
       matchesMonth = getMonth(new Date(doc.date)) === parseInt(opMonthFilter);
     }
     
-    return matchesSearch && matchesType && matchesInvoice && matchesYear && matchesMonth;
+    return matchesSearch && matchesType && matchesInvoice && matchesYear && matchesMonth && matchesArchived;
   });
 
   // Group operational documents by year and month
@@ -1544,6 +1576,17 @@ export default function RegistroContabilePage() {
                 <SelectItem value="invoiced">Fatturati</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={opArchivedFilter} onValueChange={setOpArchivedFilter}>
+              <SelectTrigger className="w-[160px]">
+                <Archive className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Archiviazione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Attivi</SelectItem>
+                <SelectItem value="archived">Archiviati</SelectItem>
+                <SelectItem value="all">Tutti</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Expand/Collapse controls */}
@@ -1659,16 +1702,28 @@ export default function RegistroContabilePage() {
                                     )}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    {!doc.invoiced && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleCreateInvoiceFromDoc(doc)}
-                                      >
-                                        <Receipt className="h-4 w-4 mr-1" />
-                                        Registra Fattura
-                                      </Button>
-                                    )}
+                                    <div className="flex items-center justify-end gap-1">
+                                      {!doc.invoiced && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleCreateInvoiceFromDoc(doc)}
+                                        >
+                                          <Receipt className="h-4 w-4 mr-1" />
+                                          Registra Fattura
+                                        </Button>
+                                      )}
+                                      {!doc.archived && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => archiveDocMutation.mutate(doc)}
+                                          title="Archivia documento"
+                                        >
+                                          <Archive className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))}

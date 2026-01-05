@@ -12,6 +12,7 @@ export interface OperationalDocument {
   invoiced: boolean;
   invoice_number?: string | null;
   invoice_date?: string | null;
+  archived?: boolean;
 }
 
 interface FetchOptions {
@@ -36,7 +37,7 @@ async function fetchOperationalDocs(options: FetchOptions = {}): Promise<Operati
   // Fetch orders
   let ordersQuery = (supabase as any)
     .from("sales_orders")
-    .select(`id, number, customer_id, order_date, total_amount, invoiced, invoice_number, invoice_date`)
+    .select(`id, number, customer_id, order_date, total_amount, invoiced, invoice_number, invoice_date, archived`)
     .order("created_at", { ascending: false });
   
   if (onlyPending) {
@@ -49,7 +50,7 @@ async function fetchOperationalDocs(options: FetchOptions = {}): Promise<Operati
   // Fetch DDTs
   let ddtsQuery = (supabase as any)
     .from("ddts")
-    .select(`id, ddt_number, customer_id, created_at, ddt_data, invoiced, invoice_number, invoice_date`)
+    .select(`id, ddt_number, customer_id, created_at, ddt_data, invoiced, invoice_number, invoice_date, archived`)
     .order("created_at", { ascending: false });
   
   if (onlyPending) {
@@ -62,7 +63,7 @@ async function fetchOperationalDocs(options: FetchOptions = {}): Promise<Operati
   // Fetch service reports
   let reportsQuery = (supabase as any)
     .from("service_reports")
-    .select(`id, intervention_date, total_amount, invoiced, invoice_number, invoice_date`)
+    .select(`id, intervention_date, total_amount, invoiced, invoice_number, invoice_date, archived`)
     .eq("status", "completed")
     .order("created_at", { ascending: false });
   
@@ -86,7 +87,8 @@ async function fetchOperationalDocs(options: FetchOptions = {}): Promise<Operati
       amount: order.total_amount,
       invoiced: order.invoiced || false,
       invoice_number: order.invoice_number,
-      invoice_date: order.invoice_date
+      invoice_date: order.invoice_date,
+      archived: order.archived || false
     });
   });
 
@@ -102,7 +104,8 @@ async function fetchOperationalDocs(options: FetchOptions = {}): Promise<Operati
       amount: null,
       invoiced: ddt.invoiced || false,
       invoice_number: ddt.invoice_number,
-      invoice_date: ddt.invoice_date
+      invoice_date: ddt.invoice_date,
+      archived: ddt.archived || false
     });
   });
 
@@ -117,7 +120,8 @@ async function fetchOperationalDocs(options: FetchOptions = {}): Promise<Operati
       amount: report.total_amount,
       invoiced: report.invoiced || false,
       invoice_number: report.invoice_number,
-      invoice_date: report.invoice_date
+      invoice_date: report.invoice_date,
+      archived: report.archived || false
     });
   });
 
