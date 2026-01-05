@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 import { EditMovementDialog } from "@/components/warehouse/EditMovementDialog";
+import { SimilarMaterialDialog, MaterialMatch, SimilarMaterialAction } from "@/components/shared/SimilarMaterialDialog";
+import { stringSimilarity } from "@/lib/fuzzyMatch";
 
 interface StockMovement {
   id: string;
@@ -56,6 +58,13 @@ export default function MovementsPage() {
   const [scaricoDialogOpen, setScaricoDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<StockMovement | null>(null);
+  
+  // Similar material dialog state
+  const [similarMaterialDialogOpen, setSimilarMaterialDialogOpen] = useState(false);
+  const [similarMaterialMatches, setSimilarMaterialMatches] = useState<MaterialMatch[]>([]);
+  const [pendingMovementId, setPendingMovementId] = useState<string | null>(null);
+  const [pendingMovementDescription, setPendingMovementDescription] = useState<string>("");
+  const [processingMaterialAction, setProcessingMaterialAction] = useState(false);
 
   const { data: movements = [], isLoading } = useQuery({
     queryKey: ["stock-movements"],
@@ -76,6 +85,108 @@ export default function MovementsPage() {
     },
   });
 
+  // Fetch materials for fuzzy matching
+  const { data: materials = [] } = useQuery({
+    queryKey: ["materials-for-matching"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("materials")
+        .select("id, code, name, unit, supplier_id")
+        .eq("active", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const findSimilarMaterials = (description: string): MaterialMatch[] => {
+    const threshold = 0.85; // 85% similarity threshold for materials
+    const normalizedDesc = description.toLowerCase().trim();
+    
+    // First check for exact match
+    const exactMatch = materials.find(m => m.name.toLowerCase().trim() === normalizedDesc);
+    if (exactMatch) {
+      return []; // Exact match found, no need for dialog
+    }
+    
+    // Find similar materials
+    return materials
+      .map(m => ({
+        id: m.id,
+        name: m.name,
+        code: m.code,
+        unit: m.unit || undefined,
+        supplier_id: m.supplier_id,
+        similarity: stringSimilarity(normalizedDesc, m.name.toLowerCase().trim()),
+      }))
+      .filter(m => m.similarity >= threshold && m.similarity < 1)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 5);
+  };
+
+  const handleConfirmClick = async (movement: StockMovement) => {
+    // Check for similar materials before confirming
+    const similarMatches = findSimilarMaterials(movement.item_description);
+    
+    if (similarMatches.length > 0) {
+      // Show dialog to let user choose
+      setSimilarMaterialMatches(similarMatches);
+      setPendingMovementId(movement.id);
+      setPendingMovementDescription(movement.item_description);
+      setSimilarMaterialDialogOpen(true);
+    } else {
+      // No similar materials found, proceed with confirmation
+      confirmMutation.mutate(movement.id);
+    }
+  };
+
+  const handleSimilarMaterialAction = async (action: SimilarMaterialAction, selectedMatch?: MaterialMatch) => {
+    if (!pendingMovementId) return;
+    
+    setProcessingMaterialAction(true);
+    
+    try {
+      if (action === "use_existing" && selectedMatch) {
+        // Update the movement to use the existing material's description
+        await supabase
+          .from("stock_movements")
+          .update({ item_description: selectedMatch.name })
+          .eq("id", pendingMovementId);
+        
+        toast({
+          title: "Articolo collegato",
+          description: `Movimento aggiornato con "${selectedMatch.name}"`,
+        });
+      } else if (action === "update_existing" && selectedMatch) {
+        // Update the existing material's name
+        await supabase
+          .from("materials")
+          .update({ name: pendingMovementDescription })
+          .eq("id", selectedMatch.id);
+        
+        toast({
+          title: "Articolo aggiornato",
+          description: `Nome aggiornato a "${pendingMovementDescription}"`,
+        });
+      }
+      // For "create_new", we just proceed with the confirmation as-is
+      
+      // Now confirm the movement
+      confirmMutation.mutate(pendingMovementId);
+    } catch (error) {
+      console.error("Error handling material action:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile completare l'operazione",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingMaterialAction(false);
+      setSimilarMaterialDialogOpen(false);
+      setPendingMovementId(null);
+      setPendingMovementDescription("");
+    }
+  };
+
   const confirmMutation = useMutation({
     mutationFn: async (movementId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -92,6 +203,7 @@ export default function MovementsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      queryClient.invalidateQueries({ queryKey: ["materials-for-matching"] });
       toast({ title: "Movimento confermato" });
     },
     onError: () => {
@@ -376,8 +488,8 @@ export default function MovementsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => confirmMutation.mutate(movement.id)}
-                                disabled={confirmMutation.isPending}
+                                onClick={() => handleConfirmClick(movement)}
+                                disabled={confirmMutation.isPending || processingMaterialAction}
                                 title="Conferma"
                               >
                                 <Check className="h-4 w-4 text-green-600" />
@@ -427,6 +539,15 @@ export default function MovementsPage() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         movement={selectedMovement}
+      />
+      
+      <SimilarMaterialDialog
+        open={similarMaterialDialogOpen}
+        onOpenChange={setSimilarMaterialDialogOpen}
+        newName={pendingMovementDescription}
+        matches={similarMaterialMatches}
+        onAction={handleSimilarMaterialAction}
+        isLoading={processingMaterialAction}
       />
     </div>
   );
