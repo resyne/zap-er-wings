@@ -1102,14 +1102,15 @@ export default function RegistroContabilePage() {
     .map(d => getYear(new Date(d.date)))
   )].sort((a, b) => b - a);
 
-  // Operational documents stats
+  // Operational documents stats - exclude archived from pending count
+  const activeOperationalDocs = operationalDocuments.filter(d => !d.archived);
   const opStats = {
-    total: operationalDocuments.length,
-    invoiced: operationalDocuments.filter(d => d.invoiced).length,
-    pending: operationalDocuments.filter(d => !d.invoiced).length,
-    orders: operationalDocuments.filter(d => d.type === "order").length,
-    ddts: operationalDocuments.filter(d => d.type === "ddt").length,
-    reports: operationalDocuments.filter(d => d.type === "report").length
+    total: activeOperationalDocs.length,
+    invoiced: activeOperationalDocs.filter(d => d.invoiced).length,
+    pending: activeOperationalDocs.filter(d => !d.invoiced).length,
+    orders: activeOperationalDocs.filter(d => d.type === "order").length,
+    ddts: activeOperationalDocs.filter(d => d.type === "ddt").length,
+    reports: activeOperationalDocs.filter(d => d.type === "report").length
   };
 
   // Filter operational documents
