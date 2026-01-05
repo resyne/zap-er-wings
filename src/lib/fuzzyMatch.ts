@@ -70,7 +70,7 @@ export interface SubjectMatch {
 export function findSimilarSubjects<T extends { id: string; name: string; code?: string; tax_id?: string | null }>(
   searchName: string,
   subjects: T[],
-  threshold: number = 0.6
+  threshold: number = 0.9
 ): SubjectMatch[] {
   const normalizedSearch = normalizeCompanyName(searchName);
   
