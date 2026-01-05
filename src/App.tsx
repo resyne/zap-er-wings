@@ -57,7 +57,7 @@ import MovementsPageMC from "./pages/management-control/MovementsPage";
 import CreditsDebtsPage from "./pages/management-control/CreditsDebtsPage";
 import RegistroPage from "./pages/management-control-2/RegistroPage";
 import MovimentiFinanziariPage from "./pages/management-control-2/MovimentiFinanziariPage";
-import EventClassificationPage from "./pages/management-control-2/EventClassificationPage";
+
 import ChartOfAccountsPage from "./pages/management-control-2/ChartOfAccountsPage";
 import CostCentersPage from "./pages/management-control-2/CostCentersPage";
 import PrimaNotaPageMC2 from "./pages/management-control-2/PrimaNotaPage";
@@ -175,7 +175,7 @@ const App = () => (
                 <Route path="management-control/credits-debts" element={<CreditsDebtsPage />} />
                 <Route path="management-control-2/registro" element={<RegistroPage />} />
                 <Route path="management-control-2/movimenti-finanziari" element={<MovimentiFinanziariPage />} />
-                <Route path="management-control-2/classification" element={<EventClassificationPage />} />
+                
                 <Route path="management-control-2/chart-of-accounts" element={<ChartOfAccountsPage />} />
                 <Route path="management-control-2/cost-centers" element={<CostCentersPage />} />
                 <Route path="management-control-2/prima-nota" element={<PrimaNotaPageMC2 />} />
