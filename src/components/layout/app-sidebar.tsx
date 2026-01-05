@@ -179,7 +179,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Motore Contabile", url: "/management-control-2/accounting-engine", icon: Settings },
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
-      { title: "Registro Fatture", url: "/management-control-2/registro-fatture", icon: FileText },
+      { title: "Registro Contabile", url: "/management-control-2/registro-fatture", icon: FileText },
       { title: "Documentazione Operativa", url: "/management-control-2/documentazione-operativa", icon: FileText },
     ]
   },
