@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { AccountSplitManager } from "@/components/management-control/AccountSplitManager";
 import { useAllOperationalDocuments, OperationalDocument } from "@/hooks/useOperationalDocuments";
+import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
+import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
 import { 
   Plus, 
   FileCheck, 
@@ -233,6 +235,13 @@ export default function RegistroContabilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
+  
+  // Similar subject dialog states
+  const [similarDialogOpen, setSimilarDialogOpen] = useState(false);
+  const [similarMatches, setSimilarMatches] = useState<SubjectMatch[]>([]);
+  const [pendingSubjectName, setPendingSubjectName] = useState("");
+  const [pendingSubjectType, setPendingSubjectType] = useState<"cliente" | "fornitore">("fornitore");
+  const [isCreatingSubject, setIsCreatingSubject] = useState(false);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setIsUploading(true);
@@ -297,21 +306,50 @@ export default function RegistroContabilePage() {
             const extracted = analysisData.data;
             console.log("AI extracted invoice data:", extracted);
 
+            // Determine event_type and derived values from AI-detected invoice_type
+            // But user can override by changing the dropdown
+            let eventType: EventType = 'fattura_acquisto';
+            let invoiceType: InvoiceType = 'acquisto';
+            let subjectType: SubjectType = 'fornitore';
+            let financialStatus: FinancialStatus = 'da_pagare';
+
+            if (extracted.invoice_type === 'vendita') {
+              eventType = 'fattura_vendita';
+              invoiceType = 'vendita';
+              subjectType = 'cliente';
+              financialStatus = 'da_incassare';
+            } else if (extracted.invoice_type === 'nota_credito') {
+              eventType = 'nota_credito';
+              invoiceType = 'nota_credito';
+              subjectType = extracted.subject_type || 'fornitore';
+              financialStatus = subjectType === 'fornitore' ? 'da_incassare' : 'da_pagare';
+            }
+
             setFormData(prev => ({
               ...prev,
+              event_type: eventType,
               invoice_number: extracted.invoice_number || prev.invoice_number,
               invoice_date: extracted.invoice_date || format(new Date(), 'yyyy-MM-dd'),
-              invoice_type: extracted.invoice_type || prev.invoice_type,
-              subject_type: extracted.subject_type || prev.subject_type,
+              invoice_type: invoiceType,
+              subject_type: subjectType,
               subject_name: extracted.subject_name || prev.subject_name,
               imponibile: extracted.imponibile || prev.imponibile,
               iva_rate: extracted.iva_rate ?? prev.iva_rate,
               vat_regime: extracted.vat_regime || prev.vat_regime,
-              financial_status: extracted.invoice_type === 'acquisto' ? 'da_pagare' : 'da_incassare',
+              financial_status: financialStatus,
               due_date: extracted.due_date || prev.due_date,
               notes: extracted.notes || prev.notes,
               attachment_url: urlData.publicUrl
             }));
+
+            // Check for similar subjects in the registry
+            if (extracted.subject_name) {
+              // Will check after dialog opens when suppliers/customers are loaded
+              setTimeout(() => {
+                const sType: SubjectType = invoiceType === 'vendita' ? 'cliente' : 'fornitore';
+                checkAndMatchSubject(extracted.subject_name, sType);
+              }, 500);
+            }
 
             if (extracted.confidence === "high") {
               toast.success("Fattura analizzata con successo!");
@@ -690,6 +728,98 @@ export default function RegistroContabilePage() {
   );
   // Filtro conti per ricavi
   const revenueAccounts = accounts.filter(a => a.account_type === 'revenue');
+
+  // Check for similar subjects when subject_name is extracted
+  const checkAndMatchSubject = useCallback((subjectName: string, subjectType: SubjectType) => {
+    if (!subjectName.trim()) return;
+    
+    const subjectList = subjectType === 'cliente' 
+      ? customers.map(c => ({ id: c.id, name: c.company_name || c.name, tax_id: c.tax_id }))
+      : suppliers.map(s => ({ id: s.id, name: s.name, tax_id: s.tax_id }));
+    
+    // Check for exact match first
+    const exactMatch = subjectList.find(s => s.name.toLowerCase() === subjectName.toLowerCase());
+    if (exactMatch) {
+      setFormData(prev => ({
+        ...prev,
+        subject_id: exactMatch.id,
+        subject_name: exactMatch.name
+      }));
+      toast.success(`${subjectType === 'cliente' ? 'Cliente' : 'Fornitore'} trovato: ${exactMatch.name}`);
+      return;
+    }
+    
+    // Check for similar matches
+    const matches = findSimilarSubjects(subjectName, subjectList, 0.5);
+    if (matches.length > 0) {
+      setPendingSubjectName(subjectName);
+      setPendingSubjectType(subjectType);
+      setSimilarMatches(matches);
+      setSimilarDialogOpen(true);
+    }
+  }, [customers, suppliers]);
+
+  // Handle similar subject dialog action
+  const handleSimilarSubjectAction = async (action: SimilarSubjectAction, selectedMatch?: SubjectMatch) => {
+    setIsCreatingSubject(true);
+    try {
+      if (action === 'use_existing' && selectedMatch) {
+        setFormData(prev => ({
+          ...prev,
+          subject_id: selectedMatch.id,
+          subject_name: selectedMatch.name
+        }));
+        toast.success(`Collegato a: ${selectedMatch.name}`);
+      } else if (action === 'update_existing' && selectedMatch) {
+        // Update the existing subject name
+        const table = pendingSubjectType === 'cliente' ? 'customers' : 'suppliers';
+        const { error } = await supabase
+          .from(table)
+          .update({ name: pendingSubjectName })
+          .eq('id', selectedMatch.id);
+        
+        if (error) throw error;
+        
+        setFormData(prev => ({
+          ...prev,
+          subject_id: selectedMatch.id,
+          subject_name: pendingSubjectName
+        }));
+        toast.success(`Nome aggiornato a: ${pendingSubjectName}`);
+        queryClient.invalidateQueries({ queryKey: [pendingSubjectType === 'cliente' ? 'customers-list' : 'suppliers-list'] });
+      } else if (action === 'create_new') {
+        // Create new subject
+        const table = pendingSubjectType === 'cliente' ? 'customers' : 'suppliers';
+        const code = `${pendingSubjectType === 'cliente' ? 'CLI' : 'FOR'}-${Date.now().toString().slice(-6)}`;
+        
+        const { data: newSubject, error } = await supabase
+          .from(table)
+          .insert({
+            name: pendingSubjectName,
+            code: code
+          })
+          .select('id, name')
+          .single();
+        
+        if (error) throw error;
+        
+        setFormData(prev => ({
+          ...prev,
+          subject_id: newSubject.id,
+          subject_name: newSubject.name
+        }));
+        toast.success(`Nuovo ${pendingSubjectType === 'cliente' ? 'cliente' : 'fornitore'} creato: ${pendingSubjectName}`);
+        queryClient.invalidateQueries({ queryKey: [pendingSubjectType === 'cliente' ? 'customers-list' : 'suppliers-list'] });
+      }
+      
+      setSimilarDialogOpen(false);
+    } catch (error) {
+      console.error("Error handling similar subject action:", error);
+      toast.error("Errore durante l'operazione");
+    } finally {
+      setIsCreatingSubject(false);
+    }
+  };
 
   const calculateAmounts = (imponibile: number, ivaRate: number) => {
     const ivaAmount = imponibile * (ivaRate / 100);
@@ -3394,6 +3524,17 @@ export default function RegistroContabilePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Similar Subject Dialog */}
+      <SimilarSubjectDialog
+        open={similarDialogOpen}
+        onOpenChange={setSimilarDialogOpen}
+        newName={pendingSubjectName}
+        matches={similarMatches}
+        subjectType={pendingSubjectType}
+        onAction={handleSimilarSubjectAction}
+        isLoading={isCreatingSubject}
+      />
     </div>
   );
 }
