@@ -63,6 +63,7 @@ import CostCentersPage from "./pages/management-control-2/CostCentersPage";
 import PrimaNotaPageMC2 from "./pages/management-control-2/PrimaNotaPage";
 import AccountingEnginePage from "./pages/management-control-2/AccountingEnginePage";
 import ScadenziarioPage from "./pages/management-control-2/ScadenziarioPage";
+import MastrinoPage from "./pages/management-control-2/MastrinoPage";
 
 import RegistroContabilePage from "./pages/management-control-2/RegistroContabilePage";
 import SetupContabilePage from "./pages/management-control-2/SetupContabilePage";
@@ -183,6 +184,7 @@ const App = () => (
                 <Route path="management-control-2/prima-nota" element={<PrimaNotaPageMC2 />} />
                 <Route path="management-control-2/accounting-engine" element={<AccountingEnginePage />} />
                 <Route path="management-control-2/scadenziario" element={<ScadenziarioPage />} />
+                <Route path="management-control-2/mastrino" element={<MastrinoPage />} />
                 
                 <Route path="management-control-2/registro-fatture" element={<RegistroContabilePage />} />
                 <Route path="hr/fluida" element={<FluidaPage />} />
