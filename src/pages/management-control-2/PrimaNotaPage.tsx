@@ -1119,10 +1119,6 @@ export default function PrimaNotaPage() {
                         <th className="text-left p-3 text-sm font-medium">Data</th>
                         <th className="text-left p-3 text-sm font-medium">Tipo</th>
                         <th className="text-left p-3 text-sm font-medium">Conto</th>
-                        {/* FIX 5: IVA column */}
-                        <th className="text-center p-3 text-sm font-medium">IVA</th>
-                        {/* FIX 6: Separate amounts */}
-                        <th className="text-right p-3 text-sm font-medium">Imponibile</th>
                         <th className="text-right p-3 text-sm font-medium">Totale</th>
                         <th className="text-center p-3 text-sm font-medium">Stato</th>
                         <th className="text-center p-3 text-sm font-medium">Azioni</th>
@@ -1166,37 +1162,8 @@ export default function PrimaNotaPage() {
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </td>
-                            {/* FIX 5: IVA reference */}
-                            <td className="p-3 text-center">
-                              {m.iva_mode ? (
-                                <div className="flex flex-col items-center gap-1">
-                                  {formatIvaMode(m.iva_mode)}
-                                  {m.iva_aliquota && m.iva_mode === "DOMESTICA_IMPONIBILE" && (
-                                    <span className="text-xs text-muted-foreground">{m.iva_aliquota}%</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            {/* FIX 6: Imponibile */}
-                            <td className="p-3 text-sm text-right">
-                              {m.imponibile ? (
-                                <span className={m.amount >= 0 ? "text-green-600" : "text-red-600"}>
-                                  € {Math.abs(m.imponibile).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            {/* FIX 6: Totale (prominente) */}
                             <td className={`p-3 text-sm text-right font-bold ${m.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
                               € {Math.abs(m.totale || m.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                              {m.iva_amount && m.iva_amount > 0 && (
-                                <div className="text-xs font-normal text-muted-foreground">
-                                  (IVA: € {m.iva_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })})
-                                </div>
-                              )}
                             </td>
                             <td className="p-3 text-center">
                               {getStatusBadge(m.status)}
