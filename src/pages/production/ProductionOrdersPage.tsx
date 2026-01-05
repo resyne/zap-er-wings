@@ -757,15 +757,25 @@ export default function WorkOrdersPage() {
     const changeStatus = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Se lo stato diventa "completato", archivia automaticamente la commessa
+      const updateData: { status: typeof newStatus; archived?: boolean } = { status: newStatus };
+      if (newStatus === 'completato') {
+        updateData.archived = true;
+      }
+      
       const { error } = await supabase
         .from('work_orders')
-        .update({ status: newStatus })
+        .update(updateData)
         .eq('id', woId);
 
       if (error) throw error;
       
       // Log activity in work_order_logs table
       if (user) {
+        const logMessage = newStatus === 'completato' 
+          ? `Stato modificato da "${getStatusLabel(previousStatus)}" a "${getStatusLabel(newStatus)}" e commessa archiviata`
+          : `Stato modificato da "${getStatusLabel(previousStatus)}" a "${getStatusLabel(newStatus)}"`;
+        
         await supabase
           .from('work_order_logs')
           .insert({
@@ -773,9 +783,10 @@ export default function WorkOrdersPage() {
             user_id: user.id,
             action: 'status_changed',
             details: {
-              message: `Stato modificato da "${getStatusLabel(previousStatus)}" a "${getStatusLabel(newStatus)}"`,
+              message: logMessage,
               changes: {
-                status: { old: previousStatus, new: newStatus }
+                status: { old: previousStatus, new: newStatus },
+                ...(newStatus === 'completato' && { archived: { old: false, new: true } })
               }
             }
           });
