@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,13 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, getYear, getMonth } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { AccountSplitManager } from "@/components/management-control/AccountSplitManager";
-import { useOperationalDocuments, OperationalDocument } from "@/hooks/useOperationalDocuments";
+import { useAllOperationalDocuments, OperationalDocument } from "@/hooks/useOperationalDocuments";
 import { 
   Plus, 
   FileCheck, 
@@ -38,7 +39,12 @@ import {
   Pencil,
   Check,
   ChevronsUpDown,
-  Trash2
+  Trash2,
+  Truck,
+  Wrench,
+  Calendar,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -517,8 +523,15 @@ export default function RegistroContabilePage() {
     }
   });
 
-  // Fetch operational documents to invoice (using dedicated hook to avoid type complexity)
-  const { data: operationalDocuments = [], isLoading: isLoadingOperational, refetch: refetchOperational } = useOperationalDocuments();
+  // Fetch operational documents (all documents, both invoiced and pending)
+  const { data: operationalDocuments = [], isLoading: isLoadingOperational, refetch: refetchOperational } = useAllOperationalDocuments();
+
+  // State for operational documents filters
+  const [opDocTypeFilter, setOpDocTypeFilter] = useState("all");
+  const [opInvoiceFilter, setOpInvoiceFilter] = useState("all");
+  const [opYearFilter, setOpYearFilter] = useState<string>("all");
+  const [opMonthFilter, setOpMonthFilter] = useState<string>("all");
+  const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
 
   // State for operational document invoicing dialog
   const [showOperationalInvoiceDialog, setShowOperationalInvoiceDialog] = useState(false);
@@ -1050,13 +1063,135 @@ export default function RegistroContabilePage() {
     (evt.document_type || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Month names for grouping
+  const MONTH_NAMES = [
+    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+  ];
+
+  // Get available years from operational documents
+  const availableYears = [...new Set(operationalDocuments
+    .filter(d => d.date)
+    .map(d => getYear(new Date(d.date)))
+  )].sort((a, b) => b - a);
+
+  // Operational documents stats
+  const opStats = {
+    total: operationalDocuments.length,
+    invoiced: operationalDocuments.filter(d => d.invoiced).length,
+    pending: operationalDocuments.filter(d => !d.invoiced).length,
+    orders: operationalDocuments.filter(d => d.type === "order").length,
+    ddts: operationalDocuments.filter(d => d.type === "ddt").length,
+    reports: operationalDocuments.filter(d => d.type === "report").length
+  };
+
+  // Filter operational documents
+  const filteredOperationalDocs = operationalDocuments.filter(doc => {
+    const matchesSearch = !searchTerm || 
+      doc.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.customer?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = opDocTypeFilter === "all" || doc.type === opDocTypeFilter;
+    const matchesInvoice = opInvoiceFilter === "all" || 
+      (opInvoiceFilter === "invoiced" && doc.invoiced) ||
+      (opInvoiceFilter === "pending" && !doc.invoiced);
+    
+    let matchesYear = true;
+    if (opYearFilter !== "all" && doc.date) {
+      matchesYear = getYear(new Date(doc.date)) === parseInt(opYearFilter);
+    }
+    
+    let matchesMonth = true;
+    if (opMonthFilter !== "all" && doc.date) {
+      matchesMonth = getMonth(new Date(doc.date)) === parseInt(opMonthFilter);
+    }
+    
+    return matchesSearch && matchesType && matchesInvoice && matchesYear && matchesMonth;
+  });
+
+  // Group operational documents by year and month
+  const groupedOpDocs = filteredOperationalDocs.reduce((acc, doc) => {
+    if (!doc.date) {
+      const key = "senza-data";
+      if (!acc[key]) acc[key] = { label: "Senza data", year: 0, month: -1, docs: [] };
+      acc[key].docs.push(doc);
+      return acc;
+    }
+    
+    const date = new Date(doc.date);
+    const year = getYear(date);
+    const month = getMonth(date);
+    const key = `${year}-${month}`;
+    
+    if (!acc[key]) {
+      acc[key] = {
+        label: `${MONTH_NAMES[month]} ${year}`,
+        year,
+        month,
+        docs: []
+      };
+    }
+    acc[key].docs.push(doc);
+    return acc;
+  }, {} as Record<string, { label: string; year: number; month: number; docs: OperationalDocument[] }>);
+
+  // Sort periods by date descending
+  const sortedPeriods = Object.entries(groupedOpDocs)
+    .sort(([, a], [, b]) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+  const togglePeriod = (key: string) => {
+    setExpandedPeriods(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const expandAllPeriods = () => {
+    setExpandedPeriods(new Set(sortedPeriods.map(([key]) => key)));
+  };
+
+  const collapseAllPeriods = () => {
+    setExpandedPeriods(new Set());
+  };
+
+  const getDocTypeIcon = (type: "order" | "ddt" | "report") => {
+    switch (type) {
+      case "order": return <FileText className="h-4 w-4" />;
+      case "ddt": return <Truck className="h-4 w-4" />;
+      case "report": return <Wrench className="h-4 w-4" />;
+    }
+  };
+
+  const getDocTypeLabel = (type: "order" | "ddt" | "report") => {
+    switch (type) {
+      case "order": return "Ordine";
+      case "ddt": return "DDT";
+      case "report": return "Rapporto";
+    }
+  };
+
+  const getDocTypeBadgeColor = (type: "order" | "ddt" | "report") => {
+    switch (type) {
+      case "order": return "bg-primary/10 text-primary";
+      case "ddt": return "bg-blue-100 text-blue-700";
+      case "report": return "bg-orange-100 text-orange-700";
+    }
+  };
+
   const stats = {
     bozze: invoices.filter(i => i.status === 'bozza').length,
     registrate: invoices.filter(i => i.status === 'registrata').length,
     daIncassare: invoices.filter(i => i.financial_status === 'da_incassare').reduce((sum, i) => sum + i.total_amount, 0),
     daPagare: invoices.filter(i => i.financial_status === 'da_pagare').reduce((sum, i) => sum + i.total_amount, 0),
     daClassificare: eventsToClassify.length,
-    daFatturare: operationalDocuments.length
+    daFatturare: opStats.pending
   };
 
   const getTypeBadge = (type: string) => {
@@ -1311,63 +1446,243 @@ export default function RegistroContabilePage() {
         </CardContent>
       </Card>
 
-      {/* Vista Documenti Da Fatturare */}
+      {/* Vista Documentazione Operativa */}
       {filterType === 'da_fatturare' ? (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Numero</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Importo</TableHead>
-                  <TableHead>Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoadingOperational ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">Caricamento...</TableCell>
-                  </TableRow>
-                ) : operationalDocuments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Nessun documento da fatturare
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  operationalDocuments.map((doc) => (
-                    <TableRow key={`${doc.type}-${doc.id}`}>
-                      <TableCell>
-                        <Badge variant="outline" className={
-                          doc.type === 'order' ? 'bg-primary/10 text-primary' :
-                          doc.type === 'ddt' ? 'bg-blue-100 text-blue-700' :
-                          'bg-orange-100 text-orange-700'
-                        }>
-                          {doc.type === 'order' ? 'Ordine' : doc.type === 'ddt' ? 'DDT' : 'Rapporto'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{doc.number}</TableCell>
-                      <TableCell>{doc.customer}</TableCell>
-                      <TableCell>{doc.date ? format(new Date(doc.date), 'dd/MM/yyyy', { locale: it }) : '-'}</TableCell>
-                      <TableCell className="text-right">
-                        {doc.amount ? `€${doc.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" onClick={() => handleCreateInvoiceFromDoc(doc)}>
-                          <Receipt className="w-4 h-4 mr-1" />
-                          Registra Fattura
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                  Da Fatturare
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{opStats.pending}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Fatturati
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{opStats.invoiced}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Riepilogo Documenti</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-6 text-sm">
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    {opStats.orders} Ordini
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-blue-500" />
+                    {opStats.ddts} DDT
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-orange-500" />
+                    {opStats.reports} Rapporti
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters for operational documents */}
+          <div className="flex flex-wrap gap-4">
+            <Select value={opYearFilter} onValueChange={setOpYearFilter}>
+              <SelectTrigger className="w-[140px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Anno" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli anni</SelectItem>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={opMonthFilter} onValueChange={setOpMonthFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Mese" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i mesi</SelectItem>
+                {MONTH_NAMES.map((name, idx) => (
+                  <SelectItem key={idx} value={idx.toString()}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={opDocTypeFilter} onValueChange={setOpDocTypeFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tipo documento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i tipi</SelectItem>
+                <SelectItem value="order">Ordini</SelectItem>
+                <SelectItem value="ddt">DDT</SelectItem>
+                <SelectItem value="report">Rapporti</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={opInvoiceFilter} onValueChange={setOpInvoiceFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Stato fatturazione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti</SelectItem>
+                <SelectItem value="pending">Da fatturare</SelectItem>
+                <SelectItem value="invoiced">Fatturati</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Expand/Collapse controls */}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={expandAllPeriods}>
+              Espandi tutti
+            </Button>
+            <Button variant="outline" size="sm" onClick={collapseAllPeriods}>
+              Comprimi tutti
+            </Button>
+          </div>
+
+          {/* Documents grouped by period */}
+          {isLoadingOperational ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Caricamento...
+              </CardContent>
+            </Card>
+          ) : sortedPeriods.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nessun documento trovato
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {sortedPeriods.map(([key, period]) => {
+                const isExpanded = expandedPeriods.has(key);
+                const pendingCount = period.docs.filter(d => !d.invoiced).length;
+                const invoicedCount = period.docs.filter(d => d.invoiced).length;
+                
+                return (
+                  <Card key={key}>
+                    <Collapsible open={isExpanded} onOpenChange={() => togglePeriod(key)}>
+                      <CollapsibleTrigger asChild>
+                        <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? (
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              <Calendar className="h-5 w-5 text-primary" />
+                              <CardTitle className="text-lg">{period.label}</CardTitle>
+                              <Badge variant="secondary">{period.docs.length} documenti</Badge>
+                            </div>
+                            <div className="flex gap-2">
+                              {pendingCount > 0 && (
+                                <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {pendingCount} da fatturare
+                                </Badge>
+                              )}
+                              {invoicedCount > 0 && (
+                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  {invoicedCount} fatturati
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="p-0 border-t">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead>Numero</TableHead>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead>Data</TableHead>
+                                <TableHead>Importo</TableHead>
+                                <TableHead>Fatturazione</TableHead>
+                                <TableHead className="text-right">Azione</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {period.docs.map((doc) => (
+                                <TableRow key={`${doc.type}-${doc.id}`}>
+                                  <TableCell>
+                                    <Badge variant="outline" className={getDocTypeBadgeColor(doc.type)}>
+                                      <span className="flex items-center gap-1">
+                                        {getDocTypeIcon(doc.type)}
+                                        {getDocTypeLabel(doc.type)}
+                                      </span>
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{doc.number}</TableCell>
+                                  <TableCell>{doc.customer}</TableCell>
+                                  <TableCell>{doc.date ? format(new Date(doc.date), 'dd/MM/yyyy', { locale: it }) : '-'}</TableCell>
+                                  <TableCell>
+                                    {doc.amount ? `€${doc.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {doc.invoiced ? (
+                                      <div className="flex flex-col">
+                                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          Fatturato
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground mt-1">
+                                          {doc.invoice_number} - {doc.invoice_date ? format(new Date(doc.invoice_date), 'dd/MM/yyyy', { locale: it }) : '-'}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        Da fatturare
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {!doc.invoiced && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleCreateInvoiceFromDoc(doc)}
+                                      >
+                                        <Receipt className="h-4 w-4 mr-1" />
+                                        Registra Fattura
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
       ) : filterType === 'da_classificare' ? (
         <Card>
           <CardContent className="p-0">

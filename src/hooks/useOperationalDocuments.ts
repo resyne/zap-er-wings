@@ -14,7 +14,12 @@ export interface OperationalDocument {
   invoice_date?: string | null;
 }
 
-async function fetchOperationalDocs(): Promise<OperationalDocument[]> {
+interface FetchOptions {
+  onlyPending?: boolean;
+}
+
+async function fetchOperationalDocs(options: FetchOptions = {}): Promise<OperationalDocument[]> {
+  const { onlyPending = false } = options;
   const ordersData: any[] = [];
   const ddtsData: any[] = [];
   const reportsData: any[] = [];
@@ -29,28 +34,43 @@ async function fetchOperationalDocs(): Promise<OperationalDocument[]> {
   }
 
   // Fetch orders
-  const ordersRes = await (supabase as any)
+  let ordersQuery = (supabase as any)
     .from("sales_orders")
-    .select(`id, number, customer_id, order_date, total_amount, invoiced`)
-    .eq('invoiced', false)
+    .select(`id, number, customer_id, order_date, total_amount, invoiced, invoice_number, invoice_date`)
     .order("created_at", { ascending: false });
+  
+  if (onlyPending) {
+    ordersQuery = ordersQuery.eq('invoiced', false);
+  }
+  
+  const ordersRes = await ordersQuery;
   if (ordersRes.data) ordersData.push(...ordersRes.data);
 
   // Fetch DDTs
-  const ddtsRes = await (supabase as any)
+  let ddtsQuery = (supabase as any)
     .from("ddts")
-    .select(`id, ddt_number, customer_id, created_at, ddt_data, invoiced`)
-    .eq('invoiced', false)
+    .select(`id, ddt_number, customer_id, created_at, ddt_data, invoiced, invoice_number, invoice_date`)
     .order("created_at", { ascending: false });
+  
+  if (onlyPending) {
+    ddtsQuery = ddtsQuery.eq('invoiced', false);
+  }
+  
+  const ddtsRes = await ddtsQuery;
   if (ddtsRes.data) ddtsData.push(...ddtsRes.data);
 
   // Fetch service reports
-  const reportsRes = await (supabase as any)
+  let reportsQuery = (supabase as any)
     .from("service_reports")
-    .select(`id, intervention_date, total_amount, invoiced`)
+    .select(`id, intervention_date, total_amount, invoiced, invoice_number, invoice_date`)
     .eq("status", "completed")
-    .eq('invoiced', false)
     .order("created_at", { ascending: false });
+  
+  if (onlyPending) {
+    reportsQuery = reportsQuery.eq('invoiced', false);
+  }
+  
+  const reportsRes = await reportsQuery;
   if (reportsRes.data) reportsData.push(...reportsRes.data);
 
   const unifiedDocs: OperationalDocument[] = [];
@@ -64,7 +84,9 @@ async function fetchOperationalDocs(): Promise<OperationalDocument[]> {
       customer_id: order.customer_id,
       date: order.order_date,
       amount: order.total_amount,
-      invoiced: order.invoiced || false
+      invoiced: order.invoiced || false,
+      invoice_number: order.invoice_number,
+      invoice_date: order.invoice_date
     });
   });
 
@@ -78,7 +100,9 @@ async function fetchOperationalDocs(): Promise<OperationalDocument[]> {
       customer_id: ddt.customer_id,
       date: ddtInfo?.data || ddt.created_at,
       amount: null,
-      invoiced: ddt.invoiced || false
+      invoiced: ddt.invoiced || false,
+      invoice_number: ddt.invoice_number,
+      invoice_date: ddt.invoice_date
     });
   });
 
@@ -91,7 +115,9 @@ async function fetchOperationalDocs(): Promise<OperationalDocument[]> {
       customer_id: null,
       date: report.intervention_date,
       amount: report.total_amount,
-      invoiced: report.invoiced || false
+      invoiced: report.invoiced || false,
+      invoice_number: report.invoice_number,
+      invoice_date: report.invoice_date
     });
   });
 
@@ -105,9 +131,16 @@ async function fetchOperationalDocs(): Promise<OperationalDocument[]> {
   return unifiedDocs;
 }
 
-export function useOperationalDocuments() {
+export function useOperationalDocuments(options: FetchOptions = { onlyPending: true }) {
   return useQuery({
-    queryKey: ['operational-documents-to-invoice'],
-    queryFn: fetchOperationalDocs
+    queryKey: ['operational-documents', options.onlyPending],
+    queryFn: () => fetchOperationalDocs(options)
+  });
+}
+
+export function useAllOperationalDocuments() {
+  return useQuery({
+    queryKey: ['operational-documents-all'],
+    queryFn: () => fetchOperationalDocs({ onlyPending: false })
   });
 }
