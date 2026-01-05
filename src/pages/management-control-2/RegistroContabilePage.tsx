@@ -19,6 +19,7 @@ import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { AccountSplitManager } from "@/components/management-control/AccountSplitManager";
+import { useOperationalDocuments, OperationalDocument } from "@/hooks/useOperationalDocuments";
 import { 
   Plus, 
   FileCheck, 
@@ -154,6 +155,7 @@ interface FormData {
   employee_id: string;
   employee_name: string;
 }
+
 
 const initialFormData: FormData = {
   event_type: 'fattura_acquisto',
@@ -515,7 +517,93 @@ export default function RegistroContabilePage() {
     }
   });
 
-  // Filter subjects based on invoice type
+  // Fetch operational documents to invoice (using dedicated hook to avoid type complexity)
+  const { data: operationalDocuments = [], isLoading: isLoadingOperational, refetch: refetchOperational } = useOperationalDocuments();
+
+  // State for operational document invoicing dialog
+  const [showOperationalInvoiceDialog, setShowOperationalInvoiceDialog] = useState(false);
+  const [selectedOperationalDoc, setSelectedOperationalDoc] = useState<OperationalDocument | null>(null);
+  const [operationalInvoiceData, setOperationalInvoiceData] = useState({
+    invoice_number: '',
+    invoice_date: format(new Date(), 'yyyy-MM-dd'),
+    imponibile: 0,
+    iva_rate: 22
+  });
+
+  // Mutation to create invoice from operational document
+  const createInvoiceFromDocMutation = useMutation({
+    mutationFn: async (doc: OperationalDocument) => {
+      const ivaAmount = operationalInvoiceData.imponibile * (operationalInvoiceData.iva_rate / 100);
+      const totalAmount = operationalInvoiceData.imponibile + ivaAmount;
+
+      // 1. Create invoice_registry entry
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoice_registry')
+        .insert({
+          invoice_number: operationalInvoiceData.invoice_number,
+          invoice_date: operationalInvoiceData.invoice_date,
+          invoice_type: 'vendita',
+          subject_type: 'cliente',
+          subject_name: doc.customer,
+          subject_id: doc.customer_id,
+          imponibile: operationalInvoiceData.imponibile,
+          iva_rate: operationalInvoiceData.iva_rate,
+          iva_amount: ivaAmount,
+          total_amount: totalAmount,
+          vat_regime: 'domestica_imponibile',
+          financial_status: 'da_incassare',
+          status: 'bozza',
+          source_document_type: doc.type,
+          source_document_id: doc.id,
+          notes: `Fattura per ${doc.type === 'order' ? 'Ordine' : doc.type === 'ddt' ? 'DDT' : 'Rapporto'} ${doc.number}`
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // 2. Mark original document as invoiced
+      const table = doc.type === "order" 
+        ? "sales_orders" 
+        : doc.type === "ddt" 
+          ? "ddts" 
+          : "service_reports";
+
+      const { error: updateError } = await supabase
+        .from(table)
+        .update({
+          invoiced: true,
+          invoice_date: operationalInvoiceData.invoice_date,
+          invoice_number: operationalInvoiceData.invoice_number
+        })
+        .eq("id", doc.id);
+
+      if (updateError) throw updateError;
+
+      return invoiceData;
+    },
+    onSuccess: () => {
+      toast.success('Fattura creata e documento segnato come fatturato');
+      setShowOperationalInvoiceDialog(false);
+      setSelectedOperationalDoc(null);
+      refetchOperational();
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+    },
+    onError: (error) => {
+      toast.error('Errore: ' + error.message);
+    }
+  });
+
+  const handleCreateInvoiceFromDoc = (doc: OperationalDocument) => {
+    setSelectedOperationalDoc(doc);
+    setOperationalInvoiceData({
+      invoice_number: '',
+      invoice_date: format(new Date(), 'yyyy-MM-dd'),
+      imponibile: doc.amount || 0,
+      iva_rate: 22
+    });
+    setShowOperationalInvoiceDialog(true);
+  };
   const getSubjects = (invoiceType: InvoiceType) => {
     if (invoiceType === 'vendita') {
       return customers.map(c => ({ 
@@ -967,7 +1055,8 @@ export default function RegistroContabilePage() {
     registrate: invoices.filter(i => i.status === 'registrata').length,
     daIncassare: invoices.filter(i => i.financial_status === 'da_incassare').reduce((sum, i) => sum + i.total_amount, 0),
     daPagare: invoices.filter(i => i.financial_status === 'da_pagare').reduce((sum, i) => sum + i.total_amount, 0),
-    daClassificare: eventsToClassify.length
+    daClassificare: eventsToClassify.length,
+    daFatturare: operationalDocuments.length
   };
 
   const getTypeBadge = (type: string) => {
@@ -1109,7 +1198,21 @@ export default function RegistroContabilePage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <Card 
+          className={`cursor-pointer transition-all ${filterType === 'da_fatturare' ? 'ring-2 ring-orange-500' : 'hover:bg-muted/50'}`}
+          onClick={() => setFilterType(filterType === 'da_fatturare' ? 'all' : 'da_fatturare')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Da Fatturare</p>
+                <p className="text-2xl font-bold text-orange-500">{stats.daFatturare}</p>
+              </div>
+              <FileText className="w-8 h-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
         <Card 
           className={`cursor-pointer transition-all ${filterType === 'da_classificare' ? 'ring-2 ring-primary' : 'hover:bg-muted/50'}`}
           onClick={() => setFilterType(filterType === 'da_classificare' ? 'all' : 'da_classificare')}
@@ -1191,6 +1294,7 @@ export default function RegistroContabilePage() {
                 <SelectItem value="vendita">Vendita</SelectItem>
                 <SelectItem value="acquisto">Acquisto</SelectItem>
                 <SelectItem value="da_classificare">Da Classificare</SelectItem>
+                <SelectItem value="da_fatturare">Da Fatturare</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1207,8 +1311,64 @@ export default function RegistroContabilePage() {
         </CardContent>
       </Card>
 
-      {/* Vista Eventi da Classificare */}
-      {filterType === 'da_classificare' ? (
+      {/* Vista Documenti Da Fatturare */}
+      {filterType === 'da_fatturare' ? (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Numero</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Importo</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingOperational ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">Caricamento...</TableCell>
+                  </TableRow>
+                ) : operationalDocuments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Nessun documento da fatturare
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  operationalDocuments.map((doc) => (
+                    <TableRow key={`${doc.type}-${doc.id}`}>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          doc.type === 'order' ? 'bg-primary/10 text-primary' :
+                          doc.type === 'ddt' ? 'bg-blue-100 text-blue-700' :
+                          'bg-orange-100 text-orange-700'
+                        }>
+                          {doc.type === 'order' ? 'Ordine' : doc.type === 'ddt' ? 'DDT' : 'Rapporto'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{doc.number}</TableCell>
+                      <TableCell>{doc.customer}</TableCell>
+                      <TableCell>{doc.date ? format(new Date(doc.date), 'dd/MM/yyyy', { locale: it }) : '-'}</TableCell>
+                      <TableCell className="text-right">
+                        {doc.amount ? `€${doc.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" onClick={() => handleCreateInvoiceFromDoc(doc)}>
+                          <Receipt className="w-4 h-4 mr-1" />
+                          Registra Fattura
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : filterType === 'da_classificare' ? (
         <Card>
           <CardContent className="p-0">
             <Table>
@@ -2797,6 +2957,68 @@ export default function RegistroContabilePage() {
               }}
             >
               {isFiscalDocument(formData.event_type) ? 'Contabilizza' : 'Classifica'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per creare fattura da documento operativo */}
+      <Dialog open={showOperationalInvoiceDialog} onOpenChange={setShowOperationalInvoiceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registra Fattura da Documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedOperationalDoc && (
+              <div className="bg-muted p-3 rounded-lg text-sm mb-4">
+                <p><strong>Documento:</strong> {selectedOperationalDoc.type === 'order' ? 'Ordine' : selectedOperationalDoc.type === 'ddt' ? 'DDT' : 'Rapporto'} {selectedOperationalDoc.number}</p>
+                <p><strong>Cliente:</strong> {selectedOperationalDoc.customer}</p>
+                <p><strong>Importo:</strong> {selectedOperationalDoc.amount ? `€${selectedOperationalDoc.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Numero Fattura *</Label>
+              <Input
+                placeholder="Es. FT-2026/001"
+                value={operationalInvoiceData.invoice_number}
+                onChange={(e) => setOperationalInvoiceData(prev => ({ ...prev, invoice_number: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Fattura</Label>
+              <Input
+                type="date"
+                value={operationalInvoiceData.invoice_date}
+                onChange={(e) => setOperationalInvoiceData(prev => ({ ...prev, invoice_date: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Imponibile</Label>
+                <Input
+                  type="number"
+                  value={operationalInvoiceData.imponibile}
+                  onChange={(e) => setOperationalInvoiceData(prev => ({ ...prev, imponibile: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Aliquota IVA %</Label>
+                <Input
+                  type="number"
+                  value={operationalInvoiceData.iva_rate}
+                  onChange={(e) => setOperationalInvoiceData(prev => ({ ...prev, iva_rate: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOperationalInvoiceDialog(false)}>Annulla</Button>
+            <Button 
+              onClick={() => selectedOperationalDoc && createInvoiceFromDocMutation.mutate(selectedOperationalDoc)}
+              disabled={!operationalInvoiceData.invoice_number}
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Crea Fattura
             </Button>
           </DialogFooter>
         </DialogContent>
