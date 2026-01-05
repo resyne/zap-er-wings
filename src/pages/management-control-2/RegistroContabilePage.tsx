@@ -2175,7 +2175,10 @@ export default function RegistroContabilePage() {
       )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          uploadedFile ? "max-w-5xl" : "max-w-2xl"
+        )}>
           <DialogHeader>
             <DialogTitle>
               {isFiscalDocument(formData.event_type) ? 'Nuova Fattura' : 
@@ -2183,6 +2186,45 @@ export default function RegistroContabilePage() {
                'Nuovo Incasso Dipendente'}
             </DialogTitle>
           </DialogHeader>
+          
+          <div className={cn(
+            "flex gap-6",
+            uploadedFile ? "flex-row" : "flex-col"
+          )}>
+            {/* Document Preview Panel */}
+            {uploadedFile && (
+              <div className="w-1/2 flex-shrink-0 space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Anteprima Documento</Label>
+                <div className="border rounded-lg overflow-hidden bg-muted/30">
+                  {uploadedFile.url.toLowerCase().endsWith('.pdf') ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                      <p className="text-sm font-medium">{uploadedFile.name}</p>
+                      <a 
+                        href={uploadedFile.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs text-primary hover:underline mt-2"
+                      >
+                        Apri PDF in nuova scheda
+                      </a>
+                    </div>
+                  ) : (
+                    <a href={uploadedFile.url} target="_blank" rel="noopener noreferrer">
+                      <img 
+                        src={uploadedFile.url} 
+                        alt="Anteprima documento" 
+                        className="w-full h-auto max-h-[60vh] object-contain"
+                      />
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground text-center">{uploadedFile.name}</p>
+              </div>
+            )}
+            
+            {/* Form Panel */}
+            <div className={cn("space-y-4", uploadedFile ? "w-1/2" : "w-full")}>
           
           {/* Selezione Tipo Evento */}
           <div className="space-y-2 pb-4 border-b">
@@ -2779,26 +2821,6 @@ export default function RegistroContabilePage() {
             )}
           </div>
 
-          {/* Uploaded file indicator */}
-          {uploadedFile && (
-            <Card className="border-green-500/30 bg-green-500/10">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-medium">Allegato: {uploadedFile.name}</span>
-                  <a 
-                    href={uploadedFile.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-xs text-primary hover:underline ml-auto"
-                  >
-                    Visualizza
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <Card className="bg-muted/50">
             <CardContent className="p-4">
               <div className="flex justify-between items-center">
@@ -2817,6 +2839,8 @@ export default function RegistroContabilePage() {
               </div>
             </CardContent>
           </Card>
+            </div>
+          </div>
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
