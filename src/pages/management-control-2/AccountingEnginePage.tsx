@@ -48,7 +48,11 @@ interface StructuralAccount {
   is_structural: boolean;
 }
 
-export default function AccountingEnginePage() {
+interface AccountingEnginePageProps {
+  embedded?: boolean;
+}
+
+export default function AccountingEnginePage({ embedded = false }: AccountingEnginePageProps) {
   const { data: rules, isLoading: rulesLoading } = useQuery({
     queryKey: ["accounting-rules"],
     queryFn: async () => {
@@ -177,7 +181,8 @@ export default function AccountingEnginePage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className={embedded ? "space-y-6" : "container mx-auto py-6 space-y-6"}>
+      {!embedded && (
       <div className="flex items-center gap-3">
         <Cog className="h-8 w-8 text-primary" />
         <div>
@@ -187,6 +192,7 @@ export default function AccountingEnginePage() {
           </p>
         </div>
       </div>
+      )}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
