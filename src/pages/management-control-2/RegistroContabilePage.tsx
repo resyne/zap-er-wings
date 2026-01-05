@@ -187,7 +187,9 @@ export default function RegistroContabilePage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showClassifyDialog, setShowClassifyDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRegistry | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [editFormData, setEditFormData] = useState<FormData>(initialFormData);
   
@@ -1135,7 +1137,10 @@ export default function RegistroContabilePage() {
                     <TableRow 
                       key={event.id} 
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => window.location.href = '/management-control-2/classificazione-eventi'}
+                      onClick={() => {
+                        setSelectedEvent(event);
+                        setShowClassifyDialog(true);
+                      }}
                     >
                       <TableCell>
                         <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
@@ -2361,6 +2366,213 @@ export default function RegistroContabilePage() {
               disabled={updateInvoiceMutation.isPending}
             >
               {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Classificazione Evento */}
+      <Dialog open={showClassifyDialog} onOpenChange={setShowClassifyDialog}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-primary" />
+              Classifica Evento
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedEvent && (
+            <div className="space-y-4">
+              {/* Info evento */}
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Data:</span>
+                    <span>{format(new Date(selectedEvent.document_date), 'dd/MM/yyyy', { locale: it })}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tipo documento:</span>
+                    <Badge variant="outline" className="capitalize">{selectedEvent.document_type}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Direzione:</span>
+                    <Badge className={selectedEvent.direction === 'entrata' ? 'bg-green-500/20 text-green-600' : 'bg-red-500/20 text-red-600'}>
+                      {selectedEvent.direction === 'entrata' ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownLeft className="w-3 h-3 mr-1" />}
+                      {selectedEvent.direction}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Importo:</span>
+                    <span className="font-bold text-primary">
+                      €{selectedEvent.amount?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {selectedEvent.note && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Note:</span>
+                      <span className="text-sm">{selectedEvent.note}</span>
+                    </div>
+                  )}
+                  {selectedEvent.attachment_url && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Allegato:</span>
+                      <a 
+                        href={selectedEvent.attachment_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <FileText className="w-3 h-3" />
+                        Visualizza
+                      </a>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Tipo classificazione */}
+              <div className="space-y-2">
+                <Label>Tipo di Registrazione</Label>
+                <Select 
+                  value={formData.event_type} 
+                  onValueChange={(v: EventType) => setFormData(prev => ({ ...prev, event_type: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="spesa_dipendente">Spesa Dipendente (no fattura)</SelectItem>
+                    <SelectItem value="incasso_dipendente">Incasso Dipendente (no fattura)</SelectItem>
+                    <SelectItem value="fattura_acquisto">Fattura di Acquisto</SelectItem>
+                    <SelectItem value="fattura_vendita">Fattura di Vendita</SelectItem>
+                    <SelectItem value="nota_credito">Nota di Credito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Info box based on type */}
+              {!isFiscalDocument(formData.event_type) ? (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm">
+                  <p className="font-medium text-amber-600">Registrazione operativa</p>
+                  <p className="text-muted-foreground">
+                    Questo movimento verrà tracciato ma <strong>non genererà contabilità ufficiale</strong>.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-sm">
+                  <p className="font-medium text-green-600">Documento fiscale</p>
+                  <p className="text-muted-foreground">
+                    Questa registrazione genererà evento contabile, Prima Nota e scadenza.
+                  </p>
+                </div>
+              )}
+
+              {/* Form per spese/incassi dipendenti */}
+              {formData.event_type === 'spesa_dipendente' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo Spesa *</Label>
+                    <Select value={formData.expense_type} onValueChange={(v) => setFormData(prev => ({ ...prev, expense_type: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXPENSE_TYPES.map(t => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Centro di Costo</Label>
+                    <Select value={formData.cost_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, cost_center_id: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nessuno</SelectItem>
+                        {costCenters.map(cc => (
+                          <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {formData.event_type === 'incasso_dipendente' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Cliente</Label>
+                    <Select value={formData.subject_id} onValueChange={(v) => {
+                      const cust = customers.find(c => c.id === v);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        subject_id: v === "__none__" ? "" : v,
+                        subject_name: cust ? (cust.company_name || cust.name) : ""
+                      }));
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Non specificato</SelectItem>
+                        {customers.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.company_name || c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Centro di Ricavo</Label>
+                    <Select value={formData.profit_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, profit_center_id: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nessuno</SelectItem>
+                        {profitCenters.map(pc => (
+                          <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowClassifyDialog(false)}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!selectedEvent) return;
+                try {
+                  const { error } = await supabase
+                    .from('accounting_entries')
+                    .update({ 
+                      status: 'classificato',
+                      event_type: formData.event_type,
+                      cost_center_id: formData.cost_center_id || null,
+                      profit_center_id: formData.profit_center_id || null,
+                      classified_at: new Date().toISOString()
+                    })
+                    .eq('id', selectedEvent.id);
+                  
+                  if (error) throw error;
+                  
+                  toast.success('Evento classificato con successo');
+                  setShowClassifyDialog(false);
+                  setSelectedEvent(null);
+                  queryClient.invalidateQueries({ queryKey: ['accounting-entries-to-classify'] });
+                } catch (err: any) {
+                  toast.error('Errore: ' + err.message);
+                }
+              }}
+            >
+              Classifica
             </Button>
           </DialogFooter>
         </DialogContent>
