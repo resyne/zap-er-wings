@@ -96,6 +96,8 @@ interface InvoiceRegistry {
   is_fiscal_document?: boolean;
   generates_accounting?: boolean;
   service_report_id?: string | null;
+  // Split conti economici (JSON dal database)
+  account_splits?: AccountSplitLine[] | null | unknown;
 }
 
 // Tipi evento del registro contabile
@@ -959,9 +961,20 @@ export default function RegistroContabilePage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (data: FormData & { accountSplits?: AccountSplitLine[] }) => {
       const { ivaAmount, totalAmount } = calculateAmounts(data.imponibile, data.iva_rate);
       const { data: user } = await supabase.auth.getUser();
+      
+      // Prepara lo split per il salvataggio (rimuovi id temporanei)
+      const splitsToSave = data.accountSplits && data.accountSplits.length > 0
+        ? data.accountSplits.map(s => ({
+            account_id: s.account_id,
+            amount: s.amount,
+            percentage: s.percentage,
+            cost_center_id: s.cost_center_id || null,
+            profit_center_id: s.profit_center_id || null
+          }))
+        : null;
       
       const { error } = await supabase
         .from('invoice_registry')
@@ -989,7 +1002,8 @@ export default function RegistroContabilePage() {
           cost_account_id: data.cost_account_id || null,
           revenue_account_id: data.revenue_account_id || null,
           notes: data.notes || null,
-          created_by: user?.user?.id
+          created_by: user?.user?.id,
+          account_splits: splitsToSave
         });
 
       if (error) throw error;
@@ -998,6 +1012,8 @@ export default function RegistroContabilePage() {
       toast.success('Fattura salvata come bozza');
       setShowCreateDialog(false);
       setFormData(initialFormData);
+      setSplitEnabled(false);
+      setSplitLines([]);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
     },
     onError: (error) => {
@@ -1070,12 +1086,16 @@ export default function RegistroContabilePage() {
       if (primaNotaError) throw primaNotaError;
 
       // Genera le linee di partita doppia
-      const primaNotaLines = [];
+      const primaNotaLines: any[] = [];
       let lineOrder = 1;
+      
+      // Recupera lo split se presente
+      const accountSplits = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
+      const hasSplit = accountSplits.length > 0;
 
       if (isAcquisto) {
         // ACQUISTO (Costo)
-        // DARE: Debiti vs fornitori / Banca = Totale
+        // AVERE: Debiti vs fornitori / Banca = Totale
         primaNotaLines.push({
           prima_nota_id: primaNota.id,
           line_order: lineOrder++,
@@ -1087,17 +1107,33 @@ export default function RegistroContabilePage() {
           description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
         });
 
-        // AVERE: Costi = Imponibile
-        primaNotaLines.push({
-          prima_nota_id: primaNota.id,
-          line_order: lineOrder++,
-          account_type: 'chart',
-          chart_account_id: invoice.cost_account_id || null,
-          dynamic_account_key: null,
-          dare: invoice.imponibile,
-          avere: 0,
-          description: 'Costi',
-        });
+        // DARE: Costi - usa split se presente
+        if (hasSplit) {
+          for (const split of accountSplits) {
+            const account = accounts.find(a => a.id === split.account_id);
+            primaNotaLines.push({
+              prima_nota_id: primaNota.id,
+              line_order: lineOrder++,
+              account_type: 'chart',
+              chart_account_id: split.account_id,
+              dynamic_account_key: null,
+              dare: split.amount,
+              avere: 0,
+              description: account?.name || 'Costi',
+            });
+          }
+        } else {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'chart',
+            chart_account_id: invoice.cost_account_id || null,
+            dynamic_account_key: null,
+            dare: invoice.imponibile,
+            avere: 0,
+            description: 'Costi',
+          });
+        }
 
         // DARE: IVA a credito = IVA
         if (invoice.iva_amount > 0) {
@@ -1126,17 +1162,33 @@ export default function RegistroContabilePage() {
           description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
         });
 
-        // AVERE: Ricavi = Imponibile
-        primaNotaLines.push({
-          prima_nota_id: primaNota.id,
-          line_order: lineOrder++,
-          account_type: 'chart',
-          chart_account_id: invoice.revenue_account_id || null,
-          dynamic_account_key: null,
-          dare: 0,
-          avere: invoice.imponibile,
-          description: 'Ricavi',
-        });
+        // AVERE: Ricavi - usa split se presente
+        if (hasSplit) {
+          for (const split of accountSplits) {
+            const account = accounts.find(a => a.id === split.account_id);
+            primaNotaLines.push({
+              prima_nota_id: primaNota.id,
+              line_order: lineOrder++,
+              account_type: 'chart',
+              chart_account_id: split.account_id,
+              dynamic_account_key: null,
+              dare: 0,
+              avere: split.amount,
+              description: account?.name || 'Ricavi',
+            });
+          }
+        } else {
+          primaNotaLines.push({
+            prima_nota_id: primaNota.id,
+            line_order: lineOrder++,
+            account_type: 'chart',
+            chart_account_id: invoice.revenue_account_id || null,
+            dynamic_account_key: null,
+            dare: 0,
+            avere: invoice.imponibile,
+            description: 'Ricavi',
+          });
+        }
 
         // AVERE: IVA a debito = IVA
         if (invoice.iva_amount > 0) {
@@ -1238,10 +1290,21 @@ export default function RegistroContabilePage() {
 
   // Mutation per modificare fatture registrate e aggiornare prima nota
   const updateInvoiceMutation = useMutation({
-    mutationFn: async (data: { invoice: InvoiceRegistry; updates: FormData }) => {
-      const { invoice, updates } = data;
+    mutationFn: async (data: { invoice: InvoiceRegistry; updates: FormData; accountSplits?: AccountSplitLine[] }) => {
+      const { invoice, updates, accountSplits } = data;
       const ivaAmount = updates.imponibile * (updates.iva_rate / 100);
       const totalAmount = updates.imponibile + ivaAmount;
+
+      // Prepara lo split per il salvataggio
+      const splitsToSave = accountSplits && accountSplits.length > 0
+        ? accountSplits.map(s => ({
+            account_id: s.account_id,
+            amount: s.amount,
+            percentage: s.percentage,
+            cost_center_id: s.cost_center_id || null,
+            profit_center_id: s.profit_center_id || null
+          }))
+        : null;
 
       // Aggiorna la fattura nel registro
       const { error: invoiceError } = await supabase
@@ -1268,7 +1331,8 @@ export default function RegistroContabilePage() {
           profit_center_id: updates.profit_center_id || null,
           cost_account_id: updates.cost_account_id || null,
           revenue_account_id: updates.revenue_account_id || null,
-          notes: updates.notes || null
+          notes: updates.notes || null,
+          account_splits: splitsToSave
         })
         .eq('id', invoice.id);
 
@@ -1280,6 +1344,9 @@ export default function RegistroContabilePage() {
         const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
         const paymentMethod = updates.payment_method || 'bonifico';
         const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
+        
+        // Recupera lo split
+        const hasSplit = accountSplits && accountSplits.length > 0;
 
         // Aggiorna prima nota se esiste
         if (invoice.prima_nota_id) {
@@ -1298,7 +1365,7 @@ export default function RegistroContabilePage() {
 
           if (primaNotaError) throw primaNotaError;
 
-          // Rigenera le linee di partita doppia se cambia lo stato finanziario
+          // Rigenera le linee di partita doppia
           // Elimina le vecchie linee
           await supabase
             .from('prima_nota_lines')
@@ -1306,7 +1373,7 @@ export default function RegistroContabilePage() {
             .eq('prima_nota_id', invoice.prima_nota_id);
 
           // Genera le nuove linee
-          const primaNotaLines = [];
+          const primaNotaLines: any[] = [];
           let lineOrder = 1;
 
           if (isAcquisto) {
@@ -1323,17 +1390,33 @@ export default function RegistroContabilePage() {
               description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
             });
 
-            // DARE: Costi = Imponibile
-            primaNotaLines.push({
-              prima_nota_id: invoice.prima_nota_id,
-              line_order: lineOrder++,
-              account_type: 'chart',
-              chart_account_id: updates.cost_account_id || null,
-              dynamic_account_key: 'CONTO_COSTI',
-              dare: updates.imponibile,
-              avere: 0,
-              description: 'Costi',
-            });
+            // DARE: Costi - usa split se presente
+            if (hasSplit) {
+              for (const split of accountSplits!) {
+                const account = accounts.find(a => a.id === split.account_id);
+                primaNotaLines.push({
+                  prima_nota_id: invoice.prima_nota_id,
+                  line_order: lineOrder++,
+                  account_type: 'chart',
+                  chart_account_id: split.account_id,
+                  dynamic_account_key: null,
+                  dare: split.amount,
+                  avere: 0,
+                  description: account?.name || 'Costi',
+                });
+              }
+            } else {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'chart',
+                chart_account_id: updates.cost_account_id || null,
+                dynamic_account_key: 'CONTO_COSTI',
+                dare: updates.imponibile,
+                avere: 0,
+                description: 'Costi',
+              });
+            }
 
             // DARE: IVA a credito
             if (ivaAmount > 0) {
@@ -1362,17 +1445,33 @@ export default function RegistroContabilePage() {
               description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
             });
 
-            // AVERE: Ricavi = Imponibile
-            primaNotaLines.push({
-              prima_nota_id: invoice.prima_nota_id,
-              line_order: lineOrder++,
-              account_type: 'chart',
-              chart_account_id: updates.revenue_account_id || null,
-              dynamic_account_key: 'CONTO_RICAVI',
-              dare: 0,
-              avere: updates.imponibile,
-              description: 'Ricavi',
-            });
+            // AVERE: Ricavi - usa split se presente
+            if (hasSplit) {
+              for (const split of accountSplits!) {
+                const account = accounts.find(a => a.id === split.account_id);
+                primaNotaLines.push({
+                  prima_nota_id: invoice.prima_nota_id,
+                  line_order: lineOrder++,
+                  account_type: 'chart',
+                  chart_account_id: split.account_id,
+                  dynamic_account_key: null,
+                  dare: 0,
+                  avere: split.amount,
+                  description: account?.name || 'Ricavi',
+                });
+              }
+            } else {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'chart',
+                chart_account_id: updates.revenue_account_id || null,
+                dynamic_account_key: 'CONTO_RICAVI',
+                dare: 0,
+                avere: updates.imponibile,
+                description: 'Ricavi',
+              });
+            }
 
             // AVERE: IVA a debito
             if (ivaAmount > 0) {
@@ -1447,6 +1546,8 @@ export default function RegistroContabilePage() {
       toast.success('Fattura modificata! Prima Nota e documenti collegati aggiornati.');
       setShowEditDialog(false);
       setSelectedInvoice(null);
+      setEditSplitEnabled(false);
+      setEditSplitLines([]);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
     },
     onError: (error) => {
@@ -1559,9 +1660,27 @@ export default function RegistroContabilePage() {
       employee_id: '',
       employee_name: ''
     });
-    // Reset edit split state
-    setEditSplitEnabled(false);
-    setEditSplitLines([]);
+    
+    // Carica lo split esistente se presente
+    const existingSplits = Array.isArray(invoice.account_splits) 
+      ? (invoice.account_splits as AccountSplitLine[]).map((s, idx) => ({
+          id: `existing-${idx}`,
+          account_id: s.account_id,
+          amount: s.amount,
+          percentage: s.percentage,
+          cost_center_id: s.cost_center_id,
+          profit_center_id: s.profit_center_id
+        }))
+      : [];
+    
+    if (existingSplits.length > 0) {
+      setEditSplitEnabled(true);
+      setEditSplitLines(existingSplits);
+    } else {
+      setEditSplitEnabled(false);
+      setEditSplitLines([]);
+    }
+    
     setShowEditDialog(true);
   };
 
@@ -3072,7 +3191,7 @@ export default function RegistroContabilePage() {
               Annulla
             </Button>
             <Button 
-              onClick={() => createMutation.mutate(formData)}
+              onClick={() => createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined })}
               disabled={!formData.invoice_number || !formData.subject_name || createMutation.isPending}
             >
               {createMutation.isPending ? 'Salvataggio...' : 'Salva Bozza'}
@@ -3514,7 +3633,11 @@ export default function RegistroContabilePage() {
               Annulla
             </Button>
             <Button 
-              onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ invoice: selectedInvoice, updates: editFormData })}
+              onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
+                invoice: selectedInvoice, 
+                updates: editFormData,
+                accountSplits: editSplitEnabled ? editSplitLines : undefined
+              })}
               disabled={updateInvoiceMutation.isPending}
             >
               {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
