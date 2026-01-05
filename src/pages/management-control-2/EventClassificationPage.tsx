@@ -170,6 +170,7 @@ export default function EventClassificationPage() {
     economic_subject_id: "",
     financial_status: "",
     payment_date: "",
+    payment_method: "",
     cfo_notes: "",
   });
 
@@ -289,6 +290,7 @@ export default function EventClassificationPage() {
         economic_subject_type: classificationForm.economic_subject_type || null,
         financial_status: classificationForm.financial_status || null,
         payment_date: classificationForm.payment_date || null,
+        payment_method: classificationForm.payment_method || null,
         cfo_notes: classificationForm.cfo_notes || null,
       };
 
@@ -309,6 +311,8 @@ export default function EventClassificationPage() {
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
       const messages: Record<string, string> = {
         classificato: "Classificazione salvata",
+        in_classificazione: "Bozza salvata",
+        da_classificare: "Rimesso in classificazione",
         sospeso: "Evento sospeso",
         richiesta_integrazione: "Richiesta integrazione inviata",
         pronto_prima_nota: "Evento inviato a Prima Nota",
@@ -316,7 +320,8 @@ export default function EventClassificationPage() {
       toast.success(messages[variables.status] || "Operazione completata");
       setSelectedEntry(null);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Save error:", error);
       toast.error("Errore durante l'operazione");
     },
   });
@@ -375,6 +380,7 @@ export default function EventClassificationPage() {
       economic_subject_id: entry.economic_subject_id || "",
       financial_status: entry.financial_status || "",
       payment_date: entry.payment_date || "",
+      payment_method: entry.payment_method || "",
       cfo_notes: entry.cfo_notes || "",
     });
   };
@@ -1812,6 +1818,28 @@ export default function EventClassificationPage() {
                         )}
                       </div>
                     )}
+
+                    {/* Payment Method */}
+                    <div className="space-y-2">
+                      <Label>Metodo di Pagamento</Label>
+                      <Select
+                        value={classificationForm.payment_method}
+                        onValueChange={(value) =>
+                          setClassificationForm(prev => ({ ...prev, payment_method: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona metodo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods.map((method) => (
+                            <SelectItem key={method.value} value={method.value}>
+                              {method.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
 
