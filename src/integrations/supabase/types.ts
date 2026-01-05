@@ -2871,6 +2871,7 @@ export type Database = {
       }
       invoice_registry: {
         Row: {
+          account_splits: Json | null
           accounting_entry_id: string | null
           cost_account_id: string | null
           cost_center_id: string | null
@@ -2905,6 +2906,7 @@ export type Database = {
           vat_regime: string
         }
         Insert: {
+          account_splits?: Json | null
           accounting_entry_id?: string | null
           cost_account_id?: string | null
           cost_center_id?: string | null
@@ -2939,6 +2941,7 @@ export type Database = {
           vat_regime?: string
         }
         Update: {
+          account_splits?: Json | null
           accounting_entry_id?: string | null
           cost_account_id?: string | null
           cost_center_id?: string | null
