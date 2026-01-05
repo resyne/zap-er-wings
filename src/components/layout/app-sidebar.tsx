@@ -148,15 +148,6 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Qualità",
-    items: [
-      { title: "Non Conformità", url: "/quality/nc", icon: ClipboardCheck },
-      { title: "CAPA", url: "/quality/capa", icon: Target },
-      { title: "Audit", url: "/quality/audits", icon: ClipboardCheck },
-      { title: "HSE", url: "/quality/hse", icon: UserCheck },
-    ]
-  },
-  {
     title: "Finanza",
     items: [
       { title: "Prima Nota", url: "/finance/prima-nota", icon: FileText },
