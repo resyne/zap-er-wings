@@ -88,7 +88,11 @@ const visibilityOptions = [
   { value: "assestamenti", label: "Solo assestamenti" },
 ];
 
-export default function ChartOfAccountsPage() {
+interface ChartOfAccountsPageProps {
+  embedded?: boolean;
+}
+
+export default function ChartOfAccountsPage({ embedded = false }: ChartOfAccountsPageProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -505,8 +509,9 @@ export default function ChartOfAccountsPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className={embedded ? "space-y-6" : "container mx-auto py-6 space-y-6"}>
       {/* Header */}
+      {!embedded && (
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -544,6 +549,7 @@ export default function ChartOfAccountsPage() {
           </Button>
         </div>
       </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">

@@ -60,7 +60,11 @@ const categories = [
   { value: "progetto", label: "Progetto / Iniziativa" },
 ];
 
-export default function CostCentersPage() {
+interface CostCentersPageProps {
+  embedded?: boolean;
+}
+
+export default function CostCentersPage({ embedded = false }: CostCentersPageProps) {
   const [centers, setCenters] = useState<CostCenter[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,8 +379,9 @@ export default function CostCentersPage() {
   }, [centers, editingCenter]);
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className={embedded ? "space-y-6" : "container mx-auto py-6 space-y-6"}>
       {/* Header */}
+      {!embedded && (
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -392,6 +397,7 @@ export default function CostCentersPage() {
           Nuovo Centro
         </Button>
       </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
