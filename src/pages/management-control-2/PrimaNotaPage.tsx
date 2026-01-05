@@ -19,8 +19,9 @@ import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
-  Filter, ChevronDown, Receipt, Percent, Trash2
+  Filter, ChevronDown, Receipt, Percent, Trash2, Pause, Ban
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // =====================================================
 // INTERFACES
@@ -756,6 +757,161 @@ export default function PrimaNotaPage() {
     },
   });
 
+  // Mark entry for correction (storno + da_correggere)
+  const markForCorrectionMutation = useMutation({
+    mutationFn: async (movement: PrimaNotaMovement) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const accountingEntryId = movement.accounting_entry_id;
+      
+      // 1. Create storno movement
+      const { data: stornoMovement, error: stornoError } = await supabase
+        .from("prima_nota")
+        .insert({
+          accounting_entry_id: accountingEntryId,
+          movement_type: movement.movement_type,
+          competence_date: new Date().toISOString().split("T")[0],
+          amount: -movement.amount,
+          chart_account_id: movement.chart_account_id,
+          cost_center_id: movement.cost_center_id,
+          profit_center_id: movement.profit_center_id,
+          center_percentage: movement.center_percentage,
+          description: `STORNO per correzione: ${movement.description}`,
+          status: "registrato",
+          is_rectification: true,
+          original_movement_id: movement.id,
+          iva_mode: movement.iva_mode,
+          iva_aliquota: movement.iva_aliquota,
+          imponibile: movement.imponibile ? -movement.imponibile : null,
+          iva_amount: movement.iva_amount ? -movement.iva_amount : null,
+          totale: movement.totale ? -movement.totale : null,
+          payment_method: movement.payment_method,
+          created_by: userData.user?.id,
+        })
+        .select()
+        .single();
+      
+      if (stornoError) throw stornoError;
+
+      // 2. Create reversed lines for storno
+      if (movement.lines && movement.lines.length > 0) {
+        const reversedLines = movement.lines.map(line => ({
+          prima_nota_id: stornoMovement.id,
+          line_order: line.line_order,
+          chart_account_id: line.chart_account_id,
+          structural_account_id: line.structural_account_id,
+          account_type: line.account_type,
+          dynamic_account_key: line.dynamic_account_key,
+          dare: line.avere, // Swap
+          avere: line.dare, // Swap
+          description: `STORNO: ${line.description}`,
+        }));
+        await supabase.from("prima_nota_lines").insert(reversedLines);
+      }
+
+      // 3. Mark original movement as rettificato
+      await supabase
+        .from("prima_nota")
+        .update({ status: "rettificato", rectified_by: stornoMovement.id, rectification_reason: "Messo in correzione" })
+        .eq("id", movement.id);
+
+      // 4. Update accounting_entry status to da_correggere
+      const { error: entryError } = await supabase
+        .from("accounting_entries")
+        .update({ 
+          status: "da_correggere",
+          cfo_notes: `[${new Date().toLocaleString("it-IT")}] Messo in correzione dalla Prima Nota - storno generato`
+        })
+        .eq("id", accountingEntryId);
+      
+      if (entryError) throw entryError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      toast.success("Movimento stornato e rimesso in correzione");
+    },
+    onError: () => {
+      toast.error("Errore durante la correzione");
+    },
+  });
+
+  // Mark entry as cancelled (storno + annullato)
+  const markAsCancelledMutation = useMutation({
+    mutationFn: async (movement: PrimaNotaMovement) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const accountingEntryId = movement.accounting_entry_id;
+      
+      // 1. Create storno movement
+      const { data: stornoMovement, error: stornoError } = await supabase
+        .from("prima_nota")
+        .insert({
+          accounting_entry_id: accountingEntryId,
+          movement_type: movement.movement_type,
+          competence_date: new Date().toISOString().split("T")[0],
+          amount: -movement.amount,
+          chart_account_id: movement.chart_account_id,
+          cost_center_id: movement.cost_center_id,
+          profit_center_id: movement.profit_center_id,
+          center_percentage: movement.center_percentage,
+          description: `STORNO per annullamento: ${movement.description}`,
+          status: "registrato",
+          is_rectification: true,
+          original_movement_id: movement.id,
+          iva_mode: movement.iva_mode,
+          iva_aliquota: movement.iva_aliquota,
+          imponibile: movement.imponibile ? -movement.imponibile : null,
+          iva_amount: movement.iva_amount ? -movement.iva_amount : null,
+          totale: movement.totale ? -movement.totale : null,
+          payment_method: movement.payment_method,
+          created_by: userData.user?.id,
+        })
+        .select()
+        .single();
+      
+      if (stornoError) throw stornoError;
+
+      // 2. Create reversed lines for storno
+      if (movement.lines && movement.lines.length > 0) {
+        const reversedLines = movement.lines.map(line => ({
+          prima_nota_id: stornoMovement.id,
+          line_order: line.line_order,
+          chart_account_id: line.chart_account_id,
+          structural_account_id: line.structural_account_id,
+          account_type: line.account_type,
+          dynamic_account_key: line.dynamic_account_key,
+          dare: line.avere,
+          avere: line.dare,
+          description: `STORNO: ${line.description}`,
+        }));
+        await supabase.from("prima_nota_lines").insert(reversedLines);
+      }
+
+      // 3. Mark original movement as rettificato
+      await supabase
+        .from("prima_nota")
+        .update({ status: "rettificato", rectified_by: stornoMovement.id, rectification_reason: "Annullato" })
+        .eq("id", movement.id);
+
+      // 4. Update accounting_entry status to annullato
+      const { error: entryError } = await supabase
+        .from("accounting_entries")
+        .update({ 
+          status: "annullato",
+          cfo_notes: `[${new Date().toLocaleString("it-IT")}] Annullato dalla Prima Nota - storno generato`
+        })
+        .eq("id", accountingEntryId);
+      
+      if (entryError) throw entryError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      toast.success("Movimento annullato e stornato");
+    },
+    onError: () => {
+      toast.error("Errore durante l'annullamento");
+    },
+  });
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: React.ReactNode }> = {
@@ -1086,18 +1242,86 @@ export default function PrimaNotaPage() {
                                     <CheckCircle className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {m.status === "registrato" && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-orange-600"
-                                    onClick={() => {
-                                      setSelectedMovement(m);
-                                      setRectifyDialogOpen(true);
-                                    }}
-                                  >
-                                    <Undo2 className="h-4 w-4" />
-                                  </Button>
+                                {m.status === "registrato" && !m.is_rectification && (
+                                  <>
+                                    {/* Da Correggere */}
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-amber-600"
+                                          title="Da Correggere"
+                                        >
+                                          <Pause className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Mettere in correzione?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Verrà creato uno storno automatico della prima nota.
+                                            L'evento tornerà modificabile per essere corretto e ricontabilizzato.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => markForCorrectionMutation.mutate(m)}
+                                            className="bg-amber-600 text-white hover:bg-amber-700"
+                                          >
+                                            Conferma Correzione
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                    
+                                    {/* Annulla */}
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-gray-500"
+                                          title="Annulla Registrazione"
+                                        >
+                                          <Ban className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Annullare questa registrazione?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Verrà creato uno storno automatico della prima nota.
+                                            La registrazione sarà marcata come annullata (non eliminata).
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => markAsCancelledMutation.mutate(m)}
+                                            className="bg-gray-600 text-white hover:bg-gray-700"
+                                          >
+                                            Conferma Annullamento
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                    
+                                    {/* Rettifica manuale */}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-orange-600"
+                                      title="Rettifica Manuale"
+                                      onClick={() => {
+                                        setSelectedMovement(m);
+                                        setRectifyDialogOpen(true);
+                                      }}
+                                    >
+                                      <Undo2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
                                 )}
                                 {/* Delete button for testing */}
                                 <Button
