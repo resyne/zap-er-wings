@@ -474,12 +474,14 @@ export default function EventClassificationPage() {
         setDetectedSubject(prev => prev ? { ...prev, existing_id: data.id, found: true } : null);
         toast.success(`Cliente "${detectedSubject.name}" creato con successo!`);
       } else {
-        // Generate random access code for supplier
+        // Generate random access code and unique code for supplier
         const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const supplierCode = `FORN-${Date.now().toString(36).toUpperCase()}`;
         
         const { data, error } = await supabase
           .from("suppliers")
           .insert({
+            code: supplierCode,
             name: detectedSubject.name,
             tax_id: detectedSubject.tax_id || null,
             address: detectedSubject.address || null,
