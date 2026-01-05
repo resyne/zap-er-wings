@@ -77,14 +77,14 @@ interface ServiceWorkOrder {
 }
 
 const statusColors = {
-  da_programmare: "bg-blue-100 text-blue-800 border-blue-200",
-  programmata: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  da_fare: "bg-blue-100 text-blue-800 border-blue-200",
+  stand_by: "bg-yellow-100 text-yellow-800 border-yellow-200",
   completata: "bg-green-100 text-green-800 border-green-200"
 };
 
 const statusLabels = {
-  da_programmare: "Da Programmare",
-  programmata: "Programmata",
+  da_fare: "Da Fare",
+  stand_by: "Stand By",
   completata: "Completata"
 };
 
@@ -381,7 +381,7 @@ export default function WorkOrdersServicePage() {
         location: formData.location || null,
         equipment_needed: formData.equipment_needed || null,
         notes: formData.notes || null,
-        status: 'da_programmare'
+        status: 'da_fare'
       };
 
       // Remove empty string values, replace with null
@@ -795,8 +795,7 @@ export default function WorkOrdersServicePage() {
       const { error } = await supabase
         .from('service_work_orders')
         .update({ 
-          scheduled_date: date.toISOString(),
-          status: 'programmata'
+          scheduled_date: date.toISOString()
         })
         .eq('id', workOrderToSchedule.id);
 
@@ -804,7 +803,7 @@ export default function WorkOrdersServicePage() {
 
       toast({
         title: "Successo",
-        description: "Installazione programmata con successo",
+        description: "Data intervento impostata con successo",
       });
 
       setWorkOrderToSchedule(null);
@@ -942,8 +941,8 @@ export default function WorkOrdersServicePage() {
   // Status counts for mobile filters
   const statusCounts = {
     all: serviceWorkOrders.length,
-    da_programmare: serviceWorkOrders.filter(wo => wo.status === 'da_programmare').length,
-    programmata: serviceWorkOrders.filter(wo => wo.status === 'programmata').length,
+    da_fare: serviceWorkOrders.filter(wo => wo.status === 'da_fare').length,
+    stand_by: serviceWorkOrders.filter(wo => wo.status === 'stand_by').length,
     completata: serviceWorkOrders.filter(wo => wo.status === 'completata').length,
   };
 
@@ -1024,13 +1023,13 @@ export default function WorkOrdersServicePage() {
         
         const { error } = await supabase
           .from("service_work_orders")
-          .update({ scheduled_date: dateStr, status: 'programmata' })
+          .update({ scheduled_date: dateStr })
           .eq("id", woId);
 
         if (error) throw error;
 
         toast({
-          title: "Commessa programmata",
+          title: "Data impostata",
           description: `La commessa è stata programmata per il ${new Date(dateStr).toLocaleDateString('it-IT')}`,
         });
 
@@ -1056,14 +1055,14 @@ export default function WorkOrdersServicePage() {
         // Moving back to unprogrammed
         const { error } = await supabase
           .from("service_work_orders")
-          .update({ scheduled_date: null, status: 'da_programmare' })
+          .update({ scheduled_date: null })
           .eq("id", woId);
 
         if (error) throw error;
 
         toast({
-          title: "Commessa deprogrammata",
-          description: "La commessa è stata rimossa dal calendario",
+          title: "Data rimossa",
+          description: "La data intervento è stata rimossa",
         });
 
         loadServiceWorkOrders();
@@ -1299,8 +1298,8 @@ export default function WorkOrdersServicePage() {
           </SelectTrigger>
         <SelectContent>
             <SelectItem value="all">Tutti gli stati</SelectItem>
-            <SelectItem value="da_programmare">Da Programmare</SelectItem>
-            <SelectItem value="programmata">Programmata</SelectItem>
+            <SelectItem value="da_fare">Da Fare</SelectItem>
+            <SelectItem value="stand_by">Stand By</SelectItem>
             <SelectItem value="completata">Completata</SelectItem>
           </SelectContent>
         </Select>
@@ -1708,7 +1707,7 @@ export default function WorkOrdersServicePage() {
                   <Badge className={statusColors[selectedWorkOrder.status as keyof typeof statusColors]}>
                     {statusLabels[selectedWorkOrder.status as keyof typeof statusLabels]}
                   </Badge>
-                  {selectedWorkOrder.status === 'programmata' && (
+                  {selectedWorkOrder.status !== 'completata' && (
                     <Button
                       size="sm"
                       variant="default"
