@@ -177,7 +177,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
       { title: "Registro Contabile", url: "/management-control-2/registro-fatture", icon: FileText },
-      { title: "Documentazione Operativa", url: "/management-control-2/documentazione-operativa", icon: FileText },
     ]
   },
   {
