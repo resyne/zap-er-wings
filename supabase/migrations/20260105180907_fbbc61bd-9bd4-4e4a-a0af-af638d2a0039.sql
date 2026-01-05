@@ -1,0 +1,1 @@
+DELETE FROM invoice_registry WHERE id = '39ff001a-b333-4faa-a7c5-0a6d8fb78640';
