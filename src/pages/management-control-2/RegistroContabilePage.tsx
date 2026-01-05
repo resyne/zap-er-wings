@@ -306,24 +306,61 @@ export default function RegistroContabilePage() {
             const extracted = analysisData.data;
             console.log("AI extracted invoice data:", extracted);
 
-            // Determine event_type and derived values from AI-detected invoice_type
-            // But user can override by changing the dropdown
-            let eventType: EventType = 'fattura_acquisto';
-            let invoiceType: InvoiceType = 'acquisto';
-            let subjectType: SubjectType = 'fornitore';
-            let financialStatus: FinancialStatus = 'da_pagare';
+            const normalize = (v?: string) => (v ?? "").toLowerCase().trim();
+            const normalizeTaxId = (v?: string) => (v ?? "").replace(/\s+/g, "").trim();
 
-            if (extracted.invoice_type === 'vendita') {
-              eventType = 'fattura_vendita';
-              invoiceType = 'vendita';
-              subjectType = 'cliente';
-              financialStatus = 'da_incassare';
-            } else if (extracted.invoice_type === 'nota_credito') {
-              eventType = 'nota_credito';
+            // Riconoscimento "noi" (minimo): CLIMATEL per nome o P.IVA
+            const isOurCompany = (name?: string, taxId?: string) => {
+              const n = normalize(name);
+              const t = normalizeTaxId(taxId);
+              return n.includes("climatel") || t === "03895390650";
+            };
+
+            const supplierName: string = extracted.supplier_name || "";
+            const supplierTaxId: string = extracted.supplier_tax_id || "";
+            const customerName: string = extracted.customer_name || extracted.subject_name || "";
+            const customerTaxId: string = extracted.customer_tax_id || extracted.subject_tax_id || "";
+
+            const isPurchase = isOurCompany(customerName, customerTaxId) && !isOurCompany(supplierName, supplierTaxId);
+            const isSale = isOurCompany(supplierName, supplierTaxId) && !isOurCompany(customerName, customerTaxId);
+
+            // Deriva tipo documento: se "destinatario = noi" => acquisto (fornitore = chi emette)
+            let invoiceType: InvoiceType = 'acquisto';
+            if (extracted.invoice_type === 'nota_credito') {
               invoiceType = 'nota_credito';
-              subjectType = extracted.subject_type || 'fornitore';
+            } else if (isPurchase) {
+              invoiceType = 'acquisto';
+            } else if (isSale) {
+              invoiceType = 'vendita';
+            } else if (extracted.invoice_type) {
+              invoiceType = extracted.invoice_type;
+            }
+
+            let eventType: EventType = invoiceType === 'vendita' ? 'fattura_vendita' : 'fattura_acquisto';
+            let subjectType: SubjectType = invoiceType === 'vendita' ? 'cliente' : 'fornitore';
+            let financialStatus: FinancialStatus = subjectType === 'cliente' ? 'da_incassare' : 'da_pagare';
+
+            if (invoiceType === 'nota_credito') {
+              eventType = 'nota_credito';
+              subjectType = isSale ? 'cliente' : isPurchase ? 'fornitore' : (extracted.subject_type || 'fornitore');
               financialStatus = subjectType === 'fornitore' ? 'da_incassare' : 'da_pagare';
             }
+
+            const counterpartName =
+              invoiceType === 'vendita'
+                ? (customerName || extracted.subject_name || '')
+                : invoiceType === 'acquisto'
+                  ? (supplierName || extracted.subject_name || '')
+                  : (subjectType === 'fornitore'
+                      ? (supplierName || extracted.subject_name || '')
+                      : (customerName || extracted.subject_name || ''));
+
+            const counterpartTaxId =
+              invoiceType === 'vendita'
+                ? (customerTaxId || '')
+                : invoiceType === 'acquisto'
+                  ? (supplierTaxId || '')
+                  : (subjectType === 'fornitore' ? (supplierTaxId || '') : (customerTaxId || ''));
 
             setFormData(prev => ({
               ...prev,
@@ -332,7 +369,7 @@ export default function RegistroContabilePage() {
               invoice_date: extracted.invoice_date || format(new Date(), 'yyyy-MM-dd'),
               invoice_type: invoiceType,
               subject_type: subjectType,
-              subject_name: extracted.subject_name || prev.subject_name,
+              subject_name: counterpartName || prev.subject_name,
               imponibile: extracted.imponibile || prev.imponibile,
               iva_rate: extracted.iva_rate ?? prev.iva_rate,
               vat_regime: extracted.vat_regime || prev.vat_regime,
@@ -342,12 +379,10 @@ export default function RegistroContabilePage() {
               attachment_url: urlData.publicUrl
             }));
 
-            // Check for similar subjects in the registry
-            if (extracted.subject_name) {
-              // Will check after dialog opens when suppliers/customers are loaded
+            // Check for similar subjects (anagrafica) usando nome + P.IVA quando disponibile
+            if (counterpartName) {
               setTimeout(() => {
-                const sType: SubjectType = invoiceType === 'vendita' ? 'cliente' : 'fornitore';
-                checkAndMatchSubject(extracted.subject_name, sType);
+                checkAndMatchSubject(counterpartName, subjectType, counterpartTaxId);
               }, 500);
             }
 
@@ -730,14 +765,31 @@ export default function RegistroContabilePage() {
   const revenueAccounts = accounts.filter(a => a.account_type === 'revenue');
 
   // Check for similar subjects when subject_name is extracted
-  const checkAndMatchSubject = useCallback((subjectName: string, subjectType: SubjectType) => {
+  const checkAndMatchSubject = useCallback((subjectName: string, subjectType: SubjectType, subjectTaxId?: string) => {
     if (!subjectName.trim()) return;
-    
-    const subjectList = subjectType === 'cliente' 
+
+    const normalizeTaxId = (v?: string) => (v ?? "").replace(/\s+/g, "").trim().toUpperCase();
+
+    const subjectList = subjectType === 'cliente'
       ? customers.map(c => ({ id: c.id, name: c.company_name || c.name, tax_id: c.tax_id }))
       : suppliers.map(s => ({ id: s.id, name: s.name, tax_id: s.tax_id }));
-    
-    // Check for exact match first
+
+    // Match by P.IVA first (se disponibile)
+    const wantedTaxId = normalizeTaxId(subjectTaxId);
+    if (wantedTaxId) {
+      const taxIdMatch = subjectList.find(s => normalizeTaxId(s.tax_id ?? "") === wantedTaxId);
+      if (taxIdMatch) {
+        setFormData(prev => ({
+          ...prev,
+          subject_id: taxIdMatch.id,
+          subject_name: taxIdMatch.name,
+        }));
+        toast.success(`${subjectType === 'cliente' ? 'Cliente' : 'Fornitore'} trovato (P.IVA): ${taxIdMatch.name}`);
+        return;
+      }
+    }
+
+    // Check for exact name match
     const exactMatch = subjectList.find(s => s.name.toLowerCase() === subjectName.toLowerCase());
     if (exactMatch) {
       setFormData(prev => ({
@@ -748,7 +800,7 @@ export default function RegistroContabilePage() {
       toast.success(`${subjectType === 'cliente' ? 'Cliente' : 'Fornitore'} trovato: ${exactMatch.name}`);
       return;
     }
-    
+
     // Check for similar matches
     const matches = findSimilarSubjects(subjectName, subjectList, 0.5);
     if (matches.length > 0) {
