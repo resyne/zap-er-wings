@@ -977,24 +977,43 @@ export default function PrimaNotaPage() {
   };
 
   // Summary calculations
+  // Entrate/Uscite are calculated from financial accounts in prima_nota_lines:
+  // - If financial account (banca/carta/cassa) is in AVERE → USCITA (outflow)
+  // - If financial account (banca/carta/cassa) is in DARE → ENTRATA (inflow)
   const summary = movements.reduce(
     (acc, m) => {
       if (m.status === "rettificato") return acc;
       const imponibile = m.imponibile || Math.abs(m.amount);
       const iva = m.iva_amount || 0;
       
-      if (m.movement_type === "economico") {
-        if (m.amount > 0) {
-          acc.revenues += imponibile;
-          acc.ivaDebito += iva;
-        } else {
-          acc.costs += imponibile;
-          acc.ivaCredito += iva;
-        }
+      // Economic part: Ricavi e Costi
+      if (m.amount > 0) {
+        acc.revenues += imponibile;
+        acc.ivaDebito += iva;
       } else {
-        if (m.amount > 0) acc.inflows += Math.abs(m.totale || m.amount);
-        else acc.outflows += Math.abs(m.totale || m.amount);
+        acc.costs += imponibile;
+        acc.ivaCredito += iva;
       }
+      
+      // Financial part: Entrate e Uscite from prima_nota_lines
+      // Look for financial accounts (banca, carta, cassa) in the lines
+      if (m.lines && m.lines.length > 0) {
+        m.lines.forEach(line => {
+          const accountKey = line.dynamic_account_key?.toLowerCase() || "";
+          const isFinancialAccount = ["banca", "carta", "cassa"].includes(accountKey);
+          
+          if (isFinancialAccount) {
+            // DARE = money coming in (inflow), AVERE = money going out (outflow)
+            if (line.dare > 0) {
+              acc.inflows += line.dare;
+            }
+            if (line.avere > 0) {
+              acc.outflows += line.avere;
+            }
+          }
+        });
+      }
+      
       return acc;
     },
     { revenues: 0, costs: 0, inflows: 0, outflows: 0, ivaDebito: 0, ivaCredito: 0 }
