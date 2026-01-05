@@ -53,6 +53,7 @@ interface InvoiceRegistry {
   invoice_number: string;
   invoice_date: string;
   invoice_type: 'vendita' | 'acquisto' | 'nota_credito';
+  event_type?: EventType | null;
   subject_type: 'cliente' | 'fornitore';
   subject_id: string | null;
   subject_name: string;
@@ -79,14 +80,42 @@ interface InvoiceRegistry {
   created_at: string;
   registered_at: string | null;
   attachment_url?: string | null;
+  // Nuovi campi per spese/incassi dipendenti
+  expense_type?: string | null;
+  is_fiscal_document?: boolean;
+  generates_accounting?: boolean;
+  service_report_id?: string | null;
 }
 
+// Tipi evento del registro contabile
+type EventType = 'spesa_dipendente' | 'incasso_dipendente' | 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
 type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
 type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
 type FinancialStatus = 'da_incassare' | 'da_pagare' | 'incassata' | 'pagata';
 
+// Tipi di spesa per dipendenti
+const EXPENSE_TYPES = [
+  { value: 'carburante', label: 'Carburante' },
+  { value: 'pedaggi', label: 'Pedaggi' },
+  { value: 'parcheggio', label: 'Parcheggio' },
+  { value: 'materiale_consumo', label: 'Materiale di consumo' },
+  { value: 'pasti', label: 'Pasti / Ristorante' },
+  { value: 'trasporti', label: 'Trasporti' },
+  { value: 'altro', label: 'Altro' },
+];
+
+// Metodi di pagamento/incasso
+const PAYMENT_METHODS = [
+  { value: 'contanti', label: 'Contanti' },
+  { value: 'carta', label: 'Carta di Credito/Debito' },
+  { value: 'bonifico', label: 'Bonifico Bancario' },
+  { value: 'pos', label: 'POS' },
+  { value: 'assegno', label: 'Assegno' },
+];
+
 interface FormData {
+  event_type: EventType;
   invoice_number: string;
   invoice_date: string;
   invoice_type: InvoiceType;
@@ -108,19 +137,23 @@ interface FormData {
   revenue_account_id: string;
   notes: string;
   attachment_url: string;
+  // Campi specifici per spese/incassi dipendenti
+  expense_type: string;
+  service_report_id: string;
 }
 
 const initialFormData: FormData = {
+  event_type: 'fattura_acquisto',
   invoice_number: '',
   invoice_date: format(new Date(), 'yyyy-MM-dd'),
-  invoice_type: 'vendita',
-  subject_type: 'cliente',
+  invoice_type: 'acquisto',
+  subject_type: 'fornitore',
   subject_id: '',
   subject_name: '',
   imponibile: 0,
   iva_rate: 22,
   vat_regime: 'domestica_imponibile',
-  financial_status: 'da_incassare',
+  financial_status: 'da_pagare',
   due_date: '',
   payment_date: '',
   payment_method: '',
@@ -131,7 +164,19 @@ const initialFormData: FormData = {
   cost_account_id: '',
   revenue_account_id: '',
   notes: '',
-  attachment_url: ''
+  attachment_url: '',
+  expense_type: '',
+  service_report_id: ''
+};
+
+// Helper per determinare se un tipo evento è una fattura (documento fiscale)
+const isFiscalDocument = (eventType: EventType): boolean => {
+  return ['fattura_acquisto', 'fattura_vendita', 'nota_credito'].includes(eventType);
+};
+
+// Helper per determinare se genera contabilità
+const generatesAccounting = (eventType: EventType): boolean => {
+  return isFiscalDocument(eventType);
 };
 
 export default function RegistroContabilePage() {
@@ -779,7 +824,13 @@ export default function RegistroContabilePage() {
 
   const openEditDialog = (invoice: InvoiceRegistry) => {
     setSelectedInvoice(invoice);
+    // Determina event_type dalla fattura
+    const eventType: EventType = invoice.event_type || 
+      (invoice.invoice_type === 'vendita' ? 'fattura_vendita' : 
+       invoice.invoice_type === 'nota_credito' ? 'nota_credito' : 'fattura_acquisto');
+    
     setEditFormData({
+      event_type: eventType,
       invoice_number: invoice.invoice_number,
       invoice_date: invoice.invoice_date,
       invoice_type: invoice.invoice_type,
@@ -800,7 +851,9 @@ export default function RegistroContabilePage() {
       cost_account_id: invoice.cost_account_id || '',
       revenue_account_id: invoice.revenue_account_id || '',
       notes: invoice.notes || '',
-      attachment_url: invoice.attachment_url || ''
+      attachment_url: invoice.attachment_url || '',
+      expense_type: invoice.expense_type || '',
+      service_report_id: invoice.service_report_id || ''
     });
     // Reset edit split state
     setEditSplitEnabled(false);
@@ -1214,330 +1267,608 @@ export default function RegistroContabilePage() {
       )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nuova Fattura</DialogTitle>
+            <DialogTitle>
+              {isFiscalDocument(formData.event_type) ? 'Nuova Fattura' : 
+               formData.event_type === 'spesa_dipendente' ? 'Nuova Spesa Dipendente' : 
+               'Nuovo Incasso Dipendente'}
+            </DialogTitle>
           </DialogHeader>
+          
+          {/* Selezione Tipo Evento */}
+          <div className="space-y-2 pb-4 border-b">
+            <Label className="text-base font-semibold">Tipo Registrazione *</Label>
+            <Select 
+              value={formData.event_type} 
+              onValueChange={(v: EventType) => {
+                setFormData(prev => {
+                  const updated = { ...prev, event_type: v };
+                  // Reset campi in base al tipo
+                  if (v === 'spesa_dipendente') {
+                    updated.invoice_type = 'acquisto';
+                    updated.subject_type = 'fornitore';
+                    updated.financial_status = 'pagata';
+                    updated.iva_rate = 0;
+                    updated.vat_regime = 'domestica_imponibile';
+                  } else if (v === 'incasso_dipendente') {
+                    updated.invoice_type = 'vendita';
+                    updated.subject_type = 'cliente';
+                    updated.financial_status = 'incassata';
+                    updated.iva_rate = 0;
+                    updated.vat_regime = 'domestica_imponibile';
+                  } else if (v === 'fattura_acquisto') {
+                    updated.invoice_type = 'acquisto';
+                    updated.subject_type = 'fornitore';
+                    updated.financial_status = 'da_pagare';
+                    updated.iva_rate = 22;
+                  } else if (v === 'fattura_vendita') {
+                    updated.invoice_type = 'vendita';
+                    updated.subject_type = 'cliente';
+                    updated.financial_status = 'da_incassare';
+                    updated.iva_rate = 22;
+                  } else if (v === 'nota_credito') {
+                    updated.invoice_type = 'nota_credito';
+                    updated.iva_rate = 22;
+                  }
+                  return updated;
+                });
+                // Reset subject
+                handleFormChange('subject_id', '');
+                handleFormChange('subject_name', '');
+                setSubjectSearch('');
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spesa_dipendente">🧾 Spesa Dipendente (scontrino, ricevuta)</SelectItem>
+                <SelectItem value="incasso_dipendente">💵 Incasso Dipendente (contanti, POS)</SelectItem>
+                <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
+                <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
+                <SelectItem value="nota_credito">📋 Nota di Credito</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Info sul tipo selezionato */}
+            {!isFiscalDocument(formData.event_type) && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mt-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-600">Documento NON fiscale</p>
+                    <p className="text-muted-foreground">
+                      {formData.event_type === 'spesa_dipendente' 
+                        ? 'Questa registrazione traccia l\'uscita ma NON genera contabilità ufficiale né IVA.' 
+                        : 'Questa registrazione traccia l\'entrata ma NON genera ricavo ufficiale né IVA.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {isFiscalDocument(formData.event_type) && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-2">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-green-600">Documento fiscale valido</p>
+                    <p className="text-muted-foreground">
+                      Genera contabilità ufficiale, IVA, Prima Nota e scadenze.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Numero Fattura *</Label>
-              <Input
-                value={formData.invoice_number}
-                onChange={(e) => handleFormChange('invoice_number', e.target.value)}
-                placeholder="FT-2026/001"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Fattura *</Label>
-              <Input
-                type="date"
-                value={formData.invoice_date}
-                onChange={(e) => handleFormChange('invoice_date', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo *</Label>
-              <Select 
-                value={formData.invoice_type} 
-                onValueChange={(v) => {
-                  handleFormChange('invoice_type', v);
-                  // Reset subject when switching type
-                  handleFormChange('subject_id', '');
-                  handleFormChange('subject_name', '');
-                  handleFormChange('subject_type', v === 'vendita' ? 'cliente' : 'fornitore');
-                  handleFormChange('financial_status', v === 'vendita' ? 'da_incassare' : 'da_pagare');
-                  setSubjectSearch('');
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vendita">Vendita (Cliente)</SelectItem>
-                  <SelectItem value="acquisto">Acquisto (Fornitore)</SelectItem>
-                  <SelectItem value="nota_credito">Nota Credito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{formData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
-              <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={subjectSearchOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {formData.subject_name || `Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
-                    <CommandInput 
-                      placeholder={`Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
-                      value={subjectSearch}
-                      onValueChange={setSubjectSearch}
-                    />
-                    <CommandList>
-                      <CommandEmpty>Nessun risultato trovato</CommandEmpty>
-                      <CommandGroup className="max-h-60 overflow-auto">
-                        {filteredSubjects.map((subject) => (
-                          <CommandItem
-                            key={subject.id}
-                            value={subject.id}
-                            onSelect={() => {
-                              handleFormChange('subject_id', subject.id);
-                              handleFormChange('subject_name', subject.name);
-                              handleFormChange('subject_type', subject.type);
-                              setSubjectSearchOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.subject_id === subject.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-medium">{subject.name}</span>
-                              {subject.secondary && (
-                                <span className="text-xs text-muted-foreground">{subject.secondary}</span>
-                              )}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label>Imponibile *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.imponibile}
-                onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Aliquota IVA %</Label>
-              <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="22">22%</SelectItem>
-                  <SelectItem value="10">10%</SelectItem>
-                  <SelectItem value="4">4%</SelectItem>
-                  <SelectItem value="0">0% (Esente)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Regime IVA</Label>
-              <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="domestica_imponibile">Domestica Imponibile</SelectItem>
-                  <SelectItem value="ue_non_imponibile">UE Non Imponibile</SelectItem>
-                  <SelectItem value="extra_ue">Extra-UE</SelectItem>
-                  <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Stato Finanziario</Label>
-              <Select value={formData.financial_status} onValueChange={(v) => handleFormChange('financial_status', v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="da_incassare">Da Incassare</SelectItem>
-                  <SelectItem value="da_pagare">Da Pagare</SelectItem>
-                  <SelectItem value="incassata">Incassata</SelectItem>
-                  <SelectItem value="pagata">Pagata</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Data Scadenza</Label>
-              <Input
-                type="date"
-                value={formData.due_date}
-                onChange={(e) => handleFormChange('due_date', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Pagamento</Label>
-              <Input
-                type="date"
-                value={formData.payment_date}
-                onChange={(e) => handleFormChange('payment_date', e.target.value)}
-              />
-            </div>
-            
-            {/* Payment method - shown when paid */}
-            {(formData.financial_status === 'pagata' || formData.financial_status === 'incassata') && (
-              <div className="space-y-2">
-                <Label>Metodo di Pagamento</Label>
-                <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona metodo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
-                    <SelectItem value="contanti">Contanti</SelectItem>
-                    <SelectItem value="carta">Carta di Credito/Debito</SelectItem>
-                    <SelectItem value="assegno">Assegno</SelectItem>
-                    <SelectItem value="riba">RiBa</SelectItem>
-                    <SelectItem value="sdd">SDD (Addebito Diretto)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            {/* Document linking */}
-            <div className="space-y-2">
-              <Label>Documento Operativo</Label>
-              <Select value={formData.source_document_type} onValueChange={(v) => {
-                const next = v === "__none__" ? "" : v;
-                handleFormChange('source_document_type', next);
-                handleFormChange('source_document_id', '');
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Collega documento (opzionale)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nessun collegamento</SelectItem>
-                  <SelectItem value="ddt">DDT</SelectItem>
-                  <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
-                  <SelectItem value="service_report">Rapporto Intervento</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {formData.source_document_type && (
-              <div className="space-y-2">
-                <Label>Seleziona {formData.source_document_type === 'ddt' ? 'DDT' : formData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
-                <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.source_document_type === 'ddt' && ddts.map(d => (
-                      <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
-                    ))}
-                    {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
-                      <SelectItem key={o.id} value={o.id}>{o.number}</SelectItem>
-                    ))}
-                    {formData.source_document_type === 'service_report' && serviceReports.map(r => (
-                      <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            {/* Cost center and account for purchases */}
-            {formData.invoice_type === 'acquisto' && (
+            {/* Campi per SPESA DIPENDENTE */}
+            {formData.event_type === 'spesa_dipendente' && (
               <>
                 <div className="space-y-2">
-                  <Label>Centro di Costo</Label>
-                  <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
+                  <Label>Tipo Spesa *</Label>
+                  <Select value={formData.expense_type} onValueChange={(v) => handleFormChange('expense_type', v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona centro di costo" />
+                      <SelectValue placeholder="Seleziona tipo spesa" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {costCenters.map(cc => (
-                        <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                      {EXPENSE_TYPES.map(t => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Conto di Costo</Label>
-                  <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
+                  <Label>Data *</Label>
+                  <Input
+                    type="date"
+                    value={formData.invoice_date}
+                    onChange={(e) => handleFormChange('invoice_date', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Importo *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.imponibile}
+                    onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Metodo di Pagamento *</Label>
+                  <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona conto" />
+                      <SelectValue placeholder="Seleziona metodo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {costAccounts.map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Centro di Costo *</Label>
+                  <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona centro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
+                      {costCenters.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Riferimento Intervento</Label>
+                  <Select value={formData.service_report_id} onValueChange={(v) => handleFormChange('service_report_id', v === "__none__" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Collega a intervento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
+                      {serviceReports.map(sr => (
+                        <SelectItem key={sr.id} value={sr.id}>
+                          {format(new Date(sr.intervention_date), 'dd/MM/yy', { locale: it })} - {sr.technician_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Note / Descrizione</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => handleFormChange('notes', e.target.value)}
+                    placeholder="Descrizione della spesa..."
+                  />
                 </div>
               </>
             )}
             
-            {/* Profit center and revenue account for sales */}
-            {(formData.invoice_type === 'vendita' || formData.invoice_type === 'nota_credito') && (
+            {/* Campi per INCASSO DIPENDENTE */}
+            {formData.event_type === 'incasso_dipendente' && (
               <>
+                <div className="space-y-2">
+                  <Label>Cliente (se noto)</Label>
+                  <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={subjectSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {formData.subject_name || 'Cerca cliente...'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Cerca cliente..."
+                          value={subjectSearch}
+                          onValueChange={setSubjectSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nessun risultato</CommandEmpty>
+                          <CommandGroup className="max-h-60 overflow-auto">
+                            {filteredSubjects.map((subject) => (
+                              <CommandItem
+                                key={subject.id}
+                                value={subject.id}
+                                onSelect={() => {
+                                  handleFormChange('subject_id', subject.id);
+                                  handleFormChange('subject_name', subject.name);
+                                  setSubjectSearchOpen(false);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", formData.subject_id === subject.id ? "opacity-100" : "opacity-0")} />
+                                <span className="font-medium">{subject.name}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data *</Label>
+                  <Input
+                    type="date"
+                    value={formData.invoice_date}
+                    onChange={(e) => handleFormChange('invoice_date', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Importo *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.imponibile}
+                    onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Metodo di Incasso *</Label>
+                  <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona metodo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Riferimento Intervento</Label>
+                  <Select value={formData.service_report_id} onValueChange={(v) => handleFormChange('service_report_id', v === "__none__" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Collega a intervento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nessuno</SelectItem>
+                      {serviceReports.map(sr => (
+                        <SelectItem key={sr.id} value={sr.id}>
+                          {format(new Date(sr.intervention_date), 'dd/MM/yy', { locale: it })} - {sr.technician_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label>Centro di Ricavo</Label>
                   <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona centro di ricavo" />
+                      <SelectValue placeholder="Seleziona centro" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Nessuno</SelectItem>
-                      {profitCenters.map(pc => (
-                        <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
+                      {profitCenters.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Note / Descrizione</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => handleFormChange('notes', e.target.value)}
+                    placeholder="Descrizione dell'incasso..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Campi per FATTURE (documento fiscale) */}
+            {isFiscalDocument(formData.event_type) && (
+              <>
+                <div className="space-y-2">
+                  <Label>Numero Fattura *</Label>
+                  <Input
+                    value={formData.invoice_number}
+                    onChange={(e) => handleFormChange('invoice_number', e.target.value)}
+                    placeholder="FT-2026/001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Fattura *</Label>
+                  <Input
+                    type="date"
+                    value={formData.invoice_date}
+                    onChange={(e) => handleFormChange('invoice_date', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{formData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
+                  <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={subjectSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {formData.subject_name || `Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput 
+                          placeholder={`Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                          value={subjectSearch}
+                          onValueChange={setSubjectSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nessun risultato trovato</CommandEmpty>
+                          <CommandGroup className="max-h-60 overflow-auto">
+                            {filteredSubjects.map((subject) => (
+                              <CommandItem
+                                key={subject.id}
+                                value={subject.id}
+                                onSelect={() => {
+                                  handleFormChange('subject_id', subject.id);
+                                  handleFormChange('subject_name', subject.name);
+                                  handleFormChange('subject_type', subject.type);
+                                  setSubjectSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.subject_id === subject.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{subject.name}</span>
+                                  {subject.secondary && (
+                                    <span className="text-xs text-muted-foreground">{subject.secondary}</span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Imponibile *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.imponibile}
+                    onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Aliquota IVA %</Label>
+                  <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="22">22%</SelectItem>
+                      <SelectItem value="10">10%</SelectItem>
+                      <SelectItem value="4">4%</SelectItem>
+                      <SelectItem value="0">0% (Esente)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Conto di Ricavo</Label>
-                  <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
+                  <Label>Regime IVA</Label>
+                  <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona conto" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {revenueAccounts.map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
-                      ))}
+                      <SelectItem value="domestica_imponibile">Domestica Imponibile</SelectItem>
+                      <SelectItem value="ue_non_imponibile">UE Non Imponibile</SelectItem>
+                      <SelectItem value="extra_ue">Extra-UE</SelectItem>
+                      <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Stato Finanziario</Label>
+                  <Select value={formData.financial_status} onValueChange={(v) => handleFormChange('financial_status', v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="da_incassare">Da Incassare</SelectItem>
+                      <SelectItem value="da_pagare">Da Pagare</SelectItem>
+                      <SelectItem value="incassata">Incassata</SelectItem>
+                      <SelectItem value="pagata">Pagata</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Scadenza</Label>
+                  <Input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => handleFormChange('due_date', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Pagamento</Label>
+                  <Input
+                    type="date"
+                    value={formData.payment_date}
+                    onChange={(e) => handleFormChange('payment_date', e.target.value)}
+                  />
+                </div>
+                
+                {/* Payment method - shown when paid */}
+                {(formData.financial_status === 'pagata' || formData.financial_status === 'incassata') && (
+                  <div className="space-y-2">
+                    <Label>Metodo di Pagamento</Label>
+                    <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona metodo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
+                        <SelectItem value="contanti">Contanti</SelectItem>
+                        <SelectItem value="carta">Carta di Credito/Debito</SelectItem>
+                        <SelectItem value="assegno">Assegno</SelectItem>
+                        <SelectItem value="riba">RiBa</SelectItem>
+                        <SelectItem value="sdd">SDD (Addebito Diretto)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Document linking */}
+                <div className="space-y-2">
+                  <Label>Documento Operativo</Label>
+                  <Select value={formData.source_document_type} onValueChange={(v) => {
+                    const next = v === "__none__" ? "" : v;
+                    handleFormChange('source_document_type', next);
+                    handleFormChange('source_document_id', '');
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Collega documento (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nessun collegamento</SelectItem>
+                      <SelectItem value="ddt">DDT</SelectItem>
+                      <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
+                      <SelectItem value="service_report">Rapporto Intervento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {formData.source_document_type && (
+                  <div className="space-y-2">
+                    <Label>Seleziona {formData.source_document_type === 'ddt' ? 'DDT' : formData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
+                    <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.source_document_type === 'ddt' && ddts.map(d => (
+                          <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
+                        ))}
+                        {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
+                          <SelectItem key={o.id} value={o.id}>{o.number}</SelectItem>
+                        ))}
+                        {formData.source_document_type === 'service_report' && serviceReports.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Cost center and account for purchases */}
+                {formData.invoice_type === 'acquisto' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Centro di Costo</Label>
+                      <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona centro di costo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessuno</SelectItem>
+                          {costCenters.map(cc => (
+                            <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Conto di Costo</Label>
+                      <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona conto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessuno</SelectItem>
+                          {costAccounts.map(a => (
+                            <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+                
+                {/* Profit center and revenue account for sales */}
+                {(formData.invoice_type === 'vendita' || formData.invoice_type === 'nota_credito') && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Centro di Ricavo</Label>
+                      <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona centro di ricavo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessuno</SelectItem>
+                          {profitCenters.map(pc => (
+                            <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Conto di Ricavo</Label>
+                      <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona conto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessuno</SelectItem>
+                          {revenueAccounts.map(a => (
+                            <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+                
+                <div className="col-span-2 space-y-2">
+                  <Label>Note</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => handleFormChange('notes', e.target.value)}
+                    placeholder="Note aggiuntive..."
+                  />
+                </div>
+                
+                {/* Account Split Manager */}
+                <div className="col-span-2">
+                  <AccountSplitManager
+                    enabled={splitEnabled}
+                    onEnabledChange={(enabled) => {
+                      setSplitEnabled(enabled);
+                      if (!enabled) setSplitLines([]);
+                    }}
+                    totalAmount={formData.imponibile}
+                    invoiceType={formData.invoice_type}
+                    accounts={accounts}
+                    costCenters={costCenters}
+                    profitCenters={profitCenters}
+                    lines={splitLines}
+                    onLinesChange={setSplitLines}
+                  />
+                </div>
               </>
             )}
-            
-            <div className="col-span-2 space-y-2">
-              <Label>Note</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => handleFormChange('notes', e.target.value)}
-                placeholder="Note aggiuntive..."
-              />
-            </div>
-            
-            {/* Account Split Manager */}
-            <div className="col-span-2">
-              <AccountSplitManager
-                enabled={splitEnabled}
-                onEnabledChange={(enabled) => {
-                  setSplitEnabled(enabled);
-                  if (!enabled) setSplitLines([]);
-                }}
-                totalAmount={formData.imponibile}
-                invoiceType={formData.invoice_type}
-                accounts={accounts}
-                costCenters={costCenters}
-                profitCenters={profitCenters}
-                lines={splitLines}
-                onLinesChange={setSplitLines}
-              />
-            </div>
           </div>
 
           {/* Uploaded file indicator */}
