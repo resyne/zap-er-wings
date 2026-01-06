@@ -65,7 +65,7 @@ interface Scadenza {
   data_scadenza: string;
   importo_totale: number;
   importo_residuo: number;
-  stato: "aperta" | "parziale" | "chiusa";
+  stato: "aperta" | "parziale" | "chiusa" | "stornata";
   iva_mode: string | null;
   conto_economico: string | null;
   centro_id: string | null;
@@ -347,6 +347,8 @@ export default function ScadenziarioPage() {
         return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Parziale</Badge>;
       case "chiusa":
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Chiusa</Badge>;
+      case "stornata":
+        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">stornata</Badge>;
       default:
         return <Badge variant="outline">{stato}</Badge>;
     }
@@ -377,10 +379,11 @@ export default function ScadenziarioPage() {
     );
   };
 
-  // Calcolo totali
+  // Calcolo totali - escludi scadenze chiuse e stornate
   const totali = scadenze?.reduce(
     (acc, s) => {
-      if (s.stato !== "chiusa") {
+      // Escludi le scadenze chiuse e quelle stornate
+      if (s.stato !== "chiusa" && s.stato !== "stornata") {
         if (s.tipo === "credito") {
           acc.crediti += s.importo_residuo;
         } else {
@@ -393,7 +396,7 @@ export default function ScadenziarioPage() {
   ) || { crediti: 0, debiti: 0 };
 
   const scaduteCount = scadenze?.filter(
-    (s) => s.stato !== "chiusa" && getGiorniScadenza(s.data_scadenza) < 0
+    (s) => s.stato !== "chiusa" && s.stato !== "stornata" && getGiorniScadenza(s.data_scadenza) < 0
   ).length || 0;
 
   if (isLoading) {
