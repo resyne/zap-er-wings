@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, getYear, getMonth } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   Landmark, CreditCard, Wallet, ArrowUpDown, Receipt,
-  TrendingUp, TrendingDown, Eye, ArrowLeft
+  TrendingUp, TrendingDown, Eye, ArrowLeft, Calendar
 } from "lucide-react";
 
 // =====================================================
@@ -86,8 +87,36 @@ const ALL_ACCOUNTS = [
 // MAIN COMPONENT
 // =====================================================
 
+const MONTHS = [
+  { value: "all", label: "Tutti i mesi" },
+  { value: "1", label: "Gennaio" },
+  { value: "2", label: "Febbraio" },
+  { value: "3", label: "Marzo" },
+  { value: "4", label: "Aprile" },
+  { value: "5", label: "Maggio" },
+  { value: "6", label: "Giugno" },
+  { value: "7", label: "Luglio" },
+  { value: "8", label: "Agosto" },
+  { value: "9", label: "Settembre" },
+  { value: "10", label: "Ottobre" },
+  { value: "11", label: "Novembre" },
+  { value: "12", label: "Dicembre" },
+];
+
 export default function MastrinoPage() {
   const [selectedAccount, setSelectedAccount] = useState<AccountSummary | null>(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+
+  // Generate years (last 5 years + current)
+  const years = useMemo(() => {
+    const result = [{ value: "all", label: "Tutti gli anni" }];
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+      result.push({ value: y.toString(), label: y.toString() });
+    }
+    return result;
+  }, [currentYear]);
 
   // Fetch all prima_nota_lines with their parent prima_nota
   const { data: lines = [], isLoading } = useQuery({
@@ -115,6 +144,26 @@ export default function MastrinoPage() {
     },
   });
 
+  // Filter lines by year/month
+  const filteredLines = useMemo(() => {
+    return lines.filter(line => {
+      const dateStr = line.prima_nota?.competence_date || line.created_at;
+      if (!dateStr) return false;
+      
+      const date = new Date(dateStr);
+      const lineYear = getYear(date);
+      const lineMonth = getMonth(date) + 1; // getMonth is 0-indexed
+      
+      if (selectedYear !== "all" && lineYear !== parseInt(selectedYear)) {
+        return false;
+      }
+      if (selectedMonth !== "all" && lineMonth !== parseInt(selectedMonth)) {
+        return false;
+      }
+      return true;
+    });
+  }, [lines, selectedYear, selectedMonth]);
+
   // Group lines by dynamic_account_key and calculate summaries
   const accountSummaries = useMemo(() => {
     const summaries: Map<string, AccountSummary> = new Map();
@@ -132,8 +181,8 @@ export default function MastrinoPage() {
       });
     });
 
-    // Aggregate lines
-    lines.forEach(line => {
+    // Aggregate lines (use filteredLines instead of lines)
+    filteredLines.forEach(line => {
       const key = line.dynamic_account_key;
       if (!key) return;
 
@@ -151,7 +200,7 @@ export default function MastrinoPage() {
     });
 
     return summaries;
-  }, [lines]);
+  }, [filteredLines]);
 
   // Get account group summaries
   const financialSummary = FINANCIAL_ACCOUNTS.map(acc => accountSummaries.get(acc.key)!);
@@ -363,14 +412,40 @@ export default function MastrinoPage() {
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ArrowUpDown className="h-6 w-6" />
-          Mastrino Contabile
-        </h1>
-        <p className="text-muted-foreground">
-          Saldi e movimenti per conto derivati dalla Prima Nota
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <ArrowUpDown className="h-6 w-6" />
+            Mastrino Contabile
+          </h1>
+          <p className="text-muted-foreground">
+            Saldi e movimenti per conto derivati dalla Prima Nota
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Anno" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map(y => (
+                <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Mese" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map(m => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-6">
