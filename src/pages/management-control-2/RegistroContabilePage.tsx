@@ -2128,21 +2128,22 @@ export default function RegistroContabilePage() {
     }
   };
 
-  // Escludi fatture stornate/da_riclassificare/rettificate dai totali finanziari
-  // perché il loro saldo contabile è 0 dopo lo storno
+  // Escludi fatture da_riclassificare/rettificate dai totali finanziari
+  // perché il loro saldo contabile non è valido
+  // Una fattura ri-contabilizzata (contabilizzazione_valida=true) torna nei conteggi
   const isValidForFinancialStats = (i: InvoiceRegistry) => 
-    !i.stornato && 
-    !['da_riclassificare', 'rettificato'].includes(i.status) &&
-    i.contabilizzazione_valida !== false;
+    i.contabilizzazione_valida !== false &&
+    !['da_riclassificare', 'rettificato', 'bozza'].includes(i.status);
 
   const stats = {
     bozze: invoices.filter(i => i.status === 'bozza').length,
     registrate: invoices.filter(i => i.status === 'registrata').length,
-    // Solo fatture con contabilizzazione valida (non stornate)
+    // Solo fatture con contabilizzazione valida
     daIncassare: invoices.filter(i => i.financial_status === 'da_incassare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
     daPagare: invoices.filter(i => i.financial_status === 'da_pagare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
     daClassificare: eventsToClassify.length,
-    daRiclassificare: invoices.filter(i => i.status === 'da_riclassificare' || i.stornato).length,
+    // Solo status === 'da_riclassificare', NON usare il flag stornato (può essere già ri-contabilizzata)
+    daRiclassificare: invoices.filter(i => i.status === 'da_riclassificare').length,
     rettificati: invoices.filter(i => i.status === 'rettificato').length,
     daFatturare: opStats.pending
   };
