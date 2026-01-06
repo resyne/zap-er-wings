@@ -2817,12 +2817,10 @@ export default function RegistroContabilePage() {
                   <TableRow 
                     key={invoice.id}
                     className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
-                    onClick={() => {
-                      if (invoice.prima_nota_id) {
-                        setDetailsInvoice(invoice);
-                        setShowDetailsDialog(true);
-                      }
-                    }}
+                          onClick={() => {
+                            setDetailsInvoice(invoice);
+                            setShowDetailsDialog(true);
+                          }}
                   >
                     <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
                     <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: it })}</TableCell>
