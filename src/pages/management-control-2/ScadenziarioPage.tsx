@@ -248,7 +248,7 @@ export default function ScadenziarioPage() {
         direction: scadenza.tipo === "credito" ? "entrata" : "uscita",
         amount: importo,
         totale: importo,
-        status: "completed",
+        status: "registrato",
         financial_status: scadenza.tipo === "credito" ? "incassato" : "pagato",
         payment_method: metodo,
         payment_date: data,
