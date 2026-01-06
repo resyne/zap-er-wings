@@ -993,6 +993,9 @@ export default function RegistroContabilePage() {
           }))
         : null;
       
+      // Se c'è split, NON usare i valori singoli di conto/centro (usare solo lo split)
+      const hasSplit = splitsToSave && splitsToSave.length > 0;
+      
       const { error } = await supabase
         .from('invoice_registry')
         .insert({
@@ -1014,10 +1017,11 @@ export default function RegistroContabilePage() {
           payment_method: data.payment_method || null,
           source_document_type: data.source_document_type || null,
           source_document_id: data.source_document_id || null,
-          cost_center_id: data.cost_center_id || null,
-          profit_center_id: data.profit_center_id || null,
-          cost_account_id: data.cost_account_id || null,
-          revenue_account_id: data.revenue_account_id || null,
+          // Se c'è split, i campi singoli devono essere null (usa solo split)
+          cost_center_id: hasSplit ? null : (data.cost_center_id || null),
+          profit_center_id: hasSplit ? null : (data.profit_center_id || null),
+          cost_account_id: hasSplit ? null : (data.cost_account_id || null),
+          revenue_account_id: hasSplit ? null : (data.revenue_account_id || null),
           notes: data.notes || null,
           created_by: user?.user?.id,
           account_splits: splitsToSave
@@ -1048,6 +1052,10 @@ export default function RegistroContabilePage() {
       const eventType = isAcquisto ? 'costo' : 'ricavo';
       const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
       const paymentMethod = invoice.payment_method || 'bonifico';
+      
+      // Verifica se c'è uno split - se sì, NON usare i valori singoli del form
+      const accountSplitsForCheck = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
+      const hasAccountSplit = accountSplitsForCheck.length > 0;
 
       const { data: accountingEntry, error: accountingError } = await supabase
         .from('accounting_entries')
@@ -1067,9 +1075,10 @@ export default function RegistroContabilePage() {
           payment_method: isPaid ? paymentMethod : null,
           attachment_url: invoice.attachment_url || '',
           user_id: user?.user?.id,
-          cost_center_id: invoice.cost_center_id || null,
-          profit_center_id: invoice.profit_center_id || null,
-          chart_account_id: isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id
+          // Se c'è split, non usare i campi singoli (usa solo split lines)
+          cost_center_id: hasAccountSplit ? null : (invoice.cost_center_id || null),
+          profit_center_id: hasAccountSplit ? null : (invoice.profit_center_id || null),
+          chart_account_id: hasAccountSplit ? null : (isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id)
         })
         .select()
         .single();
@@ -1093,9 +1102,10 @@ export default function RegistroContabilePage() {
           payment_method: isPaid ? paymentMethod : null,
           status: 'registrato',
           accounting_entry_id: accountingEntry.id,
-          cost_center_id: invoice.cost_center_id || null,
-          profit_center_id: invoice.profit_center_id || null,
-          chart_account_id: isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id
+          // Se c'è split, non usare i campi singoli (usa solo split lines)
+          cost_center_id: hasAccountSplit ? null : (invoice.cost_center_id || null),
+          profit_center_id: hasAccountSplit ? null : (invoice.profit_center_id || null),
+          chart_account_id: hasAccountSplit ? null : (isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id)
         })
         .select()
         .single();
@@ -1348,6 +1358,9 @@ export default function RegistroContabilePage() {
             profit_center_id: s.profit_center_id || null
           }))
         : null;
+      
+      // Se c'è split, NON usare i valori singoli di conto/centro (usare solo lo split)
+      const hasSplit = splitsToSave && splitsToSave.length > 0;
 
       // ========================================================
       // MODIFICA CONSENTITA: bozza oppure da_riclassificare
@@ -1373,10 +1386,11 @@ export default function RegistroContabilePage() {
           payment_method: updates.payment_method || null,
           source_document_type: updates.source_document_type || null,
           source_document_id: updates.source_document_id || null,
-          cost_center_id: updates.cost_center_id || null,
-          profit_center_id: updates.profit_center_id || null,
-          cost_account_id: updates.cost_account_id || null,
-          revenue_account_id: updates.revenue_account_id || null,
+          // Se c'è split, i campi singoli devono essere null (usa solo split)
+          cost_center_id: hasSplit ? null : (updates.cost_center_id || null),
+          profit_center_id: hasSplit ? null : (updates.profit_center_id || null),
+          cost_account_id: hasSplit ? null : (updates.cost_account_id || null),
+          revenue_account_id: hasSplit ? null : (updates.revenue_account_id || null),
           notes: updates.notes || null,
           account_splits: splitsToSave,
           // Se era da_riclassificare dopo storno, invalidiamo i vecchi riferimenti
