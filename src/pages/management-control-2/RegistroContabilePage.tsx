@@ -704,8 +704,8 @@ export default function RegistroContabilePage() {
 
   // State for operational documents filters
   const [opDocTypeFilter, setOpDocTypeFilter] = useState("all");
-  const [opInvoiceFilter, setOpInvoiceFilter] = useState("all");
-  const [opYearFilter, setOpYearFilter] = useState<string>("2026");
+  const [opInvoiceFilter, setOpInvoiceFilter] = useState("pending"); // Default: mostra solo da fatturare
+  const [opYearFilter, setOpYearFilter] = useState<string>("all"); // All years by default
   const [opMonthFilter, setOpMonthFilter] = useState<string>("all");
   const [opArchivedFilter, setOpArchivedFilter] = useState<string>("active"); // active, archived, all
   const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
