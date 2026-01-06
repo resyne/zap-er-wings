@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -268,6 +269,10 @@ export default function RegistroContabilePage() {
   
   // Stato per mostrare la vista documenti operativi (separato dai filtri)
   const [showOperationalDocs, setShowOperationalDocs] = useState(false);
+  
+  // Stato per il dialog di conferma fattura duplicata
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const [duplicateInvoiceInfo, setDuplicateInvoiceInfo] = useState<{ number: string; existing: InvoiceRegistry | null }>({ number: '', existing: null });
 
   const handleFileUpload = useCallback(async (file: File) => {
     setIsUploading(true);
@@ -982,6 +987,39 @@ export default function RegistroContabilePage() {
     const ivaAmount = imponibile * (ivaRate / 100);
     const totalAmount = imponibile + ivaAmount;
     return { ivaAmount, totalAmount };
+  };
+
+  // Funzione per controllare fatture duplicate prima di salvare
+  const checkDuplicateAndSave = async () => {
+    if (!formData.invoice_number) return;
+    
+    // Cerca fatture con lo stesso numero (escludendo quelle stornate senza nuova contabilizzazione)
+    const { data: existingInvoices } = await supabase
+      .from('invoice_registry')
+      .select('*')
+      .eq('invoice_number', formData.invoice_number)
+      .neq('status', 'bozza');
+    
+    const validExisting = existingInvoices?.find(inv => 
+      inv.contabilizzazione_valida !== false
+    );
+    
+    if (validExisting) {
+      // Mostra alert di conferma
+      setDuplicateInvoiceInfo({ 
+        number: formData.invoice_number, 
+        existing: validExisting as InvoiceRegistry 
+      });
+      setShowDuplicateAlert(true);
+    } else {
+      // Nessun duplicato, procedi
+      createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined });
+    }
+  };
+
+  const confirmSaveDuplicate = () => {
+    setShowDuplicateAlert(false);
+    createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined });
   };
 
   const createMutation = useMutation({
@@ -3715,7 +3753,7 @@ export default function RegistroContabilePage() {
               Annulla
             </Button>
             <Button 
-              onClick={() => createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined })}
+              onClick={checkDuplicateAndSave}
               disabled={!formData.invoice_number || !formData.subject_name || createMutation.isPending}
             >
               {createMutation.isPending ? 'Salvataggio...' : 'Salva Bozza'}
@@ -3723,6 +3761,35 @@ export default function RegistroContabilePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog per fattura duplicata */}
+      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Fattura già registrata
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esiste già una fattura con numero <strong>{duplicateInvoiceInfo.number}</strong> nel registro.
+              {duplicateInvoiceInfo.existing && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm">
+                  <p>Soggetto: {duplicateInvoiceInfo.existing.subject_name}</p>
+                  <p>Data: {format(new Date(duplicateInvoiceInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
+                  <p>Importo: €{duplicateInvoiceInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                </div>
+              )}
+              <p className="mt-3">Procedere comunque con la registrazione?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSaveDuplicate}>
+              Procedi comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
         <DialogContent>
