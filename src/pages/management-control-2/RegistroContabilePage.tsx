@@ -63,6 +63,13 @@ interface AccountSplitLine {
   profit_center_id?: string;
 }
 
+// Interfaccia per scadenze multiple
+interface ScadenzaLine {
+  id: string;
+  due_date: string;
+  amount: number;
+}
+
 interface InvoiceRegistry {
   id: string;
   invoice_number: string;
@@ -244,6 +251,10 @@ export default function RegistroContabilePage() {
   const [splitLines, setSplitLines] = useState<AccountSplitLine[]>([]);
   const [editSplitEnabled, setEditSplitEnabled] = useState(false);
   const [editSplitLines, setEditSplitLines] = useState<AccountSplitLine[]>([]);
+  
+  // Scadenze multiple states
+  const [scadenzeLines, setScadenzeLines] = useState<ScadenzaLine[]>([]);
+  const [editScadenzeLines, setEditScadenzeLines] = useState<ScadenzaLine[]>([]);
   
   // Subject search states
   const [subjectSearchOpen, setSubjectSearchOpen] = useState(false);
@@ -989,6 +1000,56 @@ export default function RegistroContabilePage() {
     return { ivaAmount, totalAmount };
   };
 
+  // Funzioni per gestire scadenze multiple
+  const addScadenzaLine = () => {
+    const { totalAmount } = calculateAmounts(formData.imponibile, formData.iva_rate);
+    const existingTotal = scadenzeLines.reduce((sum, s) => sum + s.amount, 0);
+    const remaining = totalAmount - existingTotal;
+    
+    setScadenzeLines([...scadenzeLines, {
+      id: crypto.randomUUID(),
+      due_date: formData.due_date || format(new Date(), 'yyyy-MM-dd'),
+      amount: Math.max(0, remaining)
+    }]);
+  };
+
+  const removeScadenzaLine = (id: string) => {
+    setScadenzeLines(scadenzeLines.filter(s => s.id !== id));
+  };
+
+  const updateScadenzaLine = (id: string, field: 'due_date' | 'amount', value: string | number) => {
+    setScadenzeLines(scadenzeLines.map(s => 
+      s.id === id ? { ...s, [field]: value } : s
+    ));
+  };
+
+  const getScadenzeTotal = () => scadenzeLines.reduce((sum, s) => sum + s.amount, 0);
+
+  // Stesso per edit
+  const addEditScadenzaLine = () => {
+    const { totalAmount } = calculateAmounts(editFormData.imponibile, editFormData.iva_rate);
+    const existingTotal = editScadenzeLines.reduce((sum, s) => sum + s.amount, 0);
+    const remaining = totalAmount - existingTotal;
+    
+    setEditScadenzeLines([...editScadenzeLines, {
+      id: crypto.randomUUID(),
+      due_date: editFormData.due_date || format(new Date(), 'yyyy-MM-dd'),
+      amount: Math.max(0, remaining)
+    }]);
+  };
+
+  const removeEditScadenzaLine = (id: string) => {
+    setEditScadenzeLines(editScadenzeLines.filter(s => s.id !== id));
+  };
+
+  const updateEditScadenzaLine = (id: string, field: 'due_date' | 'amount', value: string | number) => {
+    setEditScadenzeLines(editScadenzeLines.map(s => 
+      s.id === id ? { ...s, [field]: value } : s
+    ));
+  };
+
+  const getEditScadenzeTotal = () => editScadenzeLines.reduce((sum, s) => sum + s.amount, 0);
+
   // Funzione per controllare fatture duplicate prima di salvare
   const checkDuplicateAndSave = async () => {
     if (!formData.invoice_number) return;
@@ -1088,7 +1149,8 @@ export default function RegistroContabilePage() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (invoice: InvoiceRegistry) => {
+    mutationFn: async (params: { invoice: InvoiceRegistry; scadenze?: ScadenzaLine[] }) => {
+      const { invoice, scadenze = [] } = params;
       const { data: user } = await supabase.auth.getUser();
       const now = new Date().toISOString();
 
@@ -1286,29 +1348,60 @@ export default function RegistroContabilePage() {
         if (linesError) throw linesError;
       }
 
-      let scadenzaId = null;
+      // Creazione scadenze (singola o multiple)
+      let scadenzaIds: string[] = [];
       if (invoice.financial_status === 'da_incassare' || invoice.financial_status === 'da_pagare') {
-        const { data: scadenza, error: scadenzaError } = await supabase
-          .from('scadenze')
-          .insert({
-            tipo: invoice.invoice_type === 'acquisto' ? 'debito' : 'credito',
-            soggetto_nome: invoice.subject_name,
-            soggetto_tipo: invoice.subject_type,
-            note: `Fattura ${invoice.invoice_number}`,
-            importo_totale: invoice.total_amount,
-            importo_residuo: invoice.total_amount,
-            data_documento: invoice.invoice_date,
-            data_scadenza: invoice.due_date || invoice.invoice_date,
-            stato: 'aperta',
-            evento_id: accountingEntry.id,
-            prima_nota_id: primaNota.id
-          })
-          .select()
-          .single();
+        const tipo = invoice.invoice_type === 'acquisto' ? 'debito' : 'credito';
+        
+        // Se ci sono scadenze multiple, crea una per ciascuna
+        if (scadenze.length > 0) {
+          for (const scad of scadenze) {
+            const { data: scadenza, error: scadenzaError } = await supabase
+              .from('scadenze')
+              .insert({
+                tipo,
+                soggetto_nome: invoice.subject_name,
+                soggetto_tipo: invoice.subject_type,
+                note: `Fattura ${invoice.invoice_number} - Rata ${scadenze.indexOf(scad) + 1}/${scadenze.length}`,
+                importo_totale: scad.amount,
+                importo_residuo: scad.amount,
+                data_documento: invoice.invoice_date,
+                data_scadenza: scad.due_date,
+                stato: 'aperta',
+                evento_id: accountingEntry.id,
+                prima_nota_id: primaNota.id
+              })
+              .select()
+              .single();
 
-        if (scadenzaError) throw scadenzaError;
-        scadenzaId = scadenza.id;
+            if (scadenzaError) throw scadenzaError;
+            scadenzaIds.push(scadenza.id);
+          }
+        } else {
+          // Scadenza singola (retrocompatibilità)
+          const { data: scadenza, error: scadenzaError } = await supabase
+            .from('scadenze')
+            .insert({
+              tipo,
+              soggetto_nome: invoice.subject_name,
+              soggetto_tipo: invoice.subject_type,
+              note: `Fattura ${invoice.invoice_number}`,
+              importo_totale: invoice.total_amount,
+              importo_residuo: invoice.total_amount,
+              data_documento: invoice.invoice_date,
+              data_scadenza: invoice.due_date || invoice.invoice_date,
+              stato: 'aperta',
+              evento_id: accountingEntry.id,
+              prima_nota_id: primaNota.id
+            })
+            .select()
+            .single();
+
+          if (scadenzaError) throw scadenzaError;
+          scadenzaIds.push(scadenza.id);
+        }
       }
+      const scadenzaId = scadenzaIds[0] || null;
 
       if (invoice.invoice_type === 'vendita' || invoice.invoice_type === 'nota_credito') {
         await supabase.from('customer_invoices').insert({
@@ -3850,7 +3943,7 @@ export default function RegistroContabilePage() {
               Annulla
             </Button>
             <Button 
-              onClick={() => selectedInvoice && registerMutation.mutate(selectedInvoice)}
+              onClick={() => selectedInvoice && registerMutation.mutate({ invoice: selectedInvoice, scadenze: scadenzeLines })}
               disabled={registerMutation.isPending}
             >
               {registerMutation.isPending ? 'Registrazione...' : 'Registra Fattura'}
