@@ -34,6 +34,7 @@ interface PrimaNotaLine {
     competence_date: string;
     description: string | null;
     status: string;
+    is_rectification?: boolean;
   } | null;
   chart_account?: { code: string; name: string } | null;
   structural_account?: { code: string; name: string } | null;
@@ -96,7 +97,7 @@ export default function MastrinoPage() {
         .from("prima_nota_lines")
         .select(`
           *,
-          prima_nota:prima_nota_id(competence_date, description, status),
+          prima_nota:prima_nota_id(competence_date, description, status, is_rectification),
           chart_account:chart_of_accounts(code, name),
           structural_account:structural_accounts(code, name)
         `)
@@ -104,9 +105,12 @@ export default function MastrinoPage() {
 
       if (error) throw error;
       
-      // Filter out lines where prima_nota status is "rettificato"
+      // Filter out lines where:
+      // 1. prima_nota status is "rettificato" (cancelled/reversed entries)
+      // 2. prima_nota is_rectification is true (the reversal entries themselves)
       return (data as PrimaNotaLine[]).filter(
-        line => line.prima_nota?.status !== "rettificato"
+        line => line.prima_nota?.status !== "rettificato" && 
+                !line.prima_nota?.is_rectification
       );
     },
   });
