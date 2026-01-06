@@ -1600,7 +1600,7 @@ export default function RegistroContabilePage() {
         // Aggiorna scadenza se esiste
         if (invoice.scadenza_id) {
           // Se pagata/incassata, chiudi la scadenza
-          const scadenzaStato = isPaid ? 'saldata' : 'aperta';
+          const scadenzaStato = isPaid ? 'chiusa' : 'aperta';
           const importoResiduo = isPaid ? 0 : totalAmount;
 
           const { error: scadenzaError } = await supabase
@@ -1875,13 +1875,69 @@ export default function RegistroContabilePage() {
         if (linesError) throw linesError;
       }
 
-      // 4. Aggiorna evento nel registro con nuovi riferimenti
+      // 4. Ripristina/crea scadenza (se serve) e aggiorna evento nel registro con nuovi riferimenti
+      let scadenzaId: string | null = invoice.scadenza_id;
+
+      const shouldHaveScadenza =
+        invoice.financial_status === 'da_incassare' || invoice.financial_status === 'da_pagare';
+
+      if (shouldHaveScadenza) {
+        const scadenzaStato = isPaid ? 'chiusa' : 'aperta';
+        const importoResiduo = isPaid ? 0 : invoice.total_amount;
+
+        const scadenzaPayload = {
+          tipo: isAcquisto ? 'debito' : 'credito',
+          soggetto_nome: invoice.subject_name,
+          soggetto_tipo: invoice.subject_type,
+          note: `Fattura ${invoice.invoice_number}`,
+          importo_totale: invoice.total_amount,
+          importo_residuo: importoResiduo,
+          data_documento: invoice.invoice_date,
+          data_scadenza: invoice.due_date || invoice.invoice_date,
+          stato: scadenzaStato,
+          evento_id: accountingEntry.id,
+          prima_nota_id: primaNota.id,
+        };
+
+        if (scadenzaId) {
+          const { error: scadenzaError } = await supabase
+            .from('scadenze')
+            .update(scadenzaPayload)
+            .eq('id', scadenzaId);
+
+          if (scadenzaError) throw scadenzaError;
+        } else {
+          const { data: scadenza, error: scadenzaError } = await supabase
+            .from('scadenze')
+            .insert(scadenzaPayload)
+            .select()
+            .single();
+
+          if (scadenzaError) throw scadenzaError;
+          scadenzaId = scadenza.id;
+        }
+      } else if (scadenzaId) {
+        // Se non deve avere scadenza (già pagata/incassata), riallinea comunque ai nuovi riferimenti
+        const { error: scadenzaError } = await supabase
+          .from('scadenze')
+          .update({
+            stato: 'chiusa',
+            importo_residuo: 0,
+            evento_id: accountingEntry.id,
+            prima_nota_id: primaNota.id,
+          })
+          .eq('id', scadenzaId);
+
+        if (scadenzaError) throw scadenzaError;
+      }
+
       const { error: updateError } = await supabase
         .from('invoice_registry')
         .update({
           status: 'contabilizzato',
           accounting_entry_id: accountingEntry.id,
           prima_nota_id: primaNota.id,
+          scadenza_id: scadenzaId,
           contabilizzazione_valida: true,
           // Mantieni traccia storno come audit
         })

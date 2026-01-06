@@ -65,7 +65,7 @@ interface Scadenza {
   data_scadenza: string;
   importo_totale: number;
   importo_residuo: number;
-  stato: "aperta" | "parziale" | "chiusa" | "stornata";
+  stato: "aperta" | "parziale" | "chiusa" | "saldata" | "stornata";
   iva_mode: string | null;
   conto_economico: string | null;
   centro_id: string | null;
@@ -119,7 +119,94 @@ export default function ScadenziarioPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Scadenza[];
+
+      let scadenze = (data as Scadenza[]) ?? [];
+
+      // AUTO-FIX: se una scadenza è stata messa "stornata" a residuo 0 dopo lo storno,
+      // ma l'evento nel Registro Contabile è stato poi RI-CONTABILIZZATO,
+      // riallinea la scadenza (aperta + residuo = totale) così i totali tornano corretti.
+      const candidateIds = scadenze
+        .filter((s) => s.stato === "stornata" && Number(s.importo_residuo) === 0)
+        .map((s) => s.id);
+
+      if (candidateIds.length > 0) {
+        type InvoiceRegistryForFix = {
+          scadenza_id: string | null;
+          status: string;
+          contabilizzazione_valida: boolean | null;
+          financial_status: string;
+          total_amount: number;
+          invoice_number: string;
+          invoice_date: string;
+          due_date: string | null;
+          subject_name: string;
+          subject_type: string;
+          accounting_entry_id: string | null;
+          prima_nota_id: string | null;
+        };
+
+        const { data: invs, error: invError } = await supabase
+          .from("invoice_registry")
+          .select(
+            "scadenza_id,status,contabilizzazione_valida,financial_status,total_amount,invoice_number,invoice_date,due_date,subject_name,subject_type,accounting_entry_id,prima_nota_id"
+          )
+          .in("scadenza_id", candidateIds);
+
+        if (!invError && invs && invs.length > 0) {
+          const invByScadenza = new Map(
+            (invs as InvoiceRegistryForFix[])
+              .filter((i) => !!i.scadenza_id)
+              .map((i) => [i.scadenza_id as string, i])
+          );
+
+          const isValidForFinancialStats = (i: InvoiceRegistryForFix) =>
+            i.contabilizzazione_valida !== false &&
+            !["da_riclassificare", "rettificato", "bozza"].includes(i.status);
+
+          const shouldBeOpenInScadenziario = (i: InvoiceRegistryForFix) =>
+            isValidForFinancialStats(i) &&
+            (i.financial_status === "da_incassare" || i.financial_status === "da_pagare");
+
+          const fixes = scadenze
+            .map((s) => {
+              const inv = invByScadenza.get(s.id);
+              if (!inv || !shouldBeOpenInScadenziario(inv)) return null;
+
+              const patch: Partial<Scadenza> = {
+                stato: "aperta",
+                importo_totale: inv.total_amount,
+                importo_residuo: inv.total_amount,
+                data_documento: inv.invoice_date,
+                data_scadenza: inv.due_date || inv.invoice_date,
+                soggetto_nome: inv.subject_name,
+                soggetto_tipo: inv.subject_type,
+                note: `Fattura ${inv.invoice_number}`,
+                evento_id: inv.accounting_entry_id,
+                prima_nota_id: inv.prima_nota_id,
+              };
+
+              return { id: s.id, patch };
+            })
+            .filter(Boolean) as Array<{ id: string; patch: Partial<Scadenza> }>;
+
+          if (fixes.length > 0) {
+            const results = await Promise.all(
+              fixes.map(({ id, patch }) => supabase.from("scadenze").update(patch).eq("id", id))
+            );
+            const firstErr = results.find((r) => r.error)?.error;
+            if (firstErr) {
+              console.warn("Scadenziario auto-fix scadenze fallito:", firstErr);
+            }
+
+            scadenze = scadenze.map((s) => {
+              const fix = fixes.find((f) => f.id === s.id);
+              return fix ? ({ ...s, ...fix.patch } as Scadenza) : s;
+            });
+          }
+        }
+      }
+
+      return scadenze;
     },
   });
 
@@ -346,9 +433,10 @@ export default function ScadenziarioPage() {
       case "parziale":
         return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Parziale</Badge>;
       case "chiusa":
+      case "saldata":
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Chiusa</Badge>;
       case "stornata":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">stornata</Badge>;
+        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">Stornata</Badge>;
       default:
         return <Badge variant="outline">{stato}</Badge>;
     }
@@ -379,11 +467,13 @@ export default function ScadenziarioPage() {
     );
   };
 
+  const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
+
   // Calcolo totali - escludi solo scadenze chiuse (le stornate possono essere ri-registrate)
   const totali = scadenze?.reduce(
     (acc, s) => {
       // Escludi solo le scadenze chiuse (completamente saldate)
-      if (s.stato !== "chiusa") {
+      if (!isClosedScadenza(s)) {
         if (s.tipo === "credito") {
           acc.crediti += s.importo_residuo;
         } else {
@@ -395,9 +485,8 @@ export default function ScadenziarioPage() {
     { crediti: 0, debiti: 0 }
   ) || { crediti: 0, debiti: 0 };
 
-  const scaduteCount = scadenze?.filter(
-    (s) => s.stato !== "chiusa" && getGiorniScadenza(s.data_scadenza) < 0
-  ).length || 0;
+  const scaduteCount =
+    scadenze?.filter((s) => !isClosedScadenza(s) && getGiorniScadenza(s.data_scadenza) < 0).length || 0;
 
   if (isLoading) {
     return (
