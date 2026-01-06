@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -37,8 +37,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -48,9 +50,13 @@ import {
   ChevronDown,
   ChevronRight,
   Euro,
-  Calendar,
+  FileText,
   History,
-  Filter,
+  Building2,
+  CreditCard,
+  Receipt,
+  Search,
+  Plus,
 } from "lucide-react";
 
 interface Scadenza {
@@ -72,6 +78,8 @@ interface Scadenza {
   termini_pagamento: number | null;
   note: string | null;
   created_at: string;
+  invoice_number?: string;
+  invoice_date?: string;
 }
 
 interface ScadenzaMovimento {
@@ -86,21 +94,33 @@ interface ScadenzaMovimento {
   created_at: string;
 }
 
+interface ClienteGroup {
+  nome: string;
+  tipo: "credito" | "debito";
+  scadenze: Scadenza[];
+  totaleImporto: number;
+  totaleResiduo: number;
+  scadenzeAperte: number;
+  scadenzeScadute: number;
+}
+
 export default function ScadenziarioPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"tutti" | "crediti" | "debiti">("tutti");
   const [statoFilter, setStatoFilter] = useState<"tutti" | "aperta" | "parziale" | "chiusa">("tutti");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [expandedScadenza, setExpandedScadenza] = useState<string | null>(null);
   const [registraDialogOpen, setRegistraDialogOpen] = useState(false);
   const [selectedScadenza, setSelectedScadenza] = useState<Scadenza | null>(null);
   const [importoRegistrazione, setImportoRegistrazione] = useState<string>("");
   const [dataRegistrazione, setDataRegistrazione] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [metodoRegistrazione, setMetodoRegistrazione] = useState<string>("banca");
+  const [metodoRegistrazione, setMetodoRegistrazione] = useState<string>("bonifico");
   const [noteRegistrazione, setNoteRegistrazione] = useState<string>("");
 
-  // Fetch scadenze
+  // Fetch scadenze con dettagli fattura
   const { data: scadenze, isLoading } = useQuery({
-    queryKey: ["scadenze", activeTab, statoFilter],
+    queryKey: ["scadenze-dettagliate", activeTab, statoFilter],
     queryFn: async () => {
       let query = supabase
         .from("scadenze")
@@ -120,113 +140,96 @@ export default function ScadenziarioPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      let scadenze = (data as Scadenza[]) ?? [];
+      const scadenzeBase = (data as Scadenza[]) ?? [];
 
-      // AUTO-FIX: se una scadenza è stata messa "stornata" a residuo 0 dopo lo storno,
-      // ma l'evento nel Registro Contabile è stato poi RI-CONTABILIZZATO,
-      // riallinea la scadenza (aperta + residuo = totale) così i totali tornano corretti.
-      const candidateIds = scadenze
-        .filter((s) => s.stato === "stornata" && Number(s.importo_residuo) === 0)
-        .map((s) => s.id);
-
-      if (candidateIds.length > 0) {
-        type InvoiceRegistryForFix = {
-          scadenza_id: string | null;
-          status: string;
-          contabilizzazione_valida: boolean | null;
-          financial_status: string;
-          total_amount: number;
-          invoice_number: string;
-          invoice_date: string;
-          due_date: string | null;
-          subject_name: string;
-          subject_type: string;
-          accounting_entry_id: string | null;
-          prima_nota_id: string | null;
-        };
-
-        const { data: invs, error: invError } = await supabase
+      // Fetch invoice details for each scadenza
+      const scadenzeIds = scadenzeBase.map(s => s.id);
+      if (scadenzeIds.length > 0) {
+        const { data: invoices } = await supabase
           .from("invoice_registry")
-          .select(
-            "scadenza_id,status,contabilizzazione_valida,financial_status,total_amount,invoice_number,invoice_date,due_date,subject_name,subject_type,accounting_entry_id,prima_nota_id"
-          )
-          .in("scadenza_id", candidateIds);
+          .select("scadenza_id, invoice_number, invoice_date")
+          .in("scadenza_id", scadenzeIds);
 
-        if (!invError && invs && invs.length > 0) {
-          const invByScadenza = new Map(
-            (invs as InvoiceRegistryForFix[])
-              .filter((i) => !!i.scadenza_id)
-              .map((i) => [i.scadenza_id as string, i])
-          );
-
-          const isValidForFinancialStats = (i: InvoiceRegistryForFix) =>
-            i.contabilizzazione_valida !== false &&
-            !["da_riclassificare", "rettificato", "bozza"].includes(i.status);
-
-          const shouldBeOpenInScadenziario = (i: InvoiceRegistryForFix) =>
-            isValidForFinancialStats(i) &&
-            (i.financial_status === "da_incassare" || i.financial_status === "da_pagare");
-
-          const fixes = scadenze
-            .map((s) => {
-              const inv = invByScadenza.get(s.id);
-              if (!inv || !shouldBeOpenInScadenziario(inv)) return null;
-
-              const patch: Partial<Scadenza> = {
-                stato: "aperta",
-                importo_totale: inv.total_amount,
-                importo_residuo: inv.total_amount,
-                data_documento: inv.invoice_date,
-                data_scadenza: inv.due_date || inv.invoice_date,
-                soggetto_nome: inv.subject_name,
-                soggetto_tipo: inv.subject_type,
-                note: `Fattura ${inv.invoice_number}`,
-                evento_id: inv.accounting_entry_id,
-                prima_nota_id: inv.prima_nota_id,
-              };
-
-              return { id: s.id, patch };
-            })
-            .filter(Boolean) as Array<{ id: string; patch: Partial<Scadenza> }>;
-
-          if (fixes.length > 0) {
-            const results = await Promise.all(
-              fixes.map(({ id, patch }) => supabase.from("scadenze").update(patch).eq("id", id))
-            );
-            const firstErr = results.find((r) => r.error)?.error;
-            if (firstErr) {
-              console.warn("Scadenziario auto-fix scadenze fallito:", firstErr);
-            }
-
-            scadenze = scadenze.map((s) => {
-              const fix = fixes.find((f) => f.id === s.id);
-              return fix ? ({ ...s, ...fix.patch } as Scadenza) : s;
-            });
-          }
-        }
+        const invoiceMap = new Map(invoices?.map(inv => [inv.scadenza_id, inv]) || []);
+        
+        return scadenzeBase.map(s => ({
+          ...s,
+          invoice_number: invoiceMap.get(s.id)?.invoice_number,
+          invoice_date: invoiceMap.get(s.id)?.invoice_date,
+        }));
       }
 
-      return scadenze;
+      return scadenzeBase;
     },
   });
 
   // Fetch movimenti per scadenza espansa
   const { data: movimenti } = useQuery({
-    queryKey: ["scadenza-movimenti", expandedId],
+    queryKey: ["scadenza-movimenti", expandedScadenza],
     queryFn: async () => {
-      if (!expandedId) return [];
+      if (!expandedScadenza) return [];
       const { data, error } = await supabase
         .from("scadenza_movimenti")
         .select("*")
-        .eq("scadenza_id", expandedId)
+        .eq("scadenza_id", expandedScadenza)
         .order("data_movimento", { ascending: false });
       if (error) throw error;
       return data as ScadenzaMovimento[];
     },
-    enabled: !!expandedId,
+    enabled: !!expandedScadenza,
   });
 
-  // Mutation per registrare incasso/pagamento
+  // Raggruppa scadenze per cliente
+  const clientiGroups = useMemo(() => {
+    if (!scadenze) return [];
+
+    const filteredScadenze = searchQuery
+      ? scadenze.filter(s => 
+          s.soggetto_nome?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          s.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : scadenze;
+
+    const grouped = new Map<string, ClienteGroup>();
+
+    filteredScadenze.forEach(s => {
+      const key = `${s.soggetto_nome || "Sconosciuto"}-${s.tipo}`;
+      
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          nome: s.soggetto_nome || "Sconosciuto",
+          tipo: s.tipo,
+          scadenze: [],
+          totaleImporto: 0,
+          totaleResiduo: 0,
+          scadenzeAperte: 0,
+          scadenzeScadute: 0,
+        });
+      }
+
+      const group = grouped.get(key)!;
+      group.scadenze.push(s);
+      group.totaleImporto += Number(s.importo_totale);
+      group.totaleResiduo += Number(s.importo_residuo);
+      
+      if (s.stato === "aperta" || s.stato === "parziale") {
+        group.scadenzeAperte++;
+        if (getGiorniScadenza(s.data_scadenza) < 0) {
+          group.scadenzeScadute++;
+        }
+      }
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => {
+      // Prima per scadenze scadute
+      if (a.scadenzeScadute !== b.scadenzeScadute) {
+        return b.scadenzeScadute - a.scadenzeScadute;
+      }
+      // Poi per residuo
+      return b.totaleResiduo - a.totaleResiduo;
+    });
+  }, [scadenze, searchQuery]);
+
   const registraMutation = useMutation({
     mutationFn: async ({
       scadenza,
@@ -271,7 +274,7 @@ export default function ScadenziarioPage() {
         movement_type: "finanziario",
         competence_date: data,
         amount: importo,
-        description: `${scadenza.tipo === "credito" ? "Incasso" : "Pagamento"} - ${scadenza.soggetto_nome || "N/D"}`,
+        description: `${scadenza.tipo === "credito" ? "Incasso" : "Pagamento"} - ${scadenza.soggetto_nome || "N/D"} - ${scadenza.invoice_number || ""}`,
         status: "registrato",
         payment_method: metodo,
       };
@@ -294,8 +297,8 @@ export default function ScadenziarioPage() {
         avere: number;
         description: string;
       }> = [];
+
       if (scadenza.tipo === "credito") {
-        // Incasso: DARE Banca, AVERE Crediti clienti
         righe.push({
           prima_nota_id: primaNotaResult.id,
           line_order: 1,
@@ -315,7 +318,6 @@ export default function ScadenziarioPage() {
           description: "Chiusura credito",
         });
       } else {
-        // Pagamento: DARE Debiti fornitori, AVERE Banca
         righe.push({
           prima_nota_id: primaNotaResult.id,
           line_order: 1,
@@ -353,8 +355,8 @@ export default function ScadenziarioPage() {
       if (movimentoError) throw movimentoError;
 
       // 5. Aggiorna scadenza
-      const nuovoResiduo = scadenza.importo_residuo - importo;
-      const nuovoStato = nuovoResiduo <= 0 ? "chiusa" : "parziale";
+      const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
+      const nuovoStato = nuovoResiduo <= 0 ? "chiusa" : nuovoResiduo < Number(scadenza.importo_totale) ? "parziale" : "aperta";
 
       const { error: updateError } = await supabase
         .from("scadenze")
@@ -369,27 +371,24 @@ export default function ScadenziarioPage() {
       return { success: true };
     },
     onSuccess: () => {
-      toast.success(
-        selectedScadenza?.tipo === "credito"
-          ? "Incasso registrato con successo"
-          : "Pagamento registrato con successo"
-      );
-      queryClient.invalidateQueries({ queryKey: ["scadenze"] });
+      toast.success("Movimento registrato con successo");
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
       queryClient.invalidateQueries({ queryKey: ["scadenza-movimenti"] });
       queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
-      setRegistraDialogOpen(false);
       resetForm();
     },
     onError: (error) => {
-      toast.error("Errore durante la registrazione: " + error.message);
+      console.error("Errore registrazione:", error);
+      toast.error(`Errore durante la registrazione: ${error.message}`);
     },
   });
 
   const resetForm = () => {
+    setRegistraDialogOpen(false);
     setSelectedScadenza(null);
     setImportoRegistrazione("");
     setDataRegistrazione(format(new Date(), "yyyy-MM-dd"));
-    setMetodoRegistrazione("banca");
+    setMetodoRegistrazione("bonifico");
     setNoteRegistrazione("");
   };
 
@@ -420,6 +419,16 @@ export default function ScadenziarioPage() {
     });
   };
 
+  const toggleClientExpand = (clientKey: string) => {
+    const newExpanded = new Set(expandedClients);
+    if (newExpanded.has(clientKey)) {
+      newExpanded.delete(clientKey);
+    } else {
+      newExpanded.add(clientKey);
+    }
+    setExpandedClients(newExpanded);
+  };
+
   const getGiorniScadenza = (dataScadenza: string) => {
     const oggi = new Date();
     const scadenza = parseISO(dataScadenza);
@@ -442,42 +451,42 @@ export default function ScadenziarioPage() {
     }
   };
 
-  const getGiorniBadge = (giorni: number) => {
+  const getGiorniBadge = (giorni: number, stato: string) => {
+    if (stato === "chiusa" || stato === "saldata") return null;
+    
     if (giorni < 0) {
       return (
-        <Badge variant="destructive" className="gap-1">
+        <Badge variant="destructive" className="gap-1 text-xs">
           <AlertTriangle className="h-3 w-3" />
-          Scaduto da {Math.abs(giorni)} gg
+          -{Math.abs(giorni)}gg
         </Badge>
       );
     }
     if (giorni <= 7) {
       return (
-        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1">
+        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-xs">
           <Clock className="h-3 w-3" />
-          {giorni} gg
+          {giorni}gg
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
-        <CheckCircle className="h-3 w-3" />
-        {giorni} gg
+      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 text-xs">
+        {giorni}gg
       </Badge>
     );
   };
 
   const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
 
-  // Calcolo totali - escludi solo scadenze chiuse (le stornate possono essere ri-registrate)
+  // Calcolo totali
   const totali = scadenze?.reduce(
     (acc, s) => {
-      // Escludi solo le scadenze chiuse (completamente saldate)
       if (!isClosedScadenza(s)) {
         if (s.tipo === "credito") {
-          acc.crediti += s.importo_residuo;
+          acc.crediti += Number(s.importo_residuo);
         } else {
-          acc.debiti += s.importo_residuo;
+          acc.debiti += Number(s.importo_residuo);
         }
       }
       return acc;
@@ -485,8 +494,7 @@ export default function ScadenziarioPage() {
     { crediti: 0, debiti: 0 }
   ) || { crediti: 0, debiti: 0 };
 
-  const scaduteCount =
-    scadenze?.filter((s) => !isClosedScadenza(s) && getGiorniScadenza(s.data_scadenza) < 0).length || 0;
+  const scaduteCount = scadenze?.filter((s) => !isClosedScadenza(s) && getGiorniScadenza(s.data_scadenza) < 0).length || 0;
 
   if (isLoading) {
     return (
@@ -504,92 +512,79 @@ export default function ScadenziarioPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Scadenziario</h1>
-          <p className="text-muted-foreground">
-            Gestione crediti e debiti in scadenza
-          </p>
-        </div>
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold">Scadenziario</h1>
+        <p className="text-muted-foreground">
+          Gestione crediti e debiti raggruppati per cliente
+        </p>
       </div>
 
-      {/* Cards riassuntive */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Crediti da incassare
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <ArrowUpCircle className="h-5 w-5 text-green-600" />
-              <span className="text-2xl font-bold text-green-600">
-                € {totali.crediti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-              </span>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-700 font-medium">Crediti</p>
+                <p className="text-2xl font-bold text-green-800">
+                  € {totali.crediti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <ArrowUpCircle className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Debiti da pagare
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <ArrowDownCircle className="h-5 w-5 text-red-600" />
-              <span className="text-2xl font-bold text-red-600">
-                € {totali.debiti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-              </span>
+        <Card className="bg-gradient-to-br from-red-50 to-red-100/50 border-red-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-red-700 font-medium">Debiti</p>
+                <p className="text-2xl font-bold text-red-800">
+                  € {totali.debiti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <ArrowDownCircle className="h-8 w-8 text-red-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Saldo netto
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Euro className="h-5 w-5 text-primary" />
-              <span
-                className={`text-2xl font-bold ${
-                  totali.crediti - totali.debiti >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                € {(totali.crediti - totali.debiti).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-              </span>
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-700 font-medium">Saldo Netto</p>
+                <p className={`text-2xl font-bold ${totali.crediti - totali.debiti >= 0 ? "text-green-800" : "text-red-800"}`}>
+                  € {(totali.crediti - totali.debiti).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <Euro className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Scadenze scadute
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className={`h-5 w-5 ${scaduteCount > 0 ? "text-red-600" : "text-muted-foreground"}`} />
-              <span className={`text-2xl font-bold ${scaduteCount > 0 ? "text-red-600" : ""}`}>
-                {scaduteCount}
-              </span>
+        <Card className={`bg-gradient-to-br ${scaduteCount > 0 ? "from-orange-50 to-orange-100/50 border-orange-200" : "from-gray-50 to-gray-100/50 border-gray-200"}`}>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${scaduteCount > 0 ? "text-orange-700" : "text-gray-700"}`}>Scadute</p>
+                <p className={`text-2xl font-bold ${scaduteCount > 0 ? "text-orange-800" : "text-gray-800"}`}>
+                  {scaduteCount}
+                </p>
+              </div>
+              <AlertTriangle className={`h-8 w-8 ${scaduteCount > 0 ? "text-orange-600" : "text-gray-400"}`} />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs e filtri */}
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-              <TabsList>
+        <CardContent className="pt-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="tutti">Tutti</TabsTrigger>
                 <TabsTrigger value="crediti" className="gap-1">
                   <ArrowUpCircle className="h-4 w-4" />
@@ -602,14 +597,22 @@ export default function ScadenziarioPage() {
               </TabsList>
             </Tabs>
 
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
+            <div className="flex gap-2">
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cerca cliente o fattura..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
               <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as typeof statoFilter)}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tutti">Tutti gli stati</SelectItem>
+                  <SelectItem value="tutti">Tutti</SelectItem>
                   <SelectItem value="aperta">Aperte</SelectItem>
                   <SelectItem value="parziale">Parziali</SelectItem>
                   <SelectItem value="chiusa">Chiuse</SelectItem>
@@ -617,203 +620,268 @@ export default function ScadenziarioPage() {
               </Select>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8"></TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Soggetto</TableHead>
-                <TableHead>Data Documento</TableHead>
-                <TableHead>Data Scadenza</TableHead>
-                <TableHead className="text-right">Importo Totale</TableHead>
-                <TableHead className="text-right">Residuo</TableHead>
-                <TableHead>Giorni</TableHead>
-                <TableHead>Stato</TableHead>
-                <TableHead>Azione</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {scadenze?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                    Nessuna scadenza trovata
-                  </TableCell>
-                </TableRow>
-              ) : (
-                scadenze?.map((scadenza) => {
-                  const giorni = getGiorniScadenza(scadenza.data_scadenza);
-                  const isExpanded = expandedId === scadenza.id;
-
-                  return (
-                    <Collapsible key={scadenza.id} open={isExpanded} onOpenChange={() => setExpandedId(isExpanded ? null : scadenza.id)}>
-                      <TableRow className={scadenza.stato === "chiusa" ? "opacity-60" : ""}>
-                        <TableCell>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </CollapsibleTrigger>
-                        </TableCell>
-                        <TableCell>
-                          {scadenza.tipo === "credito" ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
-                              <ArrowUpCircle className="h-3 w-3" />
-                              Credito
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1">
-                              <ArrowDownCircle className="h-3 w-3" />
-                              Debito
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{scadenza.soggetto_nome || "N/D"}</div>
-                            <div className="text-xs text-muted-foreground">{scadenza.soggetto_tipo}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {format(parseISO(scadenza.data_documento), "dd/MM/yyyy", { locale: it })}
-                        </TableCell>
-                        <TableCell>
-                          {format(parseISO(scadenza.data_scadenza), "dd/MM/yyyy", { locale: it })}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          € {scadenza.importo_totale.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          € {scadenza.importo_residuo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>
-                          {scadenza.stato !== "chiusa" && getGiorniBadge(giorni)}
-                        </TableCell>
-                        <TableCell>{getStatoBadge(scadenza.stato)}</TableCell>
-                        <TableCell>
-                          {scadenza.stato !== "chiusa" && (
-                            <Button
-                              size="sm"
-                              onClick={() => openRegistraDialog(scadenza)}
-                            >
-                              {scadenza.tipo === "credito" ? "Registra Incasso" : "Registra Pagamento"}
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                      <CollapsibleContent asChild>
-                        <TableRow>
-                          <TableCell colSpan={10} className="bg-muted/30 p-4">
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2 text-sm font-medium">
-                                <History className="h-4 w-4" />
-                                Storico Movimenti
-                              </div>
-                              {movimenti && movimenti.length > 0 ? (
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Data</TableHead>
-                                      <TableHead>Importo</TableHead>
-                                      <TableHead>Metodo</TableHead>
-                                      <TableHead>Note</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {movimenti.map((mov) => (
-                                      <TableRow key={mov.id}>
-                                        <TableCell>
-                                          {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                          € {mov.importo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                        </TableCell>
-                                        <TableCell>
-                                          <Badge variant="outline">{mov.metodo_pagamento || "N/D"}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                          {mov.note || "-"}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">
-                                  Nessun movimento registrato
-                                </p>
-                              )}
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <span className="text-muted-foreground">IVA Mode:</span>{" "}
-                                  <span className="font-medium">{scadenza.iva_mode || "N/D"}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Conto:</span>{" "}
-                                  <span className="font-medium">{scadenza.conto_economico || "N/D"}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Termini:</span>{" "}
-                                  <span className="font-medium">{scadenza.termini_pagamento || 30} gg</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Creata il:</span>{" "}
-                                  <span className="font-medium">
-                                    {format(parseISO(scadenza.created_at), "dd/MM/yyyy HH:mm", { locale: it })}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
         </CardContent>
       </Card>
 
-      {/* Dialog registrazione incasso/pagamento */}
+      {/* Client Groups */}
+      <div className="space-y-3">
+        {clientiGroups.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nessuna scadenza trovata</p>
+            </CardContent>
+          </Card>
+        ) : (
+          clientiGroups.map((group) => {
+            const clientKey = `${group.nome}-${group.tipo}`;
+            const isExpanded = expandedClients.has(clientKey);
+            const percentualePagato = group.totaleImporto > 0 
+              ? ((group.totaleImporto - group.totaleResiduo) / group.totaleImporto) * 100 
+              : 0;
+
+            return (
+              <Card key={clientKey} className={`overflow-hidden transition-all ${group.scadenzeScadute > 0 ? "border-orange-300" : ""}`}>
+                <Collapsible open={isExpanded} onOpenChange={() => toggleClientExpand(clientKey)}>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
+                      <div className="flex items-center gap-4">
+                        {isExpanded ? (
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        
+                        <div className={`p-2 rounded-lg ${group.tipo === "credito" ? "bg-green-100" : "bg-red-100"}`}>
+                          <Building2 className={`h-5 w-5 ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`} />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold truncate">{group.nome}</h3>
+                            <Badge variant="outline" className={group.tipo === "credito" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>
+                              {group.tipo === "credito" ? "Cliente" : "Fornitore"}
+                            </Badge>
+                            {group.scadenzeScadute > 0 && (
+                              <Badge variant="destructive" className="gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                {group.scadenzeScadute} scadute
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                            <span>{group.scadenze.length} fattur{group.scadenze.length === 1 ? "a" : "e"}</span>
+                            <span>•</span>
+                            <span>{group.scadenzeAperte} apert{group.scadenzeAperte === 1 ? "a" : "e"}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right hidden md:block">
+                          <div className="text-sm text-muted-foreground mb-1">Residuo / Totale</div>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
+                              € {group.totaleResiduo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-muted-foreground">/</span>
+                            <span className="text-muted-foreground">
+                              € {group.totaleImporto.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <Progress value={percentualePagato} className="h-1.5 mt-2 w-40" />
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="w-10"></TableHead>
+                              <TableHead>Fattura</TableHead>
+                              <TableHead>Data Doc.</TableHead>
+                              <TableHead>Scadenza</TableHead>
+                              <TableHead className="text-right">Importo</TableHead>
+                              <TableHead className="text-right">Residuo</TableHead>
+                              <TableHead>Stato</TableHead>
+                              <TableHead></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {group.scadenze.map((scadenza) => {
+                              const giorni = getGiorniScadenza(scadenza.data_scadenza);
+                              const isScadenzaExpanded = expandedScadenza === scadenza.id;
+
+                              return (
+                                <>
+                                  <TableRow 
+                                    key={scadenza.id} 
+                                    className={`${isClosedScadenza(scadenza) ? "opacity-60" : ""} ${giorni < 0 && !isClosedScadenza(scadenza) ? "bg-orange-50/50" : ""}`}
+                                  >
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => setExpandedScadenza(isScadenzaExpanded ? null : scadenza.id)}
+                                      >
+                                        {isScadenzaExpanded ? (
+                                          <ChevronDown className="h-4 w-4" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        <Receipt className="h-4 w-4 text-muted-foreground" />
+                                        <div>
+                                          <div className="font-medium">{scadenza.invoice_number || "N/D"}</div>
+                                          {scadenza.note && (
+                                            <div className="text-xs text-muted-foreground truncate max-w-40">
+                                              {scadenza.note}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                      {format(parseISO(scadenza.data_documento), "dd/MM/yyyy")}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm">
+                                          {format(parseISO(scadenza.data_scadenza), "dd/MM/yyyy")}
+                                        </span>
+                                        {getGiorniBadge(giorni, scadenza.stato)}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                      € {Number(scadenza.importo_totale).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className={`text-right font-bold ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
+                                      € {Number(scadenza.importo_residuo).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell>
+                                      {getStatoBadge(scadenza.stato)}
+                                    </TableCell>
+                                    <TableCell>
+                                      {!isClosedScadenza(scadenza) && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => openRegistraDialog(scadenza)}
+                                          className="gap-1"
+                                        >
+                                          <CreditCard className="h-3 w-3" />
+                                          {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
+                                        </Button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+
+                                  {/* Expanded row for movements */}
+                                  {isScadenzaExpanded && (
+                                    <TableRow>
+                                      <TableCell colSpan={8} className="bg-muted/30 p-4">
+                                        <div className="space-y-3">
+                                          <div className="flex items-center gap-2 text-sm font-medium">
+                                            <History className="h-4 w-4" />
+                                            Storico Movimenti
+                                          </div>
+                                          {movimenti && movimenti.length > 0 ? (
+                                            <div className="space-y-2">
+                                              {movimenti.map((mov) => (
+                                                <div 
+                                                  key={mov.id}
+                                                  className="flex items-center justify-between p-3 bg-background rounded-lg border"
+                                                >
+                                                  <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-full ${group.tipo === "credito" ? "bg-green-100" : "bg-red-100"}`}>
+                                                      <CreditCard className={`h-4 w-4 ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`} />
+                                                    </div>
+                                                    <div>
+                                                      <div className="font-medium">
+                                                        € {mov.importo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                                      </div>
+                                                      <div className="text-sm text-muted-foreground">
+                                                        {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
+                                                        {mov.metodo_pagamento && ` • ${mov.metodo_pagamento}`}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  {mov.note && (
+                                                    <div className="text-sm text-muted-foreground max-w-xs truncate">
+                                                      {mov.note}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <p className="text-sm text-muted-foreground py-2">
+                                              Nessun movimento registrato
+                                            </p>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Dialog registrazione */}
       <Dialog open={registraDialogOpen} onOpenChange={setRegistraDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
               {selectedScadenza?.tipo === "credito" ? "Registra Incasso" : "Registra Pagamento"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {selectedScadenza && (
-              <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Soggetto:</span>
-                  <span className="font-medium">{selectedScadenza.soggetto_nome || "N/D"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Importo totale:</span>
-                  <span className="font-medium">
-                    € {selectedScadenza.importo_totale.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Residuo:</span>
-                  <span className="font-bold">
-                    € {selectedScadenza.importo_residuo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
+              <Card className="bg-muted/50">
+                <CardContent className="py-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Cliente/Fornitore</span>
+                    <span className="font-medium">{selectedScadenza.soggetto_nome}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Fattura</span>
+                    <span className="font-medium">{selectedScadenza.invoice_number || "N/D"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Importo totale</span>
+                    <span>€ {Number(selectedScadenza.importo_totale).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Residuo</span>
+                    <span className="font-bold text-lg">
+                      € {Number(selectedScadenza.importo_residuo).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="importo">Importo</Label>
+              <Label htmlFor="importo">Importo da registrare</Label>
               <Input
                 id="importo"
                 type="number"
@@ -825,7 +893,7 @@ export default function ScadenziarioPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="data">Data {selectedScadenza?.tipo === "credito" ? "incasso" : "pagamento"}</Label>
+              <Label htmlFor="data">Data</Label>
               <Input
                 id="data"
                 type="date"
@@ -835,7 +903,7 @@ export default function ScadenziarioPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="metodo">Metodo</Label>
+              <Label htmlFor="metodo">Metodo di pagamento</Label>
               <Select value={metodoRegistrazione} onValueChange={setMetodoRegistrazione}>
                 <SelectTrigger>
                   <SelectValue />
