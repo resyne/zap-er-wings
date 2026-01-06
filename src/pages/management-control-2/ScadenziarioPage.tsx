@@ -841,11 +841,11 @@ export default function ScadenziarioPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="banca">Banca</SelectItem>
-                  <SelectItem value="cassa">Cassa</SelectItem>
-                  <SelectItem value="carta">Carta</SelectItem>
                   <SelectItem value="bonifico">Bonifico</SelectItem>
-                  <SelectItem value="assegno">Assegno</SelectItem>
+                  <SelectItem value="contanti">Contanti</SelectItem>
+                  <SelectItem value="carta">Carta</SelectItem>
+                  <SelectItem value="anticipo_personale">Anticipo Personale</SelectItem>
+                  <SelectItem value="non_so">Non specificato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
