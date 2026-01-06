@@ -118,6 +118,15 @@ export default function ScadenziarioPage() {
   const [metodoRegistrazione, setMetodoRegistrazione] = useState<string>("bonifico");
   const [noteRegistrazione, setNoteRegistrazione] = useState<string>("");
 
+  // Helper function - defined early to be used in useMemo
+  const getGiorniScadenza = (dataScadenza: string) => {
+    const oggi = new Date();
+    const scadenza = parseISO(dataScadenza);
+    return differenceInDays(scadenza, oggi);
+  };
+
+  const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
+
   // Fetch scadenze con dettagli fattura
   const { data: scadenze, isLoading } = useQuery({
     queryKey: ["scadenze-dettagliate", activeTab, statoFilter],
@@ -429,11 +438,6 @@ export default function ScadenziarioPage() {
     setExpandedClients(newExpanded);
   };
 
-  const getGiorniScadenza = (dataScadenza: string) => {
-    const oggi = new Date();
-    const scadenza = parseISO(dataScadenza);
-    return differenceInDays(scadenza, oggi);
-  };
 
   const getStatoBadge = (stato: string) => {
     switch (stato) {
@@ -476,8 +480,6 @@ export default function ScadenziarioPage() {
       </Badge>
     );
   };
-
-  const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
 
   // Calcolo totali
   const totali = scadenze?.reduce(
