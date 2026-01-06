@@ -1305,10 +1305,36 @@ export default function RegistroContabilePage() {
     }
   });
 
-  // Mutation per modificare fatture registrate e aggiornare prima nota
+  // Mutation per modificare fatture
+  // REGOLA ERP: Una fattura già registrata con prima_nota NON può essere modificata direttamente
+  // - CASO 1 (bozza, da_riclassificare): Modifica libera
+  // - CASO 2 (registrata con prima_nota_id): Blocco! Deve passare da Storno in Prima Nota
   const updateInvoiceMutation = useMutation({
     mutationFn: async (data: { invoice: InvoiceRegistry; updates: FormData; accountSplits?: AccountSplitLine[] }) => {
       const { invoice, updates, accountSplits } = data;
+      
+      // ========================================================
+      // BLOCCO MODIFICA PER FATTURE GIÀ CONTABILIZZATE
+      // ========================================================
+      // Se la fattura ha status 'registrata' E ha una prima_nota_id,
+      // significa che ha già generato scritture contabili in Prima Nota.
+      // In questo caso NON è consentita la modifica diretta.
+      // L'utente deve prima STORNARE in Prima Nota, poi correggere e rigenerare.
+      if (invoice.status === 'registrata' && invoice.prima_nota_id) {
+        throw new Error(
+          'BLOCCO ERP: Questa fattura ha già generato una Prima Nota. ' +
+          'Non è possibile modificarla direttamente. ' +
+          'Vai in Prima Nota → Storna la scrittura → Poi correggi e rigenera dal Registro Contabile.'
+        );
+      }
+      
+      // Se è in stato 'rettificato' o bloccato, blocca sempre
+      if (invoice.status === 'rettificato' || invoice.periodo_chiuso || invoice.evento_lockato) {
+        throw new Error(
+          'Evento bloccato (periodo chiuso o rettificato). Nessuna modifica consentita.'
+        );
+      }
+
       const ivaAmount = updates.imponibile * (updates.iva_rate / 100);
       const totalAmount = updates.imponibile + ivaAmount;
 
@@ -1323,6 +1349,9 @@ export default function RegistroContabilePage() {
           }))
         : null;
 
+      // ========================================================
+      // MODIFICA CONSENTITA: bozza oppure da_riclassificare
+      // ========================================================
       // Aggiorna la fattura nel registro
       const { error: invoiceError } = await supabase
         .from('invoice_registry')
@@ -1349,14 +1378,25 @@ export default function RegistroContabilePage() {
           cost_account_id: updates.cost_account_id || null,
           revenue_account_id: updates.revenue_account_id || null,
           notes: updates.notes || null,
-          account_splits: splitsToSave
+          account_splits: splitsToSave,
+          // Se era da_riclassificare dopo storno, invalidiamo i vecchi riferimenti
+          // (saranno ricreati con Rigenera Prima Nota)
+          contabilizzazione_valida: invoice.status === 'da_riclassificare' ? false : invoice.contabilizzazione_valida
         })
         .eq('id', invoice.id);
 
       if (invoiceError) throw invoiceError;
 
-      // Se la fattura è registrata, aggiorna anche prima nota e accounting entry
-      if (invoice.status === 'registrata') {
+      // Per fatture da_riclassificare NON aggiorniamo la prima nota esistente
+      // (quella è stata stornata). L'utente deve cliccare "Rigenera Prima Nota"
+      // dopo aver corretto i dati.
+      
+      // ========================================================
+      // NOTA: Il blocco sotto per 'registrata' non verrà mai eseguito
+      // perché abbiamo bloccato sopra. Lo manteniamo per legacy/sicurezza.
+      // ========================================================
+      if (invoice.status === 'registrata' && !invoice.prima_nota_id) {
+        // Caso raro: fattura registrata senza prima nota (anomalia)
         const isAcquisto = updates.invoice_type === 'acquisto';
         const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
         const paymentMethod = updates.payment_method || 'bonifico';
@@ -2805,14 +2845,43 @@ export default function RegistroContabilePage() {
                         {/* EVENTO NORMALE (bozza, registrata, contabilizzato) */}
                         {!['da_riclassificare', 'rettificato'].includes(invoice.status) && (
                           <>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => openEditDialog(invoice)}
-                            >
-                              <Pencil className="w-4 h-4 mr-1" />
-                              Modifica
-                            </Button>
+                            {/* CASO 1: Bozza - Modifica libera */}
+                            {invoice.status === 'bozza' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => openEditDialog(invoice)}
+                              >
+                                <Pencil className="w-4 h-4 mr-1" />
+                                Modifica
+                              </Button>
+                            )}
+                            
+                            {/* CASO 2: Registrata con prima_nota - BLOCCATA */}
+                            {invoice.status === 'registrata' && invoice.prima_nota_id && (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                                  <Lock className="w-3 h-3 mr-1" />
+                                  In Prima Nota
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  Per modificare: Storna in Prima Nota
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* CASO 3: Registrata senza prima_nota (anomalia) - Modifica consentita */}
+                            {invoice.status === 'registrata' && !invoice.prima_nota_id && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => openEditDialog(invoice)}
+                              >
+                                <Pencil className="w-4 h-4 mr-1" />
+                                Modifica
+                              </Button>
+                            )}
+                            
                             {invoice.status === 'bozza' && (
                               <Button 
                                 size="sm" 
