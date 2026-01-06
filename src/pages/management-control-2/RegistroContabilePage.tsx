@@ -626,13 +626,13 @@ export default function RegistroContabilePage() {
     }
   });
 
-  // Fetch sales orders for linking
+  // Fetch sales orders for linking (with customer info)
   const { data: salesOrders = [] } = useQuery({
     queryKey: ['sales-orders-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales_orders')
-        .select('id, number, created_at')
+        .select('id, number, created_at, customer:customer_id(id, name, company_name)')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -3516,7 +3516,16 @@ export default function RegistroContabilePage() {
                           <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
                         ))}
                         {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
-                          <SelectItem key={o.id} value={o.id}>{o.number}</SelectItem>
+                          <SelectItem key={o.id} value={o.id}>
+                            <div className="flex flex-col">
+                              <span>{o.number}</span>
+                              {o.customer && (
+                                <span className="text-xs text-muted-foreground">
+                                  {(o.customer as any).company_name || (o.customer as any).name}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
                         ))}
                         {formData.source_document_type === 'service_report' && serviceReports.map(r => (
                           <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
@@ -3970,7 +3979,16 @@ export default function RegistroContabilePage() {
                       <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
                     ))}
                     {editFormData.source_document_type === 'sales_order' && salesOrders.map(o => (
-                      <SelectItem key={o.id} value={o.id}>{o.number}</SelectItem>
+                      <SelectItem key={o.id} value={o.id}>
+                        <div className="flex flex-col">
+                          <span>{o.number}</span>
+                          {o.customer && (
+                            <span className="text-xs text-muted-foreground">
+                              {(o.customer as any).company_name || (o.customer as any).name}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
                     ))}
                     {editFormData.source_document_type === 'service_report' && serviceReports.map(r => (
                       <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type}</SelectItem>
