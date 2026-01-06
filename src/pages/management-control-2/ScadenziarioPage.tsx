@@ -244,7 +244,7 @@ export default function ScadenziarioPage() {
       // 1. Crea evento finanziario
       const eventoFinanziario = {
         document_date: data,
-        document_type: scadenza.tipo === "credito" ? "incasso" : "pagamento",
+        document_type: "documento_interno",
         direction: scadenza.tipo === "credito" ? "entrata" : "uscita",
         amount: importo,
         totale: importo,
