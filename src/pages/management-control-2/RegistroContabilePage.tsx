@@ -2138,6 +2138,7 @@ export default function RegistroContabilePage() {
   const stats = {
     bozze: invoices.filter(i => i.status === 'bozza').length,
     registrate: invoices.filter(i => i.status === 'registrata').length,
+    contabilizzate: invoices.filter(i => i.status === 'contabilizzato').length,
     // Solo fatture con contabilizzazione valida
     daIncassare: invoices.filter(i => i.financial_status === 'da_incassare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
     daPagare: invoices.filter(i => i.financial_status === 'da_pagare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
@@ -2345,6 +2346,17 @@ export default function RegistroContabilePage() {
                 <p className="text-2xl font-bold">{stats.registrate}</p>
               </div>
               <CheckCircle2 className="w-8 h-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Contabilizzate</p>
+                <p className="text-2xl font-bold text-green-500">{stats.contabilizzate}</p>
+              </div>
+              <CheckCircle2 className="w-8 h-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
