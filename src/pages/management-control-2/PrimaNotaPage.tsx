@@ -700,7 +700,7 @@ export default function PrimaNotaPage() {
       // Trova l'evento collegato a questa scrittura (via prima_nota_id)
       const { data: linkedEvent } = await supabase
         .from("invoice_registry")
-        .select("id, periodo_chiuso, evento_lockato")
+        .select("id, periodo_chiuso, evento_lockato, scadenza_id")
         .eq("prima_nota_id", movementId)
         .maybeSingle();
 
@@ -727,7 +727,26 @@ export default function PrimaNotaPage() {
 
         if (registryError) {
           console.error("Errore aggiornamento Registro Contabile:", registryError);
-          // Non blocchiamo lo storno, ma loggiamo l'errore
+        }
+
+        // =====================================================
+        // AGGIORNA SCADENZA: Saldo a 0 dopo storno
+        // =====================================================
+        // Se l'evento ha una scadenza collegata, la dobbiamo annullare
+        // perché il saldo contabile è ora 0 (storno ha neutralizzato)
+        if (linkedEvent.scadenza_id) {
+          const { error: scadenzaError } = await supabase
+            .from("scadenze")
+            .update({
+              stato: "stornata",
+              importo_residuo: 0,
+              note: `[STORNATA ${new Date().toLocaleDateString('it-IT')}] Motivo: ${reason}`
+            })
+            .eq("id", linkedEvent.scadenza_id);
+
+          if (scadenzaError) {
+            console.error("Errore aggiornamento Scadenza:", scadenzaError);
+          }
         }
       }
     },

@@ -2114,11 +2114,19 @@ export default function RegistroContabilePage() {
     }
   };
 
+  // Escludi fatture stornate/da_riclassificare/rettificate dai totali finanziari
+  // perché il loro saldo contabile è 0 dopo lo storno
+  const isValidForFinancialStats = (i: InvoiceRegistry) => 
+    !i.stornato && 
+    !['da_riclassificare', 'rettificato'].includes(i.status) &&
+    i.contabilizzazione_valida !== false;
+
   const stats = {
     bozze: invoices.filter(i => i.status === 'bozza').length,
     registrate: invoices.filter(i => i.status === 'registrata').length,
-    daIncassare: invoices.filter(i => i.financial_status === 'da_incassare').reduce((sum, i) => sum + i.total_amount, 0),
-    daPagare: invoices.filter(i => i.financial_status === 'da_pagare').reduce((sum, i) => sum + i.total_amount, 0),
+    // Solo fatture con contabilizzazione valida (non stornate)
+    daIncassare: invoices.filter(i => i.financial_status === 'da_incassare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
+    daPagare: invoices.filter(i => i.financial_status === 'da_pagare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
     daClassificare: eventsToClassify.length,
     daRiclassificare: invoices.filter(i => i.status === 'da_riclassificare' || i.stornato).length,
     rettificati: invoices.filter(i => i.status === 'rettificato').length,
