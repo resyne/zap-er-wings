@@ -2136,10 +2136,10 @@ export default function RegistroContabilePage() {
   };
 
   // Escludi fatture da_riclassificare/rettificate/bozze dai totali finanziari
-  // ed escludi le fatture stornate (se esiste una ri-registrazione, sarà un'altra riga non stornata)
+  // perché il loro saldo contabile non è valido. Non escludere "stornato":
+  // una fattura può essere stata stornata e poi ri-contabilizzata restando nella stessa riga.
   const isValidForFinancialStats = (i: InvoiceRegistry) =>
     i.contabilizzazione_valida !== false &&
-    i.stornato !== true &&
     !["da_riclassificare", "rettificato", "bozza"].includes(i.status);
 
   const stats = {
