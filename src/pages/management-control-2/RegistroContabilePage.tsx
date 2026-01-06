@@ -265,6 +265,9 @@ export default function RegistroContabilePage() {
   // Invoice details dialog
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [detailsInvoice, setDetailsInvoice] = useState<InvoiceRegistry | null>(null);
+  
+  // Stato per mostrare la vista documenti operativi (separato dai filtri)
+  const [showOperationalDocs, setShowOperationalDocs] = useState(false);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setIsUploading(true);
@@ -2304,8 +2307,8 @@ export default function RegistroContabilePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card 
-          className={`cursor-pointer transition-all ${filterType === 'da_fatturare' ? 'ring-2 ring-orange-500' : 'hover:bg-muted/50'}`}
-          onClick={() => setFilterType(filterType === 'da_fatturare' ? 'all' : 'da_fatturare')}
+          className={`cursor-pointer transition-all ${showOperationalDocs ? 'ring-2 ring-orange-500' : 'hover:bg-muted/50'}`}
+          onClick={() => setShowOperationalDocs(!showOperationalDocs)}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -2416,7 +2419,6 @@ export default function RegistroContabilePage() {
                 <SelectItem value="vendita">Vendita</SelectItem>
                 <SelectItem value="acquisto">Acquisto</SelectItem>
                 <SelectItem value="da_classificare">Da Classificare</SelectItem>
-                <SelectItem value="da_fatturare">Da Fatturare</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -2454,7 +2456,7 @@ export default function RegistroContabilePage() {
       </Card>
 
       {/* Vista Documentazione Operativa */}
-      {filterType === 'da_fatturare' ? (
+      {showOperationalDocs ? (
         <div className="space-y-4">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
