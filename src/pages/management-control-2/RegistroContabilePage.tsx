@@ -2232,7 +2232,10 @@ export default function RegistroContabilePage() {
   };
 
   const getRegistryStatusBadge = (status: RegistryStatus, stornato?: boolean) => {
-    const statusConfig = REGISTRY_STATUSES.find(s => s.value === status);
+    // Nel Registro Fatture, non mostriamo il badge "Stornato" - quello resta solo in Prima Nota
+    // Unifichiamo "registrata" e "contabilizzato" come "Contabilizzato"
+    const effectiveStatus = status === 'registrata' ? 'contabilizzato' : status;
+    const statusConfig = REGISTRY_STATUSES.find(s => s.value === effectiveStatus);
     if (!statusConfig) return <Badge variant="outline">{status}</Badge>;
     
     const iconMap: Record<string, React.ReactNode> = {
@@ -2245,13 +2248,10 @@ export default function RegistroContabilePage() {
       'rettificato': <Lock className="w-3 h-3 mr-1" />,
       'archiviato': <FileCheck className="w-3 h-3 mr-1" />,
     };
-    const icon = iconMap[status];
+    const icon = iconMap[effectiveStatus];
     
     return (
-      <div className="flex items-center gap-1">
-        <Badge className={statusConfig.color}>{icon}{statusConfig.label}</Badge>
-        {stornato && <Badge variant="destructive" className="text-xs">Stornato</Badge>}
-      </div>
+      <Badge className={statusConfig.color}>{icon}{statusConfig.label}</Badge>
     );
   };
 
