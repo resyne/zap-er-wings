@@ -628,6 +628,27 @@ export default function RegistroContabilePage() {
     }
   });
 
+  // Fetch scadenze per statistiche finanziarie accurate
+  const { data: scadenzeStats } = useQuery({
+    queryKey: ['scadenze-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('scadenze')
+        .select('tipo, importo_residuo, stato')
+        .not('stato', 'in', '("chiusa","saldata")');
+      if (error) throw error;
+      
+      const crediti = data
+        .filter(s => s.tipo === 'credito')
+        .reduce((sum, s) => sum + Number(s.importo_residuo), 0);
+      const debiti = data
+        .filter(s => s.tipo === 'debito')
+        .reduce((sum, s) => sum + Number(s.importo_residuo), 0);
+      
+      return { crediti, debiti };
+    }
+  });
+
   // Fetch DDTs for linking
   const { data: ddts = [] } = useQuery({
     queryKey: ['ddts-list'],
@@ -1142,6 +1163,7 @@ export default function RegistroContabilePage() {
       setSplitEnabled(false);
       setSplitLines([]);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
     },
     onError: (error) => {
       toast.error('Errore nel salvataggio: ' + error.message);
@@ -1447,6 +1469,8 @@ export default function RegistroContabilePage() {
       setShowRegisterDialog(false);
       setSelectedInvoice(null);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
     },
     onError: (error) => {
       toast.error('Errore nella registrazione: ' + error.message);
@@ -2333,9 +2357,9 @@ export default function RegistroContabilePage() {
     bozze: invoices.filter(i => i.status === 'bozza').length,
     // Contabilizzate include sia 'registrata' che 'contabilizzato' (registrata è deprecato)
     contabilizzate: invoices.filter(i => ['registrata', 'contabilizzato'].includes(i.status)).length,
-    // Solo fatture con contabilizzazione valida
-    daIncassare: invoices.filter(i => i.financial_status === 'da_incassare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
-    daPagare: invoices.filter(i => i.financial_status === 'da_pagare' && isValidForFinancialStats(i)).reduce((sum, i) => sum + i.total_amount, 0),
+    // Usa i valori dalle scadenze (importo_residuo) per allinearsi con lo Scadenziario
+    daIncassare: scadenzeStats?.crediti ?? 0,
+    daPagare: scadenzeStats?.debiti ?? 0,
     daClassificare: eventsToClassify.length,
     // Solo status === 'da_riclassificare', NON usare il flag stornato (può essere già ri-contabilizzata)
     daRiclassificare: invoices.filter(i => i.status === 'da_riclassificare').length,
