@@ -2135,12 +2135,12 @@ export default function RegistroContabilePage() {
     }
   };
 
-  // Escludi fatture da_riclassificare/rettificate dai totali finanziari
-  // perché il loro saldo contabile non è valido
-  // Una fattura ri-contabilizzata (contabilizzazione_valida=true) torna nei conteggi
-  const isValidForFinancialStats = (i: InvoiceRegistry) => 
+  // Escludi fatture da_riclassificare/rettificate/bozze dai totali finanziari
+  // ed escludi le fatture stornate (se esiste una ri-registrazione, sarà un'altra riga non stornata)
+  const isValidForFinancialStats = (i: InvoiceRegistry) =>
     i.contabilizzazione_valida !== false &&
-    !['da_riclassificare', 'rettificato', 'bozza'].includes(i.status);
+    i.stornato !== true &&
+    !["da_riclassificare", "rettificato", "bozza"].includes(i.status);
 
   const stats = {
     bozze: invoices.filter(i => i.status === 'bozza').length,
