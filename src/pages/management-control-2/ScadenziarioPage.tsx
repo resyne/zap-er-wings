@@ -268,7 +268,7 @@ export default function ScadenziarioPage() {
       // 2. Crea movimento prima nota finanziaria
       const primaNotaData = {
         accounting_entry_id: eventoData.id,
-        movement_type: scadenza.tipo === "credito" ? "incasso" : "pagamento",
+        movement_type: "finanziario",
         competence_date: data,
         amount: importo,
         description: `${scadenza.tipo === "credito" ? "Incasso" : "Pagamento"} - ${scadenza.soggetto_nome || "N/D"}`,
