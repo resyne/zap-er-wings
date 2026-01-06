@@ -261,6 +261,10 @@ export default function RegistroContabilePage() {
   const [pendingSubjectName, setPendingSubjectName] = useState("");
   const [pendingSubjectType, setPendingSubjectType] = useState<"cliente" | "fornitore">("fornitore");
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
+  
+  // Invoice details dialog
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [detailsInvoice, setDetailsInvoice] = useState<InvoiceRegistry | null>(null);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setIsUploading(true);
@@ -2810,7 +2814,16 @@ export default function RegistroContabilePage() {
                 </TableRow>
               ) : (
                 filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
+                  <TableRow 
+                    key={invoice.id}
+                    className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
+                    onClick={() => {
+                      if (invoice.prima_nota_id) {
+                        setDetailsInvoice(invoice);
+                        setShowDetailsDialog(true);
+                      }
+                    }}
+                  >
                     <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
                     <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                     <TableCell>{getTypeBadge(invoice.invoice_type)}</TableCell>
@@ -4484,6 +4497,312 @@ export default function RegistroContabilePage() {
         onAction={handleSimilarSubjectAction}
         isLoading={isCreatingSubject}
       />
+
+      {/* Invoice Details Dialog */}
+      <InvoiceDetailsDialog 
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        invoice={detailsInvoice}
+        accounts={accounts}
+        costCenters={costCenters}
+        profitCenters={profitCenters}
+      />
     </div>
+  );
+}
+
+// Componente Dialog per i dettagli della fattura
+function InvoiceDetailsDialog({
+  open,
+  onOpenChange,
+  invoice,
+  accounts,
+  costCenters,
+  profitCenters
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  invoice: InvoiceRegistry | null;
+  accounts: any[];
+  costCenters: any[];
+  profitCenters: any[];
+}) {
+  const { data: primaNotaData } = useQuery({
+    queryKey: ['prima-nota-details', invoice?.prima_nota_id],
+    queryFn: async () => {
+      if (!invoice?.prima_nota_id) return null;
+      
+      const { data: primaNota, error: pnError } = await supabase
+        .from('prima_nota')
+        .select('*')
+        .eq('id', invoice.prima_nota_id)
+        .single();
+      
+      if (pnError) throw pnError;
+      
+      const { data: lines, error: linesError } = await supabase
+        .from('prima_nota_lines')
+        .select('*')
+        .eq('prima_nota_id', invoice.prima_nota_id)
+        .order('line_order');
+      
+      if (linesError) throw linesError;
+      
+      return { primaNota, lines };
+    },
+    enabled: open && !!invoice?.prima_nota_id
+  });
+
+  const getAccountName = (accountId: string | null) => {
+    if (!accountId) return '-';
+    const account = accounts.find(a => a.id === accountId);
+    return account ? `${account.code} - ${account.name}` : accountId;
+  };
+
+  const getCenterName = (centerId: string | null, isCost: boolean) => {
+    if (!centerId) return '-';
+    const centers = isCost ? costCenters : profitCenters;
+    const center = centers.find(c => c.id === centerId);
+    return center ? `${center.code} - ${center.name}` : centerId;
+  };
+
+  const getVatRegimeLabel = (regime: string) => {
+    const labels: Record<string, string> = {
+      'domestica_imponibile': 'IVA Domestica',
+      'ue_non_imponibile': 'UE Non Imponibile',
+      'extra_ue': 'Extra UE',
+      'reverse_charge': 'Reverse Charge'
+    };
+    return labels[regime] || regime;
+  };
+
+  if (!invoice) return null;
+
+  const isCost = invoice.invoice_type === 'acquisto';
+  const accountSplits = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            Dettagli Fattura {invoice.invoice_number}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Info generali */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Informazioni Generali</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Data</p>
+                <p className="font-medium">{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Tipo</p>
+                <p className="font-medium capitalize">{invoice.invoice_type}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Soggetto</p>
+                <p className="font-medium">{invoice.subject_name}</p>
+                <p className="text-xs text-muted-foreground capitalize">{invoice.subject_type}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Regime IVA</p>
+                <p className="font-medium">{getVatRegimeLabel(invoice.vat_regime)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Importi */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Importi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-muted-foreground text-sm">Imponibile</p>
+                  <p className="text-xl font-bold">€{invoice.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-muted-foreground text-sm">IVA ({invoice.iva_rate}%)</p>
+                  <p className="text-xl font-bold">€{invoice.iva_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <p className="text-muted-foreground text-sm">Totale</p>
+                  <p className="text-xl font-bold text-primary">€{invoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Classificazione contabile */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Classificazione Contabile</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {accountSplits.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Ripartizione su più conti:</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{isCost ? 'Conto di Costo' : 'Conto di Ricavo'}</TableHead>
+                        <TableHead>{isCost ? 'Centro di Costo' : 'Centro di Ricavo'}</TableHead>
+                        <TableHead className="text-right">Importo</TableHead>
+                        <TableHead className="text-right">%</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {accountSplits.map((split: any, idx: number) => (
+                        <TableRow key={idx}>
+                          <TableCell>{getAccountName(split.account_id)}</TableCell>
+                          <TableCell>{getCenterName(isCost ? split.cost_center_id : split.profit_center_id, isCost)}</TableCell>
+                          <TableCell className="text-right font-medium">€{(split.amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{(split.percentage || 0).toFixed(1)}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">{isCost ? 'Conto di Costo' : 'Conto di Ricavo'}</p>
+                    <p className="font-medium">{getAccountName(isCost ? invoice.cost_account_id : invoice.revenue_account_id)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{isCost ? 'Centro di Costo' : 'Centro di Ricavo'}</p>
+                    <p className="font-medium">{getCenterName(isCost ? invoice.cost_center_id : invoice.profit_center_id, isCost)}</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Scritture Contabili (Prima Nota) */}
+          {primaNotaData && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Receipt className="w-4 h-4" />
+                  Scritture Contabili (Partita Doppia)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8">#</TableHead>
+                      <TableHead>Conto</TableHead>
+                      <TableHead className="text-right">DARE</TableHead>
+                      <TableHead className="text-right">AVERE</TableHead>
+                      <TableHead>Descrizione</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {primaNotaData.lines?.map((line: any, idx: number) => (
+                      <TableRow key={line.id}>
+                        <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {line.account_type === 'dynamic' 
+                            ? line.dynamic_account_key 
+                            : getAccountName(line.chart_account_id)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {line.dare > 0 ? `€ ${line.dare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {line.avere > 0 ? `€ ${line.avere.toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{line.description}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell></TableCell>
+                      <TableCell>TOTALE</TableCell>
+                      <TableCell className="text-right">
+                        € {(primaNotaData.lines?.reduce((sum: number, l: any) => sum + (l.dare || 0), 0) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        € {(primaNotaData.lines?.reduce((sum: number, l: any) => sum + (l.avere || 0), 0) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        {Math.abs((primaNotaData.lines?.reduce((sum: number, l: any) => sum + (l.dare || 0) - (l.avere || 0), 0) || 0)) < 0.01 
+                          ? <Badge className="bg-green-500/20 text-green-600">Bilanciato</Badge>
+                          : <Badge className="bg-red-500/20 text-red-600">Sbilanciato</Badge>}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Stato finanziario */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Stato Finanziario</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Stato Documento</p>
+                <Badge className={
+                  invoice.status === 'contabilizzato' ? 'bg-green-500/20 text-green-600' :
+                  invoice.status === 'registrata' ? 'bg-primary/20 text-primary' :
+                  'bg-muted'
+                }>
+                  {invoice.status}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Stato Pagamento</p>
+                <Badge className={
+                  ['incassata', 'pagata'].includes(invoice.financial_status) ? 'bg-green-500/20 text-green-600' :
+                  'bg-amber-500/20 text-amber-600'
+                }>
+                  {invoice.financial_status?.replace('_', ' ')}
+                </Badge>
+              </div>
+              {invoice.due_date && (
+                <div>
+                  <p className="text-muted-foreground">Scadenza</p>
+                  <p className="font-medium">{format(new Date(invoice.due_date), 'dd/MM/yyyy', { locale: it })}</p>
+                </div>
+              )}
+              {invoice.payment_method && (
+                <div>
+                  <p className="text-muted-foreground">Metodo Pagamento</p>
+                  <p className="font-medium capitalize">{invoice.payment_method}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {invoice.notes && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Note</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">{invoice.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Chiudi
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
