@@ -3798,6 +3798,80 @@ export default function RegistroContabilePage() {
                     placeholder="Note aggiuntive..."
                   />
                 </div>
+
+                {/* Gestione Scadenze Multiple */}
+                {(formData.financial_status === 'da_incassare' || formData.financial_status === 'da_pagare') && (
+                  <div className="col-span-2 space-y-3 border rounded-lg p-4 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Scadenze di Pagamento
+                      </Label>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={addScadenzaLine}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Aggiungi Scadenza
+                      </Button>
+                    </div>
+                    
+                    {scadenzeLines.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nessuna scadenza multipla. Verrà creata una singola scadenza con l'importo totale alla data di scadenza indicata.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {scadenzeLines.map((scad, idx) => (
+                          <div key={scad.id} className="flex items-center gap-3 p-2 bg-background rounded border">
+                            <span className="text-sm font-medium text-muted-foreground w-8">#{idx + 1}</span>
+                            <div className="flex-1 grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-xs">Data Scadenza</Label>
+                                <Input
+                                  type="date"
+                                  value={scad.due_date}
+                                  onChange={(e) => updateScadenzaLine(scad.id, 'due_date', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Importo €</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={scad.amount}
+                                  onChange={(e) => updateScadenzaLine(scad.id, 'amount', parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeScadenzaLine(scad.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center pt-2 border-t">
+                          <span className="text-sm text-muted-foreground">Totale scadenze:</span>
+                          <span className={`font-semibold ${Math.abs(getScadenzeTotal() - totalAmount) > 0.01 ? 'text-destructive' : 'text-green-600'}`}>
+                            €{getScadenzeTotal().toLocaleString('it-IT', { minimumFractionDigits: 2 })} / €{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {Math.abs(getScadenzeTotal() - totalAmount) > 0.01 && (
+                          <p className="text-xs text-destructive">
+                            ⚠️ Il totale delle scadenze non corrisponde all'importo della fattura
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {/* Account Split Manager */}
                 <div className="col-span-2">
