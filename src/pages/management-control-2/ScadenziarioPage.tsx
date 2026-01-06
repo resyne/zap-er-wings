@@ -379,11 +379,11 @@ export default function ScadenziarioPage() {
     );
   };
 
-  // Calcolo totali - escludi scadenze chiuse e stornate
+  // Calcolo totali - escludi solo scadenze chiuse (le stornate possono essere ri-registrate)
   const totali = scadenze?.reduce(
     (acc, s) => {
-      // Escludi le scadenze chiuse e quelle stornate
-      if (s.stato !== "chiusa" && s.stato !== "stornata") {
+      // Escludi solo le scadenze chiuse (completamente saldate)
+      if (s.stato !== "chiusa") {
         if (s.tipo === "credito") {
           acc.crediti += s.importo_residuo;
         } else {
@@ -396,7 +396,7 @@ export default function ScadenziarioPage() {
   ) || { crediti: 0, debiti: 0 };
 
   const scaduteCount = scadenze?.filter(
-    (s) => s.stato !== "chiusa" && s.stato !== "stornata" && getGiorniScadenza(s.data_scadenza) < 0
+    (s) => s.stato !== "chiusa" && getGiorniScadenza(s.data_scadenza) < 0
   ).length || 0;
 
   if (isLoading) {
