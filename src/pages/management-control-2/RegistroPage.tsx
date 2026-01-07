@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,6 @@ import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ServiceReportDialog } from "@/components/registro/ServiceReportDialog";
 
 type FlowType = "rapporto" | "ddt" | "spesa" | "incasso" | null;
 
@@ -68,13 +68,13 @@ interface DdtScanForm {
 
 export default function RegistroPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeFlow, setActiveFlow] = useState<FlowType>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [showQuickEntryDialog, setShowQuickEntryDialog] = useState(false);
   const [showDdtScanDialog, setShowDdtScanDialog] = useState(false);
-  const [showServiceReportDialog, setShowServiceReportDialog] = useState(false);
   const [ddtUploadedFile, setDdtUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [quickEntryType, setQuickEntryType] = useState<"entrata" | "uscita">("uscita");
   const [quickEntryForm, setQuickEntryForm] = useState<QuickEntryForm>({
@@ -193,7 +193,7 @@ export default function RegistroPage() {
 
   const handleFlowStart = (flow: FlowType) => {
     if (flow === "rapporto") {
-      setShowServiceReportDialog(true);
+      navigate("/support/service-reports?new=true");
     } else if (flow === "ddt") {
       setShowDdtScanDialog(true);
     } else if (flow === "spesa") {
@@ -944,11 +944,6 @@ export default function RegistroPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Service Report Dialog */}
-      <ServiceReportDialog 
-        open={showServiceReportDialog} 
-        onOpenChange={setShowServiceReportDialog} 
-      />
     </div>
   );
 }

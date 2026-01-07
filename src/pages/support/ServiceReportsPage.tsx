@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,7 @@ interface ServiceReport {
 }
 
 export default function ServiceReportsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -162,6 +164,13 @@ export default function ServiceReportsPage() {
 
   useEffect(() => {
     loadInitialData();
+    // Check if we should open the create form from URL param
+    if (searchParams.get('new') === 'true') {
+      setShowCreateForm(true);
+      // Remove the param from URL
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
   }, []);
 
   const loadInitialData = async () => {
