@@ -25,6 +25,230 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
+    // NEW: Analyze timeline for objective
+    if (action === "analyze_timeline") {
+      const { title, description, target_date } = data;
+      
+      const targetDateObj = new Date(target_date);
+      const now = new Date();
+      const monthsDiff = Math.round((targetDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30));
+
+      const systemPrompt = `Sei WISE, un esperto di OKR e pianificazione strategica.
+Analizza se la timeline proposta per questo obiettivo è appropriata.
+
+Considera:
+1. La complessità dell'obiettivo
+2. Il tempo tipico necessario per obiettivi simili
+3. I rischi di una timeline troppo aggressiva o troppo lenta
+
+Rispondi SOLO in JSON:
+{
+  "analysis": {
+    "is_appropriate": true/false,
+    "suggested_duration": "3 mesi" o altra durata suggerita,
+    "reasoning": "Spiegazione dettagliata",
+    "risk_level": "low" | "medium" | "high"
+  }
+}`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { 
+              role: "user", 
+              content: `Obiettivo: ${title}
+Descrizione: ${description || "Non specificata"}
+Timeline proposta: ${monthsDiff} mesi (data target: ${target_date})
+
+Questa timeline è appropriata?`
+            }
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Gateway error: ${response.status}`);
+      }
+
+      const aiData = await response.json();
+      const content = aiData.choices?.[0]?.message?.content;
+      
+      let analysis = null;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          analysis = parsed.analysis || parsed;
+        }
+      } catch (e) {
+        console.error("Parse error:", e);
+      }
+
+      return new Response(JSON.stringify({ analysis }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // NEW: Suggest Key Results
+    if (action === "suggest_key_results") {
+      const { title, description, target_date, timeline_analysis } = data;
+
+      const systemPrompt = `Sei WISE, un esperto di OKR.
+Genera 3-4 Key Results SMART per questo obiettivo.
+
+Ogni KR deve essere:
+- Specifico e misurabile
+- Con un target numerico concreto
+- Raggiungibile ma sfidante
+- Con una deadline realistica
+
+Rispondi SOLO in JSON:
+{
+  "suggestions": [
+    {
+      "title": "Descrizione del KR con numero target",
+      "target_value": 100,
+      "unit": "unità di misura",
+      "deadline": "YYYY-MM-DD",
+      "rationale": "Perché questo KR è importante"
+    }
+  ]
+}`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { 
+              role: "user", 
+              content: `Obiettivo: ${title}
+Descrizione: ${description || "Non specificata"}
+Data target: ${target_date}
+${timeline_analysis ? `Analisi timeline: ${JSON.stringify(timeline_analysis)}` : ""}
+
+Genera Key Results SMART per questo obiettivo.`
+            }
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Gateway error: ${response.status}`);
+      }
+
+      const aiData = await response.json();
+      const content = aiData.choices?.[0]?.message?.content;
+      
+      let suggestions = [];
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          suggestions = parsed.suggestions || [];
+        }
+      } catch (e) {
+        console.error("Parse error:", e);
+      }
+
+      return new Response(JSON.stringify({ suggestions }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // NEW: Check OKR quality
+    if (action === "check_okr") {
+      const { objective, key_results } = data;
+
+      const systemPrompt = `Sei WISE, un esperto di OKR Checker.
+Analizza la qualità di questo OKR e fornisci un feedback dettagliato.
+
+Valuta:
+1. Se l'obiettivo è chiaro e ispirante
+2. Se i KR sono misurabili e SMART
+3. Se il numero di KR è appropriato (ideale: 2-5)
+4. Se i KR sono coerenti con l'obiettivo
+5. Se le deadline sono realistiche
+
+Rispondi SOLO in JSON:
+{
+  "check": {
+    "overall_score": 0-100,
+    "issues": ["problema 1", "problema 2"],
+    "strengths": ["punto forte 1", "punto forte 2"],
+    "kr_count_assessment": {
+      "status": "too_few" | "optimal" | "too_many",
+      "message": "Spiegazione"
+    },
+    "recommendations": ["raccomandazione 1", "raccomandazione 2"]
+  }
+}`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { 
+              role: "user", 
+              content: `OBIETTIVO:
+Titolo: ${objective.title}
+Descrizione: ${objective.description || "Non specificata"}
+Data target: ${objective.target_date}
+
+KEY RESULTS (${key_results.length}):
+${key_results.map((kr: any, i: number) => `
+${i + 1}. ${kr.title}
+   Target: ${kr.target_value} ${kr.unit}
+   Deadline: ${kr.deadline}
+`).join("")}
+
+Analizza questo OKR e fornisci un feedback completo.`
+            }
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Gateway error: ${response.status}`);
+      }
+
+      const aiData = await response.json();
+      const content = aiData.choices?.[0]?.message?.content;
+      
+      let check = null;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          check = parsed.check || parsed;
+        }
+      } catch (e) {
+        console.error("Parse error:", e);
+      }
+
+      return new Response(JSON.stringify({ check }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "oracle_analyze") {
       // Fetch ERP data for analysis
       const [leadsResult, ordersResult, offersResult, workOrdersResult, customersResult] = await Promise.all([
