@@ -207,7 +207,7 @@ export default function PrimaNotaPage() {
           chart_account:chart_of_accounts(code, name),
           cost_center:cost_centers(code, name),
           profit_center:profit_centers(code, name),
-          accounting_entry:accounting_entries(
+          accounting_entry:accounting_entries!inner(
             direction, document_type, document_date, attachment_url,
             iva_mode, iva_aliquota, imponibile, iva_amount, totale,
             payment_method, financial_status
@@ -840,11 +840,25 @@ export default function PrimaNotaPage() {
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Prima Nota</h1>
-        <p className="text-muted-foreground">
-          Scritture contabili in partita doppia generate dagli eventi classificati
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Prima Nota</h1>
+          <p className="text-muted-foreground">
+            Scritture contabili in partita doppia generate dagli eventi classificati
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            queryClient.refetchQueries({ queryKey: ["prima-nota"] });
+            queryClient.refetchQueries({ queryKey: ["pending-prima-nota-entries"] });
+          }}
+          className="gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Aggiorna
+        </Button>
       </div>
 
       <Tabs defaultValue="movements" className="space-y-4">
