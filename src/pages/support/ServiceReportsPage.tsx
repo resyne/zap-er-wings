@@ -113,11 +113,11 @@ export default function ServiceReportsPage() {
     amount: '',
     vat_rate: '22',
     total_amount: '',
-    technicians_count: '1',
-    kilometers: '0',
-    head_technician_hours: '0',
-    specialized_technician_hours: '0'
+    kilometers: '0'
   });
+  
+  // Technicians list - dynamic adding
+  const [techniciansList, setTechniciansList] = useState<Array<{ type: 'head' | 'specialized'; id: string }>>([]);
   
   // Pricing settings
   const [pricingSettings, setPricingSettings] = useState({
@@ -292,37 +292,32 @@ export default function ServiceReportsPage() {
     return Math.max(1, hours); // Minimum 1 hour
   };
 
+  // Calculate amount based on technicians list and time
+  const calculateAmount = (techs: typeof techniciansList, startTime: string, endTime: string, km: number) => {
+    const hours = calculateHoursFromTime(startTime, endTime);
+    const headCount = techs.filter(t => t.type === 'head').length;
+    const specCount = techs.filter(t => t.type === 'specialized').length;
+    
+    const headCost = hours * headCount * pricingSettings.head_technician_hourly_rate;
+    const specCost = hours * specCount * pricingSettings.specialized_technician_hourly_rate;
+    const kmCost = km * pricingSettings.head_technician_km_rate;
+    
+    return headCost + specCost + kmCost;
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Auto-calculate hours when start or end time changes
-      if (field === 'start_time' || field === 'end_time') {
+      // Auto-calculate amount based on technicians and time
+      if (['kilometers', 'start_time', 'end_time'].includes(field) || field === 'amount' || field === 'vat_rate') {
+        const km = parseFloat(field === 'kilometers' ? value : newData.kilometers) || 0;
         const startTime = field === 'start_time' ? value : newData.start_time;
         const endTime = field === 'end_time' ? value : newData.end_time;
         
-        if (startTime && endTime) {
-          const calculatedHours = calculateHoursFromTime(startTime, endTime);
-          newData.specialized_technician_hours = calculatedHours.toString();
-        }
-      }
-      
-      // Auto-calculate amount based on hours and km
-      if (['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count', 'start_time', 'end_time'].includes(field) || field === 'amount' || field === 'vat_rate') {
-        const headHours = parseFloat(newData.head_technician_hours) || 0;
-        const specHours = parseFloat(newData.specialized_technician_hours) || 0;
-        const km = parseFloat(newData.kilometers) || 0;
-        const techCount = parseInt(newData.technicians_count) || 1;
+        const calculatedAmount = calculateAmount(techniciansList, startTime, endTime, km);
         
-        // Calculate amount based on pricing settings
-        const headCost = headHours * pricingSettings.head_technician_hourly_rate;
-        const specCost = specHours * pricingSettings.specialized_technician_hourly_rate * techCount;
-        const kmCost = km * pricingSettings.head_technician_km_rate; // Use head technician km rate as default
-        
-        const calculatedAmount = headCost + specCost + kmCost;
-        
-        // Only auto-calculate if user hasn't manually set a different amount
-        if (!prev.amount || ['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count', 'start_time', 'end_time'].includes(field)) {
+        if (!prev.amount || ['kilometers', 'start_time', 'end_time'].includes(field)) {
           newData.amount = calculatedAmount.toFixed(2);
         }
       }
@@ -334,6 +329,39 @@ export default function ServiceReportsPage() {
       newData.total_amount = total.toFixed(2);
       
       return newData;
+    });
+  };
+
+  // Add technician to the list
+  const addTechnician = (type: 'head' | 'specialized') => {
+    const newTech = { type, id: crypto.randomUUID() };
+    const newList = [...techniciansList, newTech];
+    setTechniciansList(newList);
+    
+    // Recalculate amount
+    const km = parseFloat(formData.kilometers) || 0;
+    const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
+    setFormData(prev => {
+      const amount = calculatedAmount;
+      const vatRate = parseFloat(prev.vat_rate) || 0;
+      const total = amount + (amount * vatRate / 100);
+      return { ...prev, amount: amount.toFixed(2), total_amount: total.toFixed(2) };
+    });
+  };
+
+  // Remove technician from the list
+  const removeTechnician = (id: string) => {
+    const newList = techniciansList.filter(t => t.id !== id);
+    setTechniciansList(newList);
+    
+    // Recalculate amount
+    const km = parseFloat(formData.kilometers) || 0;
+    const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
+    setFormData(prev => {
+      const amount = calculatedAmount;
+      const vatRate = parseFloat(prev.vat_rate) || 0;
+      const total = amount + (amount * vatRate / 100);
+      return { ...prev, amount: amount.toFixed(2), total_amount: total.toFixed(2) };
     });
   };
 
@@ -453,10 +481,10 @@ export default function ServiceReportsPage() {
           customer_signature: customerSignature,
           technician_signature: technicianSignature,
           status: 'completed',
-          technicians_count: parseInt(formData.technicians_count) || 1,
+          technicians_count: techniciansList.length || 1,
           kilometers: parseFloat(formData.kilometers) || 0,
-          head_technician_hours: parseFloat(formData.head_technician_hours) || 0,
-          specialized_technician_hours: parseFloat(formData.specialized_technician_hours) || 0
+          head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
+          specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
         })
         .select()
         .single();
@@ -711,11 +739,9 @@ export default function ServiceReportsPage() {
       amount: '',
       vat_rate: '22',
       total_amount: '',
-      technicians_count: '1',
-      kilometers: '0',
-      head_technician_hours: '0',
-      specialized_technician_hours: '0'
+      kilometers: '0'
     });
+    setTechniciansList([]);
     setSelectedCustomer(null);
     setSelectedTechnician(null);
     setSelectedWorkOrder(null);
@@ -1353,89 +1379,112 @@ export default function ServiceReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 sm:px-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="technicians_count" className="text-sm font-medium">N. Tecnici</Label>
-                  <Input
-                    id="technicians_count"
-                    type="number"
-                    min="1"
-                    inputMode="numeric"
-                    value={formData.technicians_count}
-                    onChange={(e) => handleInputChange('technicians_count', e.target.value)}
-                    className="h-12 text-base"
-                  />
+              <div className="space-y-4">
+                {/* Buttons to add technicians */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addTechnician('specialized')}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Tecnico Specializzato
+                    <span className="text-xs text-muted-foreground">(€{pricingSettings.specialized_technician_hourly_rate}/h)</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addTechnician('head')}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Capo Tecnico
+                    <span className="text-xs text-muted-foreground">(€{pricingSettings.head_technician_hourly_rate}/h)</span>
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="kilometers" className="text-sm font-medium flex items-center gap-1">
-                    <Car className="w-4 h-4" />
-                    Km Percorsi
-                  </Label>
-                  <Input
-                    id="kilometers"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    inputMode="decimal"
-                    value={formData.kilometers}
-                    onChange={(e) => handleInputChange('kilometers', e.target.value)}
-                    placeholder="0"
-                    className="h-12 text-base"
-                  />
-                </div>
+
+                {/* Technicians list */}
+                {techniciansList.length > 0 && (
+                  <div className="space-y-2">
+                    {techniciansList.map((tech, index) => (
+                      <div key={tech.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            {tech.type === 'head' ? 'Capo Tecnico' : 'Tecnico Specializzato'}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            #{index + 1}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeTechnician(tech.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {techniciansList.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-lg">
+                    Aggiungi i tecnici che hanno partecipato all'intervento
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="head_technician_hours" className="text-sm font-medium">
-                    Ore Capo Tecnico
-                  </Label>
-                  <Input
-                    id="head_technician_hours"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    inputMode="decimal"
-                    value={formData.head_technician_hours}
-                    onChange={(e) => handleInputChange('head_technician_hours', e.target.value)}
-                    placeholder="0"
-                    className="h-12 text-base"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    €{pricingSettings.head_technician_hourly_rate.toFixed(2)}/ora
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="specialized_technician_hours" className="text-sm font-medium">
-                    Ore Tecnico Spec.
-                  </Label>
-                  <Input
-                    id="specialized_technician_hours"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    inputMode="decimal"
-                    value={formData.specialized_technician_hours}
-                    onChange={(e) => handleInputChange('specialized_technician_hours', e.target.value)}
-                    placeholder="0"
-                    className="h-12 text-base"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    €{pricingSettings.specialized_technician_hourly_rate.toFixed(2)}/ora × N. Tecnici
-                  </p>
-                </div>
+              <Separator />
+
+              {/* Km */}
+              <div className="space-y-2">
+                <Label htmlFor="kilometers" className="text-sm font-medium flex items-center gap-1">
+                  <Car className="w-4 h-4" />
+                  Km Percorsi
+                </Label>
+                <Input
+                  id="kilometers"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  inputMode="decimal"
+                  value={formData.kilometers}
+                  onChange={(e) => handleInputChange('kilometers', e.target.value)}
+                  placeholder="0"
+                  className="h-12 text-base"
+                />
+                <p className="text-xs text-muted-foreground">
+                  €{pricingSettings.head_technician_km_rate.toFixed(2)}/km
+                </p>
               </div>
 
               {/* Riepilogo calcolo automatico */}
-              {(parseFloat(formData.head_technician_hours) > 0 || parseFloat(formData.specialized_technician_hours) > 0 || parseFloat(formData.kilometers) > 0) && (
+              {(techniciansList.length > 0 || parseFloat(formData.kilometers) > 0) && formData.start_time && formData.end_time && (
                 <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
                   <p className="font-medium text-muted-foreground">Calcolo automatico:</p>
-                  {parseFloat(formData.head_technician_hours) > 0 && (
-                    <p>Capo tecnico: {formData.head_technician_hours}h × €{pricingSettings.head_technician_hourly_rate.toFixed(2)} = €{(parseFloat(formData.head_technician_hours) * pricingSettings.head_technician_hourly_rate).toFixed(2)}</p>
-                  )}
-                  {parseFloat(formData.specialized_technician_hours) > 0 && (
-                    <p>Tecnici spec.: {formData.specialized_technician_hours}h × €{pricingSettings.specialized_technician_hourly_rate.toFixed(2)} × {formData.technicians_count} = €{(parseFloat(formData.specialized_technician_hours) * pricingSettings.specialized_technician_hourly_rate * parseInt(formData.technicians_count)).toFixed(2)}</p>
-                  )}
+                  {(() => {
+                    const hours = calculateHoursFromTime(formData.start_time, formData.end_time);
+                    const headCount = techniciansList.filter(t => t.type === 'head').length;
+                    const specCount = techniciansList.filter(t => t.type === 'specialized').length;
+                    return (
+                      <>
+                        <p className="text-muted-foreground">Ore calcolate: {hours}h (dalle {formData.start_time} alle {formData.end_time})</p>
+                        {headCount > 0 && (
+                          <p>Capo tecnico: {headCount} × {hours}h × €{pricingSettings.head_technician_hourly_rate.toFixed(2)} = €{(headCount * hours * pricingSettings.head_technician_hourly_rate).toFixed(2)}</p>
+                        )}
+                        {specCount > 0 && (
+                          <p>Tecnici spec.: {specCount} × {hours}h × €{pricingSettings.specialized_technician_hourly_rate.toFixed(2)} = €{(specCount * hours * pricingSettings.specialized_technician_hourly_rate).toFixed(2)}</p>
+                        )}
+                      </>
+                    );
+                  })()}
                   {parseFloat(formData.kilometers) > 0 && (
                     <p>Km: {formData.kilometers}km × €{pricingSettings.head_technician_km_rate.toFixed(2)} = €{(parseFloat(formData.kilometers) * pricingSettings.head_technician_km_rate).toFixed(2)}</p>
                   )}
