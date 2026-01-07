@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,11 @@ export default function AuthPage() {
   const [session, setSession] = useState<Session | null>(null);
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Get the redirect URL from state or default to dashboard
+  const from = (location.state as { from?: string })?.from || "/dashboard";
 
   useEffect(() => {
     // Set up auth state listener first
@@ -27,9 +31,9 @@ export default function AuthPage() {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Redirect authenticated users to dashboard
+        // Redirect authenticated users to the original page
         if (session?.user) {
-          navigate("/dashboard");
+          navigate(from, { replace: true });
         }
       }
     );
@@ -40,12 +44,12 @@ export default function AuthPage() {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        navigate("/dashboard");
+        navigate(from, { replace: true });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, from]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
