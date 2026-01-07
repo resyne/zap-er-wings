@@ -1211,9 +1211,11 @@ export default function RegistroContabilePage() {
           attachment_url: invoice.attachment_url || '',
           user_id: user?.user?.id,
           // Se c'è split, non usare i campi singoli (usa solo split lines)
-          cost_center_id: hasAccountSplit ? null : (invoice.cost_center_id || null),
-          profit_center_id: hasAccountSplit ? null : (invoice.profit_center_id || null),
-          chart_account_id: hasAccountSplit ? null : (isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id)
+          cost_center_id: hasAccountSplit ? null : (invoice.cost_center_id && invoice.cost_center_id.trim() !== '' ? invoice.cost_center_id : null),
+          profit_center_id: hasAccountSplit ? null : (invoice.profit_center_id && invoice.profit_center_id.trim() !== '' ? invoice.profit_center_id : null),
+          chart_account_id: hasAccountSplit ? null : (isAcquisto 
+            ? (invoice.cost_account_id && invoice.cost_account_id.trim() !== '' ? invoice.cost_account_id : null)
+            : (invoice.revenue_account_id && invoice.revenue_account_id.trim() !== '' ? invoice.revenue_account_id : null))
         })
         .select()
         .single();
@@ -1238,9 +1240,11 @@ export default function RegistroContabilePage() {
           status: 'registrato',
           accounting_entry_id: accountingEntry.id,
           // Se c'è split, non usare i campi singoli (usa solo split lines)
-          cost_center_id: hasAccountSplit ? null : (invoice.cost_center_id || null),
-          profit_center_id: hasAccountSplit ? null : (invoice.profit_center_id || null),
-          chart_account_id: hasAccountSplit ? null : (isAcquisto ? invoice.cost_account_id : invoice.revenue_account_id)
+          cost_center_id: hasAccountSplit ? null : (invoice.cost_center_id && invoice.cost_center_id.trim() !== '' ? invoice.cost_center_id : null),
+          profit_center_id: hasAccountSplit ? null : (invoice.profit_center_id && invoice.profit_center_id.trim() !== '' ? invoice.profit_center_id : null),
+          chart_account_id: hasAccountSplit ? null : (isAcquisto 
+            ? (invoice.cost_account_id && invoice.cost_account_id.trim() !== '' ? invoice.cost_account_id : null)
+            : (invoice.revenue_account_id && invoice.revenue_account_id.trim() !== '' ? invoice.revenue_account_id : null))
         })
         .select()
         .single();
