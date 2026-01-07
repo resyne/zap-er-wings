@@ -3242,6 +3242,59 @@ export type Database = {
           },
         ]
       }
+      key_results: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          deadline: string | null
+          description: string | null
+          id: string
+          objective_id: string
+          priority: number | null
+          status: string | null
+          target_value: number
+          title: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          objective_id: string
+          priority?: number | null
+          status?: string | null
+          target_value: number
+          title: string
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          objective_id?: string
+          priority?: number | null
+          status?: string | null
+          target_value?: number
+          title?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_results_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_objectives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_drivers: {
         Row: {
           created_at: string | null
@@ -4592,6 +4645,56 @@ export type Database = {
           uploaded_at?: string
         }
         Relationships: []
+      }
+      oracle_insights: {
+        Row: {
+          confidence: number | null
+          converted_to_objective_id: string | null
+          created_at: string
+          data_source: string | null
+          description: string
+          id: string
+          insight_type: string
+          is_dismissed: boolean | null
+          raw_data: Json | null
+          suggested_action: string | null
+          title: string
+        }
+        Insert: {
+          confidence?: number | null
+          converted_to_objective_id?: string | null
+          created_at?: string
+          data_source?: string | null
+          description: string
+          id?: string
+          insight_type: string
+          is_dismissed?: boolean | null
+          raw_data?: Json | null
+          suggested_action?: string | null
+          title: string
+        }
+        Update: {
+          confidence?: number | null
+          converted_to_objective_id?: string | null
+          created_at?: string
+          data_source?: string | null
+          description?: string
+          id?: string
+          insight_type?: string
+          is_dismissed?: boolean | null
+          raw_data?: Json | null
+          suggested_action?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oracle_insights_converted_to_objective_id_fkey"
+            columns: ["converted_to_objective_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_objectives"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_comments: {
         Row: {
@@ -7951,6 +8054,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      strategic_objectives: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          effort: string | null
+          id: string
+          impact: string | null
+          owner_id: string | null
+          risk_level: string | null
+          source: string
+          start_date: string | null
+          status: string
+          target_date: string | null
+          title: string
+          updated_at: string
+          wise_analysis: Json | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          effort?: string | null
+          id?: string
+          impact?: string | null
+          owner_id?: string | null
+          risk_level?: string | null
+          source?: string
+          start_date?: string | null
+          status?: string
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          wise_analysis?: Json | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          effort?: string | null
+          id?: string
+          impact?: string | null
+          owner_id?: string | null
+          risk_level?: string | null
+          source?: string
+          start_date?: string | null
+          status?: string
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          wise_analysis?: Json | null
+        }
+        Relationships: []
       }
       structural_accounts: {
         Row: {
