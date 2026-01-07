@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
@@ -109,8 +110,22 @@ export default function ServiceReportsPage() {
     end_time: '',
     amount: '',
     vat_rate: '22',
-    total_amount: ''
+    total_amount: '',
+    technicians_count: '1',
+    kilometers: '0',
+    head_technician_hours: '0',
+    specialized_technician_hours: '0'
   });
+  
+  // Pricing settings
+  const [pricingSettings, setPricingSettings] = useState({
+    specialized_technician_hourly_rate: 40,
+    specialized_technician_km_rate: 0.40,
+    head_technician_hourly_rate: 60,
+    head_technician_km_rate: 0.60
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [customerSignature, setCustomerSignature] = useState<string>('');
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
   const { toast } = useToast();
@@ -227,6 +242,19 @@ export default function ServiceReportsPage() {
 
       if (reportsError) throw reportsError;
       setReports((reportsData as unknown as ServiceReport[]) || []);
+
+      // Load pricing settings
+      const { data: settingsData } = await supabase
+        .from('service_report_settings')
+        .select('setting_key, setting_value');
+
+      if (settingsData) {
+        const newSettings: Record<string, number> = {};
+        settingsData.forEach((s: { setting_key: string; setting_value: number }) => {
+          newSettings[s.setting_key] = s.setting_value;
+        });
+        setPricingSettings(prev => ({ ...prev, ...newSettings }));
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -241,16 +269,66 @@ export default function ServiceReportsPage() {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Auto-calculate total when amount or vat changes
-      if (field === 'amount' || field === 'vat_rate') {
-        const amount = parseFloat(field === 'amount' ? value : newData.amount) || 0;
-        const vatRate = parseFloat(field === 'vat_rate' ? value : newData.vat_rate) || 0;
-        const total = amount + (amount * vatRate / 100);
-        newData.total_amount = total.toFixed(2);
+      // Auto-calculate amount based on hours and km
+      if (['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count'].includes(field) || field === 'amount' || field === 'vat_rate') {
+        const headHours = parseFloat(field === 'head_technician_hours' ? value : newData.head_technician_hours) || 0;
+        const specHours = parseFloat(field === 'specialized_technician_hours' ? value : newData.specialized_technician_hours) || 0;
+        const km = parseFloat(field === 'kilometers' ? value : newData.kilometers) || 0;
+        const techCount = parseInt(field === 'technicians_count' ? value : newData.technicians_count) || 1;
+        
+        // Calculate amount based on pricing settings
+        const headCost = headHours * pricingSettings.head_technician_hourly_rate;
+        const specCost = specHours * pricingSettings.specialized_technician_hourly_rate * techCount;
+        const kmCost = km * pricingSettings.head_technician_km_rate; // Use head technician km rate as default
+        
+        const calculatedAmount = headCost + specCost + kmCost;
+        
+        // Only auto-calculate if user hasn't manually set a different amount
+        if (!prev.amount || ['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count'].includes(field)) {
+          newData.amount = calculatedAmount.toFixed(2);
+        }
       }
+      
+      // Auto-calculate total when amount or vat changes
+      const amount = parseFloat(newData.amount) || 0;
+      const vatRate = parseFloat(newData.vat_rate) || 0;
+      const total = amount + (amount * vatRate / 100);
+      newData.total_amount = total.toFixed(2);
       
       return newData;
     });
+  };
+
+  const saveSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const updates = Object.entries(pricingSettings).map(([key, value]) => ({
+        setting_key: key,
+        setting_value: value
+      }));
+
+      for (const update of updates) {
+        await supabase
+          .from('service_report_settings')
+          .update({ setting_value: update.setting_value })
+          .eq('setting_key', update.setting_key);
+      }
+
+      toast({
+        title: "Impostazioni salvate",
+        description: "I prezzi listino sono stati aggiornati",
+      });
+      setShowSettings(false);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel salvare le impostazioni",
+        variant: "destructive",
+      });
+    } finally {
+      setSettingsLoading(false);
+    }
   };
 
   const handleCustomerSelect = (customerId: string) => {
@@ -336,7 +414,11 @@ export default function ServiceReportsPage() {
           total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
           customer_signature: customerSignature,
           technician_signature: technicianSignature,
-          status: 'completed'
+          status: 'completed',
+          technicians_count: parseInt(formData.technicians_count) || 1,
+          kilometers: parseFloat(formData.kilometers) || 0,
+          head_technician_hours: parseFloat(formData.head_technician_hours) || 0,
+          specialized_technician_hours: parseFloat(formData.specialized_technician_hours) || 0
         })
         .select()
         .single();
@@ -590,7 +672,11 @@ export default function ServiceReportsPage() {
       end_time: '',
       amount: '',
       vat_rate: '22',
-      total_amount: ''
+      total_amount: '',
+      technicians_count: '1',
+      kilometers: '0',
+      head_technician_hours: '0',
+      specialized_technician_hours: '0'
     });
     setSelectedCustomer(null);
     setSelectedTechnician(null);
@@ -616,16 +702,133 @@ export default function ServiceReportsPage() {
           </p>
         </div>
         {!showCreateForm && !showActions && (
-          <Button 
-            onClick={() => setShowCreateForm(true)} 
-            className="w-full sm:w-auto flex items-center justify-center gap-2"
-            size="lg"
-          >
-            <Plus className="w-5 h-5" />
-            Nuovo Rapporto
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button 
+              variant="outline"
+              onClick={() => setShowSettings(true)} 
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              Prezzi Listino
+            </Button>
+            <Button 
+              onClick={() => setShowCreateForm(true)} 
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
+              size="lg"
+            >
+              <Plus className="w-5 h-5" />
+              Nuovo Rapporto
+            </Button>
+          </div>
         )}
       </div>
+
+      {/* Settings Dialog */}
+      {showSettings && (
+        <Card className="mb-6 border-0 sm:border shadow-none sm:shadow-sm">
+          <CardHeader className="px-0 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Settings className="w-5 h-5" />
+              Impostazioni Prezzi Listino
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Configura le tariffe per tecnici e chilometraggio
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-0 sm:px-6 space-y-6">
+            {/* Tecnico Specializzato */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm">Tecnico Specializzato</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="spec_hourly">Tariffa Oraria (€/ora)</Label>
+                  <Input
+                    id="spec_hourly"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pricingSettings.specialized_technician_hourly_rate}
+                    onChange={(e) => setPricingSettings(prev => ({
+                      ...prev,
+                      specialized_technician_hourly_rate: parseFloat(e.target.value) || 0
+                    }))}
+                    className="h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="spec_km">Tariffa Km (€/km)</Label>
+                  <Input
+                    id="spec_km"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pricingSettings.specialized_technician_km_rate}
+                    onChange={(e) => setPricingSettings(prev => ({
+                      ...prev,
+                      specialized_technician_km_rate: parseFloat(e.target.value) || 0
+                    }))}
+                    className="h-12"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Capo Tecnico */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm">Capo Tecnico</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="head_hourly">Tariffa Oraria (€/ora)</Label>
+                  <Input
+                    id="head_hourly"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pricingSettings.head_technician_hourly_rate}
+                    onChange={(e) => setPricingSettings(prev => ({
+                      ...prev,
+                      head_technician_hourly_rate: parseFloat(e.target.value) || 0
+                    }))}
+                    className="h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="head_km">Tariffa Km (€/km)</Label>
+                  <Input
+                    id="head_km"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pricingSettings.head_technician_km_rate}
+                    onChange={(e) => setPricingSettings(prev => ({
+                      ...prev,
+                      head_technician_km_rate: parseFloat(e.target.value) || 0
+                    }))}
+                    className="h-12"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowSettings(false)}
+                className="w-full sm:w-auto"
+              >
+                Annulla
+              </Button>
+              <Button
+                onClick={saveSettings}
+                disabled={settingsLoading}
+                className="w-full sm:w-auto"
+              >
+                {settingsLoading ? "Salvando..." : "Salva Impostazioni"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!showCreateForm && !showActions ? (
         <Card className="border-0 sm:border shadow-none sm:shadow-sm">
@@ -1097,6 +1300,109 @@ export default function ServiceReportsPage() {
                   className="text-base resize-none"
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Risorse e Trasferta */}
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+            <CardHeader className="px-0 sm:px-6 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Users className="w-5 h-5" />
+                Risorse e Trasferta
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Inserisci il numero di tecnici, ore e chilometri per calcolare automaticamente l'importo
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 sm:px-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="technicians_count" className="text-sm font-medium">N. Tecnici</Label>
+                  <Input
+                    id="technicians_count"
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={formData.technicians_count}
+                    onChange={(e) => handleInputChange('technicians_count', e.target.value)}
+                    className="h-12 text-base"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="kilometers" className="text-sm font-medium flex items-center gap-1">
+                    <Car className="w-4 h-4" />
+                    Km Percorsi
+                  </Label>
+                  <Input
+                    id="kilometers"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    value={formData.kilometers}
+                    onChange={(e) => handleInputChange('kilometers', e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-base"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="head_technician_hours" className="text-sm font-medium">
+                    Ore Capo Tecnico
+                  </Label>
+                  <Input
+                    id="head_technician_hours"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    inputMode="decimal"
+                    value={formData.head_technician_hours}
+                    onChange={(e) => handleInputChange('head_technician_hours', e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-base"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    €{pricingSettings.head_technician_hourly_rate.toFixed(2)}/ora
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="specialized_technician_hours" className="text-sm font-medium">
+                    Ore Tecnico Spec.
+                  </Label>
+                  <Input
+                    id="specialized_technician_hours"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    inputMode="decimal"
+                    value={formData.specialized_technician_hours}
+                    onChange={(e) => handleInputChange('specialized_technician_hours', e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-base"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    €{pricingSettings.specialized_technician_hourly_rate.toFixed(2)}/ora × N. Tecnici
+                  </p>
+                </div>
+              </div>
+
+              {/* Riepilogo calcolo automatico */}
+              {(parseFloat(formData.head_technician_hours) > 0 || parseFloat(formData.specialized_technician_hours) > 0 || parseFloat(formData.kilometers) > 0) && (
+                <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                  <p className="font-medium text-muted-foreground">Calcolo automatico:</p>
+                  {parseFloat(formData.head_technician_hours) > 0 && (
+                    <p>Capo tecnico: {formData.head_technician_hours}h × €{pricingSettings.head_technician_hourly_rate.toFixed(2)} = €{(parseFloat(formData.head_technician_hours) * pricingSettings.head_technician_hourly_rate).toFixed(2)}</p>
+                  )}
+                  {parseFloat(formData.specialized_technician_hours) > 0 && (
+                    <p>Tecnici spec.: {formData.specialized_technician_hours}h × €{pricingSettings.specialized_technician_hourly_rate.toFixed(2)} × {formData.technicians_count} = €{(parseFloat(formData.specialized_technician_hours) * pricingSettings.specialized_technician_hourly_rate * parseInt(formData.technicians_count)).toFixed(2)}</p>
+                  )}
+                  {parseFloat(formData.kilometers) > 0 && (
+                    <p>Km: {formData.kilometers}km × €{pricingSettings.head_technician_km_rate.toFixed(2)} = €{(parseFloat(formData.kilometers) * pricingSettings.head_technician_km_rate).toFixed(2)}</p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 

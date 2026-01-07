@@ -7097,6 +7097,33 @@ export type Database = {
         }
         Relationships: []
       }
+      service_report_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_reports: {
         Row: {
           amount: number | null
@@ -7107,17 +7134,21 @@ export type Database = {
           customer_signature: string | null
           description: string | null
           end_time: string | null
+          head_technician_hours: number | null
           id: string
           intervention_date: string
           intervention_type: string
+          kilometers: number | null
           materials_used: string | null
           notes: string | null
           production_work_order_id: string | null
+          specialized_technician_hours: number | null
           start_time: string | null
           status: string
           technician_id: string | null
           technician_name: string | null
           technician_signature: string | null
+          technicians_count: number | null
           total_amount: number | null
           updated_at: string
           vat_rate: number | null
@@ -7133,17 +7164,21 @@ export type Database = {
           customer_signature?: string | null
           description?: string | null
           end_time?: string | null
+          head_technician_hours?: number | null
           id?: string
           intervention_date: string
           intervention_type: string
+          kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
           production_work_order_id?: string | null
+          specialized_technician_hours?: number | null
           start_time?: string | null
           status?: string
           technician_id?: string | null
           technician_name?: string | null
           technician_signature?: string | null
+          technicians_count?: number | null
           total_amount?: number | null
           updated_at?: string
           vat_rate?: number | null
@@ -7159,17 +7194,21 @@ export type Database = {
           customer_signature?: string | null
           description?: string | null
           end_time?: string | null
+          head_technician_hours?: number | null
           id?: string
           intervention_date?: string
           intervention_type?: string
+          kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
           production_work_order_id?: string | null
+          specialized_technician_hours?: number | null
           start_time?: string | null
           status?: string
           technician_id?: string | null
           technician_name?: string | null
           technician_signature?: string | null
+          technicians_count?: number | null
           total_amount?: number | null
           updated_at?: string
           vat_rate?: number | null
