@@ -621,26 +621,18 @@ export default function ServiceReportsPage() {
         y += noteLines.length * 7 + 3;
       }
 
-      // Dettagli economici
-      if (formData.amount) {
-        if (y > 220) {
-          doc.addPage();
-          y = 20;
-        }
-        y += 10;
-        doc.setFont(undefined, "bold");
-        doc.text("Dettagli Economici:", 20, y);
-        doc.setFont(undefined, "normal");
-        y += 7;
-        doc.text(`Importo: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
-        y += 7;
-        doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y);
-        y += 7;
-        doc.setFont(undefined, "bold");
-        doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
-        doc.setFont(undefined, "normal");
-        y += 10;
+      // Nota fatturazione (sostituisce dettagli economici)
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
       }
+      y += 10;
+      doc.setFontSize(10);
+      doc.setFont(undefined, "italic");
+      doc.text("Seguirà fattura secondo listino intervento fuori contratto di manutenzione programmata", 20, y);
+      doc.setFontSize(12);
+      doc.setFont(undefined, "normal");
+      y += 5;
 
       // Firme
       if (y > 220) {
@@ -1371,182 +1363,12 @@ export default function ServiceReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Risorse e Trasferta */}
-          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-            <CardHeader className="px-0 sm:px-6 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <Users className="w-5 h-5" />
-                Risorse e Trasferta
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Inserisci il numero di tecnici, ore e chilometri per calcolare automaticamente l'importo
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-6 space-y-4">
-              <div className="space-y-4">
-                {/* Buttons to add technicians */}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addTechnician('specialized')}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Tecnico Specializzato
-                    <span className="text-xs text-muted-foreground">(€{pricingSettings.specialized_technician_hourly_rate}/h)</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addTechnician('head')}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Capo Tecnico
-                    <span className="text-xs text-muted-foreground">(€{pricingSettings.head_technician_hourly_rate}/h)</span>
-                  </Button>
-                </div>
-
-                {/* Technicians list */}
-                {techniciansList.length > 0 && (
-                  <div className="space-y-2">
-                    {techniciansList.map((tech, index) => (
-                      <div key={tech.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">
-                            {tech.type === 'head' ? 'Capo Tecnico' : 'Tecnico Specializzato'}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            #{index + 1}
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeTechnician(tech.id)}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {techniciansList.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-lg">
-                    Aggiungi i tecnici che hanno partecipato all'intervento
-                  </p>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Km */}
-              <div className="space-y-2">
-                <Label htmlFor="kilometers" className="text-sm font-medium flex items-center gap-1">
-                  <Car className="w-4 h-4" />
-                  Km Percorsi
-                </Label>
-                <Input
-                  id="kilometers"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  inputMode="decimal"
-                  value={formData.kilometers}
-                  onChange={(e) => handleInputChange('kilometers', e.target.value)}
-                  placeholder="0"
-                  className="h-12 text-base"
-                />
-                <p className="text-xs text-muted-foreground">
-                  €{pricingSettings.head_technician_km_rate.toFixed(2)}/km
-                </p>
-              </div>
-
-              {/* Riepilogo calcolo automatico */}
-              {(techniciansList.length > 0 || parseFloat(formData.kilometers) > 0) && formData.start_time && formData.end_time && (
-                <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
-                  <p className="font-medium text-muted-foreground">Calcolo automatico:</p>
-                  {(() => {
-                    const hours = calculateHoursFromTime(formData.start_time, formData.end_time);
-                    const headCount = techniciansList.filter(t => t.type === 'head').length;
-                    const specCount = techniciansList.filter(t => t.type === 'specialized').length;
-                    return (
-                      <>
-                        <p className="text-muted-foreground">Ore calcolate: {hours}h (dalle {formData.start_time} alle {formData.end_time})</p>
-                        {headCount > 0 && (
-                          <p>Capo tecnico: {headCount} × {hours}h × €{pricingSettings.head_technician_hourly_rate.toFixed(2)} = €{(headCount * hours * pricingSettings.head_technician_hourly_rate).toFixed(2)}</p>
-                        )}
-                        {specCount > 0 && (
-                          <p>Tecnici spec.: {specCount} × {hours}h × €{pricingSettings.specialized_technician_hourly_rate.toFixed(2)} = €{(specCount * hours * pricingSettings.specialized_technician_hourly_rate).toFixed(2)}</p>
-                        )}
-                      </>
-                    );
-                  })()}
-                  {parseFloat(formData.kilometers) > 0 && (
-                    <p>Km: {formData.kilometers}km × €{pricingSettings.head_technician_km_rate.toFixed(2)} = €{(parseFloat(formData.kilometers) * pricingSettings.head_technician_km_rate).toFixed(2)}</p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Dettagli Economici */}
-          <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-            <CardHeader className="px-0 sm:px-6 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <FileText className="w-5 h-5" />
-                Dettagli Economici
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-sm font-medium">Importo (€)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    inputMode="decimal"
-                    value={formData.amount}
-                    onChange={(e) => handleInputChange('amount', e.target.value)}
-                    placeholder="0.00"
-                    className="h-12 text-base"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="vat_rate" className="text-sm font-medium">IVA (%)</Label>
-                  <Select value={formData.vat_rate} onValueChange={(value) => handleInputChange('vat_rate', value)}>
-                    <SelectTrigger className="h-12 text-base">
-                      <SelectValue placeholder="IVA" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0" className="py-3">0%</SelectItem>
-                      <SelectItem value="4" className="py-3">4%</SelectItem>
-                      <SelectItem value="10" className="py-3">10%</SelectItem>
-                      <SelectItem value="22" className="py-3">22%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="total_amount" className="text-sm font-medium">Totale (€)</Label>
-                  <Input
-                    id="total_amount"
-                    type="text"
-                    value={formData.total_amount}
-                    readOnly
-                    className="h-12 text-base bg-muted font-semibold"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
+          {/* Nota Fatturazione */}
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm bg-muted/30">
+            <CardContent className="px-0 sm:px-6 py-4">
+              <p className="text-sm text-muted-foreground italic text-center">
+                Seguirà fattura secondo listino intervento fuori contratto di manutenzione programmata
+              </p>
             </CardContent>
           </Card>
 
@@ -1587,6 +1409,12 @@ export default function ServiceReportsPage() {
                 onSignatureChange={setTechnicianSignature}
                 placeholder="Il tecnico deve firmare qui"
               />
+            </div>
+
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground italic text-center">
+                Seguirà fattura secondo listino intervento fuori contratto di manutenzione programmata
+              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
