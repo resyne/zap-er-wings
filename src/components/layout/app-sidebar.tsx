@@ -80,6 +80,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Riepilogo Operativo", url: "/direzione/riepilogo-operativo", icon: Wrench },
       { title: "Task Management", url: "/tasks", icon: CheckSquare },
       { title: "Task KPI", url: "/direzione/task-kpi", icon: TrendingUp },
+      { title: "Strategy Wise Oracle", url: "/direzione/strategy-wise-oracle", icon: Target },
     ]
   },
   {

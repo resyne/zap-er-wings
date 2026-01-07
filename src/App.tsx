@@ -98,6 +98,7 @@ import { TasksPage } from "./pages/tasks/TasksPage";
 import ContentCreationPage from "./pages/marketing/ContentCreationPage";
 import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
 import TaskKpiPage from "./pages/direzione/TaskKpiPage";
+import StrategyWiseOraclePage from "./pages/direzione/StrategyWiseOraclePage";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import PublicDDTPage from "./pages/PublicDDTPage";
 
@@ -129,6 +130,7 @@ const App = () => (
                 <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
                 <Route path="direzione/calendario" element={<CalendarioAziendale />} />
                 <Route path="direzione/task-kpi" element={<TaskKpiPage />} />
+                <Route path="direzione/strategy-wise-oracle" element={<StrategyWiseOraclePage />} />
                 <Route path="direzione/riepilogo-operativo" element={<RiepilogoOperativoPage />} />
                 <Route path="direzione/orders" element={<OrdersPage />} />
                 <Route path="personal-area" element={<DashboardPage />} />
