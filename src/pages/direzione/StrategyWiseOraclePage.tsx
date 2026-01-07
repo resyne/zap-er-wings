@@ -1,322 +1,257 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { 
-  Eye, 
-  Scale, 
   Target, 
-  AlertTriangle, 
-  TrendingUp, 
-  Lightbulb,
-  CheckCircle2,
-  Clock,
-  Users,
-  BarChart3,
   Sparkles,
   ChevronRight,
   Plus,
   Trash2,
-  ArrowRight,
   RefreshCw,
-  X,
-  Edit,
-  Save
+  Check,
+  AlertCircle,
+  Lightbulb,
+  ArrowLeft,
+  Clock,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Scale,
+  Rocket
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface StrategicObjective {
+interface KeyResultDraft {
   id: string;
   title: string;
-  description: string | null;
-  status: string;
-  source: string;
-  impact: string | null;
-  effort: string | null;
-  risk_level: string | null;
-  start_date: string | null;
-  target_date: string | null;
-  wise_analysis: any;
-  created_at: string;
-}
-
-interface KeyResult {
-  id: string;
-  objective_id: string;
-  title: string;
-  description: string | null;
   target_value: number;
-  current_value: number;
   unit: string;
-  deadline: string | null;
-  status: string;
-  priority: number;
+  deadline: string;
+  ai_feedback?: {
+    measurable: boolean;
+    achievable: boolean;
+    specific: boolean;
+    issues: string[];
+    suggestions: string[];
+  };
 }
 
-interface OracleInsight {
-  id: string;
-  insight_type: string;
+interface TimelineAnalysis {
+  is_appropriate: boolean;
+  suggested_duration: string;
+  reasoning: string;
+  risk_level: "low" | "medium" | "high";
+}
+
+interface KRSuggestion {
   title: string;
-  description: string;
-  data_source: string | null;
-  confidence: number;
-  suggested_action: string | null;
-  raw_data: any;
-  is_dismissed: boolean;
-  converted_to_objective_id: string | null;
-  created_at: string;
+  target_value: number;
+  unit: string;
+  deadline: string;
+  rationale: string;
+}
+
+interface OKRCheckResult {
+  overall_score: number;
+  issues: string[];
+  strengths: string[];
+  kr_count_assessment: {
+    status: "too_few" | "optimal" | "too_many";
+    message: string;
+  };
+  recommendations: string[];
 }
 
 export default function StrategyWiseOraclePage() {
-  const [activeTab, setActiveTab] = useState("oracle");
-  const [insights, setInsights] = useState<OracleInsight[]>([]);
-  const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
-  const [keyResults, setKeyResults] = useState<Record<string, KeyResult[]>>({});
-  const [selectedInsight, setSelectedInsight] = useState<OracleInsight | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showConvertDialog, setShowConvertDialog] = useState(false);
-  const [convertingInsight, setConvertingInsight] = useState<OracleInsight | null>(null);
-  const [isConverting, setIsConverting] = useState(false);
-  const [analyzingObjective, setAnalyzingObjective] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Step 1: Objective
+  const [objectiveTitle, setObjectiveTitle] = useState("");
+  const [objectiveDescription, setObjectiveDescription] = useState("");
+  const [targetDate, setTargetDate] = useState("");
+  
+  // Step 2: Timeline Analysis
+  const [timelineAnalysis, setTimelineAnalysis] = useState<TimelineAnalysis | null>(null);
+  const [isAnalyzingTimeline, setIsAnalyzingTimeline] = useState(false);
+  
+  // Step 3: AI Suggested KRs
+  const [suggestedKRs, setSuggestedKRs] = useState<KRSuggestion[]>([]);
+  const [isGeneratingKRs, setIsGeneratingKRs] = useState(false);
+  
+  // Step 4: User KRs
+  const [keyResults, setKeyResults] = useState<KeyResultDraft[]>([]);
+  
+  // Step 5: OKR Check
+  const [okrCheck, setOkrCheck] = useState<OKRCheckResult | null>(null);
+  const [isCheckingOKR, setIsCheckingOKR] = useState(false);
 
-  const [newObjective, setNewObjective] = useState({
-    title: "",
-    description: "",
-    impact: "medium",
-    effort: "medium",
-    target_date: "",
-  });
+  const generateId = () => Math.random().toString(36).substring(2, 9);
 
-  const [newKeyResults, setNewKeyResults] = useState<Array<{
-    title: string;
-    target_value: number;
-    unit: string;
-    deadline: string;
-  }>>([{ title: "", target_value: 0, unit: "", deadline: "" }]);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const [insightsRes, objectivesRes] = await Promise.all([
-        supabase
-          .from("oracle_insights")
-          .select("*")
-          .eq("is_dismissed", false)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("strategic_objectives")
-          .select("*")
-          .order("created_at", { ascending: false }),
-      ]);
-
-      if (insightsRes.data) setInsights(insightsRes.data);
-      if (objectivesRes.data) {
-        setObjectives(objectivesRes.data);
-        // Load key results for each objective
-        const krMap: Record<string, KeyResult[]> = {};
-        for (const obj of objectivesRes.data) {
-          const { data } = await supabase
-            .from("key_results")
-            .select("*")
-            .eq("objective_id", obj.id)
-            .order("priority", { ascending: true });
-          if (data) krMap[obj.id] = data;
-        }
-        setKeyResults(krMap);
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast.error("Errore nel caricamento dei dati");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const runOracleAnalysis = async () => {
-    setIsAnalyzing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
-        body: { action: "oracle_analyze" },
-      });
-
-      if (error) throw error;
-
-      if (data?.insights && data.insights.length > 0) {
-        // Save insights to database
-        for (const insight of data.insights) {
-          await supabase.from("oracle_insights").insert({
-            insight_type: insight.type,
-            title: insight.title,
-            description: insight.description,
-            data_source: insight.data_source,
-            confidence: insight.confidence,
-            suggested_action: insight.suggested_action,
-          });
-        }
-        await loadData();
-        toast.success(`ORACLE ha identificato ${data.insights.length} insights`);
-      } else {
-        toast.info("Nessun nuovo insight identificato");
-      }
-    } catch (error: any) {
-      console.error("Oracle analysis error:", error);
-      toast.error("Errore nell'analisi ORACLE: " + error.message);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const dismissInsight = async (insightId: string) => {
-    try {
-      await supabase
-        .from("oracle_insights")
-        .update({ is_dismissed: true })
-        .eq("id", insightId);
-      setInsights(insights.filter(i => i.id !== insightId));
-      toast.success("Insight archiviato");
-    } catch (error) {
-      toast.error("Errore nell'archiviazione");
-    }
-  };
-
-  const convertInsightToObjective = async () => {
-    if (!convertingInsight) return;
-    
-    setIsConverting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
-        body: { 
-          action: "convert_insight_to_objective",
-          data: { insight: convertingInsight }
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.objective) {
-        // Create objective
-        const { data: objData, error: objError } = await supabase
-          .from("strategic_objectives")
-          .insert({
-            title: data.objective.title,
-            description: data.objective.description,
-            impact: data.objective.impact,
-            effort: data.objective.effort,
-            target_date: data.objective.target_date,
-            source: "oracle",
-            status: "draft",
-          })
-          .select()
-          .single();
-
-        if (objError) throw objError;
-
-        // Create key results
-        if (data.key_results && objData) {
-          for (const kr of data.key_results) {
-            await supabase.from("key_results").insert({
-              objective_id: objData.id,
-              title: kr.title,
-              target_value: kr.target_value,
-              current_value: 0,
-              unit: kr.unit,
-              deadline: kr.deadline,
-              status: "on_track",
-            });
-          }
-        }
-
-        // Mark insight as converted
-        await supabase
-          .from("oracle_insights")
-          .update({ converted_to_objective_id: objData.id })
-          .eq("id", convertingInsight.id);
-
-        await loadData();
-        setShowConvertDialog(false);
-        setConvertingInsight(null);
-        setActiveTab("wise");
-        toast.success("Obiettivo creato con successo!");
-      }
-    } catch (error: any) {
-      console.error("Convert error:", error);
-      toast.error("Errore nella conversione: " + error.message);
-    } finally {
-      setIsConverting(false);
-    }
-  };
-
-  const runWiseAnalysis = async (objectiveId: string) => {
-    setAnalyzingObjective(objectiveId);
-    try {
-      const objective = objectives.find(o => o.id === objectiveId);
-      const krs = keyResults[objectiveId] || [];
-
-      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
-        body: { 
-          action: "wise_analyze",
-          data: { objective, keyResults: krs }
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.analysis) {
-        await supabase
-          .from("strategic_objectives")
-          .update({ wise_analysis: data.analysis })
-          .eq("id", objectiveId);
-        
-        await loadData();
-        toast.success("Analisi WISE completata");
-      }
-    } catch (error: any) {
-      console.error("WISE analysis error:", error);
-      toast.error("Errore nell'analisi WISE: " + error.message);
-    } finally {
-      setAnalyzingObjective(null);
-    }
-  };
-
-  const createObjective = async () => {
-    if (!newObjective.title) {
+  // Step 1: Analyze objective and timeline
+  const analyzeObjective = async () => {
+    if (!objectiveTitle.trim()) {
       toast.error("Inserisci un titolo per l'obiettivo");
       return;
     }
 
+    setIsAnalyzingTimeline(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
+        body: { 
+          action: "analyze_timeline",
+          data: { 
+            title: objectiveTitle,
+            description: objectiveDescription,
+            target_date: targetDate
+          }
+        },
+      });
+
+      if (error) throw error;
+
+      setTimelineAnalysis(data.analysis);
+      setStep(2);
+    } catch (error: any) {
+      console.error("Timeline analysis error:", error);
+      toast.error("Errore nell'analisi: " + error.message);
+    } finally {
+      setIsAnalyzingTimeline(false);
+    }
+  };
+
+  // Step 2: Generate KR suggestions
+  const generateKRSuggestions = async () => {
+    setIsGeneratingKRs(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
+        body: { 
+          action: "suggest_key_results",
+          data: { 
+            title: objectiveTitle,
+            description: objectiveDescription,
+            target_date: targetDate,
+            timeline_analysis: timelineAnalysis
+          }
+        },
+      });
+
+      if (error) throw error;
+
+      setSuggestedKRs(data.suggestions || []);
+      setStep(3);
+    } catch (error: any) {
+      console.error("KR suggestion error:", error);
+      toast.error("Errore nella generazione dei KR: " + error.message);
+    } finally {
+      setIsGeneratingKRs(false);
+    }
+  };
+
+  // Add suggested KR to user list
+  const addSuggestedKR = (kr: KRSuggestion) => {
+    setKeyResults([...keyResults, {
+      id: generateId(),
+      title: kr.title,
+      target_value: kr.target_value,
+      unit: kr.unit,
+      deadline: kr.deadline
+    }]);
+    toast.success("Key Result aggiunto!");
+  };
+
+  // Add empty KR
+  const addEmptyKR = () => {
+    setKeyResults([...keyResults, {
+      id: generateId(),
+      title: "",
+      target_value: 0,
+      unit: "",
+      deadline: targetDate
+    }]);
+  };
+
+  // Remove KR
+  const removeKR = (id: string) => {
+    setKeyResults(keyResults.filter(kr => kr.id !== id));
+  };
+
+  // Update KR field
+  const updateKR = (id: string, field: keyof KeyResultDraft, value: any) => {
+    setKeyResults(keyResults.map(kr => 
+      kr.id === id ? { ...kr, [field]: value } : kr
+    ));
+  };
+
+  // Step 4: Run OKR Check
+  const runOKRCheck = async () => {
+    if (keyResults.length === 0) {
+      toast.error("Aggiungi almeno un Key Result");
+      return;
+    }
+
+    const validKRs = keyResults.filter(kr => kr.title.trim());
+    if (validKRs.length === 0) {
+      toast.error("Compila almeno un Key Result");
+      return;
+    }
+
+    setIsCheckingOKR(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
+        body: { 
+          action: "check_okr",
+          data: { 
+            objective: {
+              title: objectiveTitle,
+              description: objectiveDescription,
+              target_date: targetDate
+            },
+            key_results: validKRs
+          }
+        },
+      });
+
+      if (error) throw error;
+
+      setOkrCheck(data.check);
+      setStep(5);
+    } catch (error: any) {
+      console.error("OKR check error:", error);
+      toast.error("Errore nel check OKR: " + error.message);
+    } finally {
+      setIsCheckingOKR(false);
+    }
+  };
+
+  // Save OKR
+  const saveOKR = async () => {
+    setIsLoading(true);
     try {
       const { data: objData, error: objError } = await supabase
         .from("strategic_objectives")
         .insert({
-          title: newObjective.title,
-          description: newObjective.description,
-          impact: newObjective.impact,
-          effort: newObjective.effort,
-          target_date: newObjective.target_date || null,
+          title: objectiveTitle,
+          description: objectiveDescription,
+          target_date: targetDate || null,
           source: "manual",
-          status: "draft",
+          status: "validated",
+          wise_analysis: okrCheck as any
         })
         .select()
         .single();
 
       if (objError) throw objError;
 
-      // Create key results
-      for (const kr of newKeyResults.filter(kr => kr.title)) {
+      for (const kr of keyResults.filter(kr => kr.title.trim())) {
         await supabase.from("key_results").insert({
           objective_id: objData.id,
           title: kr.title,
@@ -328,681 +263,608 @@ export default function StrategyWiseOraclePage() {
         });
       }
 
-      await loadData();
-      setShowCreateDialog(false);
-      setNewObjective({ title: "", description: "", impact: "medium", effort: "medium", target_date: "" });
-      setNewKeyResults([{ title: "", target_value: 0, unit: "", deadline: "" }]);
-      toast.success("Obiettivo creato con successo!");
+      toast.success("OKR salvato con successo!");
+      resetWizard();
     } catch (error: any) {
-      toast.error("Errore nella creazione: " + error.message);
+      toast.error("Errore nel salvataggio: " + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const updateObjectiveStatus = async (objectiveId: string, status: string) => {
-    try {
-      await supabase
-        .from("strategic_objectives")
-        .update({ status })
-        .eq("id", objectiveId);
-      await loadData();
-      toast.success("Stato aggiornato");
-    } catch (error) {
-      toast.error("Errore nell'aggiornamento");
+  const resetWizard = () => {
+    setStep(1);
+    setObjectiveTitle("");
+    setObjectiveDescription("");
+    setTargetDate("");
+    setTimelineAnalysis(null);
+    setSuggestedKRs([]);
+    setKeyResults([]);
+    setOkrCheck(null);
+  };
+
+  const goBack = () => {
+    if (step > 1) setStep(step - 1);
+  };
+
+  const getStepProgress = () => (step / 5) * 100;
+
+  const getRiskColor = (risk: string) => {
+    switch (risk) {
+      case "low": return "text-green-600";
+      case "medium": return "text-amber-500";
+      case "high": return "text-red-500";
+      default: return "text-muted-foreground";
     }
   };
 
-  const updateKeyResultValue = async (krId: string, currentValue: number) => {
-    try {
-      await supabase
-        .from("key_results")
-        .update({ current_value: currentValue })
-        .eq("id", krId);
-      await loadData();
-    } catch (error) {
-      toast.error("Errore nell'aggiornamento");
-    }
-  };
-
-  const getInsightTypeIcon = (type: string) => {
-    switch (type) {
-      case "opportunity": return <TrendingUp className="h-5 w-5 text-green-500" />;
-      case "risk": return <AlertTriangle className="h-5 w-5 text-red-500" />;
-      case "bottleneck": return <Clock className="h-5 w-5 text-orange-500" />;
-      case "blindspot": return <Eye className="h-5 w-5 text-purple-500" />;
-      default: return <Lightbulb className="h-5 w-5 text-yellow-500" />;
-    }
-  };
-
-  const getInsightTypeBadge = (type: string) => {
-    const styles: Record<string, string> = {
-      opportunity: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      risk: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-      bottleneck: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-      blindspot: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-    };
-    const labels: Record<string, string> = {
-      opportunity: "Opportunità",
-      risk: "Rischio",
-      bottleneck: "Collo di bottiglia",
-      blindspot: "Blind Spot"
-    };
-    return <Badge className={styles[type] || "bg-gray-100"}>{labels[type] || type}</Badge>;
-  };
-
-  const getStatusColor = (status: string) => {
+  const getKRCountIcon = (status: string) => {
     switch (status) {
-      case "on_track": return "text-green-600";
-      case "at_risk": return "text-orange-500";
-      case "off_track": return "text-red-500";
-      case "completed": return "text-blue-600";
-      default: return "text-gray-600";
+      case "optimal": return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case "too_few": return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      case "too_many": return <XCircle className="h-5 w-5 text-red-500" />;
+      default: return null;
     }
   };
 
-  const getImpactBadge = (impact: string | null) => {
-    const styles: Record<string, string> = {
-      low: "bg-gray-100 text-gray-800",
-      medium: "bg-blue-100 text-blue-800",
-      high: "bg-green-100 text-green-800"
-    };
-    const labels: Record<string, string> = { low: "Basso", medium: "Medio", high: "Alto" };
-    return <Badge className={styles[impact || "medium"]}>{labels[impact || "medium"]}</Badge>;
-  };
-
-  const addKeyResult = () => {
-    setNewKeyResults([...newKeyResults, { title: "", target_value: 0, unit: "", deadline: "" }]);
-  };
-
-  const removeKeyResult = (index: number) => {
-    setNewKeyResults(newKeyResults.filter((_, i) => i !== index));
-  };
-
-  const updateKeyResultField = (index: number, field: string, value: any) => {
-    const updated = [...newKeyResults];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewKeyResults(updated);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  // Calculate default target date (3 months from now)
+  useEffect(() => {
+    if (!targetDate) {
+      const threeMonthsLater = new Date();
+      threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+      setTargetDate(threeMonthsLater.toISOString().split("T")[0]);
+    }
+  }, []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-3">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg">
             <Sparkles className="h-8 w-8" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">Strategy Wise Oracle</h1>
-            <p className="text-muted-foreground">
-              Vedi ciò che potresti non vedere. Costruisci il percorso migliore per arrivarci.
-            </p>
-          </div>
+        </div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Strategy Wise Oracle
+        </h1>
+        <p className="text-muted-foreground">
+          Crea OKR intelligenti con l'aiuto dell'AI
+        </p>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Step {step} di 5</span>
+          <span>{Math.round(getStepProgress())}% completato</span>
+        </div>
+        <Progress value={getStepProgress()} className="h-2" />
+        <div className="flex justify-between">
+          {["Obiettivo", "Timeline", "Suggerimenti", "I Tuoi KR", "Check"].map((label, i) => (
+            <div 
+              key={label}
+              className={cn(
+                "flex flex-col items-center gap-1 text-xs",
+                step > i + 1 ? "text-primary" : step === i + 1 ? "text-primary font-medium" : "text-muted-foreground"
+              )}
+            >
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
+                step > i + 1 ? "bg-primary text-primary-foreground" : 
+                step === i + 1 ? "bg-primary/20 text-primary ring-2 ring-primary" : 
+                "bg-muted text-muted-foreground"
+              )}>
+                {step > i + 1 ? <Check className="h-4 w-4" /> : i + 1}
+              </div>
+              <span className="hidden sm:block">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="oracle" className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            ORACLE
-          </TabsTrigger>
-          <TabsTrigger value="wise" className="flex items-center gap-2">
-            <Scale className="h-4 w-4" />
-            WISE
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ORACLE Tab */}
-        <TabsContent value="oracle" className="space-y-6">
-          {/* Oracle Header */}
-          <Card className="border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900">
-                    <Eye className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">🔮 ORACLE</CardTitle>
-                    <CardDescription>
-                      Vedere ciò che potresti non vedere
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button onClick={runOracleAnalysis} disabled={isAnalyzing}>
-                  {isAnalyzing ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Analisi in corso...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Avvia Analisi ERP
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                ORACLE analizza i dati ERP (CRM, task, offerte, ordini, partnership, controllo di gestione) 
-                per far emergere pattern, colli di bottiglia e leve strategiche che potrebbero non essere 
-                immediatamente evidenti.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Insights Grid */}
-          {insights.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {insights.map((insight) => (
-                <Card 
-                  key={insight.id} 
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    selectedInsight?.id === insight.id ? "ring-2 ring-primary" : ""
-                  }`}
-                  onClick={() => setSelectedInsight(insight)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        {getInsightTypeIcon(insight.insight_type)}
-                        <CardTitle className="text-base">{insight.title}</CardTitle>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getInsightTypeBadge(insight.insight_type)}
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => { e.stopPropagation(); dismissInsight(insight.id); }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">{insight.description}</p>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">
-                        Fonte: {insight.data_source || "ERP"}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">Confidenza:</span>
-                        <Badge variant="outline">{insight.confidence}%</Badge>
-                      </div>
-                    </div>
-                    {insight.suggested_action && (
-                      <div className="pt-2 border-t">
-                        <div className="flex items-start gap-2">
-                          <Lightbulb className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                          <p className="text-sm">{insight.suggested_action}</p>
-                        </div>
-                      </div>
-                    )}
-                    {!insight.converted_to_objective_id && (
-                      <Button 
-                        size="sm" 
-                        className="w-full mt-2"
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setConvertingInsight(insight);
-                          setShowConvertDialog(true);
-                        }}
-                      >
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Converti in Obiettivo
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+      {/* Step 1: Define Objective */}
+      {step === 1 && (
+        <Card className="border-2 border-indigo-100 dark:border-indigo-900 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900 w-fit mb-2">
+              <Target className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
             </div>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Eye className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nessun insight disponibile</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  Avvia un'analisi ORACLE per scoprire opportunità, rischi e pattern nascosti nei tuoi dati ERP.
-                </p>
-                <Button onClick={runOracleAnalysis} disabled={isAnalyzing}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Avvia Analisi
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* WISE Tab */}
-        <TabsContent value="wise" className="space-y-6">
-          {/* Wise Header */}
-          <Card className="border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900">
-                    <Scale className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">⚖️ WISE</CardTitle>
-                    <CardDescription>
-                      Pesare e strutturare l'obiettivo in modo saggio
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button onClick={() => setShowCreateDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuovo Obiettivo
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                WISE analizza l'Objective scelto, valuta i Key Results proposti e verifica la coerenza 
-                con dati ERP, capacità del team e timeline realistiche.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Objectives List */}
-          <div className="space-y-4">
-            {objectives.map((objective) => (
-              <Card key={objective.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <CardTitle>{objective.title}</CardTitle>
-                        {objective.source === "oracle" && (
-                          <Badge variant="outline" className="text-indigo-600">
-                            <Eye className="h-3 w-3 mr-1" />
-                            Da ORACLE
-                          </Badge>
-                        )}
-                        <Select 
-                          value={objective.status} 
-                          onValueChange={(v) => updateObjectiveStatus(objective.id, v)}
-                        >
-                          <SelectTrigger className="w-[130px] h-7">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Bozza</SelectItem>
-                            <SelectItem value="validated">Validato</SelectItem>
-                            <SelectItem value="active">Attivo</SelectItem>
-                            <SelectItem value="completed">Completato</SelectItem>
-                            <SelectItem value="archived">Archiviato</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <CardDescription>{objective.description}</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => runWiseAnalysis(objective.id)}
-                        disabled={analyzingObjective === objective.id}
-                      >
-                        {analyzingObjective === objective.id ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Scale className="h-4 w-4 mr-1" />
-                            Analizza
-                          </>
-                        )}
-                      </Button>
-                      <div className="text-right text-sm">
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">Impatto:</span>
-                          {getImpactBadge(objective.impact)}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-muted-foreground">Sforzo:</span>
-                          {getImpactBadge(objective.effort)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Key Results */}
-                  <div className="space-y-3">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Target className="h-4 w-4" />
-                      Key Results
-                    </h4>
-                    {(keyResults[objective.id] || []).map((kr) => (
-                      <div key={kr.id} className="p-3 bg-muted rounded-lg space-y-2">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="font-medium">{kr.title}</span>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={kr.current_value}
-                              onChange={(e) => updateKeyResultValue(kr.id, parseFloat(e.target.value) || 0)}
-                              className="w-20 h-7 text-sm"
-                            />
-                            <span className="text-sm text-muted-foreground">/ {kr.target_value} {kr.unit}</span>
-                            <Badge variant={
-                              kr.status === "on_track" ? "default" :
-                              kr.status === "at_risk" ? "secondary" : "destructive"
-                            }>
-                              {kr.status === "on_track" ? "In linea" :
-                               kr.status === "at_risk" ? "A rischio" : 
-                               kr.status === "completed" ? "Completato" : "Fuori target"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <Progress 
-                          value={Math.min((kr.current_value / kr.target_value) * 100, 100)} 
-                          className="h-2"
-                        />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Deadline: {kr.deadline ? new Date(kr.deadline).toLocaleDateString("it-IT") : "N/D"}</span>
-                          <span>{Math.round((kr.current_value / kr.target_value) * 100)}% completato</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* WISE Analysis Section */}
-                  {objective.wise_analysis && (
-                    <Card className="border-amber-200 dark:border-amber-800">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Scale className="h-4 w-4 text-amber-600" />
-                          Analisi WISE
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div className="text-center p-3 bg-muted rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">
-                              {objective.wise_analysis.feasibility_score || 0}%
-                            </div>
-                            <div className="text-muted-foreground">Fattibilità</div>
-                          </div>
-                          <div className="text-center p-3 bg-muted rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">
-                              {objective.wise_analysis.coherence_score || 0}%
-                            </div>
-                            <div className="text-muted-foreground">Coerenza</div>
-                          </div>
-                          <div className="text-center p-3 bg-muted rounded-lg">
-                            <div className="text-2xl font-bold text-orange-500">
-                              {objective.wise_analysis.workload_score || 0}%
-                            </div>
-                            <div className="text-muted-foreground">Carico CC</div>
-                          </div>
-                        </div>
-                        {objective.wise_analysis.overall_assessment && (
-                          <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
-                            <p className="text-sm">{objective.wise_analysis.overall_assessment}</p>
-                          </div>
-                        )}
-                        {objective.wise_analysis.suggestions?.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium">Suggerimenti:</p>
-                            <ul className="text-sm text-muted-foreground list-disc list-inside">
-                              {objective.wise_analysis.suggestions.map((s: string, i: number) => (
-                                <li key={i}>{s}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Empty State */}
-          {objectives.length === 0 && (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Target className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nessun obiettivo definito</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  Inizia con ORACLE per scoprire opportunità, oppure crea un obiettivo manualmente.
-                </p>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setActiveTab("oracle")}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Vai a ORACLE
-                  </Button>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuovo Obiettivo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Workflow Diagram */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">🧩 Come ORACLE e WISE lavorano insieme</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <BarChart3 className="h-5 w-5 text-blue-500" />
-              <span>Dati ERP</span>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            <div className="flex items-center gap-2 p-3 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-              <Eye className="h-5 w-5 text-indigo-600" />
-              <span>ORACLE</span>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <Users className="h-5 w-5 text-gray-500" />
-              <span>Scelta Umana</span>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            <div className="flex items-center gap-2 p-3 bg-amber-100 dark:bg-amber-900 rounded-lg">
-              <Scale className="h-5 w-5 text-amber-600" />
-              <span>WISE</span>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            <div className="flex items-center gap-2 p-3 bg-green-100 dark:bg-green-900 rounded-lg">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <span>OKR + Timeline</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Create Objective Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Nuovo Obiettivo Strategico</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+            <CardTitle className="text-2xl">Definisci il tuo Obiettivo</CardTitle>
+            <CardDescription>
+              Qual è il grande traguardo che vuoi raggiungere?
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label>Titolo *</Label>
-              <Input 
-                value={newObjective.title}
-                onChange={(e) => setNewObjective({ ...newObjective, title: e.target.value })}
-                placeholder="Es: Espansione mercato DACH"
+              <Label className="text-base font-medium">
+                Titolo dell'Obiettivo <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={objectiveTitle}
+                onChange={(e) => setObjectiveTitle(e.target.value)}
+                placeholder="Es: Raddoppiare le vendite nel mercato DACH"
+                className="text-lg h-12"
+              />
+              <p className="text-xs text-muted-foreground">
+                💡 Un buon obiettivo è ambizioso ma raggiungibile, chiaro e ispirante
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Descrizione</Label>
+              <Textarea
+                value={objectiveDescription}
+                onChange={(e) => setObjectiveDescription(e.target.value)}
+                placeholder="Descrivi il contesto, le motivazioni e cosa significa raggiungere questo obiettivo..."
+                rows={4}
               />
             </div>
+
             <div className="space-y-2">
-              <Label>Descrizione</Label>
-              <Textarea 
-                value={newObjective.description}
-                onChange={(e) => setNewObjective({ ...newObjective, description: e.target.value })}
-                placeholder="Descrivi l'obiettivo in dettaglio..."
+              <Label className="text-base font-medium flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Data Target
+              </Label>
+              <Input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="w-full sm:w-auto"
               />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Impatto</Label>
-                <Select 
-                  value={newObjective.impact}
-                  onValueChange={(v) => setNewObjective({ ...newObjective, impact: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Basso</SelectItem>
-                    <SelectItem value="medium">Medio</SelectItem>
-                    <SelectItem value="high">Alto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Sforzo</Label>
-                <Select 
-                  value={newObjective.effort}
-                  onValueChange={(v) => setNewObjective({ ...newObjective, effort: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Basso</SelectItem>
-                    <SelectItem value="medium">Medio</SelectItem>
-                    <SelectItem value="high">Alto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Data Target</Label>
-                <Input 
-                  type="date"
-                  value={newObjective.target_date}
-                  onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Key Results</Label>
-                <Button variant="outline" size="sm" onClick={addKeyResult}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Aggiungi KR
-                </Button>
-              </div>
-              {newKeyResults.map((kr, index) => (
-                <div key={index} className="p-3 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Key Result {index + 1}</span>
-                    {newKeyResults.length > 1 && (
-                      <Button variant="ghost" size="icon" onClick={() => removeKeyResult(index)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    )}
-                  </div>
-                  <Input 
-                    placeholder="Titolo KR"
-                    value={kr.title}
-                    onChange={(e) => updateKeyResultField(index, "title", e.target.value)}
-                  />
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input 
-                      type="number"
-                      placeholder="Target"
-                      value={kr.target_value || ""}
-                      onChange={(e) => updateKeyResultField(index, "target_value", parseFloat(e.target.value) || 0)}
-                    />
-                    <Input 
-                      placeholder="Unità (€, %, ore...)"
-                      value={kr.unit}
-                      onChange={(e) => updateKeyResultField(index, "unit", e.target.value)}
-                    />
-                    <Input 
-                      type="date"
-                      placeholder="Deadline"
-                      value={kr.deadline}
-                      onChange={(e) => updateKeyResultField(index, "deadline", e.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-              Annulla
-            </Button>
-            <Button onClick={createObjective}>
-              <Save className="h-4 w-4 mr-2" />
-              Crea Obiettivo
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Convert Insight Dialog */}
-      <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Converti in Obiettivo</DialogTitle>
-          </DialogHeader>
-          {convertingInsight && (
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  {getInsightTypeIcon(convertingInsight.insight_type)}
-                  <span className="font-medium">{convertingInsight.title}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{convertingInsight.description}</p>
-                {convertingInsight.suggested_action && (
-                  <div className="mt-2 pt-2 border-t">
-                    <p className="text-sm"><strong>Azione suggerita:</strong> {convertingInsight.suggested_action}</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                WISE analizzerà questo insight e creerà automaticamente un obiettivo strategico 
-                con Key Results appropriati.
+              <p className="text-xs text-muted-foreground">
+                Di default impostiamo 3 mesi. L'AI ti dirà se è realistico.
               </p>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConvertDialog(false)}>
-              Annulla
-            </Button>
-            <Button onClick={convertInsightToObjective} disabled={isConverting}>
-              {isConverting ? (
+
+            <Button 
+              onClick={analyzeObjective} 
+              disabled={isAnalyzingTimeline || !objectiveTitle.trim()}
+              className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            >
+              {isAnalyzingTimeline ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Conversione...
+                  <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                  Analisi in corso...
                 </>
               ) : (
                 <>
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Converti
+                  Analizza con l'AI
+                  <ChevronRight className="h-5 w-5 ml-2" />
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Timeline Analysis */}
+      {step === 2 && timelineAnalysis && (
+        <Card className="border-2 border-amber-100 dark:border-amber-900 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto p-3 rounded-xl bg-amber-100 dark:bg-amber-900 w-fit mb-2">
+              <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <CardTitle className="text-2xl">Analisi Timeline</CardTitle>
+            <CardDescription>
+              L'AI ha valutato la fattibilità temporale del tuo obiettivo
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Objective Summary */}
+            <div className="p-4 bg-muted/50 rounded-xl">
+              <h3 className="font-medium mb-1">{objectiveTitle}</h3>
+              {objectiveDescription && (
+                <p className="text-sm text-muted-foreground">{objectiveDescription}</p>
+              )}
+              <div className="mt-2 text-sm">
+                <span className="text-muted-foreground">Target: </span>
+                <span className="font-medium">{new Date(targetDate).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}</span>
+              </div>
+            </div>
+
+            {/* AI Analysis */}
+            <div className={cn(
+              "p-6 rounded-xl border-2",
+              timelineAnalysis.is_appropriate 
+                ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                : "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
+            )}>
+              <div className="flex items-start gap-4">
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  timelineAnalysis.is_appropriate ? "bg-green-200 dark:bg-green-800" : "bg-amber-200 dark:bg-amber-800"
+                )}>
+                  {timelineAnalysis.is_appropriate ? (
+                    <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <h4 className="font-semibold text-lg">
+                    {timelineAnalysis.is_appropriate 
+                      ? "Timeline appropriata!" 
+                      : "Attenzione alla timeline"}
+                  </h4>
+                  <p className="text-sm">{timelineAnalysis.reasoning}</p>
+                  <div className="flex flex-wrap gap-4 pt-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        Durata suggerita: <strong>{timelineAnalysis.suggested_duration}</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className={cn("h-4 w-4", getRiskColor(timelineAnalysis.risk_level))} />
+                      <span className="text-sm">
+                        Rischio: <strong className={getRiskColor(timelineAnalysis.risk_level)}>
+                          {timelineAnalysis.risk_level === "low" ? "Basso" : 
+                           timelineAnalysis.risk_level === "medium" ? "Medio" : "Alto"}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={goBack} className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Modifica Obiettivo
+              </Button>
+              <Button 
+                onClick={generateKRSuggestions}
+                disabled={isGeneratingKRs}
+                className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              >
+                {isGeneratingKRs ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Generazione KR...
+                  </>
+                ) : (
+                  <>
+                    Suggerisci Key Results
+                    <Sparkles className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 3: AI Suggested KRs */}
+      {step === 3 && (
+        <Card className="border-2 border-purple-100 dark:border-purple-900 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto p-3 rounded-xl bg-purple-100 dark:bg-purple-900 w-fit mb-2">
+              <Lightbulb className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            </div>
+            <CardTitle className="text-2xl">Key Results Suggeriti</CardTitle>
+            <CardDescription>
+              L'AI suggerisce questi KR per il tuo obiettivo. Aggiungili o passa ai tuoi.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {suggestedKRs.length > 0 ? (
+              <>
+                <div className="space-y-3">
+                  {suggestedKRs.map((kr, index) => (
+                    <div 
+                      key={index}
+                      className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 rounded-xl border border-purple-200 dark:border-purple-800"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{kr.title}</h4>
+                          <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              Target: {kr.target_value} {kr.unit}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(kr.deadline).toLocaleDateString("it-IT")}
+                            </span>
+                          </div>
+                          {kr.rationale && (
+                            <p className="text-xs text-muted-foreground mt-2 italic">
+                              💡 {kr.rationale}
+                            </p>
+                          )}
+                        </div>
+                        <Button 
+                          size="sm"
+                          onClick={() => addSuggestedKR(kr)}
+                          disabled={keyResults.some(k => k.title === kr.title)}
+                        >
+                          {keyResults.some(k => k.title === kr.title) ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {keyResults.length > 0 && (
+                  <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800 text-sm">
+                    <Check className="h-4 w-4 inline mr-2 text-green-600" />
+                    {keyResults.length} Key Result{keyResults.length > 1 ? "s" : ""} aggiunti
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Lightbulb className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Nessun suggerimento disponibile</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={goBack} className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Button>
+              <Button 
+                onClick={() => setStep(4)}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              >
+                Definisci i Tuoi KR
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 4: User Key Results */}
+      {step === 4 && (
+        <Card className="border-2 border-blue-100 dark:border-blue-900 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto p-3 rounded-xl bg-blue-100 dark:bg-blue-900 w-fit mb-2">
+              <Target className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <CardTitle className="text-2xl">I Tuoi Key Results</CardTitle>
+            <CardDescription>
+              Aggiungi o modifica i Key Results. L'AI li analizzerà nel prossimo step.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Objective reminder */}
+            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+              <span className="font-medium">Obiettivo: </span>
+              {objectiveTitle}
+            </div>
+
+            {/* KR List */}
+            <div className="space-y-4">
+              {keyResults.map((kr, index) => (
+                <div 
+                  key={kr.id}
+                  className="p-4 border rounded-xl space-y-3 bg-card"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Key Result #{index + 1}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => removeKR(kr.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Es: Chiudere 10 nuovi contratti nella regione DACH"
+                    value={kr.title}
+                    onChange={(e) => updateKR(kr.id, "title", e.target.value)}
+                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target</Label>
+                      <Input
+                        type="number"
+                        value={kr.target_value}
+                        onChange={(e) => updateKR(kr.id, "target_value", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Unità</Label>
+                      <Input
+                        placeholder="%, €, n°..."
+                        value={kr.unit}
+                        onChange={(e) => updateKR(kr.id, "unit", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Deadline</Label>
+                      <Input
+                        type="date"
+                        value={kr.deadline}
+                        onChange={(e) => updateKR(kr.id, "deadline", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add KR Button */}
+            <Button 
+              variant="outline" 
+              onClick={addEmptyKR}
+              className="w-full border-dashed"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Aggiungi Key Result
+            </Button>
+
+            {/* Info */}
+            <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 text-sm">
+              <p className="font-medium mb-1">💡 Suggerimenti per buoni Key Results:</p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                <li>Devono essere <strong>misurabili</strong> con numeri concreti</li>
+                <li>Idealmente tra <strong>2 e 5 KR</strong> per obiettivo</li>
+                <li>Devono essere <strong>sfidanti ma raggiungibili</strong></li>
+                <li>Evita KR vaghi come "migliorare" o "aumentare"</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={goBack} className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Button>
+              <Button 
+                onClick={runOKRCheck}
+                disabled={isCheckingOKR || keyResults.length === 0}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              >
+                {isCheckingOKR ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Analisi in corso...
+                  </>
+                ) : (
+                  <>
+                    <Scale className="h-4 w-4 mr-2" />
+                    Esegui OKR Check
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 5: OKR Check Results */}
+      {step === 5 && okrCheck && (
+        <Card className="border-2 border-green-100 dark:border-green-900 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto p-3 rounded-xl bg-green-100 dark:bg-green-900 w-fit mb-2">
+              <Scale className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle className="text-2xl">OKR Check Completato</CardTitle>
+            <CardDescription>
+              Ecco l'analisi del tuo OKR. Salva o torna indietro per modificare.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Overall Score */}
+            <div className="text-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 rounded-xl">
+              <div className="text-6xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                {okrCheck.overall_score}%
+              </div>
+              <p className="text-muted-foreground mt-1">Punteggio OKR</p>
+            </div>
+
+            {/* KR Count Assessment */}
+            <div className={cn(
+              "p-4 rounded-xl flex items-start gap-3",
+              okrCheck.kr_count_assessment.status === "optimal" 
+                ? "bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800"
+                : okrCheck.kr_count_assessment.status === "too_few"
+                  ? "bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800"
+                  : "bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800"
+            )}>
+              {getKRCountIcon(okrCheck.kr_count_assessment.status)}
+              <div>
+                <h4 className="font-medium">Numero di Key Results</h4>
+                <p className="text-sm text-muted-foreground">{okrCheck.kr_count_assessment.message}</p>
+              </div>
+            </div>
+
+            {/* Strengths */}
+            {okrCheck.strengths?.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium flex items-center gap-2 text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Punti di Forza
+                </h4>
+                <ul className="space-y-1">
+                  {okrCheck.strengths.map((s, i) => (
+                    <li key={i} className="text-sm flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Issues */}
+            {okrCheck.issues?.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  Aree di Miglioramento
+                </h4>
+                <ul className="space-y-1">
+                  {okrCheck.issues.map((issue, i) => (
+                    <li key={i} className="text-sm flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      {issue}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {okrCheck.recommendations?.length > 0 && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium flex items-center gap-2 text-blue-600 mb-2">
+                  <Lightbulb className="h-4 w-4" />
+                  Raccomandazioni
+                </h4>
+                <ul className="space-y-1">
+                  {okrCheck.recommendations.map((rec, i) => (
+                    <li key={i} className="text-sm text-muted-foreground">• {rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={() => setStep(4)} className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Modifica KR
+              </Button>
+              <Button 
+                onClick={saveOKR}
+                disabled={isLoading}
+                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              >
+                {isLoading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Salva OKR
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Start Over */}
+            <Button 
+              variant="ghost" 
+              onClick={resetWizard}
+              className="w-full text-muted-foreground"
+            >
+              Ricomincia da capo
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
