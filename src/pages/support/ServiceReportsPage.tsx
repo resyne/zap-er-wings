@@ -1058,7 +1058,7 @@ export default function ServiceReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 sm:px-6 space-y-3">
-              <Popover open={workOrderSearchOpen} onOpenChange={setWorkOrderSearchOpen}>
+              <Popover open={workOrderSearchOpen} onOpenChange={setWorkOrderSearchOpen} modal={false}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -1137,7 +1137,7 @@ export default function ServiceReportsPage() {
             </CardHeader>
             <CardContent className="px-0 sm:px-6 space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
-                <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen} modal={false}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -1306,11 +1306,11 @@ export default function ServiceReportsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="intervention_type" className="text-sm font-medium">Tipo Intervento *</Label>
-                <Select onValueChange={(value) => handleInputChange('intervention_type', value)}>
+                <Select value={formData.intervention_type || ""} onValueChange={(value) => handleInputChange('intervention_type', value)}>
                   <SelectTrigger className="h-12 text-base">
                     <SelectValue placeholder="Seleziona tipo..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" className="z-50">
                     <SelectItem value="manutenzione" className="py-3">Manutenzione</SelectItem>
                     <SelectItem value="riparazione" className="py-3">Riparazione</SelectItem>
                     <SelectItem value="installazione" className="py-3">Installazione</SelectItem>
