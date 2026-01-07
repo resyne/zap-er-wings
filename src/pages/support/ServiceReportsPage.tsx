@@ -1261,16 +1261,20 @@ export default function ServiceReportsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="technician" className="text-sm font-medium">Tecnico *</Label>
-                  <Select onValueChange={handleTechnicianSelect}>
+                  <Select value={selectedTechnician?.id || ""} onValueChange={handleTechnicianSelect}>
                     <SelectTrigger className="h-12 text-base">
                       <SelectValue placeholder="Seleziona tecnico..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {technicians.map((technician) => (
-                        <SelectItem key={technician.id} value={technician.id} className="py-3">
-                          {technician.first_name} {technician.last_name}
-                        </SelectItem>
-                      ))}
+                      {technicians.length > 0 ? (
+                        technicians.map((technician) => (
+                          <SelectItem key={technician.id} value={technician.id} className="py-3">
+                            {technician.first_name} {technician.last_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="py-3 px-2 text-sm text-muted-foreground">Nessun tecnico trovato</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
