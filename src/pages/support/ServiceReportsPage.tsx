@@ -274,16 +274,45 @@ export default function ServiceReportsPage() {
     }
   };
 
+  // Calculate hours from start and end time (minimum 1 hour, rounded up)
+  const calculateHoursFromTime = (startTime: string, endTime: string): number => {
+    if (!startTime || !endTime) return 0;
+    
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    let diffMinutes = endMinutes - startMinutes;
+    if (diffMinutes <= 0) return 1; // Minimum 1 hour
+    
+    // Round up to the next hour
+    const hours = Math.ceil(diffMinutes / 60);
+    return Math.max(1, hours); // Minimum 1 hour
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
+      // Auto-calculate hours when start or end time changes
+      if (field === 'start_time' || field === 'end_time') {
+        const startTime = field === 'start_time' ? value : newData.start_time;
+        const endTime = field === 'end_time' ? value : newData.end_time;
+        
+        if (startTime && endTime) {
+          const calculatedHours = calculateHoursFromTime(startTime, endTime);
+          newData.specialized_technician_hours = calculatedHours.toString();
+        }
+      }
+      
       // Auto-calculate amount based on hours and km
-      if (['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count'].includes(field) || field === 'amount' || field === 'vat_rate') {
-        const headHours = parseFloat(field === 'head_technician_hours' ? value : newData.head_technician_hours) || 0;
-        const specHours = parseFloat(field === 'specialized_technician_hours' ? value : newData.specialized_technician_hours) || 0;
-        const km = parseFloat(field === 'kilometers' ? value : newData.kilometers) || 0;
-        const techCount = parseInt(field === 'technicians_count' ? value : newData.technicians_count) || 1;
+      if (['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count', 'start_time', 'end_time'].includes(field) || field === 'amount' || field === 'vat_rate') {
+        const headHours = parseFloat(newData.head_technician_hours) || 0;
+        const specHours = parseFloat(newData.specialized_technician_hours) || 0;
+        const km = parseFloat(newData.kilometers) || 0;
+        const techCount = parseInt(newData.technicians_count) || 1;
         
         // Calculate amount based on pricing settings
         const headCost = headHours * pricingSettings.head_technician_hourly_rate;
@@ -293,7 +322,7 @@ export default function ServiceReportsPage() {
         const calculatedAmount = headCost + specCost + kmCost;
         
         // Only auto-calculate if user hasn't manually set a different amount
-        if (!prev.amount || ['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count'].includes(field)) {
+        if (!prev.amount || ['head_technician_hours', 'specialized_technician_hours', 'kilometers', 'technicians_count', 'start_time', 'end_time'].includes(field)) {
           newData.amount = calculatedAmount.toFixed(2);
         }
       }
