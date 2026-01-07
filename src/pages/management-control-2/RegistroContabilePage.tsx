@@ -1120,6 +1120,26 @@ export default function RegistroContabilePage() {
             profit_center_id: s.profit_center_id || null
           }))
         : null;
+
+      // Validazione: se c'è split, ogni riga deve avere conto e centro
+      if (splitsToSave && splitsToSave.length > 0) {
+        const isAcquisto = data.invoice_type === 'acquisto';
+        for (let i = 0; i < splitsToSave.length; i++) {
+          const split = splitsToSave[i];
+          if (!split.account_id || split.account_id.trim() === '') {
+            throw new Error(`Riga ${i + 1} dello split: seleziona un Conto Economico.`);
+          }
+          if (isAcquisto) {
+            if (!split.cost_center_id) {
+              throw new Error(`Riga ${i + 1} dello split: seleziona un Centro di Costo.`);
+            }
+          } else {
+            if (!split.profit_center_id) {
+              throw new Error(`Riga ${i + 1} dello split: seleziona un Centro di Ricavo.`);
+            }
+          }
+        }
+      }
       
       // Se c'è split, NON usare i valori singoli di conto/centro (usare solo lo split)
       const hasSplit = splitsToSave && splitsToSave.length > 0;
