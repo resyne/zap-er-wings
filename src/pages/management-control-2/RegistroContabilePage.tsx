@@ -51,7 +51,8 @@ import {
   Archive,
   RefreshCw,
   Undo2,
-  Lock
+  Lock,
+  UserPlus
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -3574,7 +3575,26 @@ export default function RegistroContabilePage() {
                           onValueChange={setSubjectSearch}
                         />
                         <CommandList>
-                          <CommandEmpty>Nessun risultato trovato</CommandEmpty>
+                          <CommandEmpty>
+                            <div className="p-2 space-y-2">
+                              <p className="text-sm text-muted-foreground">Nessun risultato trovato</p>
+                              {subjectSearch.trim().length > 2 && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full"
+                                  onClick={() => {
+                                    const subjectType: SubjectType = formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore';
+                                    checkAndMatchSubject(subjectSearch.trim(), subjectType);
+                                    setSubjectSearchOpen(false);
+                                  }}
+                                >
+                                  <UserPlus className="w-4 h-4 mr-2" />
+                                  Verifica/Crea "{subjectSearch.trim()}"
+                                </Button>
+                              )}
+                            </div>
+                          </CommandEmpty>
                           <CommandGroup className="max-h-60 overflow-auto">
                             {filteredSubjects.map((subject) => (
                               <CommandItem
