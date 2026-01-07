@@ -1187,6 +1187,9 @@ export default function RegistroContabilePage() {
       const accountSplitsForCheck = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
       const hasAccountSplit = accountSplitsForCheck.length > 0;
 
+      // Converte subject_id vuoto in null per evitare errori UUID
+      const economicSubjectId = invoice.subject_id && invoice.subject_id.trim() !== '' ? invoice.subject_id : null;
+
       const { data: accountingEntry, error: accountingError } = await supabase
         .from('accounting_entries')
         .insert({
@@ -1201,6 +1204,8 @@ export default function RegistroContabilePage() {
           event_type: eventType,
           financial_status: invoice.financial_status,
           subject_type: invoice.subject_type,
+          economic_subject_type: invoice.subject_type,
+          economic_subject_id: economicSubjectId,
           iva_mode: 'DOMESTICA_IMPONIBILE',
           payment_method: isPaid ? paymentMethod : null,
           attachment_url: invoice.attachment_url || '',
