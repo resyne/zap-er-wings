@@ -1184,8 +1184,24 @@ export default function RegistroContabilePage() {
       const paymentMethod = invoice.payment_method || 'bonifico';
       
       // Verifica se c'è uno split - se sì, NON usare i valori singoli del form
-      const accountSplitsForCheck = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
-      const hasAccountSplit = accountSplitsForCheck.length > 0;
+      const validatedAccountSplits = (Array.isArray(invoice.account_splits) ? invoice.account_splits : [])
+        .filter((s: any) => Number(s?.amount ?? 0) !== 0)
+        .map((s: any) => ({
+          ...s,
+          account_id: typeof s?.account_id === 'string' ? s.account_id.trim() : s?.account_id,
+        }));
+
+      const invalidSplitIndex = validatedAccountSplits.findIndex(
+        (s: any) => !s?.account_id || String(s.account_id).trim() === ''
+      );
+
+      if (invalidSplitIndex !== -1) {
+        throw new Error(
+          `Split contabile incompleto: seleziona un conto per la riga ${invalidSplitIndex + 1} (Modifica fattura → Split).`
+        );
+      }
+
+      const hasAccountSplit = validatedAccountSplits.length > 0;
 
       // Converte subject_id vuoto in null per evitare errori UUID
       const economicSubjectId = invoice.subject_id && invoice.subject_id.trim() !== '' ? invoice.subject_id : null;
@@ -1255,8 +1271,8 @@ export default function RegistroContabilePage() {
       const primaNotaLines: any[] = [];
       let lineOrder = 1;
       
-      // Recupera lo split se presente
-      const accountSplits = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
+      // Recupera lo split se presente (già validato sopra)
+      const accountSplits = validatedAccountSplits;
       const hasSplit = accountSplits.length > 0;
 
       if (isAcquisto) {
