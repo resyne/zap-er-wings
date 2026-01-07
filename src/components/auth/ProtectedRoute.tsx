@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,14 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate("/auth");
+      // Save the current path so we can redirect back after login
+      navigate("/auth", { state: { from: location.pathname + location.search } });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, location]);
 
   // Check if user has ERP domain access
   const hasERPAccess = user?.email?.endsWith('@abbattitorizapper.it');
