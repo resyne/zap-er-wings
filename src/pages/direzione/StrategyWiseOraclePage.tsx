@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -25,7 +26,12 @@ import {
   CheckCircle2,
   XCircle,
   Scale,
-  Rocket
+  Rocket,
+  Eye,
+  Brain,
+  Zap,
+  TrendingDown,
+  ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,7 +76,25 @@ interface OKRCheckResult {
   recommendations: string[];
 }
 
+interface OracleInsight {
+  type: "opportunity" | "risk" | "bottleneck" | "blindspot";
+  title: string;
+  description: string;
+  data_source: string;
+  confidence: number;
+  suggested_action: string;
+}
+
 export default function StrategyWiseOraclePage() {
+  const [activeTab, setActiveTab] = useState<"oracle" | "wise">("oracle");
+  
+  // ORACLE State
+  const [oracleInsights, setOracleInsights] = useState<OracleInsight[]>([]);
+  const [isLoadingOracle, setIsLoadingOracle] = useState(false);
+  const [selectedInsight, setSelectedInsight] = useState<OracleInsight | null>(null);
+  const [isConvertingInsight, setIsConvertingInsight] = useState(false);
+  
+  // WISE State
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -95,6 +119,66 @@ export default function StrategyWiseOraclePage() {
   const [isCheckingOKR, setIsCheckingOKR] = useState(false);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
+
+  // ORACLE: Fetch insights from ERP data
+  const fetchOracleInsights = async () => {
+    setIsLoadingOracle(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
+        body: { action: "oracle_analyze" },
+      });
+
+      if (error) throw error;
+
+      setOracleInsights(data.insights || []);
+      toast.success("Insights generati con successo!");
+    } catch (error: any) {
+      console.error("Oracle error:", error);
+      toast.error("Errore nell'analisi Oracle: " + error.message);
+    } finally {
+      setIsLoadingOracle(false);
+    }
+  };
+
+  // ORACLE: Convert insight to objective
+  const convertInsightToObjective = async (insight: OracleInsight) => {
+    setIsConvertingInsight(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("strategy-wise-oracle", {
+        body: { 
+          action: "convert_insight_to_objective",
+          data: { insight }
+        },
+      });
+
+      if (error) throw error;
+
+      // Pre-fill WISE wizard with converted data
+      if (data.objective) {
+        setObjectiveTitle(data.objective.title);
+        setObjectiveDescription(data.objective.description);
+        setTargetDate(data.objective.target_date);
+      }
+      if (data.key_results) {
+        setKeyResults(data.key_results.map((kr: any) => ({
+          id: generateId(),
+          title: kr.title,
+          target_value: kr.target_value,
+          unit: kr.unit,
+          deadline: kr.deadline
+        })));
+      }
+      
+      setActiveTab("wise");
+      setStep(1);
+      toast.success("Insight convertito! Ora puoi raffinare l'OKR con WISE.");
+    } catch (error: any) {
+      console.error("Conversion error:", error);
+      toast.error("Errore nella conversione: " + error.message);
+    } finally {
+      setIsConvertingInsight(false);
+    }
+  };
 
   // Step 1: Analyze objective and timeline
   const analyzeObjective = async () => {
@@ -307,6 +391,26 @@ export default function StrategyWiseOraclePage() {
     }
   };
 
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case "opportunity": return <TrendingUp className="h-5 w-5" />;
+      case "risk": return <AlertTriangle className="h-5 w-5" />;
+      case "bottleneck": return <TrendingDown className="h-5 w-5" />;
+      case "blindspot": return <Eye className="h-5 w-5" />;
+      default: return <Lightbulb className="h-5 w-5" />;
+    }
+  };
+
+  const getInsightColor = (type: string) => {
+    switch (type) {
+      case "opportunity": return "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800";
+      case "risk": return "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800";
+      case "bottleneck": return "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800";
+      case "blindspot": return "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800";
+      default: return "bg-muted";
+    }
+  };
+
   // Calculate default target date (3 months from now)
   useEffect(() => {
     if (!targetDate) {
@@ -317,51 +421,190 @@ export default function StrategyWiseOraclePage() {
   }, []);
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl space-y-6">
+    <div className="container mx-auto p-6 max-w-5xl space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="flex items-center justify-center gap-3">
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-4">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg">
+            <Eye className="h-7 w-7" />
+          </div>
+          <Plus className="h-5 w-5 text-muted-foreground" />
           <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg">
-            <Sparkles className="h-8 w-8" />
+            <Brain className="h-7 w-7" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
           Strategy Wise Oracle
         </h1>
-        <p className="text-muted-foreground">
-          Crea OKR intelligenti con l'aiuto dell'AI
+        <p className="text-muted-foreground max-w-lg mx-auto">
+          <strong>Oracle</strong> ti mostra ciò che non vedi dai dati ERP • <strong>Wise</strong> ti aiuta a strutturare OKR saggi
         </p>
       </div>
 
-      {/* Progress Bar */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Step {step} di 5</span>
-          <span>{Math.round(getStepProgress())}% completato</span>
-        </div>
-        <Progress value={getStepProgress()} className="h-2" />
-        <div className="flex justify-between">
-          {["Obiettivo", "Timeline", "Suggerimenti", "I Tuoi KR", "Check"].map((label, i) => (
-            <div 
-              key={label}
-              className={cn(
-                "flex flex-col items-center gap-1 text-xs",
-                step > i + 1 ? "text-primary" : step === i + 1 ? "text-primary font-medium" : "text-muted-foreground"
-              )}
-            >
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
-                step > i + 1 ? "bg-primary text-primary-foreground" : 
-                step === i + 1 ? "bg-primary/20 text-primary ring-2 ring-primary" : 
-                "bg-muted text-muted-foreground"
-              )}>
-                {step > i + 1 ? <Check className="h-4 w-4" /> : i + 1}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "oracle" | "wise")} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-14">
+          <TabsTrigger value="oracle" className="h-12 text-base gap-2">
+            <Eye className="h-5 w-5" />
+            <span className="hidden sm:inline">Oracle</span>
+            <span className="text-xs text-muted-foreground hidden md:inline">• Esplora</span>
+          </TabsTrigger>
+          <TabsTrigger value="wise" className="h-12 text-base gap-2">
+            <Brain className="h-5 w-5" />
+            <span className="hidden sm:inline">Wise</span>
+            <span className="text-xs text-muted-foreground hidden md:inline">• OKR Checker</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ORACLE TAB */}
+        <TabsContent value="oracle" className="mt-6 space-y-6">
+          <Card className="border-2 border-cyan-100 dark:border-cyan-900 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-cyan-100 dark:bg-cyan-900">
+                    <Eye className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                  </div>
+                  <div>
+                    <CardTitle>Oracle Vision</CardTitle>
+                    <CardDescription>Analizza i dati ERP per scoprire opportunità e rischi nascosti</CardDescription>
+                  </div>
+                </div>
+                <Button 
+                  onClick={fetchOracleInsights}
+                  disabled={isLoadingOracle}
+                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700"
+                >
+                  {isLoadingOracle ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Analizza Dati
+                    </>
+                  )}
+                </Button>
               </div>
-              <span className="hidden sm:block">{label}</span>
+            </CardHeader>
+            <CardContent>
+              {oracleInsights.length === 0 && !isLoadingOracle ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="p-4 rounded-full bg-cyan-100 dark:bg-cyan-900 w-fit mx-auto">
+                    <Eye className="h-12 w-12 text-cyan-600 dark:text-cyan-400 opacity-50" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium">Nessun insight disponibile</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Clicca "Analizza Dati" per far emergere opportunità, rischi e blind spot dai tuoi dati ERP
+                    </p>
+                  </div>
+                </div>
+              ) : isLoadingOracle ? (
+                <div className="text-center py-12 space-y-4">
+                  <RefreshCw className="h-12 w-12 mx-auto text-cyan-600 animate-spin" />
+                  <p className="text-muted-foreground">Oracle sta analizzando i tuoi dati...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {oracleInsights.map((insight, index) => (
+                    <div 
+                      key={index}
+                      className={cn(
+                        "p-4 rounded-xl border-2 transition-all hover:shadow-md cursor-pointer",
+                        getInsightColor(insight.type),
+                        selectedInsight === insight && "ring-2 ring-offset-2 ring-cyan-500"
+                      )}
+                      onClick={() => setSelectedInsight(selectedInsight === insight ? null : insight)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="p-2 rounded-lg bg-white/50 dark:bg-black/20">
+                            {getInsightIcon(insight.type)}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {insight.type === "opportunity" ? "Opportunità" :
+                                 insight.type === "risk" ? "Rischio" :
+                                 insight.type === "bottleneck" ? "Collo di bottiglia" : "Blind Spot"}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                Confidenza: {insight.confidence}%
+                              </span>
+                            </div>
+                            <h4 className="font-semibold">{insight.title}</h4>
+                            <p className="text-sm mt-1 opacity-80">{insight.description}</p>
+                            {selectedInsight === insight && (
+                              <div className="mt-4 space-y-3">
+                                <div className="text-xs">
+                                  <span className="font-medium">Fonte dati:</span> {insight.data_source}
+                                </div>
+                                <div className="p-3 bg-white/50 dark:bg-black/20 rounded-lg">
+                                  <span className="text-xs font-medium">💡 Azione suggerita:</span>
+                                  <p className="text-sm mt-1">{insight.suggested_action}</p>
+                                </div>
+                                <Button 
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    convertInsightToObjective(insight);
+                                  }}
+                                  disabled={isConvertingInsight}
+                                  className="w-full"
+                                >
+                                  {isConvertingInsight ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      Converti in OKR con Wise
+                                      <ArrowRight className="h-4 w-4 ml-2" />
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* WISE TAB */}
+        <TabsContent value="wise" className="mt-6 space-y-6">
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Step {step} di 5</span>
+              <span>{Math.round(getStepProgress())}% completato</span>
             </div>
-          ))}
-        </div>
-      </div>
+            <Progress value={getStepProgress()} className="h-2" />
+            <div className="flex justify-between">
+              {["Obiettivo", "Timeline", "Suggerimenti", "I Tuoi KR", "Check"].map((label, i) => (
+                <div 
+                  key={label}
+                  className={cn(
+                    "flex flex-col items-center gap-1 text-xs",
+                    step > i + 1 ? "text-primary" : step === i + 1 ? "text-primary font-medium" : "text-muted-foreground"
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
+                    step > i + 1 ? "bg-primary text-primary-foreground" : 
+                    step === i + 1 ? "bg-primary/20 text-primary ring-2 ring-primary" : 
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    {step > i + 1 ? <Check className="h-4 w-4" /> : i + 1}
+                  </div>
+                  <span className="hidden sm:block">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
       {/* Step 1: Define Objective */}
       {step === 1 && (
@@ -865,6 +1108,8 @@ export default function StrategyWiseOraclePage() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
