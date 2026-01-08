@@ -221,6 +221,18 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
             if (!insertError) {
               newCallRecords++;
+              
+              // Get the inserted record ID for AI analysis
+              const { data: insertedRecord } = await supabase
+                .from('call_records')
+                .select('id')
+                .eq('unique_call_id', callData.unique_call_id)
+                .single();
+              
+              if (insertedRecord) {
+                // Trigger AI analysis asynchronously
+                triggerAIAnalysis(insertedRecord.id, callData);
+              }
             } else {
               console.error('Insert error:', insertError);
             }
@@ -324,7 +336,21 @@ async function syncLegacyConfig(supabase: any, config: any) {
                 matched_by: leadMatch?.matched_by || null
               });
 
-            if (!insertError) newCallRecords++;
+            if (!insertError) {
+              newCallRecords++;
+              
+              // Get the inserted record ID for AI analysis
+              const { data: insertedRecord } = await supabase
+                .from('call_records')
+                .select('id')
+                .eq('unique_call_id', callData.unique_call_id)
+                .single();
+              
+              if (insertedRecord) {
+                // Trigger AI analysis asynchronously
+                triggerAIAnalysis(insertedRecord.id, callData);
+              }
+            }
           }
           processedCount++;
         }
@@ -610,4 +636,51 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
     extension_number: extensionNumber,
     direction: direction
   };
+}
+
+// Trigger AI analysis for a new call record
+async function triggerAIAnalysis(callRecordId: string, callData: CallRecordData) {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase credentials for AI analysis trigger');
+      return;
+    }
+
+    console.log(`Triggering AI analysis for call ${callRecordId}`);
+    
+    // Create a pseudo-transcription from the call data for AI to analyze
+    const callInfo = `Chiamata ${callData.direction === 'inbound' ? 'in entrata' : 'in uscita'}
+Da: ${callData.caller_number}
+A: ${callData.called_number}
+Servizio: ${callData.service}
+Data: ${callData.call_date} ${callData.call_time}
+Durata: ${callData.duration_seconds} secondi`;
+
+    // Call the analyze-call-record function
+    const analyzeUrl = `${supabaseUrl}/functions/v1/analyze-call-record`;
+    
+    const response = await fetch(analyzeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        call_record_id: callRecordId,
+        transcription_text: callInfo
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`AI analysis failed for call ${callRecordId}:`, response.status, errorText);
+    } else {
+      console.log(`AI analysis triggered successfully for call ${callRecordId}`);
+    }
+  } catch (error) {
+    console.error(`Error triggering AI analysis for call ${callRecordId}:`, error);
+  }
 }
