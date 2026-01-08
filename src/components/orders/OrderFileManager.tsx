@@ -2,11 +2,11 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Camera, Upload, X, FileText, Image as ImageIcon, Download, Eye } from "lucide-react";
+import { Upload, X, FileText, Image as ImageIcon, Download, Eye, Video, File } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AttachmentFile {
   path: string;
@@ -34,7 +34,7 @@ export function OrderFileManager({
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<AttachmentFile | null>(null);
-  const [files, setFiles] = useState<File[]>([]);
+  const [videoPreview, setVideoPreview] = useState<{ url: string; name: string } | null>(null);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -45,6 +45,16 @@ export function OrderFileManager({
         const uploadedAttachments: AttachmentFile[] = [];
 
         for (const file of acceptedFiles) {
+          // Check file size (max 50MB)
+          if (file.size > 50 * 1024 * 1024) {
+            toast({
+              title: "File troppo grande",
+              description: `${file.name} supera il limite di 50MB`,
+              variant: "destructive",
+            });
+            continue;
+          }
+
           const fileExt = file.name.split('.').pop();
           const fileName = `${orderId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -79,7 +89,7 @@ export function OrderFileManager({
 
         toast({
           title: "File caricati",
-          description: `${acceptedFiles.length} file caricati con successo`,
+          description: `${uploadedAttachments.length} file caricati con successo`,
         });
 
         onUpdate?.();
@@ -100,14 +110,22 @@ export function OrderFileManager({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     disabled: readOnly || uploading,
+    // Accept all common file types including videos
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
+      'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.heic'],
+      'video/*': ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.m4v'],
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
-    }
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'text/plain': ['.txt'],
+      'application/zip': ['.zip'],
+      'application/x-rar-compressed': ['.rar']
+    },
+    maxSize: 50 * 1024 * 1024 // 50MB max
   });
 
   const handleDelete = async (attachment: AttachmentFile) => {
@@ -172,7 +190,10 @@ export function OrderFileManager({
   };
 
   const handlePreview = async (attachment: AttachmentFile) => {
-    if (!attachment.type.startsWith('image/')) {
+    const isImage = attachment.type.startsWith('image/');
+    const isVideo = attachment.type.startsWith('video/');
+
+    if (!isImage && !isVideo) {
       handleDownload(attachment);
       return;
     }
@@ -184,7 +205,11 @@ export function OrderFileManager({
 
       if (error) throw error;
 
-      setPreviewFile({ ...attachment, url: data.signedUrl });
+      if (isVideo) {
+        setVideoPreview({ url: data.signedUrl, name: attachment.name });
+      } else {
+        setPreviewFile({ ...attachment, url: data.signedUrl });
+      }
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -196,9 +221,15 @@ export function OrderFileManager({
 
   const getFileIcon = (type: string) => {
     if (type.startsWith('image/')) {
-      return <ImageIcon className="h-4 w-4" />;
+      return <ImageIcon className="h-4 w-4 text-blue-500" />;
     }
-    return <FileText className="h-4 w-4" />;
+    if (type.startsWith('video/')) {
+      return <Video className="h-4 w-4 text-purple-500" />;
+    }
+    if (type.includes('pdf')) {
+      return <FileText className="h-4 w-4 text-red-500" />;
+    }
+    return <File className="h-4 w-4 text-muted-foreground" />;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -237,7 +268,7 @@ export function OrderFileManager({
                       {uploading ? "Caricamento in corso..." : "Trascina i file qui o clicca per selezionare"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Formati supportati: Immagini, PDF, Word, Excel
+                      Video, Immagini, PDF, Word, Excel, PowerPoint, ZIP (max 50MB)
                     </p>
                   </div>
                 )}
@@ -311,14 +342,37 @@ export function OrderFileManager({
         )}
       </div>
 
+      {/* Image Preview Dialog */}
       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{previewFile?.name}</DialogTitle>
+          </DialogHeader>
           {previewFile?.url && (
             <img
               src={previewFile.url}
               alt={previewFile.name}
-              className="w-full h-auto"
+              className="w-full h-auto rounded-lg"
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Video Preview Dialog */}
+      <Dialog open={!!videoPreview} onOpenChange={() => setVideoPreview(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{videoPreview?.name}</DialogTitle>
+          </DialogHeader>
+          {videoPreview?.url && (
+            <video
+              controls
+              autoPlay
+              className="w-full rounded-lg"
+              src={videoPreview.url}
+            >
+              Il tuo browser non supporta la riproduzione video.
+            </video>
           )}
         </DialogContent>
       </Dialog>
