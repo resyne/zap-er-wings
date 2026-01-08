@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw, Settings, Mail } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw, Settings, Mail, Brain, ChevronDown, User, MessageSquare, Sparkles, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { ImapConfigDialog } from "@/components/crm/ImapConfigDialog";
+import { Link } from "react-router-dom";
 
 interface CallRecord {
   id: string;
@@ -22,12 +25,26 @@ interface CallRecord {
   unique_call_id: string;
   recording_url: string | null;
   created_at: string;
+  lead_id: string | null;
+  extension_number: string | null;
+  operator_id: string | null;
+  operator_name: string | null;
+  transcription: string | null;
+  ai_summary: string | null;
+  ai_sentiment: string | null;
+  ai_actions: unknown;
+  ai_processed_at: string | null;
+  direction: string | null;
+  matched_by: string | null;
+  leads?: { id: string; company_name: string; contact_name: string } | null;
 }
 
 export default function CallRecordsPage() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showImapDialog, setShowImapDialog] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const { data: imapConfigs, refetch: refetchConfigs } = useQuery({
     queryKey: ['imap-configs'],
@@ -48,13 +65,34 @@ export default function CallRecordsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('call_records')
-        .select('*')
+        .select(`
+          *,
+          leads:lead_id (id, company_name, contact_name)
+        `)
         .order('call_date', { ascending: false })
         .order('call_time', { ascending: false });
 
       if (error) throw error;
       return data as CallRecord[];
     },
+  });
+
+  // Mutation per analisi AI
+  const analyzeCallMutation = useMutation({
+    mutationFn: async (callId: string) => {
+      const { data, error } = await supabase.functions.invoke('analyze-call-record', {
+        body: { call_record_id: callId }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['call-records'] });
+      toast.success('Chiamata analizzata con AI');
+    },
+    onError: (error: any) => {
+      toast.error(`Errore analisi: ${error.message}`);
+    }
   });
 
   const formatDuration = (seconds: number) => {
@@ -252,63 +290,178 @@ export default function CallRecordsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead></TableHead>
                       <TableHead>Data/Ora</TableHead>
                       <TableHead>Chiamante</TableHead>
-                      <TableHead>Chiamato</TableHead>
-                      <TableHead>Servizio</TableHead>
+                      <TableHead>Operatore</TableHead>
+                      <TableHead>Lead</TableHead>
                       <TableHead>Durata</TableHead>
-                      <TableHead>ID Chiamata</TableHead>
+                      <TableHead>AI</TableHead>
                       <TableHead className="text-right">Azioni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRecords.map((record) => {
-                      const isOutgoing = record.service.toLowerCase().includes('out');
+                      const isOutgoing = record.direction === 'outbound' || record.service.toLowerCase().includes('out');
+                      const aiActions = Array.isArray(record.ai_actions) ? record.ai_actions as { action: string; priority: string; deadline?: string }[] : [];
+                      const isExpanded = expandedRow === record.id;
+                      
                       return (
-                        <TableRow key={record.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {format(new Date(record.call_date), 'dd/MM/yyyy', { locale: it })}
-                            <br />
-                            <span className="text-xs text-muted-foreground">
-                              {record.call_time}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {isOutgoing ? (
-                                <PhoneOutgoing className="h-4 w-4 text-blue-500" />
-                              ) : (
-                                <PhoneIncoming className="h-4 w-4 text-green-500" />
-                              )}
-                              {record.caller_number}
-                            </div>
-                          </TableCell>
-                          <TableCell>{record.called_number}</TableCell>
-                          <TableCell>
-                            <span className="text-xs px-2 py-1 rounded-full bg-secondary">
-                              {record.service}
-                            </span>
-                          </TableCell>
-                          <TableCell>{formatDuration(record.duration_seconds)}</TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {record.unique_call_id}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {record.recording_url ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => downloadRecording(record.recording_url!, record.unique_call_id)}
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            ) : (
+                        <>
+                          <TableRow key={record.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
+                            <TableCell>
+                              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {format(new Date(record.call_date), 'dd/MM/yyyy', { locale: it })}
+                              <br />
                               <span className="text-xs text-muted-foreground">
-                                Nessuna registrazione
+                                {record.call_time}
                               </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {isOutgoing ? (
+                                  <PhoneOutgoing className="h-4 w-4 text-blue-500" />
+                                ) : (
+                                  <PhoneIncoming className="h-4 w-4 text-green-500" />
+                                )}
+                                <span className="text-sm">{record.caller_number}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {record.operator_name ? (
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span>{record.operator_name}</span>
+                                  {record.extension_number && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Int. {record.extension_number}
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {record.leads ? (
+                                <Link 
+                                  to={`/crm/leads?id=${record.leads.id}`} 
+                                  className="flex items-center gap-1 text-primary hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Link2 className="h-3 w-3" />
+                                  {record.leads.company_name || record.leads.contact_name}
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{formatDuration(record.duration_seconds)}</TableCell>
+                            <TableCell>
+                              {record.ai_processed_at ? (
+                                <Badge 
+                                  variant={
+                                    record.ai_sentiment === 'positivo' ? 'default' :
+                                    record.ai_sentiment === 'negativo' ? 'destructive' : 'secondary'
+                                  }
+                                >
+                                  <Sparkles className="h-3 w-3 mr-1" />
+                                  {record.ai_sentiment || 'Analizzato'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  Non analizzato
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                {record.recording_url && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => downloadRecording(record.recording_url!, record.unique_call_id)}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => analyzeCallMutation.mutate(record.id)}
+                                  disabled={analyzeCallMutation.isPending}
+                                >
+                                  <Brain className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/30 p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Riassunto AI */}
+                                  {record.ai_summary && (
+                                    <div className="space-y-2">
+                                      <h4 className="font-semibold flex items-center gap-2">
+                                        <MessageSquare className="h-4 w-4" />
+                                        Riassunto AI
+                                      </h4>
+                                      <p className="text-sm text-muted-foreground bg-background p-3 rounded-lg">
+                                        {record.ai_summary}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Azioni suggerite */}
+                                  {aiActions.length > 0 && (
+                                    <div className="space-y-2">
+                                      <h4 className="font-semibold">Azioni suggerite</h4>
+                                      <ul className="space-y-1">
+                                        {aiActions.map((action, idx) => (
+                                          <li key={idx} className="flex items-start gap-2 text-sm">
+                                            <Badge 
+                                              variant={
+                                                action.priority === 'alta' ? 'destructive' :
+                                                action.priority === 'media' ? 'default' : 'secondary'
+                                              }
+                                              className="text-xs shrink-0"
+                                            >
+                                              {action.priority}
+                                            </Badge>
+                                            <span>{action.action}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Trascrizione */}
+                                  {record.transcription && (
+                                    <div className="md:col-span-2 space-y-2">
+                                      <h4 className="font-semibold">Trascrizione</h4>
+                                      <p className="text-sm text-muted-foreground bg-background p-3 rounded-lg max-h-40 overflow-y-auto">
+                                        {record.transcription}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Info chiamata */}
+                                  <div className="md:col-span-2 flex flex-wrap gap-4 text-xs text-muted-foreground border-t pt-3">
+                                    <span>ID: {record.unique_call_id}</span>
+                                    <span>Servizio: {record.service}</span>
+                                    {record.matched_by && <span>Match: {record.matched_by}</span>}
+                                    {record.ai_processed_at && (
+                                      <span>Analizzato: {format(new Date(record.ai_processed_at), 'dd/MM/yyyy HH:mm', { locale: it })}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
                       );
                     })}
                   </TableBody>

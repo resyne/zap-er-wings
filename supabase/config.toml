@@ -76,6 +76,12 @@ verify_jwt = false
 verify_jwt = false
 
 # Cron Jobs - Scheduled tasks
+[functions.analyze-call-record]
+verify_jwt = false
+
+[functions.pbx-webhook]
+verify_jwt = false
+
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
   cron = "*/5 * * * *"  # Runs every 5 minutes

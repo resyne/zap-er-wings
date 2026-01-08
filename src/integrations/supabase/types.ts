@@ -752,45 +752,86 @@ export type Database = {
       }
       call_records: {
         Row: {
+          ai_actions: Json | null
+          ai_processed_at: string | null
+          ai_sentiment: string | null
+          ai_summary: string | null
           call_date: string
           call_time: string
           called_number: string
           caller_number: string
           created_at: string | null
+          direction: string | null
           duration_seconds: number
+          extension_number: string | null
           id: string
+          lead_id: string | null
+          matched_by: string | null
+          operator_id: string | null
+          operator_name: string | null
           recording_url: string | null
           service: string
+          transcription: string | null
           unique_call_id: string
           updated_at: string | null
         }
         Insert: {
+          ai_actions?: Json | null
+          ai_processed_at?: string | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
           call_date: string
           call_time: string
           called_number: string
           caller_number: string
           created_at?: string | null
+          direction?: string | null
           duration_seconds: number
+          extension_number?: string | null
           id?: string
+          lead_id?: string | null
+          matched_by?: string | null
+          operator_id?: string | null
+          operator_name?: string | null
           recording_url?: string | null
           service: string
+          transcription?: string | null
           unique_call_id: string
           updated_at?: string | null
         }
         Update: {
+          ai_actions?: Json | null
+          ai_processed_at?: string | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
           call_date?: string
           call_time?: string
           called_number?: string
           caller_number?: string
           created_at?: string | null
+          direction?: string | null
           duration_seconds?: number
+          extension_number?: string | null
           id?: string
+          lead_id?: string | null
+          matched_by?: string | null
+          operator_id?: string | null
+          operator_name?: string | null
           recording_url?: string | null
           service?: string
+          transcription?: string | null
           unique_call_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "call_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chart_of_accounts: {
         Row: {
@@ -5050,6 +5091,42 @@ export type Database = {
           region?: string | null
           updated_at?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      phone_extensions: {
+        Row: {
+          created_at: string
+          department: string | null
+          extension_number: string
+          id: string
+          is_active: boolean | null
+          operator_email: string | null
+          operator_name: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          extension_number: string
+          id?: string
+          is_active?: boolean | null
+          operator_email?: string | null
+          operator_name: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          extension_number?: string
+          id?: string
+          is_active?: boolean | null
+          operator_email?: string | null
+          operator_name?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
