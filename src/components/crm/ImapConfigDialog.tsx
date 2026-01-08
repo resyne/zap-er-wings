@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,23 @@ interface ImapConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  pbxId?: string | null;
+  pbxName?: string;
+  existingConfig?: {
+    id: string;
+    name: string;
+    host: string;
+    port: number;
+    username: string;
+    folder: string;
+    search_criteria: string;
+  } | null;
 }
 
-export function ImapConfigDialog({ open, onOpenChange, onSuccess }: ImapConfigDialogProps) {
+export function ImapConfigDialog({ open, onOpenChange, onSuccess, pbxId, pbxName, existingConfig }: ImapConfigDialogProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: "Configurazione Chiamate",
+    name: "",
     host: "",
     port: "993",
     username: "",
@@ -26,33 +37,20 @@ export function ImapConfigDialog({ open, onOpenChange, onSuccess }: ImapConfigDi
     search_criteria: "UNSEEN"
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from('imap_config')
-        .insert({
-          name: formData.name,
-          host: formData.host,
-          port: parseInt(formData.port),
-          username: formData.username,
-          password_encrypted: formData.password, // In production, encrypt this
-          folder: formData.folder,
-          search_criteria: formData.search_criteria,
-          is_active: true
-        });
-
-      if (error) throw error;
-
-      toast.success("Configurazione IMAP salvata con successo");
-      onSuccess();
-      onOpenChange(false);
-      
-      // Reset form
+  useEffect(() => {
+    if (existingConfig) {
       setFormData({
-        name: "Configurazione Chiamate",
+        name: existingConfig.name,
+        host: existingConfig.host,
+        port: String(existingConfig.port),
+        username: existingConfig.username,
+        password: "",
+        folder: existingConfig.folder,
+        search_criteria: existingConfig.search_criteria
+      });
+    } else {
+      setFormData({
+        name: pbxName ? `IMAP - ${pbxName}` : "Configurazione Chiamate",
         host: "",
         port: "993",
         username: "",
@@ -60,6 +58,56 @@ export function ImapConfigDialog({ open, onOpenChange, onSuccess }: ImapConfigDi
         folder: "INBOX",
         search_criteria: "UNSEEN"
       });
+    }
+  }, [existingConfig, pbxName, open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      if (existingConfig) {
+        // Update existing config
+        const updatePayload: Record<string, unknown> = {
+          name: formData.name,
+          host: formData.host,
+          port: parseInt(formData.port),
+          username: formData.username,
+          folder: formData.folder,
+          search_criteria: formData.search_criteria,
+          pbx_id: pbxId || null
+        };
+        // Only update password if provided
+        if (formData.password) {
+          updatePayload.password_encrypted = formData.password;
+        }
+        const { error } = await supabase
+          .from('imap_config')
+          .update(updatePayload)
+          .eq('id', existingConfig.id);
+        if (error) throw error;
+        toast.success("Configurazione IMAP aggiornata con successo");
+      } else {
+        // Insert new config
+        const { error } = await supabase
+          .from('imap_config')
+          .insert({
+            name: formData.name,
+            host: formData.host,
+            port: parseInt(formData.port),
+            username: formData.username,
+            password_encrypted: formData.password,
+            folder: formData.folder,
+            search_criteria: formData.search_criteria,
+            is_active: true,
+            pbx_id: pbxId || null
+          });
+        if (error) throw error;
+        toast.success("Configurazione IMAP salvata con successo");
+      }
+
+      onSuccess();
+      onOpenChange(false);
     } catch (error) {
       console.error('Error saving IMAP config:', error);
       toast.error("Errore nel salvare la configurazione");
@@ -73,7 +121,10 @@ export function ImapConfigDialog({ open, onOpenChange, onSuccess }: ImapConfigDi
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Configurazione IMAP</DialogTitle>
+            <DialogTitle>
+              {existingConfig ? 'Modifica' : 'Nuova'} Configurazione IMAP
+              {pbxName && <span className="text-muted-foreground font-normal"> - {pbxName}</span>}
+            </DialogTitle>
             <DialogDescription>
               Inserisci le credenziali del tuo account email per sincronizzare automaticamente le registrazioni delle chiamate
             </DialogDescription>
@@ -132,13 +183,16 @@ export function ImapConfigDialog({ open, onOpenChange, onSuccess }: ImapConfigDi
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">
+                Password
+                {existingConfig && <span className="text-muted-foreground font-normal"> (lascia vuoto per non modificare)</span>}
+              </Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
+                required={!existingConfig}
               />
               <p className="text-xs text-muted-foreground">
                 Per Gmail, usa una "App Password" invece della password principale
@@ -178,7 +232,7 @@ export function ImapConfigDialog({ open, onOpenChange, onSuccess }: ImapConfigDi
             </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salva Configurazione
+              {existingConfig ? 'Aggiorna' : 'Salva'} Configurazione
             </Button>
           </DialogFooter>
         </form>

@@ -2840,6 +2840,7 @@ export type Database = {
           last_sync_at: string | null
           name: string
           password_encrypted: string
+          pbx_id: string | null
           port: number
           search_criteria: string | null
           updated_at: string | null
@@ -2854,6 +2855,7 @@ export type Database = {
           last_sync_at?: string | null
           name: string
           password_encrypted: string
+          pbx_id?: string | null
           port?: number
           search_criteria?: string | null
           updated_at?: string | null
@@ -2868,12 +2870,21 @@ export type Database = {
           last_sync_at?: string | null
           name?: string
           password_encrypted?: string
+          pbx_id?: string | null
           port?: number
           search_criteria?: string | null
           updated_at?: string | null
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "imap_config_pbx_id_fkey"
+            columns: ["pbx_id"]
+            isOneToOne: false
+            referencedRelation: "pbx_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       imap_sync_state: {
         Row: {

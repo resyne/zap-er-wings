@@ -82,6 +82,8 @@ export default function CallRecordsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showImapDialog, setShowImapDialog] = useState(false);
+  const [imapDialogPbxId, setImapDialogPbxId] = useState<string | null>(null);
+  const [imapDialogPbxName, setImapDialogPbxName] = useState<string>("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calls");
   const [selectedPbxFilter, setSelectedPbxFilter] = useState<string>("all");
@@ -828,6 +830,7 @@ export default function CallRecordsPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {pbxNumbers.map((pbx) => {
                     const pbxExtensions = extensions?.filter(e => e.pbx_id === pbx.id) || [];
+                    const pbxImapConfig = imapConfigs?.find(c => c.pbx_id === pbx.id);
                     return (
                       <Card key={pbx.id} className={!pbx.is_active ? 'opacity-60' : ''}>
                         <CardHeader className="pb-2">
@@ -851,18 +854,55 @@ export default function CallRecordsPage() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <p className="font-mono text-lg">{pbx.phone_number}</p>
                             {pbx.description && (
                               <p className="text-sm text-muted-foreground">{pbx.description}</p>
                             )}
-                            <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center justify-between">
                               <Badge variant={pbx.is_active ? 'default' : 'secondary'}>
                                 {pbx.is_active ? 'Attivo' : 'Disattivato'}
                               </Badge>
                               <span className="text-sm text-muted-foreground">
                                 {pbxExtensions.length} interni
                               </span>
+                            </div>
+                            
+                            {/* IMAP Config Section */}
+                            <div className="pt-3 border-t">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Mail className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm font-medium">IMAP</span>
+                                </div>
+                                {pbxImapConfig ? (
+                                  <Badge variant="outline" className="text-green-600 border-green-600">
+                                    Configurato
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                    Non configurato
+                                  </Badge>
+                                )}
+                              </div>
+                              {pbxImapConfig && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {pbxImapConfig.username}
+                                </p>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full mt-2"
+                                onClick={() => {
+                                  setImapDialogPbxId(pbx.id);
+                                  setImapDialogPbxName(pbx.name);
+                                  setShowImapDialog(true);
+                                }}
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                {pbxImapConfig ? 'Modifica IMAP' : 'Configura IMAP'}
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
@@ -1166,6 +1206,28 @@ export default function CallRecordsPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* IMAP Dialog for PBX */}
+      <ImapConfigDialog
+        open={showImapDialog}
+        onOpenChange={(open) => {
+          setShowImapDialog(open);
+          if (!open) {
+            setImapDialogPbxId(null);
+            setImapDialogPbxName("");
+          }
+        }}
+        onSuccess={() => {
+          refetchConfigs();
+        }}
+        pbxId={imapDialogPbxId}
+        pbxName={imapDialogPbxName}
+        existingConfig={
+          imapDialogPbxId && imapConfigs
+            ? imapConfigs.find(c => c.pbx_id === imapDialogPbxId) || null
+            : null
+        }
+      />
     </div>
   );
 }
