@@ -270,6 +270,23 @@ export default function CallRecordsPage() {
     }
   });
 
+  const syncCallsMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('sync-call-records-imap');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['call-records'] });
+      const results = data?.results || [];
+      const totalNew = results.reduce((acc: number, r: any) => acc + (r.new_call_records || 0), 0);
+      toast.success(`Sincronizzazione completata: ${totalNew} nuove chiamate`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore sincronizzazione: ${error.message}`);
+    }
+  });
+
   // Handlers
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -856,9 +873,13 @@ export default function CallRecordsPage() {
                       </div>
                     </div>
                   </div>
-                  <Button className="w-full" disabled={!pbxImapConfig}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Sincronizza Chiamate
+                  <Button 
+                    className="w-full" 
+                    disabled={!pbxImapConfig || syncCallsMutation.isPending}
+                    onClick={() => syncCallsMutation.mutate()}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${syncCallsMutation.isPending ? 'animate-spin' : ''}`} />
+                    {syncCallsMutation.isPending ? 'Sincronizzazione...' : 'Sincronizza Chiamate'}
                   </Button>
                 </CardContent>
               </Card>
@@ -975,10 +996,20 @@ export default function CallRecordsPage() {
             Configura i tuoi centralini con interni, IMAP e tracciamento chiamate
           </p>
         </div>
-        <Button onClick={() => handleOpenPbxDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Aggiungi Centralino
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => syncCallsMutation.mutate()}
+            disabled={syncCallsMutation.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncCallsMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncCallsMutation.isPending ? 'Sincronizzazione...' : 'Sincronizza Chiamate'}
+          </Button>
+          <Button onClick={() => handleOpenPbxDialog()}>
+            <Plus className="h-4 w-4 mr-2" />
+            Aggiungi Centralino
+          </Button>
+        </div>
       </div>
 
       {/* Lista centralini */}
