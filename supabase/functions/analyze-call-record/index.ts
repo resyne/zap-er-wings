@@ -305,16 +305,6 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
       if (!updateError) {
         console.log(`Call ${callRecordId} linked to lead ${leads[0].id} via normalized phone`);
       }
-      return;
-    }
-
-        if (updateError) {
-          console.error('Error linking call to lead:', updateError);
-        } else {
-          console.log(`Call ${callRecordId} linked to lead ${leads[0].id} via pattern: ${pattern}`);
-        }
-        return; // Match trovato, esci
-      }
     }
     
     console.log(`No lead found for call ${callRecordId}`);

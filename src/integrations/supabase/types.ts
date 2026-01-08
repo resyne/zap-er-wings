@@ -9490,6 +9490,13 @@ export type Database = {
         }
         Returns: string
       }
+      find_lead_by_normalized_phone: {
+        Args: { search_pattern: string }
+        Returns: {
+          id: string
+          phone: string
+        }[]
+      }
       generate_configurator_code: { Args: never; Returns: string }
       generate_cost_draft_number: { Args: never; Returns: string }
       generate_customer_code: { Args: never; Returns: string }
