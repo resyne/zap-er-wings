@@ -521,17 +521,30 @@ function decodeQuotedPrintable(str: string): string {
 }
 
 function extractCallRecordData(emailBody: string): CallRecordData | null {
-  const callerMatch = emailBody.match(/Numero Chiamante:\s*(.+)/i);
-  const calledMatch = emailBody.match(/Numero Chiamato:\s*(.+)/i);
-  const serviceMatch = emailBody.match(/Servizio:\s*(.+)/i);
-  const dateMatch = emailBody.match(/Data:\s*(.+)/i);
-  const timeMatch = emailBody.match(/Ora:\s*(.+)/i);
-  const durationMatch = emailBody.match(/Durata:\s*([\d.]+)\s*Secondi/i);
+  // Clean up the body: remove HTML tags, decode entities, normalize whitespace
+  let cleanBody = emailBody
+    .replace(/<br\s*\/?>/gi, '\n')           // Convert <br> to newline
+    .replace(/<[^>]+>/g, '')                  // Remove all HTML tags
+    .replace(/&[a-z]+;/gi, ' ')               // Remove HTML entities
+    .replace(/=\r?\n/g, '')                   // Remove quoted-printable soft breaks
+    .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Decode QP
+    .replace(/\s+/g, ' ')                     // Normalize whitespace
+    .trim();
+
+  console.log('Clean body for parsing:', cleanBody.substring(0, 300));
+
+  // Extract values - use non-greedy matching and stop at next field or end
+  const callerMatch = cleanBody.match(/Numero Chiamante:\s*([+\d]+)/i);
+  const calledMatch = cleanBody.match(/Numero Chiamato:\s*([+\d]+)/i);
+  const serviceMatch = cleanBody.match(/Servizio:\s*([\d]+)/i);
+  const dateMatch = cleanBody.match(/Data:\s*([\d\/-]+)/i);
+  const timeMatch = cleanBody.match(/Ora:\s*([\d:\-]+)/i);
+  const durationMatch = cleanBody.match(/Durata:\s*([\d.]+)\s*Secondi/i);
   
   // Try both ID formats: "ID Univoco Chiamata" (outbound) and "ID Chiamata" (inbound)
-  let idMatch = emailBody.match(/ID Univoco Chiamata:\s*(.+)/i);
+  let idMatch = cleanBody.match(/ID Univoco Chiamata:\s*([\d.]+)/i);
   if (!idMatch) {
-    idMatch = emailBody.match(/ID Chiamata:\s*(.+)/i);
+    idMatch = cleanBody.match(/ID Chiamata:\s*([\d.]+)/i);
   }
 
   if (!idMatch) {
@@ -549,14 +562,14 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   let finalCalledNumber = calledNumber;
 
   // Check if it's an outbound call (has "Numero Chiamato" field)
-  if (calledMatch && service.toLowerCase().includes('chiamate_out')) {
+  if (calledMatch) {
     // Outbound call: our extension calls external number
     direction = 'outbound';
-    // Numero Chiamante is the internal extension
+    // Numero Chiamante is the internal extension (short number)
     if (callerNumber.length <= 4 && /^\d+$/.test(callerNumber)) {
       extensionNumber = callerNumber;
     }
-  } else if (!calledMatch && service) {
+  } else if (service) {
     // Inbound call: no "Numero Chiamato" field, "Servizio" is our number
     direction = 'inbound';
     // For inbound: Numero Chiamante is the external caller, Servizio is our number
@@ -567,11 +580,17 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   let callTime = timeMatch?.[1]?.trim() || '';
   callTime = callTime.replace(/-/g, ':');
 
-  // Normalize date format (DD-MM-YYYY to YYYY-MM-DD if needed)
+  // Normalize date format to YYYY-MM-DD
   let callDate = dateMatch?.[1]?.trim() || '';
-  const datePartsMatch = callDate.match(/(\d{2})-(\d{2})-(\d{4})/);
-  if (datePartsMatch) {
-    callDate = `${datePartsMatch[3]}-${datePartsMatch[2]}-${datePartsMatch[1]}`;
+  // Handle DD-MM-YYYY format
+  const dateDashMatch = callDate.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if (dateDashMatch) {
+    callDate = `${dateDashMatch[3]}-${dateDashMatch[2]}-${dateDashMatch[1]}`;
+  }
+  // Handle DD/MM/YYYY format
+  const dateSlashMatch = callDate.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (dateSlashMatch) {
+    callDate = `${dateSlashMatch[3]}-${dateSlashMatch[2]}-${dateSlashMatch[1]}`;
   }
 
   console.log(`Parsed call: ID=${idMatch[1].trim()}, direction=${direction}, caller=${callerNumber}, called=${finalCalledNumber}, service=${service}`);
