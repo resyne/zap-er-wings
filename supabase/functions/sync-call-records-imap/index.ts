@@ -384,29 +384,45 @@ async function syncLegacyConfig(supabase: any, config: any) {
   }
 }
 
-// Find lead by phone number - normalizes and searches
+// Normalizza numero italiano rimuovendo prefissi internazionali e caratteri speciali
+function normalizeItalianPhone(phone: string): string {
+  if (!phone) return '';
+  // Rimuovi spazi, trattini, parentesi, punti
+  let normalized = phone.replace(/[\s\-\(\)\.\+]/g, '');
+  // Rimuovi prefisso internazionale italiano (39, 0039)
+  if (normalized.startsWith('0039')) {
+    normalized = normalized.slice(4);
+  } else if (normalized.startsWith('39') && normalized.length > 10) {
+    normalized = normalized.slice(2);
+  }
+  return normalized;
+}
+
+// Find lead by phone number - normalizes and searches with Italian phone handling
 async function findLeadByPhone(supabase: any, phoneNumber: string, direction?: string): Promise<{ id: string; matched_by: string } | null> {
   if (!phoneNumber || phoneNumber.length < 6) return null;
   
-  // For inbound calls, the caller is the external party (potential lead)
-  // For outbound calls, we might search by called number instead
-  const searchNumber = phoneNumber;
+  const normalized = normalizeItalianPhone(phoneNumber);
   
-  // Normalize phone number: remove +, spaces, dashes
-  const normalized = searchNumber.replace(/[\s\-\+]/g, '');
+  // Genera pattern di ricerca con varie combinazioni
+  const searchPatterns = new Set<string>();
   
-  // Try different formats for matching
-  const searchPatterns = [
-    searchNumber,           // Original
-    normalized,             // Without special chars
-    '+' + normalized,       // With + prefix
-    normalized.slice(-10),  // Last 10 digits
-    normalized.slice(-9),   // Last 9 digits (Italian mobile without country code)
-  ];
+  // Pattern base
+  if (normalized.length >= 6) {
+    searchPatterns.add(normalized);
+    searchPatterns.add(normalized.slice(-10)); // Ultimi 10 digit
+    searchPatterns.add(normalized.slice(-9));  // Ultimi 9 digit (mobile IT senza prefisso)
+    
+    // Se inizia con 3 (mobile italiano) o 0 (fisso italiano), aggiungi varianti
+    if (normalized.startsWith('3') || normalized.startsWith('0')) {
+      searchPatterns.add('39' + normalized);
+      searchPatterns.add('+39' + normalized);
+    }
+  }
   
-  console.log(`Searching for lead with phone patterns:`, searchPatterns.slice(0, 3));
+  console.log(`Searching for lead with normalized patterns:`, Array.from(searchPatterns).slice(0, 4));
   
-  // Search in leads table
+  // Search in leads table - prova ogni pattern
   for (const pattern of searchPatterns) {
     if (!pattern || pattern.length < 6) continue;
     
@@ -418,7 +434,7 @@ async function findLeadByPhone(supabase: any, phoneNumber: string, direction?: s
       .single();
     
     if (lead) {
-      console.log(`Found lead ${lead.id} matching phone ${pattern}`);
+      console.log(`Found lead ${lead.id} matching phone pattern: ${pattern}`);
       return { id: lead.id, matched_by: 'phone' };
     }
   }
