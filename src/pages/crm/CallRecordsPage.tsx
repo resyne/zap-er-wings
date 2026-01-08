@@ -656,8 +656,9 @@ export default function CallRecordsPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead></TableHead>
+                          <TableHead>Direzione</TableHead>
                           <TableHead>Data/Ora</TableHead>
-                          <TableHead>Chiamante</TableHead>
+                          <TableHead>Cliente</TableHead>
                           <TableHead>Operatore</TableHead>
                           <TableHead>Lead</TableHead>
                           <TableHead>Durata</TableHead>
@@ -671,11 +672,28 @@ export default function CallRecordsPage() {
                           const aiActions = Array.isArray(record.ai_actions) ? record.ai_actions as { action: string; priority: string }[] : [];
                           const isExpanded = expandedRow === record.id;
                           
+                          // Determina cliente e operatore in base alla direzione
+                          const customerNumber = isOutgoing ? record.called_number : record.caller_number;
+                          const operatorExt = record.extension_number || (isOutgoing ? record.caller_number : record.called_number);
+                          
                           return (
                             <Fragment key={record.id}>
                               <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
                                 <TableCell>
                                   <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                </TableCell>
+                                <TableCell>
+                                  {isOutgoing ? (
+                                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
+                                      <PhoneOutgoing className="h-3 w-3 mr-1" />
+                                      OUT
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
+                                      <PhoneIncoming className="h-3 w-3 mr-1" />
+                                      IN
+                                    </Badge>
+                                  )}
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap">
                                   {format(new Date(record.call_date), 'dd/MM/yyyy', { locale: it })}
@@ -683,27 +701,17 @@ export default function CallRecordsPage() {
                                   <span className="text-xs text-muted-foreground">{record.call_time}</span>
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    {isOutgoing ? (
-                                      <PhoneOutgoing className="h-4 w-4 text-blue-500" />
-                                    ) : (
-                                      <PhoneIncoming className="h-4 w-4 text-green-500" />
-                                    )}
-                                    <span className="text-sm">{record.caller_number}</span>
-                                  </div>
+                                  <span className="text-sm font-mono">{customerNumber}</span>
                                 </TableCell>
                                 <TableCell>
-                                  {record.operator_name ? (
-                                    <div className="flex items-center gap-2">
-                                      <User className="h-4 w-4 text-muted-foreground" />
-                                      <span>{record.operator_name}</span>
-                                      {record.extension_number && (
-                                        <Badge variant="outline" className="text-xs">Int. {record.extension_number}</Badge>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground text-sm">-</span>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="font-mono">
+                                      Int. {operatorExt}
+                                    </Badge>
+                                    {record.operator_name && (
+                                      <span className="text-sm text-muted-foreground">{record.operator_name}</span>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   {record.leads ? (
@@ -750,7 +758,7 @@ export default function CallRecordsPage() {
                               </TableRow>
                               {isExpanded && (
                                 <TableRow>
-                                  <TableCell colSpan={8} className="bg-muted/30 p-4">
+                                  <TableCell colSpan={9} className="bg-muted/30 p-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       {record.ai_summary && (
                                         <div className="space-y-2">
