@@ -261,31 +261,52 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
 
     console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 4));
 
-    // Cerca il lead con numero corrispondente - cerca pattern brevi che funzionano anche con spazi
-    for (const pattern of searchPatterns) {
-      if (!pattern || pattern.length < 6) continue;
-      
-      // Usa raw SQL per normalizzare il campo phone durante la ricerca
-      const { data: leads, error: leadError } = await supabase
-        .from('leads')
-        .select('id, phone')
-        .filter('phone', 'ilike', `%${pattern}%`)
-        .limit(1);
+    // Usa raw SQL con la funzione normalize_phone per gestire numeri con spazi
+    const { data: leads, error: leadError } = await supabase
+      .rpc('find_lead_by_normalized_phone', { search_pattern: normalized.slice(-9) });
 
-      if (leadError) {
-        console.error('Error searching leads:', leadError);
-        continue;
+    if (leadError) {
+      // Fallback: cerca senza RPC usando pattern più corto
+      console.log('RPC not available, using fallback search');
+      for (const pattern of searchPatterns) {
+        if (!pattern || pattern.length < 4) continue;
+        
+        const { data: fallbackLeads } = await supabase
+          .from('leads')
+          .select('id, phone')
+          .filter('phone', 'ilike', `%${pattern}%`)
+          .limit(1);
+
+        if (fallbackLeads && fallbackLeads.length > 0) {
+          const { error: updateError } = await supabase
+            .from('call_records')
+            .update({ 
+              lead_id: fallbackLeads[0].id,
+              matched_by: 'phone_number_auto'
+            })
+            .eq('id', callRecordId);
+
+          if (!updateError) {
+            console.log(`Call ${callRecordId} linked to lead ${fallbackLeads[0].id} via fallback pattern: ${pattern}`);
+          }
+          return;
+        }
       }
+    } else if (leads && leads.length > 0) {
+      // Collega al lead trovato via RPC
+      const { error: updateError } = await supabase
+        .from('call_records')
+        .update({ 
+          lead_id: leads[0].id,
+          matched_by: 'phone_number_auto'
+        })
+        .eq('id', callRecordId);
 
-      if (leads && leads.length > 0) {
-        // Collega al lead trovato
-        const { error: updateError } = await supabase
-          .from('call_records')
-          .update({ 
-            lead_id: leads[0].id,
-            matched_by: 'phone_number_auto'
-          })
-          .eq('id', callRecordId);
+      if (!updateError) {
+        console.log(`Call ${callRecordId} linked to lead ${leads[0].id} via normalized phone`);
+      }
+      return;
+    }
 
         if (updateError) {
           console.error('Error linking call to lead:', updateError);
