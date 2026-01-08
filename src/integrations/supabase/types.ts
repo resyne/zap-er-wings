@@ -6935,6 +6935,7 @@ export type Database = {
       }
       scadenza_movimenti: {
         Row: {
+          attachments: Json | null
           created_at: string | null
           data_movimento: string
           evento_finanziario_id: string | null
@@ -6946,6 +6947,7 @@ export type Database = {
           scadenza_id: string
         }
         Insert: {
+          attachments?: Json | null
           created_at?: string | null
           data_movimento: string
           evento_finanziario_id?: string | null
@@ -6957,6 +6959,7 @@ export type Database = {
           scadenza_id: string
         }
         Update: {
+          attachments?: Json | null
           created_at?: string | null
           data_movimento?: string
           evento_finanziario_id?: string | null
