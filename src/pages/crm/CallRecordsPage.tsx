@@ -676,6 +676,10 @@ export default function CallRecordsPage() {
                           const customerNumber = isOutgoing ? record.called_number : record.caller_number;
                           const operatorExt = record.extension_number || (isOutgoing ? record.caller_number : record.called_number);
                           
+                          // Lookup nome operatore: prima dal record, poi dalla tabella interni
+                          const operatorName = record.operator_name || 
+                            pbxExtensions?.find(ext => normalizeDigits(ext.extension_number) === normalizeDigits(operatorExt))?.operator_name;
+                          
                           return (
                             <Fragment key={record.id}>
                               <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
@@ -708,8 +712,8 @@ export default function CallRecordsPage() {
                                     <Badge variant="secondary" className="font-mono">
                                       Int. {operatorExt}
                                     </Badge>
-                                    {record.operator_name && (
-                                      <span className="text-sm text-muted-foreground">{record.operator_name}</span>
+                                    {operatorName && (
+                                      <span className="text-sm text-muted-foreground">{operatorName}</span>
                                     )}
                                   </div>
                                 </TableCell>
