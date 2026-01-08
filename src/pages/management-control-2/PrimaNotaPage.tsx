@@ -107,12 +107,7 @@ interface PrimaNotaMovement {
     soggetto_nome: string | null;
     soggetto_tipo: string | null;
   } | null;
-  payment_attachments?: {
-    id: string;
-    file_name: string;
-    file_url: string;
-    file_type: string;
-  }[];
+  payment_attachments?: any[];
 }
 
 interface PendingEntry {
@@ -274,32 +269,36 @@ export default function PrimaNotaPage() {
           .in("prima_nota_id", movementIds)
           .order("line_order");
         
-        // Fetch linked invoices from invoice_registry
+        // Fetch linked scadenza_movimenti (contains scadenza link)
+        const { data: movimentiData } = await supabase
+          .from("scadenza_movimenti")
+          .select("id, prima_nota_id, scadenza_id, attachments, importo, metodo_pagamento, note")
+          .in("prima_nota_id", movementIds);
+        
+        // Get scadenza IDs from movimenti
+        const scadenzaIds = movimentiData
+          ?.filter(mov => mov.scadenza_id)
+          .map(mov => mov.scadenza_id as string) || [];
+        
+        // Fetch linked scadenze with full data
+        const { data: scadenzeData } = scadenzaIds.length > 0 
+          ? await supabase
+              .from("scadenze")
+              .select(`
+                id, stato, importo_totale, importo_residuo, soggetto_nome, soggetto_tipo,
+                data_documento, data_scadenza, tipo, note, iva_mode,
+                evento_id
+              `)
+              .in("id", scadenzaIds)
+          : { data: [] };
+        
+        // Fetch linked invoices from invoice_registry (for additional context)
         const { data: invoicesData } = await supabase
           .from("invoice_registry")
           .select(`
             id, invoice_number, invoice_type, subject_name, subject_type,
             financial_status, scadenza_id, contabilizzazione_valida, prima_nota_id
           `)
-          .in("prima_nota_id", movementIds);
-        
-        // Get scadenza IDs from invoices
-        const scadenzaIds = invoicesData
-          ?.filter(inv => inv.scadenza_id)
-          .map(inv => inv.scadenza_id as string) || [];
-        
-        // Fetch linked scadenze
-        const { data: scadenzeData } = scadenzaIds.length > 0 
-          ? await supabase
-              .from("scadenze")
-              .select("id, stato, importo_totale, importo_residuo, soggetto_nome, soggetto_tipo")
-              .in("id", scadenzaIds)
-          : { data: [] };
-        
-        // Fetch payment attachments from scadenza_movimenti
-        const { data: movimentiData } = await supabase
-          .from("scadenza_movimenti")
-          .select("id, prima_nota_id, attachments")
           .in("prima_nota_id", movementIds);
         
         // Build maps
@@ -310,37 +309,44 @@ export default function PrimaNotaPage() {
           linesMap.set(line.prima_nota_id, existing);
         });
         
-        const invoicesMap = new Map<string, typeof invoicesData[0]>();
-        invoicesData?.forEach(inv => {
-          if (inv.prima_nota_id) invoicesMap.set(inv.prima_nota_id, inv);
-        });
-        
         const scadenzeMap = new Map<string, typeof scadenzeData[0]>();
         scadenzeData?.forEach(sc => {
           scadenzeMap.set(sc.id, sc);
         });
         
-        const attachmentsMap = new Map<string, any[]>();
+        const movimentiMap = new Map<string, typeof movimentiData[0]>();
         movimentiData?.forEach(mov => {
-          if (mov.prima_nota_id && mov.attachments) {
-            const attachments = Array.isArray(mov.attachments) ? mov.attachments : [];
-            attachmentsMap.set(mov.prima_nota_id, attachments);
-          }
+          if (mov.prima_nota_id) movimentiMap.set(mov.prima_nota_id, mov);
+        });
+        
+        const invoicesMap = new Map<string, typeof invoicesData[0]>();
+        invoicesData?.forEach(inv => {
+          if (inv.prima_nota_id) invoicesMap.set(inv.prima_nota_id, inv);
         });
         
         // Attach all data to movements
         data.forEach(m => {
           (m as PrimaNotaMovement).lines = linesMap.get(m.id) || [];
           
+          // Get scadenza from scadenza_movimenti
+          const linkedMov = movimentiMap.get(m.id);
+          if (linkedMov?.scadenza_id) {
+            (m as PrimaNotaMovement).linked_scadenza = scadenzeMap.get(linkedMov.scadenza_id) || null;
+          }
+          
+          // Get invoice from invoice_registry
           const linkedInv = invoicesMap.get(m.id);
           if (linkedInv) {
             (m as PrimaNotaMovement).linked_invoice = linkedInv;
-            if (linkedInv.scadenza_id) {
+            // If no scadenza from movimenti, try from invoice
+            if (!linkedMov?.scadenza_id && linkedInv.scadenza_id) {
               (m as PrimaNotaMovement).linked_scadenza = scadenzeMap.get(linkedInv.scadenza_id) || null;
             }
           }
           
-          (m as PrimaNotaMovement).payment_attachments = attachmentsMap.get(m.id) || [];
+          // Attachments from movimenti
+          const attachments = linkedMov?.attachments;
+          (m as PrimaNotaMovement).payment_attachments = attachments && Array.isArray(attachments) ? attachments : [];
         });
       }
       
