@@ -197,6 +197,9 @@ async function syncPbxEmails(supabase: any, pbx: any) {
               operatorName = extData.user_name;
             }
 
+            // Try to find matching lead by phone number
+            const leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
+
             const { error: insertError } = await supabase
               .from('call_records')
               .insert({
@@ -211,6 +214,8 @@ async function syncPbxEmails(supabase: any, pbx: any) {
                 direction: callData.direction,
                 operator_id: operatorId,
                 operator_name: operatorName,
+                lead_id: leadMatch?.id || null,
+                matched_by: leadMatch?.matched_by || null,
                 recording_url: null
               });
 
@@ -300,6 +305,9 @@ async function syncLegacyConfig(supabase: any, config: any) {
             .single();
 
           if (!existing) {
+            // Try to find matching lead by phone number
+            const leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
+            
             const { error: insertError } = await supabase
               .from('call_records')
               .insert({
@@ -311,7 +319,9 @@ async function syncLegacyConfig(supabase: any, config: any) {
                 duration_seconds: callData.duration_seconds,
                 unique_call_id: callData.unique_call_id,
                 extension_number: callData.extension_number,
-                direction: callData.direction
+                direction: callData.direction,
+                lead_id: leadMatch?.id || null,
+                matched_by: leadMatch?.matched_by || null
               });
 
             if (!insertError) newCallRecords++;
@@ -342,6 +352,48 @@ async function syncLegacyConfig(supabase: any, config: any) {
       conn.close();
     } catch (e) {}
   }
+}
+
+// Find lead by phone number - normalizes and searches
+async function findLeadByPhone(supabase: any, phoneNumber: string, direction?: string): Promise<{ id: string; matched_by: string } | null> {
+  if (!phoneNumber || phoneNumber.length < 6) return null;
+  
+  // For inbound calls, the caller is the external party (potential lead)
+  // For outbound calls, we might search by called number instead
+  const searchNumber = phoneNumber;
+  
+  // Normalize phone number: remove +, spaces, dashes
+  const normalized = searchNumber.replace(/[\s\-\+]/g, '');
+  
+  // Try different formats for matching
+  const searchPatterns = [
+    searchNumber,           // Original
+    normalized,             // Without special chars
+    '+' + normalized,       // With + prefix
+    normalized.slice(-10),  // Last 10 digits
+    normalized.slice(-9),   // Last 9 digits (Italian mobile without country code)
+  ];
+  
+  console.log(`Searching for lead with phone patterns:`, searchPatterns.slice(0, 3));
+  
+  // Search in leads table
+  for (const pattern of searchPatterns) {
+    if (!pattern || pattern.length < 6) continue;
+    
+    const { data: lead } = await supabase
+      .from('leads')
+      .select('id')
+      .or(`phone.ilike.%${pattern}%,mobile.ilike.%${pattern}%`)
+      .limit(1)
+      .single();
+    
+    if (lead) {
+      console.log(`Found lead ${lead.id} matching phone ${pattern}`);
+      return { id: lead.id, matched_by: 'phone' };
+    }
+  }
+  
+  return null;
 }
 
 async function connectToImap(config: ImapConfig): Promise<Deno.TcpConn | null> {
@@ -403,12 +455,19 @@ function extractMessageIds(response: string): number[] {
 }
 
 function parseEmailBody(response: string): { body: string } {
-  // First, try to find the call data pattern directly anywhere in the email
-  // This is the most reliable approach since the format is consistent
-  const callDataMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Univoco Chiamata:\s*[^\r\n]+/i);
-  if (callDataMatch) {
-    console.log('Found call data pattern directly');
-    return { body: callDataMatch[0] };
+  // Try to find call data patterns directly anywhere in the email
+  // Pattern 1: Outbound calls with "ID Univoco Chiamata"
+  const outboundMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Univoco Chiamata:\s*[^\r\n]+/i);
+  if (outboundMatch) {
+    console.log('Found outbound call data pattern');
+    return { body: outboundMatch[0] };
+  }
+  
+  // Pattern 2: Inbound calls with "ID Chiamata" (without "Univoco")
+  const inboundMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Chiamata:\s*[^\r\n]+/i);
+  if (inboundMatch) {
+    console.log('Found inbound call data pattern');
+    return { body: inboundMatch[0] };
   }
   
   // Look for text/plain section and try to decode it
@@ -468,10 +527,15 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   const dateMatch = emailBody.match(/Data:\s*(.+)/i);
   const timeMatch = emailBody.match(/Ora:\s*(.+)/i);
   const durationMatch = emailBody.match(/Durata:\s*([\d.]+)\s*Secondi/i);
-  const idMatch = emailBody.match(/ID Univoco Chiamata:\s*(.+)/i);
+  
+  // Try both ID formats: "ID Univoco Chiamata" (outbound) and "ID Chiamata" (inbound)
+  let idMatch = emailBody.match(/ID Univoco Chiamata:\s*(.+)/i);
+  if (!idMatch) {
+    idMatch = emailBody.match(/ID Chiamata:\s*(.+)/i);
+  }
 
   if (!idMatch) {
-    console.log('No ID Univoco Chiamata found in email');
+    console.log('No call ID found in email (tried ID Univoco Chiamata and ID Chiamata)');
     return null;
   }
 
@@ -479,24 +543,24 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   const callerNumber = callerMatch?.[1]?.trim() || '';
   const calledNumber = calledMatch?.[1]?.trim() || '';
 
-  // Determine direction and extension based on service type
+  // Determine direction and extension based on patterns
   let direction: string | undefined;
   let extensionNumber: string | undefined;
+  let finalCalledNumber = calledNumber;
 
-  if (service.toLowerCase().includes('chiamate_out') || service.toLowerCase().includes('out')) {
-    // Outbound call: interno is the caller (Numero Chiamante)
+  // Check if it's an outbound call (has "Numero Chiamato" field)
+  if (calledMatch && service.toLowerCase().includes('chiamate_out')) {
+    // Outbound call: our extension calls external number
     direction = 'outbound';
-    // If caller is a short number (likely internal extension)
+    // Numero Chiamante is the internal extension
     if (callerNumber.length <= 4 && /^\d+$/.test(callerNumber)) {
       extensionNumber = callerNumber;
     }
-  } else if (service.toLowerCase().includes('in') || service.toLowerCase().includes('ricevut')) {
-    // Inbound call: interno is the called party (Numero Chiamato) if it's short
+  } else if (!calledMatch && service) {
+    // Inbound call: no "Numero Chiamato" field, "Servizio" is our number
     direction = 'inbound';
-    // If called number is a short number (likely internal extension)
-    if (calledNumber.length <= 4 && /^\d+$/.test(calledNumber)) {
-      extensionNumber = calledNumber;
-    }
+    // For inbound: Numero Chiamante is the external caller, Servizio is our number
+    finalCalledNumber = service; // The service number is what was called
   }
 
   // Normalize time format (replace dashes with colons if needed)
@@ -510,11 +574,11 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
     callDate = `${datePartsMatch[3]}-${datePartsMatch[2]}-${datePartsMatch[1]}`;
   }
 
-  console.log(`Parsed call: ID=${idMatch[1].trim()}, direction=${direction}, extension=${extensionNumber}, service=${service}`);
+  console.log(`Parsed call: ID=${idMatch[1].trim()}, direction=${direction}, caller=${callerNumber}, called=${finalCalledNumber}, service=${service}`);
 
   return {
     caller_number: callerNumber,
-    called_number: calledNumber,
+    called_number: finalCalledNumber,
     service: service,
     call_date: callDate,
     call_time: callTime,
