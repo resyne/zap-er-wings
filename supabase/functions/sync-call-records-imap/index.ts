@@ -404,32 +404,30 @@ async function findLeadByPhone(supabase: any, phoneNumber: string, direction?: s
   
   const normalized = normalizeItalianPhone(phoneNumber);
   
-  // Genera pattern di ricerca con varie combinazioni
-  const searchPatterns = new Set<string>();
+  // Genera pattern di ricerca - usa segmenti più corti per gestire spazi nel DB
+  const searchPatterns: string[] = [];
   
-  // Pattern base
   if (normalized.length >= 6) {
-    searchPatterns.add(normalized);
-    searchPatterns.add(normalized.slice(-10)); // Ultimi 10 digit
-    searchPatterns.add(normalized.slice(-9));  // Ultimi 9 digit (mobile IT senza prefisso)
-    
-    // Se inizia con 3 (mobile italiano) o 0 (fisso italiano), aggiungi varianti
-    if (normalized.startsWith('3') || normalized.startsWith('0')) {
-      searchPatterns.add('39' + normalized);
-      searchPatterns.add('+39' + normalized);
-    }
+    // Ultimi 6-8 digit sono sufficientemente unici e funzionano anche con spazi
+    const last6 = normalized.slice(-6);
+    const last7 = normalized.slice(-7);
+    const last8 = normalized.slice(-8);
+    searchPatterns.push(last6);
+    searchPatterns.push(last7);
+    searchPatterns.push(last8);
+    searchPatterns.push(normalized); // Pattern completo come fallback
   }
   
-  console.log(`Searching for lead with normalized patterns:`, Array.from(searchPatterns).slice(0, 4));
+  console.log(`Searching for lead with patterns:`, searchPatterns.slice(0, 4));
   
-  // Search in leads table - prova ogni pattern
+  // Search in leads table - cerca pattern brevi che funzionano anche con spazi
   for (const pattern of searchPatterns) {
     if (!pattern || pattern.length < 6) continue;
     
     const { data: lead } = await supabase
       .from('leads')
       .select('id')
-      .or(`phone.ilike.%${pattern}%,mobile.ilike.%${pattern}%`)
+      .filter('phone', 'ilike', `%${pattern}%`)
       .limit(1)
       .single();
     
