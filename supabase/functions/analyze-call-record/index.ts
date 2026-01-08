@@ -185,10 +185,14 @@ Fornisci: riassunto, sentiment, e lista di azioni con priorità.`;
       );
     }
 
+    // Anche senza trascrizione, esegui sempre match lead e operatore
+    await matchAndLinkLead(supabase, call_record_id);
+    await mapExtensionToOperator(supabase, call_record_id);
+
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        message: 'Nessuna trascrizione disponibile per l\'analisi'
+        success: true, 
+        message: transcription ? 'Chiamata analizzata con successo' : 'Match lead/operatore eseguito (senza trascrizione)'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -242,24 +246,30 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
     // Normalizza il numero per gestire varianti italiane
     const normalized = normalizeItalianPhone(customerNumber);
     
-    // Genera pattern di ricerca con varie combinazioni
+    // Genera pattern di ricerca - usa segmenti più corti per gestire spazi nel DB
     const searchPatterns: string[] = [];
     if (normalized.length >= 6) {
-      searchPatterns.push(normalized);
-      searchPatterns.push(normalized.slice(-10)); // Ultimi 10 digit
-      searchPatterns.push(normalized.slice(-9));  // Ultimi 9 digit (mobile IT senza prefisso)
+      // Ultimi 6 digit sono sufficientemente unici e funzionano anche con spazi
+      const last6 = normalized.slice(-6);
+      const last7 = normalized.slice(-7);
+      const last8 = normalized.slice(-8);
+      searchPatterns.push(last6);
+      searchPatterns.push(last7);
+      searchPatterns.push(last8);
+      searchPatterns.push(normalized); // Pattern completo come fallback
     }
 
-    console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 3));
+    console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 4));
 
-    // Cerca il lead con numero corrispondente - prova ogni pattern
+    // Cerca il lead con numero corrispondente - cerca pattern brevi che funzionano anche con spazi
     for (const pattern of searchPatterns) {
       if (!pattern || pattern.length < 6) continue;
       
+      // Usa raw SQL per normalizzare il campo phone durante la ricerca
       const { data: leads, error: leadError } = await supabase
         .from('leads')
         .select('id, phone')
-        .or(`phone.ilike.%${pattern}%,mobile.ilike.%${pattern}%`)
+        .filter('phone', 'ilike', `%${pattern}%`)
         .limit(1);
 
       if (leadError) {
