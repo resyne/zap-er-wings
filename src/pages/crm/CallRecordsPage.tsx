@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -638,8 +638,8 @@ export default function CallRecordsPage() {
                           const isExpanded = expandedRow === record.id;
                           
                           return (
-                            <>
-                              <TableRow key={record.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
+                            <Fragment key={record.id}>
+                              <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
                                 <TableCell>
                                   <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                 </TableCell>
@@ -768,7 +768,7 @@ export default function CallRecordsPage() {
                                   </TableCell>
                                 </TableRow>
                               )}
-                            </>
+                            </Fragment>
                           );
                         })}
                       </TableBody>
