@@ -259,9 +259,9 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
 // Sync legacy imap_config (backward compatibility)
 async function syncLegacyConfig(supabase: any, config: any) {
-  // Use the configured search criteria - default to UNSEEN if not set
-  const searchCriteria = config.search_criteria || 'UNSEEN';
-  console.log(`Config ${config.name} using search criteria: ${searchCriteria}`);
+  // ALWAYS use UNSEEN to only process unread emails - ignore config setting
+  const searchCriteria = 'UNSEEN';
+  console.log(`Config ${config.name} using search criteria: ${searchCriteria} (forced for safety)`);
 
   const imapConfig: ImapConfig = {
     host: config.host,
@@ -328,6 +328,10 @@ async function syncLegacyConfig(supabase: any, config: any) {
           }
           processedCount++;
         }
+        
+        // Mark email as read (SEEN) after processing to avoid reprocessing
+        await sendCommand(conn, `STORE ${msgId} +FLAGS (\\Seen)`);
+        
       } catch (error) {
         console.error(`Error processing message ${msgId}:`, error);
       }
