@@ -254,6 +254,16 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
 // Sync legacy imap_config (backward compatibility)
 async function syncLegacyConfig(supabase: any, config: any) {
+  // Skip configs with "ALL" search criteria to avoid timeout (too many emails)
+  const searchCriteria = config.search_criteria || 'UNSEEN';
+  if (searchCriteria.toUpperCase() === 'ALL') {
+    console.log(`Skipping config ${config.name}: ALL search criteria not supported (too many emails)`);
+    return {
+      status: 'skipped',
+      reason: 'ALL search criteria not supported - use UNSEEN'
+    };
+  }
+
   const imapConfig: ImapConfig = {
     host: config.host,
     port: config.port,
@@ -272,12 +282,12 @@ async function syncLegacyConfig(supabase: any, config: any) {
     await sendCommand(conn, `LOGIN "${imapConfig.username}" "${imapConfig.password}"`);
     await sendCommand(conn, `SELECT "${imapConfig.folder}"`);
 
-    const searchCriteria = config.search_criteria || 'UNSEEN';
     const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
     const messageIds = extractMessageIds(searchResponse);
 
-    const MAX_MESSAGES_PER_SYNC = 50;
-    const messagesToProcess = messageIds.slice(0, MAX_MESSAGES_PER_SYNC);
+    // Limit to 10 messages per sync to avoid CPU timeout
+    const MAX_MESSAGES_PER_SYNC = 10;
+    const messagesToProcess = messageIds.slice(-MAX_MESSAGES_PER_SYNC); // Take most recent
 
     let processedCount = 0;
     let newCallRecords = 0;
@@ -399,11 +409,62 @@ function extractMessageIds(response: string): number[] {
 }
 
 function parseEmailBody(response: string): { body: string } {
-  const bodyMatch = response.match(/\{(\d+)\}\r\n([\s\S]+)/);
-  if (bodyMatch) {
-    return { body: bodyMatch[2] };
+  // First, try to find the call data pattern directly anywhere in the email
+  // This is the most reliable approach since the format is consistent
+  const callDataMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Univoco Chiamata:\s*[^\r\n]+/i);
+  if (callDataMatch) {
+    console.log('Found call data pattern directly');
+    return { body: callDataMatch[0] };
   }
+  
+  // Look for text/plain section and try to decode it
+  // The email is multipart - find the text/plain part between boundaries
+  const boundaryMatch = response.match(/boundary="?([^"\r\n]+)"?/i);
+  if (boundaryMatch) {
+    const boundary = boundaryMatch[1];
+    const parts = response.split('--' + boundary);
+    
+    for (const part of parts) {
+      // Find text/plain part
+      if (part.includes('Content-Type: text/plain') || part.includes('content-type: text/plain')) {
+        // Check encoding
+        const isBase64 = part.toLowerCase().includes('content-transfer-encoding: base64');
+        const isQP = part.toLowerCase().includes('content-transfer-encoding: quoted-printable');
+        
+        // Find content after headers (double newline)
+        const contentStart = part.search(/\r?\n\r?\n/);
+        if (contentStart > -1) {
+          let content = part.substring(contentStart).trim();
+          // Remove trailing boundary marker
+          content = content.split('--')[0].trim();
+          
+          if (isBase64) {
+            try {
+              content = atob(content.replace(/\s/g, ''));
+              console.log('Decoded base64 text/plain:', content.substring(0, 200));
+            } catch (e) {
+              console.log('Base64 decode failed');
+            }
+          } else if (isQP) {
+            content = decodeQuotedPrintable(content);
+            console.log('Decoded QP text/plain:', content.substring(0, 200));
+          }
+          
+          return { body: content };
+        }
+      }
+    }
+  }
+  
+  // Last resort: return the raw response but log a sample from deeper in the content
+  console.log('No structured content found, raw sample at 1000:', response.substring(1000, 1500));
   return { body: response };
+}
+
+function decodeQuotedPrintable(str: string): string {
+  return str
+    .replace(/=\r?\n/g, '') // Remove soft line breaks
+    .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
 function extractCallRecordData(emailBody: string): CallRecordData | null {
@@ -414,31 +475,58 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   const timeMatch = emailBody.match(/Ora:\s*(.+)/i);
   const durationMatch = emailBody.match(/Durata:\s*([\d.]+)\s*Secondi/i);
   const idMatch = emailBody.match(/ID Univoco Chiamata:\s*(.+)/i);
-  const extensionMatch = emailBody.match(/Interno:\s*(\d+)/i) || emailBody.match(/Extension:\s*(\d+)/i);
-  const directionMatch = emailBody.match(/Direzione:\s*(.+)/i) || emailBody.match(/Direction:\s*(.+)/i);
 
   if (!idMatch) {
+    console.log('No ID Univoco Chiamata found in email');
     return null;
   }
 
-  let direction = directionMatch?.[1]?.trim().toLowerCase();
-  if (!direction) {
-    if (emailBody.toLowerCase().includes('in entrata') || emailBody.toLowerCase().includes('incoming')) {
-      direction = 'inbound';
-    } else if (emailBody.toLowerCase().includes('in uscita') || emailBody.toLowerCase().includes('outgoing')) {
-      direction = 'outbound';
+  const service = serviceMatch?.[1]?.trim() || '';
+  const callerNumber = callerMatch?.[1]?.trim() || '';
+  const calledNumber = calledMatch?.[1]?.trim() || '';
+
+  // Determine direction and extension based on service type
+  let direction: string | undefined;
+  let extensionNumber: string | undefined;
+
+  if (service.toLowerCase().includes('chiamate_out') || service.toLowerCase().includes('out')) {
+    // Outbound call: interno is the caller (Numero Chiamante)
+    direction = 'outbound';
+    // If caller is a short number (likely internal extension)
+    if (callerNumber.length <= 4 && /^\d+$/.test(callerNumber)) {
+      extensionNumber = callerNumber;
+    }
+  } else if (service.toLowerCase().includes('in') || service.toLowerCase().includes('ricevut')) {
+    // Inbound call: interno is the called party (Numero Chiamato) if it's short
+    direction = 'inbound';
+    // If called number is a short number (likely internal extension)
+    if (calledNumber.length <= 4 && /^\d+$/.test(calledNumber)) {
+      extensionNumber = calledNumber;
     }
   }
 
+  // Normalize time format (replace dashes with colons if needed)
+  let callTime = timeMatch?.[1]?.trim() || '';
+  callTime = callTime.replace(/-/g, ':');
+
+  // Normalize date format (DD-MM-YYYY to YYYY-MM-DD if needed)
+  let callDate = dateMatch?.[1]?.trim() || '';
+  const datePartsMatch = callDate.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if (datePartsMatch) {
+    callDate = `${datePartsMatch[3]}-${datePartsMatch[2]}-${datePartsMatch[1]}`;
+  }
+
+  console.log(`Parsed call: ID=${idMatch[1].trim()}, direction=${direction}, extension=${extensionNumber}, service=${service}`);
+
   return {
-    caller_number: callerMatch?.[1]?.trim() || '',
-    called_number: calledMatch?.[1]?.trim() || '',
-    service: serviceMatch?.[1]?.trim() || '',
-    call_date: dateMatch?.[1]?.trim() || '',
-    call_time: timeMatch?.[1]?.trim() || '',
+    caller_number: callerNumber,
+    called_number: calledNumber,
+    service: service,
+    call_date: callDate,
+    call_time: callTime,
     duration_seconds: parseFloat(durationMatch?.[1] || '0'),
     unique_call_id: idMatch[1].trim(),
-    extension_number: extensionMatch?.[1]?.trim(),
+    extension_number: extensionNumber,
     direction: direction
   };
 }
