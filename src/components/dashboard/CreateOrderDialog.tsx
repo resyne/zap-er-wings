@@ -634,9 +634,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
     return shippingOrder;
   };
 
-  const copyLeadPhotosToOrder = async (leadId: string, orderId: string) => {
+  const copyLeadFilesToOrder = async (leadId: string, orderId: string) => {
     try {
-      // Get all files from the lead
+      // Get ALL files from the lead (not just media)
       const { data: leadFiles, error: leadFilesError } = await supabase
         .from('lead_files')
         .select('*')
@@ -645,17 +645,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (leadFilesError) throw leadFilesError;
       if (!leadFiles || leadFiles.length === 0) return;
 
-      // Filter image and video files
-      const mediaFiles = leadFiles.filter(file => 
-        file.file_type?.startsWith('image/') || 
-        file.file_type?.startsWith('video/') ||
-        /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
-      );
-
-      if (mediaFiles.length === 0) return;
-
-      // Copy each media file to opportunity-files bucket
-      for (const file of mediaFiles) {
+      // Copy each file to order-files bucket
+      for (const file of leadFiles) {
         // Download file from lead-files bucket
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('lead-files')
@@ -666,12 +657,12 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           continue;
         }
 
-        // Upload to opportunity-files bucket
+        // Upload to order-files bucket
         const fileExt = file.file_name.split('.').pop();
         const newFileName = `${orderId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('opportunity-files')
+          .from('order-files')
           .upload(newFileName, fileData, {
             contentType: file.file_type || 'application/octet-stream'
           });
@@ -682,18 +673,17 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       }
 
       toast({
-        title: "Media copiati",
-        description: `${mediaFiles.length} foto/video copiati dal lead all'ordine`,
+        title: "File copiati",
+        description: `${leadFiles.length} file copiati dal lead all'ordine`,
       });
     } catch (error) {
-      console.error('Error copying lead photos:', error);
-      // Don't throw - we don't want to block order creation if photo copy fails
+      console.error('Error copying lead files:', error);
     }
   };
 
-  const copyLeadPhotosToWorkOrder = async (leadId: string, workOrderId: string) => {
+  const copyLeadFilesToWorkOrder = async (leadId: string, workOrderId: string) => {
     try {
-      // Get all files from the lead
+      // Get ALL files from the lead (not just media)
       const { data: leadFiles, error: leadFilesError } = await supabase
         .from('lead_files')
         .select('*')
@@ -702,17 +692,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (leadFilesError) throw leadFilesError;
       if (!leadFiles || leadFiles.length === 0) return;
 
-      // Filter image and video files
-      const mediaFiles = leadFiles.filter(file => 
-        file.file_type?.startsWith('image/') || 
-        file.file_type?.startsWith('video/') ||
-        /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
-      );
-
-      if (mediaFiles.length === 0) return;
-
-      // Copy each media file to production-files bucket
-      for (const file of mediaFiles) {
+      // Copy each file to production-files bucket
+      for (const file of leadFiles) {
         // Download file from lead-files bucket
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('lead-files')
@@ -738,13 +719,13 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         }
       }
     } catch (error) {
-      console.error('Error copying lead photos to work order:', error);
+      console.error('Error copying lead files to work order:', error);
     }
   };
 
-  const copyLeadPhotosToServiceWorkOrder = async (leadId: string, serviceWorkOrderId: string) => {
+  const copyLeadFilesToServiceWorkOrder = async (leadId: string, serviceWorkOrderId: string) => {
     try {
-      // Get all files from the lead
+      // Get ALL files from the lead (not just media)
       const { data: leadFiles, error: leadFilesError } = await supabase
         .from('lead_files')
         .select('*')
@@ -753,17 +734,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
       if (leadFilesError) throw leadFilesError;
       if (!leadFiles || leadFiles.length === 0) return;
 
-      // Filter image and video files
-      const mediaFiles = leadFiles.filter(file => 
-        file.file_type?.startsWith('image/') || 
-        file.file_type?.startsWith('video/') ||
-        /\.(jpg|jpeg|png|gif|webp|bmp|mp4|mov|avi|webm|mkv)$/i.test(file.file_name)
-      );
-
-      if (mediaFiles.length === 0) return;
-
-      // Copy each media file to service-files bucket
-      for (const file of mediaFiles) {
+      // Copy each file to service-files bucket
+      for (const file of leadFiles) {
         // Download file from lead-files bucket
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('lead-files')
@@ -789,7 +761,49 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         }
       }
     } catch (error) {
-      console.error('Error copying lead photos to service work order:', error);
+      console.error('Error copying lead files to service work order:', error);
+    }
+  };
+
+  const copyLeadFilesToShippingOrder = async (leadId: string, shippingOrderId: string) => {
+    try {
+      // Get ALL files from the lead (not just media)
+      const { data: leadFiles, error: leadFilesError } = await supabase
+        .from('lead_files')
+        .select('*')
+        .eq('lead_id', leadId);
+
+      if (leadFilesError) throw leadFilesError;
+      if (!leadFiles || leadFiles.length === 0) return;
+
+      // Copy each file to shipping-files bucket
+      for (const file of leadFiles) {
+        // Download file from lead-files bucket
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('lead-files')
+          .download(file.file_path);
+
+        if (downloadError) {
+          console.error(`Error downloading file ${file.file_name}:`, downloadError);
+          continue;
+        }
+
+        // Upload to shipping-files bucket (using order-files as fallback if shipping-files doesn't exist)
+        const fileExt = file.file_name.split('.').pop();
+        const newFileName = `shipping/${shippingOrderId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('order-files')
+          .upload(newFileName, fileData, {
+            contentType: file.file_type || 'application/octet-stream'
+          });
+
+        if (uploadError) {
+          console.error(`Error uploading file to shipping order ${file.file_name}:`, uploadError);
+        }
+      }
+    } catch (error) {
+      console.error('Error copying lead files to shipping order:', error);
     }
   };
 
@@ -901,10 +915,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         }
       }
 
-      // Copy photos from lead to order if lead is connected
+      // Copy files from lead to order if lead is connected
       const effectiveLeadId = newOrder.lead_id || leadId;
       if (effectiveLeadId) {
-        await copyLeadPhotosToOrder(effectiveLeadId, salesOrder.id);
+        await copyLeadFilesToOrder(effectiveLeadId, salesOrder.id);
       }
 
       let productionWO = null;
@@ -917,9 +931,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           productionWO = await createProductionWorkOrder(salesOrder.id, salesOrder);
           console.log('Production work order created:', productionWO);
           
-          // Copy photos from lead to production work order if lead is connected
+          // Copy files from lead to production work order if lead is connected
           if (effectiveLeadId && productionWO) {
-            await copyLeadPhotosToWorkOrder(effectiveLeadId, productionWO.id);
+            await copyLeadFilesToWorkOrder(effectiveLeadId, productionWO.id);
           }
         }
       } catch (error: any) {
@@ -932,9 +946,9 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           serviceWO = await createServiceWorkOrder(salesOrder.id, salesOrder, productionWO?.id);
           console.log('Service work order created:', serviceWO);
           
-          // Copy photos from lead to service work order if lead is connected
+          // Copy files from lead to service work order if lead is connected
           if (effectiveLeadId && serviceWO) {
-            await copyLeadPhotosToServiceWorkOrder(effectiveLeadId, serviceWO.id);
+            await copyLeadFilesToServiceWorkOrder(effectiveLeadId, serviceWO.id);
           }
         }
       } catch (error: any) {
@@ -946,6 +960,11 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         if (shipping.enabled) {
           shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
           console.log('Shipping order created:', shippingOrder);
+          
+          // Copy files from lead to shipping order if lead is connected
+          if (effectiveLeadId && shippingOrder) {
+            await copyLeadFilesToShippingOrder(effectiveLeadId, shippingOrder.id);
+          }
         }
       } catch (error: any) {
         console.error('Error creating shipping order:', error);
