@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,7 +19,8 @@ import { it } from "date-fns/locale";
 import { 
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
-  Filter, ChevronDown, Receipt, Percent
+  Filter, ChevronDown, Receipt, Percent, User, Banknote, 
+  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -87,6 +88,31 @@ interface PrimaNotaMovement {
     financial_status: string | null;
   } | null;
   lines?: PrimaNotaLine[];
+  // Linked data for display
+  linked_invoice?: {
+    id: string;
+    invoice_number: string;
+    invoice_type: string;
+    subject_name: string;
+    subject_type: string;
+    financial_status: string;
+    scadenza_id: string | null;
+    contabilizzazione_valida: boolean | null;
+  } | null;
+  linked_scadenza?: {
+    id: string;
+    stato: string;
+    importo_totale: number;
+    importo_residuo: number;
+    soggetto_nome: string | null;
+    soggetto_tipo: string | null;
+  } | null;
+  payment_attachments?: {
+    id: string;
+    file_name: string;
+    file_url: string;
+    file_type: string;
+  }[];
 }
 
 interface PendingEntry {
@@ -236,6 +262,8 @@ export default function PrimaNotaPage() {
       // Fetch lines for all movements
       if (data && data.length > 0) {
         const movementIds = data.map(m => m.id);
+        
+        // Fetch lines
         const { data: linesData } = await supabase
           .from("prima_nota_lines")
           .select(`
@@ -246,7 +274,35 @@ export default function PrimaNotaPage() {
           .in("prima_nota_id", movementIds)
           .order("line_order");
         
-        // Attach lines to movements
+        // Fetch linked invoices from invoice_registry
+        const { data: invoicesData } = await supabase
+          .from("invoice_registry")
+          .select(`
+            id, invoice_number, invoice_type, subject_name, subject_type,
+            financial_status, scadenza_id, contabilizzazione_valida, prima_nota_id
+          `)
+          .in("prima_nota_id", movementIds);
+        
+        // Get scadenza IDs from invoices
+        const scadenzaIds = invoicesData
+          ?.filter(inv => inv.scadenza_id)
+          .map(inv => inv.scadenza_id as string) || [];
+        
+        // Fetch linked scadenze
+        const { data: scadenzeData } = scadenzaIds.length > 0 
+          ? await supabase
+              .from("scadenze")
+              .select("id, stato, importo_totale, importo_residuo, soggetto_nome, soggetto_tipo")
+              .in("id", scadenzaIds)
+          : { data: [] };
+        
+        // Fetch payment attachments from scadenza_movimenti
+        const { data: movimentiData } = await supabase
+          .from("scadenza_movimenti")
+          .select("id, prima_nota_id, attachments")
+          .in("prima_nota_id", movementIds);
+        
+        // Build maps
         const linesMap = new Map<string, PrimaNotaLine[]>();
         linesData?.forEach(line => {
           const existing = linesMap.get(line.prima_nota_id) || [];
@@ -254,8 +310,37 @@ export default function PrimaNotaPage() {
           linesMap.set(line.prima_nota_id, existing);
         });
         
+        const invoicesMap = new Map<string, typeof invoicesData[0]>();
+        invoicesData?.forEach(inv => {
+          if (inv.prima_nota_id) invoicesMap.set(inv.prima_nota_id, inv);
+        });
+        
+        const scadenzeMap = new Map<string, typeof scadenzeData[0]>();
+        scadenzeData?.forEach(sc => {
+          scadenzeMap.set(sc.id, sc);
+        });
+        
+        const attachmentsMap = new Map<string, any[]>();
+        movimentiData?.forEach(mov => {
+          if (mov.prima_nota_id && mov.attachments) {
+            const attachments = Array.isArray(mov.attachments) ? mov.attachments : [];
+            attachmentsMap.set(mov.prima_nota_id, attachments);
+          }
+        });
+        
+        // Attach all data to movements
         data.forEach(m => {
           (m as PrimaNotaMovement).lines = linesMap.get(m.id) || [];
+          
+          const linkedInv = invoicesMap.get(m.id);
+          if (linkedInv) {
+            (m as PrimaNotaMovement).linked_invoice = linkedInv;
+            if (linkedInv.scadenza_id) {
+              (m as PrimaNotaMovement).linked_scadenza = scadenzeMap.get(linkedInv.scadenza_id) || null;
+            }
+          }
+          
+          (m as PrimaNotaMovement).payment_attachments = attachmentsMap.get(m.id) || [];
         });
       }
       
@@ -1132,7 +1217,214 @@ export default function PrimaNotaPage() {
                           {expandedRows.has(m.id) && (
                             <tr key={`${m.id}-lines`}>
                               <td colSpan={9} className="bg-muted/20 p-0">
-                                <div className="p-4">
+                                <div className="p-4 space-y-4">
+                                  
+                                  {/* 1️⃣ Riferimento all'evento sorgente */}
+                                  <div className="p-3 bg-background rounded-md border">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <FileText className="h-4 w-4 text-primary" />
+                                      <span className="text-sm font-medium">Riferimento Evento Sorgente</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Tipo Evento</Label>
+                                        <p className="font-medium flex items-center gap-1">
+                                          {m.amount >= 0 ? (
+                                            <>
+                                              <TrendingUp className="h-3 w-3 text-green-600" />
+                                              Incasso
+                                            </>
+                                          ) : (
+                                            <>
+                                              <TrendingDown className="h-3 w-3 text-red-600" />
+                                              Pagamento
+                                            </>
+                                          )}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Documento</Label>
+                                        {m.linked_invoice ? (
+                                          <p className="font-medium">
+                                            Fattura n. {m.linked_invoice.invoice_number}
+                                          </p>
+                                        ) : (
+                                          <p className="text-muted-foreground">-</p>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">
+                                          {m.amount >= 0 ? "Cliente" : "Fornitore"}
+                                        </Label>
+                                        <p className="font-medium flex items-center gap-1">
+                                          {m.linked_invoice?.subject_type === "customer" ? (
+                                            <User className="h-3 w-3 text-muted-foreground" />
+                                          ) : (
+                                            <Building2 className="h-3 w-3 text-muted-foreground" />
+                                          )}
+                                          {m.linked_invoice?.subject_name || m.linked_scadenza?.soggetto_nome || "-"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">ID Evento</Label>
+                                        <p className="font-mono text-xs text-muted-foreground">
+                                          {m.accounting_entry_id?.slice(0, 8)}...
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {m.linked_invoice && (
+                                      <div className="mt-2 pt-2 border-t text-sm text-muted-foreground">
+                                        {m.amount >= 0 ? "Incasso" : "Pagamento"} {m.linked_invoice.invoice_type === "fattura_vendita" ? "fattura vendita" : "fattura acquisto"} n. {m.linked_invoice.invoice_number} – {m.linked_invoice.subject_type === "customer" ? "Cliente" : "Fornitore"} {m.linked_invoice.subject_name}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* 2️⃣ Metodo di pagamento / incasso */}
+                                  <div className="p-3 bg-background rounded-md border">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <Banknote className="h-4 w-4 text-primary" />
+                                      <span className="text-sm font-medium">Metodo di Pagamento</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Metodo</Label>
+                                        <p className="font-medium flex items-center gap-2">
+                                          {m.payment_method === "banca" && <CreditCard className="h-4 w-4" />}
+                                          {m.payment_method === "cassa" && <Banknote className="h-4 w-4" />}
+                                          {m.payment_method === "carta" && <CreditCard className="h-4 w-4" />}
+                                          {formatPaymentMethod(m.payment_method) || "Non specificato"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Conto Finanziario</Label>
+                                        <p className="font-medium">
+                                          {m.payment_method ? (
+                                            <Badge variant="outline">
+                                              {m.payment_method === "banca" ? "Banca c/c" : 
+                                               m.payment_method === "cassa" ? "Cassa contanti" :
+                                               m.payment_method === "carta" ? "Carta di credito" : m.payment_method}
+                                            </Badge>
+                                          ) : "-"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Stato Finanziario</Label>
+                                        <p className="font-medium">
+                                          {m.accounting_entry?.financial_status === "incassato" ? (
+                                            <Badge className="bg-green-600">Incassato</Badge>
+                                          ) : m.accounting_entry?.financial_status === "pagato" ? (
+                                            <Badge className="bg-green-600">Pagato</Badge>
+                                          ) : m.accounting_entry?.financial_status === "da_incassare" ? (
+                                            <Badge variant="secondary">Da incassare</Badge>
+                                          ) : m.accounting_entry?.financial_status === "da_pagare" ? (
+                                            <Badge variant="secondary">Da pagare</Badge>
+                                          ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                          )}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* 3️⃣ Stato operativo - Badge informativi */}
+                                  <div className="p-3 bg-background rounded-md border">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <CheckCircle className="h-4 w-4 text-primary" />
+                                      <span className="text-sm font-medium">Stato Operativo</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {/* Scadenza chiusa */}
+                                      {m.linked_scadenza?.stato === "chiusa" && (
+                                        <Badge className="bg-green-600 gap-1">
+                                          <CheckCircle className="h-3 w-3" />
+                                          Scadenza chiusa
+                                        </Badge>
+                                      )}
+                                      {m.linked_scadenza?.stato === "aperta" && (
+                                        <Badge variant="secondary" className="gap-1">
+                                          <Calendar className="h-3 w-3" />
+                                          Scadenza aperta (residuo: € {(m.linked_scadenza.importo_residuo || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })})
+                                        </Badge>
+                                      )}
+                                      {m.linked_scadenza?.stato === "stornata" && (
+                                        <Badge variant="destructive" className="gap-1">
+                                          <Undo2 className="h-3 w-3" />
+                                          Scadenza stornata
+                                        </Badge>
+                                      )}
+                                      
+                                      {/* Credito/Debito estinto */}
+                                      {m.linked_scadenza?.importo_residuo === 0 && m.linked_scadenza?.stato === "chiusa" && (
+                                        <Badge className="bg-blue-600 gap-1">
+                                          <FileCheck className="h-3 w-3" />
+                                          {m.amount >= 0 ? "Credito estinto" : "Debito estinto"}
+                                        </Badge>
+                                      )}
+                                      
+                                      {/* Generato automaticamente */}
+                                      {m.status === "generato" && (
+                                        <Badge variant="outline" className="gap-1">
+                                          <RefreshCw className="h-3 w-3" />
+                                          Generato automaticamente
+                                        </Badge>
+                                      )}
+                                      
+                                      {/* Contabilizzazione valida */}
+                                      {m.linked_invoice?.contabilizzazione_valida && (
+                                        <Badge variant="outline" className="gap-1 border-green-500 text-green-600">
+                                          <CheckCircle className="h-3 w-3" />
+                                          Contabilizzazione valida
+                                        </Badge>
+                                      )}
+                                      
+                                      {/* Is Rectification */}
+                                      {m.is_rectification && (
+                                        <Badge variant="destructive" className="gap-1">
+                                          <Undo2 className="h-3 w-3" />
+                                          Scrittura di storno
+                                        </Badge>
+                                      )}
+                                      
+                                      {/* No linked data */}
+                                      {!m.linked_invoice && !m.linked_scadenza && (
+                                        <span className="text-sm text-muted-foreground italic">Nessuna scadenza collegata</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* 4️⃣ Allegati (solo consultazione) */}
+                                  {m.payment_attachments && m.payment_attachments.length > 0 && (
+                                    <div className="p-3 bg-background rounded-md border">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <Paperclip className="h-4 w-4 text-primary" />
+                                        <span className="text-sm font-medium">Allegati Pagamento</span>
+                                        <span className="text-xs text-muted-foreground">(solo consultazione)</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {m.payment_attachments.map((att: any, idx: number) => (
+                                          <a
+                                            key={idx}
+                                            href={att.file_url || att.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md hover:bg-muted/80 transition-colors text-sm"
+                                          >
+                                            {att.file_type?.includes("image") || att.type?.includes("image") ? (
+                                              <FileText className="h-4 w-4 text-blue-500" />
+                                            ) : att.file_type?.includes("pdf") || att.type?.includes("pdf") ? (
+                                              <FileText className="h-4 w-4 text-red-500" />
+                                            ) : (
+                                              <FileText className="h-4 w-4" />
+                                            )}
+                                            <span className="max-w-32 truncate">{att.file_name || att.name || `Allegato ${idx + 1}`}</span>
+                                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Scritture Contabili (Partita Doppia) */}
                                   <div className="flex items-center gap-2 mb-3">
                                     <Receipt className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm font-medium">Scritture Contabili (Partita Doppia)</span>
