@@ -5094,6 +5094,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pbx_numbers: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       phone_extensions: {
         Row: {
           created_at: string
@@ -5103,6 +5133,7 @@ export type Database = {
           is_active: boolean | null
           operator_email: string | null
           operator_name: string
+          pbx_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -5114,6 +5145,7 @@ export type Database = {
           is_active?: boolean | null
           operator_email?: string | null
           operator_name: string
+          pbx_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -5125,10 +5157,19 @@ export type Database = {
           is_active?: boolean | null
           operator_email?: string | null
           operator_name?: string
+          pbx_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "phone_extensions_pbx_id_fkey"
+            columns: ["pbx_id"]
+            isOneToOne: false
+            referencedRelation: "pbx_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_list_audit_logs: {
         Row: {

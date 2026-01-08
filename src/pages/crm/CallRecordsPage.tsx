@@ -11,10 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw, 
   Settings, Mail, Brain, ChevronDown, User, MessageSquare, Sparkles, 
-  Link2, Plus, Pencil, Trash2, Server, ListChecks
+  Link2, Plus, Pencil, Trash2, Server, ListChecks, Building2
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -47,6 +48,15 @@ interface CallRecord {
   leads?: { id: string; company_name: string; contact_name: string } | null;
 }
 
+interface PbxNumber {
+  id: string;
+  name: string;
+  phone_number: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 interface PhoneExtension {
   id: string;
   extension_number: string;
@@ -55,7 +65,9 @@ interface PhoneExtension {
   operator_email: string | null;
   department: string | null;
   is_active: boolean;
+  pbx_id: string | null;
   created_at: string;
+  pbx_numbers?: PbxNumber | null;
 }
 
 interface Profile {
@@ -72,6 +84,17 @@ export default function CallRecordsPage() {
   const [showImapDialog, setShowImapDialog] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calls");
+  const [selectedPbxFilter, setSelectedPbxFilter] = useState<string>("all");
+  
+  // PBX state
+  const [isPbxDialogOpen, setIsPbxDialogOpen] = useState(false);
+  const [editingPbx, setEditingPbx] = useState<PbxNumber | null>(null);
+  const [pbxFormData, setPbxFormData] = useState({
+    name: '',
+    phone_number: '',
+    description: '',
+    is_active: true
+  });
   
   // Phone extensions state
   const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
@@ -82,7 +105,8 @@ export default function CallRecordsPage() {
     operator_name: '',
     operator_email: '',
     department: '',
-    is_active: true
+    is_active: true,
+    pbx_id: ''
   });
 
   // Queries
@@ -112,12 +136,24 @@ export default function CallRecordsPage() {
     },
   });
 
+  const { data: pbxNumbers, isLoading: isLoadingPbx } = useQuery({
+    queryKey: ['pbx-numbers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pbx_numbers')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data as PbxNumber[];
+    }
+  });
+
   const { data: extensions, isLoading: isLoadingExtensions } = useQuery({
     queryKey: ['phone-extensions'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('phone_extensions')
-        .select('*')
+        .select('*, pbx_numbers(*)')
         .order('extension_number');
       if (error) throw error;
       return data as PhoneExtension[];
@@ -136,7 +172,48 @@ export default function CallRecordsPage() {
     }
   });
 
-  // Mutations
+  // PBX Mutations
+  const savePbxMutation = useMutation({
+    mutationFn: async (data: typeof pbxFormData) => {
+      const payload = {
+        name: data.name,
+        phone_number: data.phone_number,
+        description: data.description || null,
+        is_active: data.is_active
+      };
+      if (editingPbx) {
+        const { error } = await supabase.from('pbx_numbers').update(payload).eq('id', editingPbx.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('pbx_numbers').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pbx-numbers'] });
+      toast.success(editingPbx ? 'Centralino aggiornato' : 'Centralino aggiunto');
+      handleClosePbxDialog();
+    },
+    onError: (error: any) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const deletePbxMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('pbx_numbers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pbx-numbers'] });
+      toast.success('Centralino eliminato');
+    },
+    onError: (error: any) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Extension Mutations
   const analyzeCallMutation = useMutation({
     mutationFn: async (callId: string) => {
       const { data, error } = await supabase.functions.invoke('analyze-call-record', {
@@ -162,7 +239,8 @@ export default function CallRecordsPage() {
         operator_name: data.operator_name,
         operator_email: data.operator_email || null,
         department: data.department || null,
-        is_active: data.is_active
+        is_active: data.is_active,
+        pbx_id: data.pbx_id || null
       };
       if (editingExtension) {
         const { error } = await supabase.from('phone_extensions').update(payload).eq('id', editingExtension.id);
@@ -236,7 +314,7 @@ export default function CallRecordsPage() {
       const { data, error } = await supabase.functions.invoke('sync-call-records-imap');
       if (error) throw error;
       const message = data.total_found > data.emails_processed
-        ? `Processate ${data.emails_processed} di ${data.total_found} email (${data.new_call_records} nuove). Clicca di nuovo per processare le rimanenti.`
+        ? `Processate ${data.emails_processed} di ${data.total_found} email (${data.new_call_records} nuove).`
         : `Sincronizzate ${data.emails_processed} email, ${data.new_call_records} nuove registrazioni`;
       toast.success(message);
       refetchCalls();
@@ -248,6 +326,38 @@ export default function CallRecordsPage() {
     }
   };
 
+  // PBX handlers
+  const handleOpenPbxDialog = (pbx?: PbxNumber) => {
+    if (pbx) {
+      setEditingPbx(pbx);
+      setPbxFormData({
+        name: pbx.name,
+        phone_number: pbx.phone_number,
+        description: pbx.description || '',
+        is_active: pbx.is_active
+      });
+    } else {
+      setEditingPbx(null);
+      setPbxFormData({ name: '', phone_number: '', description: '', is_active: true });
+    }
+    setIsPbxDialogOpen(true);
+  };
+
+  const handleClosePbxDialog = () => {
+    setIsPbxDialogOpen(false);
+    setEditingPbx(null);
+  };
+
+  const handlePbxSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pbxFormData.name || !pbxFormData.phone_number) {
+      toast.error('Nome e numero sono obbligatori');
+      return;
+    }
+    savePbxMutation.mutate(pbxFormData);
+  };
+
+  // Extension handlers
   const handleOpenExtensionDialog = (extension?: PhoneExtension) => {
     if (extension) {
       setEditingExtension(extension);
@@ -257,7 +367,8 @@ export default function CallRecordsPage() {
         operator_name: extension.operator_name,
         operator_email: extension.operator_email || '',
         department: extension.department || '',
-        is_active: extension.is_active
+        is_active: extension.is_active,
+        pbx_id: extension.pbx_id || ''
       });
     } else {
       setEditingExtension(null);
@@ -267,7 +378,8 @@ export default function CallRecordsPage() {
         operator_name: '',
         operator_email: '',
         department: '',
-        is_active: true
+        is_active: true,
+        pbx_id: selectedPbxFilter !== 'all' ? selectedPbxFilter : ''
       });
     }
     setIsExtensionDialogOpen(true);
@@ -301,6 +413,7 @@ export default function CallRecordsPage() {
     saveExtensionMutation.mutate(extensionFormData);
   };
 
+  // Filtered data
   const filteredRecords = callRecords?.filter(record =>
     record.caller_number.includes(searchTerm) ||
     record.called_number.includes(searchTerm) ||
@@ -309,10 +422,15 @@ export default function CallRecordsPage() {
     record.leads?.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredExtensions = selectedPbxFilter === 'all' 
+    ? extensions 
+    : extensions?.filter(ext => ext.pbx_id === selectedPbxFilter);
+
   // Stats
   const totalCalls = callRecords?.length || 0;
   const analyzedCalls = callRecords?.filter(c => c.ai_processed_at).length || 0;
   const linkedLeads = callRecords?.filter(c => c.lead_id).length || 0;
+  const activePbx = pbxNumbers?.filter(p => p.is_active).length || 0;
   const activeExtensions = extensions?.filter(e => e.is_active).length || 0;
 
   return (
@@ -331,7 +449,7 @@ export default function CallRecordsPage() {
             Gestione Chiamate
           </h1>
           <p className="text-muted-foreground mt-1">
-            Registrazioni, analisi AI e configurazione interni telefonici
+            Registrazioni, analisi AI e configurazione centralini
           </p>
         </div>
         <div className="flex gap-2">
@@ -352,7 +470,7 @@ export default function CallRecordsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -361,7 +479,7 @@ export default function CallRecordsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalCalls}</p>
-                <p className="text-xs text-muted-foreground">Chiamate totali</p>
+                <p className="text-xs text-muted-foreground">Chiamate</p>
               </div>
             </div>
           </CardContent>
@@ -374,7 +492,7 @@ export default function CallRecordsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{analyzedCalls}</p>
-                <p className="text-xs text-muted-foreground">Analizzate AI</p>
+                <p className="text-xs text-muted-foreground">Analizzate</p>
               </div>
             </div>
           </CardContent>
@@ -387,7 +505,20 @@ export default function CallRecordsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{linkedLeads}</p>
-                <p className="text-xs text-muted-foreground">Collegate a lead</p>
+                <p className="text-xs text-muted-foreground">Con lead</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-500/10 rounded-lg">
+                <Building2 className="h-5 w-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{activePbx}</p>
+                <p className="text-xs text-muted-foreground">Centralini</p>
               </div>
             </div>
           </CardContent>
@@ -400,7 +531,7 @@ export default function CallRecordsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{activeExtensions}</p>
-                <p className="text-xs text-muted-foreground">Interni attivi</p>
+                <p className="text-xs text-muted-foreground">Interni</p>
               </div>
             </div>
           </CardContent>
@@ -409,10 +540,14 @@ export default function CallRecordsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="calls" className="flex items-center gap-2">
             <Phone className="h-4 w-4" />
             Chiamate
+          </TabsTrigger>
+          <TabsTrigger value="pbx" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Centralini
           </TabsTrigger>
           <TabsTrigger value="extensions" className="flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -453,7 +588,7 @@ export default function CallRecordsPage() {
                   <p className="text-sm mt-2">Sincronizza le email per importare le chiamate</p>
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -615,95 +750,71 @@ export default function CallRecordsPage() {
           </Card>
         </TabsContent>
 
-        {/* EXTENSIONS TAB */}
-        <TabsContent value="extensions" className="space-y-4">
+        {/* PBX TAB */}
+        <TabsContent value="pbx" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Mappatura Interni Telefonici</CardTitle>
-                <CardDescription>Configura la corrispondenza tra interni e operatori</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Numeri Centralino
+                </CardTitle>
+                <CardDescription>Configura i tuoi numeri di centralino per associare gli interni</CardDescription>
               </div>
-              <Dialog open={isExtensionDialogOpen} onOpenChange={setIsExtensionDialogOpen}>
+              <Dialog open={isPbxDialogOpen} onOpenChange={setIsPbxDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => handleOpenExtensionDialog()}>
+                  <Button onClick={() => handleOpenPbxDialog()}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Aggiungi Interno
+                    Aggiungi Centralino
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>{editingExtension ? 'Modifica Interno' : 'Nuovo Interno'}</DialogTitle>
+                    <DialogTitle>{editingPbx ? 'Modifica Centralino' : 'Nuovo Centralino'}</DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={handleExtensionSubmit} className="space-y-4">
+                  <form onSubmit={handlePbxSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="extension_number">Numero Interno *</Label>
+                      <Label htmlFor="pbx_name">Nome *</Label>
                       <Input
-                        id="extension_number"
-                        value={extensionFormData.extension_number}
-                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, extension_number: e.target.value }))}
-                        placeholder="Es: 101, 102, 201..."
+                        id="pbx_name"
+                        value={pbxFormData.name}
+                        onChange={(e) => setPbxFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Es: Centralino Principale, Sede Milano..."
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="user_id">Utente Sistema (opzionale)</Label>
-                      <Select value={extensionFormData.user_id} onValueChange={handleUserSelect}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona un utente..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Nessun utente</SelectItem>
-                          {profiles?.map(profile => (
-                            <SelectItem key={profile.id} value={profile.id}>
-                              {profile.first_name || profile.last_name 
-                                ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-                                : profile.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="operator_name">Nome Operatore *</Label>
+                      <Label htmlFor="pbx_phone">Numero Telefono *</Label>
                       <Input
-                        id="operator_name"
-                        value={extensionFormData.operator_name}
-                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, operator_name: e.target.value }))}
-                        placeholder="Nome e cognome"
+                        id="pbx_phone"
+                        value={pbxFormData.phone_number}
+                        onChange={(e) => setPbxFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                        placeholder="Es: +39 02 12345678"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="operator_email">Email Operatore</Label>
-                      <Input
-                        id="operator_email"
-                        type="email"
-                        value={extensionFormData.operator_email}
-                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, operator_email: e.target.value }))}
-                        placeholder="email@azienda.it"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="department">Reparto</Label>
-                      <Input
-                        id="department"
-                        value={extensionFormData.department}
-                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, department: e.target.value }))}
-                        placeholder="Es: Commerciale, Assistenza..."
+                      <Label htmlFor="pbx_description">Descrizione</Label>
+                      <Textarea
+                        id="pbx_description"
+                        value={pbxFormData.description}
+                        onChange={(e) => setPbxFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Note aggiuntive sul centralino..."
+                        rows={3}
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="is_active">Attivo</Label>
+                      <Label htmlFor="pbx_active">Attivo</Label>
                       <Switch
-                        id="is_active"
-                        checked={extensionFormData.is_active}
-                        onCheckedChange={(checked) => setExtensionFormData(prev => ({ ...prev, is_active: checked }))}
+                        id="pbx_active"
+                        checked={pbxFormData.is_active}
+                        onCheckedChange={(checked) => setPbxFormData(prev => ({ ...prev, is_active: checked }))}
                       />
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button type="button" variant="outline" onClick={handleCloseExtensionDialog}>Annulla</Button>
-                      <Button type="submit" disabled={saveExtensionMutation.isPending}>
-                        {saveExtensionMutation.isPending ? 'Salvataggio...' : 'Salva'}
+                      <Button type="button" variant="outline" onClick={handleClosePbxDialog}>Annulla</Button>
+                      <Button type="submit" disabled={savePbxMutation.isPending}>
+                        {savePbxMutation.isPending ? 'Salvataggio...' : 'Salva'}
                       </Button>
                     </div>
                   </form>
@@ -711,13 +822,195 @@ export default function CallRecordsPage() {
               </Dialog>
             </CardHeader>
             <CardContent>
+              {isLoadingPbx ? (
+                <div className="text-center py-8 text-muted-foreground">Caricamento...</div>
+              ) : pbxNumbers && pbxNumbers.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {pbxNumbers.map((pbx) => {
+                    const pbxExtensions = extensions?.filter(e => e.pbx_id === pbx.id) || [];
+                    return (
+                      <Card key={pbx.id} className={!pbx.is_active ? 'opacity-60' : ''}>
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              <Phone className="h-4 w-4" />
+                              {pbx.name}
+                            </CardTitle>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => handleOpenPbxDialog(pbx)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                if (confirm('Eliminare questo centralino?')) {
+                                  deletePbxMutation.mutate(pbx.id);
+                                }
+                              }}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <p className="font-mono text-lg">{pbx.phone_number}</p>
+                            {pbx.description && (
+                              <p className="text-sm text-muted-foreground">{pbx.description}</p>
+                            )}
+                            <div className="flex items-center justify-between pt-2">
+                              <Badge variant={pbx.is_active ? 'default' : 'secondary'}>
+                                {pbx.is_active ? 'Attivo' : 'Disattivato'}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {pbxExtensions.length} interni
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nessun centralino configurato</p>
+                  <p className="text-sm">Aggiungi i tuoi numeri di centralino per organizzare gli interni</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* EXTENSIONS TAB */}
+        <TabsContent value="extensions" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle>Mappatura Interni Telefonici</CardTitle>
+                <CardDescription>Configura la corrispondenza tra interni e operatori</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={selectedPbxFilter} onValueChange={setSelectedPbxFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filtra per centralino" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i centralini</SelectItem>
+                    {pbxNumbers?.map(pbx => (
+                      <SelectItem key={pbx.id} value={pbx.id}>{pbx.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Dialog open={isExtensionDialogOpen} onOpenChange={setIsExtensionDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => handleOpenExtensionDialog()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Aggiungi Interno
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingExtension ? 'Modifica Interno' : 'Nuovo Interno'}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleExtensionSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ext_pbx">Centralino *</Label>
+                        <Select value={extensionFormData.pbx_id} onValueChange={(v) => setExtensionFormData(prev => ({ ...prev, pbx_id: v }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona centralino..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {pbxNumbers?.map(pbx => (
+                              <SelectItem key={pbx.id} value={pbx.id}>{pbx.name} ({pbx.phone_number})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="extension_number">Numero Interno *</Label>
+                        <Input
+                          id="extension_number"
+                          value={extensionFormData.extension_number}
+                          onChange={(e) => setExtensionFormData(prev => ({ ...prev, extension_number: e.target.value }))}
+                          placeholder="Es: 101, 102, 201..."
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="user_id">Utente Sistema (opzionale)</Label>
+                        <Select value={extensionFormData.user_id} onValueChange={handleUserSelect}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona un utente..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Nessun utente</SelectItem>
+                            {profiles?.map(profile => (
+                              <SelectItem key={profile.id} value={profile.id}>
+                                {profile.first_name || profile.last_name 
+                                  ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+                                  : profile.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="operator_name">Nome Operatore *</Label>
+                        <Input
+                          id="operator_name"
+                          value={extensionFormData.operator_name}
+                          onChange={(e) => setExtensionFormData(prev => ({ ...prev, operator_name: e.target.value }))}
+                          placeholder="Nome e cognome"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="operator_email">Email Operatore</Label>
+                        <Input
+                          id="operator_email"
+                          type="email"
+                          value={extensionFormData.operator_email}
+                          onChange={(e) => setExtensionFormData(prev => ({ ...prev, operator_email: e.target.value }))}
+                          placeholder="email@azienda.it"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="department">Reparto</Label>
+                        <Input
+                          id="department"
+                          value={extensionFormData.department}
+                          onChange={(e) => setExtensionFormData(prev => ({ ...prev, department: e.target.value }))}
+                          placeholder="Es: Commerciale, Assistenza..."
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="is_active">Attivo</Label>
+                        <Switch
+                          id="is_active"
+                          checked={extensionFormData.is_active}
+                          onCheckedChange={(checked) => setExtensionFormData(prev => ({ ...prev, is_active: checked }))}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button type="button" variant="outline" onClick={handleCloseExtensionDialog}>Annulla</Button>
+                        <Button type="submit" disabled={saveExtensionMutation.isPending}>
+                          {saveExtensionMutation.isPending ? 'Salvataggio...' : 'Salva'}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
               {isLoadingExtensions ? (
                 <div className="text-center py-8 text-muted-foreground">Caricamento...</div>
-              ) : extensions && extensions.length > 0 ? (
+              ) : filteredExtensions && filteredExtensions.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Interno</TableHead>
+                      <TableHead>Centralino</TableHead>
                       <TableHead>Operatore</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Reparto</TableHead>
@@ -726,9 +1019,16 @@ export default function CallRecordsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {extensions.map((ext) => (
+                    {filteredExtensions.map((ext) => (
                       <TableRow key={ext.id}>
                         <TableCell className="font-mono font-bold">{ext.extension_number}</TableCell>
+                        <TableCell>
+                          {ext.pbx_numbers ? (
+                            <Badge variant="outline">{ext.pbx_numbers.name}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
@@ -764,7 +1064,7 @@ export default function CallRecordsPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Nessun interno configurato</p>
-                  <p className="text-sm">Aggiungi la mappatura degli interni per tracciare chi risponde alle chiamate</p>
+                  <p className="text-sm">Prima configura un centralino, poi aggiungi gli interni</p>
                 </div>
               )}
             </CardContent>
