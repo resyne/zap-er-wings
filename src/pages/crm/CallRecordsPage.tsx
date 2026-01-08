@@ -360,6 +360,10 @@ export default function CallRecordsPage() {
   };
 
   const handleUserSelect = (userId: string) => {
+    if (userId === 'none') {
+      setExtensionFormData(prev => ({ ...prev, user_id: '' }));
+      return;
+    }
     const profile = profiles?.find(p => p.id === userId);
     if (profile) {
       setExtensionFormData(prev => ({
@@ -881,12 +885,12 @@ export default function CallRecordsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="user_id">Utente Sistema (opzionale)</Label>
-                <Select value={extensionFormData.user_id} onValueChange={handleUserSelect}>
+                <Select value={extensionFormData.user_id || 'none'} onValueChange={handleUserSelect}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona un utente..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessun utente</SelectItem>
+                    <SelectItem value="none">Nessun utente</SelectItem>
                     {profiles?.map(profile => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.first_name || profile.last_name 
