@@ -15,6 +15,7 @@ interface CallRecord {
   duration_seconds: number;
   operator_name?: string;
   operator_id?: string;
+  extension_number?: string;
   ai_summary?: string;
   ai_sentiment?: string;
   service?: string;
@@ -135,11 +136,14 @@ export default function LeadCallHistory({ leadId }: LeadCallHistoryProps) {
               )}
             </div>
 
-            {/* Operator */}
-            {call.operator_name && (
+            {/* Operator & Extension */}
+            {(call.operator_name || call.extension_number) && (
               <div className="flex items-center gap-1 text-xs mt-1">
                 <User className="h-3 w-3 text-primary" />
-                <span className="font-medium text-primary">{call.operator_name}</span>
+                <span className="font-medium text-primary">
+                  {call.operator_name || 'Operatore'}
+                  {call.extension_number && <span className="text-muted-foreground ml-1">(Int. {call.extension_number})</span>}
+                </span>
               </div>
             )}
 
