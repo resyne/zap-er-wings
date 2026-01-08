@@ -413,12 +413,29 @@ export default function CallRecordsPage() {
     ? imapConfigs?.find(c => c.pbx_id === selectedPbx.id) 
     : null;
 
-  // Per ora le chiamate non hanno pbx_id, filtriamo per numero centralino (approximation)
-  const pbxCalls = selectedPbx 
-    ? callRecords?.filter(c => 
-        c.called_number.includes(selectedPbx.phone_number.replace(/\s/g, '').slice(-6)) ||
-        c.caller_number.includes(selectedPbx.phone_number.replace(/\s/g, '').slice(-6))
-      )
+  // Le chiamate OUT spesso contengono solo l'interno e il numero esterno (non il numero del centralino).
+  // Quindi: priorità al match sugli interni associati al PBX; fallback sul match (approssimato) del numero centralino.
+  const normalizeDigits = (value: string | null | undefined) =>
+    (value ?? "").toString().replace(/\s/g, "").replace(/^\+/, "");
+
+  const pbxExtensionSet = new Set((pbxExtensions ?? []).map((e) => normalizeDigits(e.extension_number)));
+  const pbxPhoneHint = selectedPbx ? normalizeDigits(selectedPbx.phone_number).slice(-6) : "";
+
+  const pbxCalls = selectedPbx
+    ? callRecords?.filter((c) => {
+        const caller = normalizeDigits(c.caller_number);
+        const called = normalizeDigits(c.called_number);
+        const ext = normalizeDigits(c.extension_number);
+
+        const matchesExtension =
+          pbxExtensionSet.has(ext) || pbxExtensionSet.has(caller) || pbxExtensionSet.has(called);
+
+        const matchesPbxNumber = pbxPhoneHint
+          ? caller.includes(pbxPhoneHint) || called.includes(pbxPhoneHint)
+          : false;
+
+        return matchesExtension || matchesPbxNumber;
+      })
     : [];
 
   const filteredCalls = pbxCalls?.filter(record =>
