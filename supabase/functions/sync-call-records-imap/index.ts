@@ -554,31 +554,49 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   // Clean up the body: remove HTML tags, decode entities, normalize whitespace
   let cleanBody = emailBody
     .replace(/<br\s*\/?>/gi, '\n')           // Convert <br> to newline
-    .replace(/<[^>]+>/g, '')                  // Remove all HTML tags
-    .replace(/&[a-z]+;/gi, ' ')               // Remove HTML entities
+    .replace(/<[^>]+>/g, ' ')                 // Remove all HTML tags (replace with space to preserve structure)
+    .replace(/&lt;/gi, '<')                   // Decode common HTML entities
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num))) // Numeric entities
+    .replace(/&[a-z]+;/gi, ' ')               // Remove remaining HTML entities
     .replace(/=\r?\n/g, '')                   // Remove quoted-printable soft breaks
     .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Decode QP
+    .replace(/[<>=]/g, ' ')                   // Remove stray angle brackets and equals signs
     .replace(/\s+/g, ' ')                     // Normalize whitespace
     .trim();
 
-  console.log('Clean body for parsing:', cleanBody.substring(0, 300));
+  console.log('Clean body for parsing:', cleanBody.substring(0, 400));
 
   // Extract values - use non-greedy matching and stop at next field or end
   const callerMatch = cleanBody.match(/Numero Chiamante:\s*([+\d]+)/i);
   const calledMatch = cleanBody.match(/Numero Chiamato:\s*([+\d]+)/i);
-  const serviceMatch = cleanBody.match(/Servizio:\s*([\d]+)/i);
+  const serviceMatch = cleanBody.match(/Servizio:\s*([\w_\d]+)/i); // Allow letters for service names like "Chiamate_OUT"
   const dateMatch = cleanBody.match(/Data:\s*([\d\/-]+)/i);
   const timeMatch = cleanBody.match(/Ora:\s*([\d:\-]+)/i);
-  const durationMatch = cleanBody.match(/Durata:\s*([\d.]+)\s*Secondi/i);
+  const durationMatch = cleanBody.match(/Durata:\s*([\d.,]+)\s*Secondi/i);
   
   // Try both ID formats: "ID Univoco Chiamata" (outbound) and "ID Chiamata" (inbound)
-  let idMatch = cleanBody.match(/ID Univoco Chiamata:\s*([\d.]+)/i);
+  // Be more flexible with matching - allow spaces and various characters before the ID
+  let idMatch = cleanBody.match(/ID Univoco Chiamata[:\s]+(\d+\.?\d*)/i);
   if (!idMatch) {
-    idMatch = cleanBody.match(/ID Chiamata:\s*([\d.]+)/i);
+    idMatch = cleanBody.match(/ID Chiamata[:\s]+(\d+\.?\d*)/i);
+  }
+  
+  // If still no match, try to find any numeric ID pattern near the end of the string
+  if (!idMatch) {
+    // Look for the typical call ID format: digits followed by decimal point and more digits
+    const altMatch = cleanBody.match(/(\d{10,}\.?\d*)/);
+    if (altMatch) {
+      console.log('Found call ID using fallback pattern:', altMatch[1]);
+      idMatch = altMatch;
+    }
   }
 
-  if (!idMatch) {
-    console.log('No call ID found in email (tried ID Univoco Chiamata and ID Chiamata)');
+  if (!idMatch || !idMatch[1]) {
+    console.log('No call ID found in email body. Clean body sample:', cleanBody.substring(0, 500));
     return null;
   }
 
