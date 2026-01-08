@@ -4,10 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw, Settings, Mail, Brain, ChevronDown, User, MessageSquare, Sparkles, Link2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Phone, Download, Search, PhoneIncoming, PhoneOutgoing, RefreshCw, 
+  Settings, Mail, Brain, ChevronDown, User, MessageSquare, Sparkles, 
+  Link2, Plus, Pencil, Trash2, Server, ListChecks
+} from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -39,13 +47,45 @@ interface CallRecord {
   leads?: { id: string; company_name: string; contact_name: string } | null;
 }
 
+interface PhoneExtension {
+  id: string;
+  extension_number: string;
+  user_id: string | null;
+  operator_name: string;
+  operator_email: string | null;
+  department: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface Profile {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
 export default function CallRecordsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showImapDialog, setShowImapDialog] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("calls");
+  
+  // Phone extensions state
+  const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
+  const [editingExtension, setEditingExtension] = useState<PhoneExtension | null>(null);
+  const [extensionFormData, setExtensionFormData] = useState({
+    extension_number: '',
+    user_id: '',
+    operator_name: '',
+    operator_email: '',
+    department: '',
+    is_active: true
+  });
 
+  // Queries
   const { data: imapConfigs, refetch: refetchConfigs } = useQuery({
     queryKey: ['imap-configs'],
     queryFn: async () => {
@@ -54,30 +94,49 @@ export default function CallRecordsPage() {
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
-      
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: callRecords, isLoading, refetch } = useQuery({
+  const { data: callRecords, isLoading: isLoadingCalls, refetch: refetchCalls } = useQuery({
     queryKey: ['call-records'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('call_records')
-        .select(`
-          *,
-          leads:lead_id (id, company_name, contact_name)
-        `)
+        .select(`*, leads:lead_id (id, company_name, contact_name)`)
         .order('call_date', { ascending: false })
         .order('call_time', { ascending: false });
-
       if (error) throw error;
       return data as CallRecord[];
     },
   });
 
-  // Mutation per analisi AI
+  const { data: extensions, isLoading: isLoadingExtensions } = useQuery({
+    queryKey: ['phone-extensions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('phone_extensions')
+        .select('*')
+        .order('extension_number');
+      if (error) throw error;
+      return data as PhoneExtension[];
+    }
+  });
+
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles-for-extensions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .order('first_name');
+      if (error) throw error;
+      return data as Profile[];
+    }
+  });
+
+  // Mutations
   const analyzeCallMutation = useMutation({
     mutationFn: async (callId: string) => {
       const { data, error } = await supabase.functions.invoke('analyze-call-record', {
@@ -95,28 +154,62 @@ export default function CallRecordsPage() {
     }
   });
 
+  const saveExtensionMutation = useMutation({
+    mutationFn: async (data: typeof extensionFormData) => {
+      const payload = {
+        extension_number: data.extension_number,
+        user_id: data.user_id || null,
+        operator_name: data.operator_name,
+        operator_email: data.operator_email || null,
+        department: data.department || null,
+        is_active: data.is_active
+      };
+      if (editingExtension) {
+        const { error } = await supabase.from('phone_extensions').update(payload).eq('id', editingExtension.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('phone_extensions').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['phone-extensions'] });
+      toast.success(editingExtension ? 'Interno aggiornato' : 'Interno aggiunto');
+      handleCloseExtensionDialog();
+    },
+    onError: (error: any) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const deleteExtensionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('phone_extensions').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['phone-extensions'] });
+      toast.success('Interno eliminato');
+    },
+    onError: (error: any) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Handlers
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`;
-    } else {
-      return `${secs}s`;
-    }
+    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
   };
 
   const downloadRecording = async (recordingUrl: string, uniqueCallId: string) => {
     try {
-      const { data, error } = await supabase.storage
-        .from('call-recordings')
-        .download(recordingUrl);
-
+      const { data, error } = await supabase.storage.from('call-recordings').download(recordingUrl);
       if (error) throw error;
-
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -125,29 +218,10 @@ export default function CallRecordsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
       toast.success("Registrazione scaricata");
     } catch (error) {
       console.error('Error downloading recording:', error);
       toast.error("Errore nel download della registrazione");
-    }
-  };
-
-  const handleProcessEmails = async () => {
-    setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('process-call-records-emails');
-      
-      if (error) throw error;
-      
-      toast.success(`Processate ${data.processed} chiamate dalle email. Ignorate: ${data.skipped}, Errori: ${data.errors}`);
-      
-      refetch();
-    } catch (error) {
-      console.error('Error processing emails:', error);
-      toast.error("Errore nel processare le email");
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -157,20 +231,15 @@ export default function CallRecordsPage() {
       setShowImapDialog(true);
       return;
     }
-
     setIsProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-call-records-imap');
-      
       if (error) throw error;
-      
       const message = data.total_found > data.emails_processed
         ? `Processate ${data.emails_processed} di ${data.total_found} email (${data.new_call_records} nuove). Clicca di nuovo per processare le rimanenti.`
         : `Sincronizzate ${data.emails_processed} email, ${data.new_call_records} nuove registrazioni`;
-      
       toast.success(message);
-      
-      refetch();
+      refetchCalls();
     } catch (error) {
       console.error('Error syncing IMAP:', error);
       toast.error("Errore nella sincronizzazione IMAP");
@@ -179,11 +248,72 @@ export default function CallRecordsPage() {
     }
   };
 
+  const handleOpenExtensionDialog = (extension?: PhoneExtension) => {
+    if (extension) {
+      setEditingExtension(extension);
+      setExtensionFormData({
+        extension_number: extension.extension_number,
+        user_id: extension.user_id || '',
+        operator_name: extension.operator_name,
+        operator_email: extension.operator_email || '',
+        department: extension.department || '',
+        is_active: extension.is_active
+      });
+    } else {
+      setEditingExtension(null);
+      setExtensionFormData({
+        extension_number: '',
+        user_id: '',
+        operator_name: '',
+        operator_email: '',
+        department: '',
+        is_active: true
+      });
+    }
+    setIsExtensionDialogOpen(true);
+  };
+
+  const handleCloseExtensionDialog = () => {
+    setIsExtensionDialogOpen(false);
+    setEditingExtension(null);
+  };
+
+  const handleUserSelect = (userId: string) => {
+    const profile = profiles?.find(p => p.id === userId);
+    if (profile) {
+      setExtensionFormData(prev => ({
+        ...prev,
+        user_id: userId,
+        operator_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
+        operator_email: profile.email
+      }));
+    } else {
+      setExtensionFormData(prev => ({ ...prev, user_id: userId }));
+    }
+  };
+
+  const handleExtensionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!extensionFormData.extension_number || !extensionFormData.operator_name) {
+      toast.error('Numero interno e nome operatore sono obbligatori');
+      return;
+    }
+    saveExtensionMutation.mutate(extensionFormData);
+  };
+
   const filteredRecords = callRecords?.filter(record =>
     record.caller_number.includes(searchTerm) ||
     record.called_number.includes(searchTerm) ||
-    record.unique_call_id.includes(searchTerm)
+    record.unique_call_id.includes(searchTerm) ||
+    record.operator_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.leads?.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Stats
+  const totalCalls = callRecords?.length || 0;
+  const analyzedCalls = callRecords?.filter(c => c.ai_processed_at).length || 0;
+  const linkedLeads = callRecords?.filter(c => c.lead_id).length || 0;
+  const activeExtensions = extensions?.filter(e => e.is_active).length || 0;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -193,18 +323,18 @@ export default function CallRecordsPage() {
         onSuccess={() => refetchConfigs()}
       />
 
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Registrazioni Chiamate</h1>
-          <p className="text-muted-foreground">
-            Sincronizza automaticamente le registrazioni via IMAP
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Phone className="h-8 w-8" />
+            Gestione Chiamate
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Registrazioni, analisi AI e configurazione interni telefonici
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowImapDialog(true)}>
-            <Settings className="mr-2 h-4 w-4" />
-            Configura IMAP
-          </Button>
           <Button onClick={handleSyncImap} disabled={isProcessing}>
             {isProcessing ? (
               <>
@@ -221,255 +351,521 @@ export default function CallRecordsPage() {
         </div>
       </div>
 
-      {imapConfigs && imapConfigs.length > 0 && (
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Configurazione Attiva
-            </CardTitle>
-            <CardDescription>
-              Server IMAP configurato per la sincronizzazione automatica
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Nome:</span>
-                <span className="text-sm text-muted-foreground">{imapConfigs[0].name}</span>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Phone className="h-5 w-5 text-primary" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Server:</span>
-                <span className="text-sm text-muted-foreground font-mono">{imapConfigs[0].host}:{imapConfigs[0].port}</span>
+              <div>
+                <p className="text-2xl font-bold">{totalCalls}</p>
+                <p className="text-xs text-muted-foreground">Chiamate totali</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Cartella:</span>
-                <span className="text-sm text-muted-foreground">{imapConfigs[0].folder}</span>
-              </div>
-              {imapConfigs[0].last_sync_at && (
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Ultima sincronizzazione:</span>
-                  <span className="text-sm text-muted-foreground">
-                    {format(new Date(imapConfigs[0].last_sync_at), 'dd/MM/yyyy HH:mm', { locale: it })}
-                  </span>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
-      )}
-
         <Card>
-          <CardHeader>
-            <CardTitle>Registrazioni</CardTitle>
-            <CardDescription>
-              Lista completa delle chiamate registrate
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cerca per numero o ID chiamata..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-500/10 rounded-lg">
+                <Sparkles className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{analyzedCalls}</p>
+                <p className="text-xs text-muted-foreground">Analizzate AI</p>
               </div>
             </div>
-
-            {isLoading ? (
-              <div className="text-center py-8">Caricamento...</div>
-            ) : !filteredRecords || filteredRecords.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nessuna registrazione trovata
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Link2 className="h-5 w-5 text-blue-500" />
               </div>
-            ) : (
-              <div className="rounded-md border">
+              <div>
+                <p className="text-2xl font-bold">{linkedLeads}</p>
+                <p className="text-xs text-muted-foreground">Collegate a lead</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/10 rounded-lg">
+                <User className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{activeExtensions}</p>
+                <p className="text-xs text-muted-foreground">Interni attivi</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="calls" className="flex items-center gap-2">
+            <Phone className="h-4 w-4" />
+            Chiamate
+          </TabsTrigger>
+          <TabsTrigger value="extensions" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Interni
+          </TabsTrigger>
+          <TabsTrigger value="setup" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Setup
+          </TabsTrigger>
+        </TabsList>
+
+        {/* CALLS TAB */}
+        <TabsContent value="calls" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Registrazioni Chiamate</CardTitle>
+              <CardDescription>Lista completa delle chiamate registrate con analisi AI</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cerca per numero, operatore, lead..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {isLoadingCalls ? (
+                <div className="text-center py-8">Caricamento...</div>
+              ) : !filteredRecords || filteredRecords.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nessuna registrazione trovata</p>
+                  <p className="text-sm mt-2">Sincronizza le email per importare le chiamate</p>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead></TableHead>
+                        <TableHead>Data/Ora</TableHead>
+                        <TableHead>Chiamante</TableHead>
+                        <TableHead>Operatore</TableHead>
+                        <TableHead>Lead</TableHead>
+                        <TableHead>Durata</TableHead>
+                        <TableHead>AI</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRecords.map((record) => {
+                        const isOutgoing = record.direction === 'outbound' || record.service.toLowerCase().includes('out');
+                        const aiActions = Array.isArray(record.ai_actions) ? record.ai_actions as { action: string; priority: string; deadline?: string }[] : [];
+                        const isExpanded = expandedRow === record.id;
+                        
+                        return (
+                          <>
+                            <TableRow key={record.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
+                              <TableCell>
+                                <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {format(new Date(record.call_date), 'dd/MM/yyyy', { locale: it })}
+                                <br />
+                                <span className="text-xs text-muted-foreground">{record.call_time}</span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {isOutgoing ? (
+                                    <PhoneOutgoing className="h-4 w-4 text-blue-500" />
+                                  ) : (
+                                    <PhoneIncoming className="h-4 w-4 text-green-500" />
+                                  )}
+                                  <span className="text-sm">{record.caller_number}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {record.operator_name ? (
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-muted-foreground" />
+                                    <span>{record.operator_name}</span>
+                                    {record.extension_number && (
+                                      <Badge variant="outline" className="text-xs">Int. {record.extension_number}</Badge>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {record.leads ? (
+                                  <Link 
+                                    to={`/crm/leads?id=${record.leads.id}`} 
+                                    className="flex items-center gap-1 text-primary hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Link2 className="h-3 w-3" />
+                                    {record.leads.company_name || record.leads.contact_name}
+                                  </Link>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>{formatDuration(record.duration_seconds)}</TableCell>
+                              <TableCell>
+                                {record.ai_processed_at ? (
+                                  <Badge 
+                                    variant={
+                                      record.ai_sentiment === 'positivo' ? 'default' :
+                                      record.ai_sentiment === 'negativo' ? 'destructive' : 'secondary'
+                                    }
+                                  >
+                                    <Sparkles className="h-3 w-3 mr-1" />
+                                    {record.ai_sentiment || 'Analizzato'}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground">Non analizzato</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                  {record.recording_url && (
+                                    <Button variant="ghost" size="sm" onClick={() => downloadRecording(record.recording_url!, record.unique_call_id)}>
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  <Button variant="ghost" size="sm" onClick={() => analyzeCallMutation.mutate(record.id)} disabled={analyzeCallMutation.isPending}>
+                                    <Brain className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && (
+                              <TableRow>
+                                <TableCell colSpan={8} className="bg-muted/30 p-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {record.ai_summary && (
+                                      <div className="space-y-2">
+                                        <h4 className="font-semibold flex items-center gap-2">
+                                          <MessageSquare className="h-4 w-4" />
+                                          Riassunto AI
+                                        </h4>
+                                        <p className="text-sm text-muted-foreground bg-background p-3 rounded-lg">
+                                          {record.ai_summary}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {aiActions.length > 0 && (
+                                      <div className="space-y-2">
+                                        <h4 className="font-semibold flex items-center gap-2">
+                                          <ListChecks className="h-4 w-4" />
+                                          Azioni suggerite
+                                        </h4>
+                                        <ul className="space-y-1">
+                                          {aiActions.map((action, idx) => (
+                                            <li key={idx} className="text-sm flex items-start gap-2 bg-background p-2 rounded">
+                                              <Badge variant={action.priority === 'alta' ? 'destructive' : action.priority === 'media' ? 'default' : 'secondary'} className="text-xs">
+                                                {action.priority}
+                                              </Badge>
+                                              <span>{action.action}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {record.transcription && (
+                                      <div className="space-y-2 md:col-span-2">
+                                        <h4 className="font-semibold">Trascrizione</h4>
+                                        <p className="text-sm text-muted-foreground bg-background p-3 rounded-lg whitespace-pre-wrap">
+                                          {record.transcription}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {!record.ai_summary && !record.transcription && (
+                                      <div className="text-center py-4 text-muted-foreground md:col-span-2">
+                                        <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                        <p>Nessuna analisi AI disponibile</p>
+                                        <Button variant="outline" size="sm" className="mt-2" onClick={() => analyzeCallMutation.mutate(record.id)}>
+                                          Analizza ora
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* EXTENSIONS TAB */}
+        <TabsContent value="extensions" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Mappatura Interni Telefonici</CardTitle>
+                <CardDescription>Configura la corrispondenza tra interni e operatori</CardDescription>
+              </div>
+              <Dialog open={isExtensionDialogOpen} onOpenChange={setIsExtensionDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => handleOpenExtensionDialog()}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi Interno
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingExtension ? 'Modifica Interno' : 'Nuovo Interno'}</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleExtensionSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="extension_number">Numero Interno *</Label>
+                      <Input
+                        id="extension_number"
+                        value={extensionFormData.extension_number}
+                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, extension_number: e.target.value }))}
+                        placeholder="Es: 101, 102, 201..."
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="user_id">Utente Sistema (opzionale)</Label>
+                      <Select value={extensionFormData.user_id} onValueChange={handleUserSelect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona un utente..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Nessun utente</SelectItem>
+                          {profiles?.map(profile => (
+                            <SelectItem key={profile.id} value={profile.id}>
+                              {profile.first_name || profile.last_name 
+                                ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+                                : profile.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="operator_name">Nome Operatore *</Label>
+                      <Input
+                        id="operator_name"
+                        value={extensionFormData.operator_name}
+                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, operator_name: e.target.value }))}
+                        placeholder="Nome e cognome"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="operator_email">Email Operatore</Label>
+                      <Input
+                        id="operator_email"
+                        type="email"
+                        value={extensionFormData.operator_email}
+                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, operator_email: e.target.value }))}
+                        placeholder="email@azienda.it"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Reparto</Label>
+                      <Input
+                        id="department"
+                        value={extensionFormData.department}
+                        onChange={(e) => setExtensionFormData(prev => ({ ...prev, department: e.target.value }))}
+                        placeholder="Es: Commerciale, Assistenza..."
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="is_active">Attivo</Label>
+                      <Switch
+                        id="is_active"
+                        checked={extensionFormData.is_active}
+                        onCheckedChange={(checked) => setExtensionFormData(prev => ({ ...prev, is_active: checked }))}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button type="button" variant="outline" onClick={handleCloseExtensionDialog}>Annulla</Button>
+                      <Button type="submit" disabled={saveExtensionMutation.isPending}>
+                        {saveExtensionMutation.isPending ? 'Salvataggio...' : 'Salva'}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              {isLoadingExtensions ? (
+                <div className="text-center py-8 text-muted-foreground">Caricamento...</div>
+              ) : extensions && extensions.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead></TableHead>
-                      <TableHead>Data/Ora</TableHead>
-                      <TableHead>Chiamante</TableHead>
+                      <TableHead>Interno</TableHead>
                       <TableHead>Operatore</TableHead>
-                      <TableHead>Lead</TableHead>
-                      <TableHead>Durata</TableHead>
-                      <TableHead>AI</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Reparto</TableHead>
+                      <TableHead>Stato</TableHead>
                       <TableHead className="text-right">Azioni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRecords.map((record) => {
-                      const isOutgoing = record.direction === 'outbound' || record.service.toLowerCase().includes('out');
-                      const aiActions = Array.isArray(record.ai_actions) ? record.ai_actions as { action: string; priority: string; deadline?: string }[] : [];
-                      const isExpanded = expandedRow === record.id;
-                      
-                      return (
-                        <>
-                          <TableRow key={record.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedRow(isExpanded ? null : record.id)}>
-                            <TableCell>
-                              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              {format(new Date(record.call_date), 'dd/MM/yyyy', { locale: it })}
-                              <br />
-                              <span className="text-xs text-muted-foreground">
-                                {record.call_time}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {isOutgoing ? (
-                                  <PhoneOutgoing className="h-4 w-4 text-blue-500" />
-                                ) : (
-                                  <PhoneIncoming className="h-4 w-4 text-green-500" />
-                                )}
-                                <span className="text-sm">{record.caller_number}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {record.operator_name ? (
-                                <div className="flex items-center gap-2">
-                                  <User className="h-4 w-4 text-muted-foreground" />
-                                  <span>{record.operator_name}</span>
-                                  {record.extension_number && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Int. {record.extension_number}
-                                    </Badge>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {record.leads ? (
-                                <Link 
-                                  to={`/crm/leads?id=${record.leads.id}`} 
-                                  className="flex items-center gap-1 text-primary hover:underline"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Link2 className="h-3 w-3" />
-                                  {record.leads.company_name || record.leads.contact_name}
-                                </Link>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{formatDuration(record.duration_seconds)}</TableCell>
-                            <TableCell>
-                              {record.ai_processed_at ? (
-                                <Badge 
-                                  variant={
-                                    record.ai_sentiment === 'positivo' ? 'default' :
-                                    record.ai_sentiment === 'negativo' ? 'destructive' : 'secondary'
-                                  }
-                                >
-                                  <Sparkles className="h-3 w-3 mr-1" />
-                                  {record.ai_sentiment || 'Analizzato'}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-muted-foreground">
-                                  Non analizzato
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                                {record.recording_url && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => downloadRecording(record.recording_url!, record.unique_call_id)}
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => analyzeCallMutation.mutate(record.id)}
-                                  disabled={analyzeCallMutation.isPending}
-                                >
-                                  <Brain className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                          {isExpanded && (
-                            <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/30 p-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {/* Riassunto AI */}
-                                  {record.ai_summary && (
-                                    <div className="space-y-2">
-                                      <h4 className="font-semibold flex items-center gap-2">
-                                        <MessageSquare className="h-4 w-4" />
-                                        Riassunto AI
-                                      </h4>
-                                      <p className="text-sm text-muted-foreground bg-background p-3 rounded-lg">
-                                        {record.ai_summary}
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Azioni suggerite */}
-                                  {aiActions.length > 0 && (
-                                    <div className="space-y-2">
-                                      <h4 className="font-semibold">Azioni suggerite</h4>
-                                      <ul className="space-y-1">
-                                        {aiActions.map((action, idx) => (
-                                          <li key={idx} className="flex items-start gap-2 text-sm">
-                                            <Badge 
-                                              variant={
-                                                action.priority === 'alta' ? 'destructive' :
-                                                action.priority === 'media' ? 'default' : 'secondary'
-                                              }
-                                              className="text-xs shrink-0"
-                                            >
-                                              {action.priority}
-                                            </Badge>
-                                            <span>{action.action}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Trascrizione */}
-                                  {record.transcription && (
-                                    <div className="md:col-span-2 space-y-2">
-                                      <h4 className="font-semibold">Trascrizione</h4>
-                                      <p className="text-sm text-muted-foreground bg-background p-3 rounded-lg max-h-40 overflow-y-auto">
-                                        {record.transcription}
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Info chiamata */}
-                                  <div className="md:col-span-2 flex flex-wrap gap-4 text-xs text-muted-foreground border-t pt-3">
-                                    <span>ID: {record.unique_call_id}</span>
-                                    <span>Servizio: {record.service}</span>
-                                    {record.matched_by && <span>Match: {record.matched_by}</span>}
-                                    {record.ai_processed_at && (
-                                      <span>Analizzato: {format(new Date(record.ai_processed_at), 'dd/MM/yyyy HH:mm', { locale: it })}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </>
-                      );
-                    })}
+                    {extensions.map((ext) => (
+                      <TableRow key={ext.id}>
+                        <TableCell className="font-mono font-bold">{ext.extension_number}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            {ext.operator_name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{ext.operator_email || '-'}</TableCell>
+                        <TableCell>{ext.department || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={ext.is_active ? 'default' : 'secondary'}>
+                            {ext.is_active ? 'Attivo' : 'Disattivato'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleOpenExtensionDialog(ext)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              if (confirm('Eliminare questo interno?')) {
+                                deleteExtensionMutation.mutate(ext.id);
+                              }
+                            }}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nessun interno configurato</p>
+                  <p className="text-sm">Aggiungi la mappatura degli interni per tracciare chi risponde alle chiamate</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* SETUP TAB */}
+        <TabsContent value="setup" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* IMAP Config */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="h-5 w-5" />
+                  Configurazione IMAP
+                </CardTitle>
+                <CardDescription>Server email per importare le registrazioni chiamate</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {imapConfigs && imapConfigs.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Nome:</span>
+                      <span className="text-sm text-muted-foreground">{imapConfigs[0].name}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Server:</span>
+                      <span className="text-sm text-muted-foreground font-mono">{imapConfigs[0].host}:{imapConfigs[0].port}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Cartella:</span>
+                      <span className="text-sm text-muted-foreground">{imapConfigs[0].folder}</span>
+                    </div>
+                    {imapConfigs[0].last_sync_at && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Ultima sync:</span>
+                        <span className="text-sm text-muted-foreground">
+                          {format(new Date(imapConfigs[0].last_sync_at), 'dd/MM/yyyy HH:mm', { locale: it })}
+                        </span>
+                      </div>
+                    )}
+                    <Badge variant="default" className="w-fit">Configurato</Badge>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>IMAP non configurato</p>
+                  </div>
+                )}
+                <Button variant="outline" className="w-full" onClick={() => setShowImapDialog(true)}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {imapConfigs && imapConfigs.length > 0 ? 'Modifica configurazione' : 'Configura IMAP'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* AI Analysis Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Analisi AI
+                </CardTitle>
+                <CardDescription>Funzionalità di intelligenza artificiale per le chiamate</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium text-sm">Riassunto automatico</p>
+                      <p className="text-xs text-muted-foreground">Genera riassunti delle conversazioni</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <MessageSquare className="h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="font-medium text-sm">Sentiment Analysis</p>
+                      <p className="text-xs text-muted-foreground">Analizza il tono della conversazione</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <ListChecks className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <p className="font-medium text-sm">Estrazione azioni</p>
+                      <p className="text-xs text-muted-foreground">Identifica follow-up e task</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Link2 className="h-5 w-5 text-purple-500" />
+                    <div>
+                      <p className="font-medium text-sm">Matching Lead</p>
+                      <p className="text-xs text-muted-foreground">Collega automaticamente ai lead per numero</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
