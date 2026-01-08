@@ -205,6 +205,20 @@ Fornisci: riassunto, sentiment, e lista di azioni con priorità.`;
   }
 });
 
+// Normalizza numero italiano rimuovendo prefissi internazionali e caratteri speciali
+function normalizeItalianPhone(phone: string): string {
+  if (!phone) return '';
+  // Rimuovi spazi, trattini, parentesi, punti
+  let normalized = phone.replace(/[\s\-\(\)\.\+]/g, '');
+  // Rimuovi prefisso internazionale italiano (39, 0039)
+  if (normalized.startsWith('0039')) {
+    normalized = normalized.slice(4);
+  } else if (normalized.startsWith('39') && normalized.length > 10) {
+    normalized = normalized.slice(2);
+  }
+  return normalized;
+}
+
 // Funzione per cercare e collegare il lead in base al numero di telefono
 async function matchAndLinkLead(supabase: any, callRecordId: string) {
   try {
@@ -225,37 +239,54 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
       ? callRecord.caller_number 
       : callRecord.called_number;
 
-    // Normalizza il numero (rimuovi spazi, +, etc.)
-    const normalizedNumber = customerNumber.replace(/[\s\+\-\(\)]/g, '');
-    const lastDigits = normalizedNumber.slice(-9); // Ultimi 9 numeri
-
-    // Cerca il lead con numero corrispondente
-    const { data: leads, error: leadError } = await supabase
-      .from('leads')
-      .select('id, phone')
-      .or(`phone.ilike.%${lastDigits}%,mobile.ilike.%${lastDigits}%`);
-
-    if (leadError) {
-      console.error('Error searching leads:', leadError);
-      return;
+    // Normalizza il numero per gestire varianti italiane
+    const normalized = normalizeItalianPhone(customerNumber);
+    
+    // Genera pattern di ricerca con varie combinazioni
+    const searchPatterns: string[] = [];
+    if (normalized.length >= 6) {
+      searchPatterns.push(normalized);
+      searchPatterns.push(normalized.slice(-10)); // Ultimi 10 digit
+      searchPatterns.push(normalized.slice(-9));  // Ultimi 9 digit (mobile IT senza prefisso)
     }
 
-    if (leads && leads.length > 0) {
-      // Collega al primo lead trovato
-      const { error: updateError } = await supabase
-        .from('call_records')
-        .update({ 
-          lead_id: leads[0].id,
-          matched_by: 'phone_number_auto'
-        })
-        .eq('id', callRecordId);
+    console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 3));
 
-      if (updateError) {
-        console.error('Error linking call to lead:', updateError);
-      } else {
-        console.log(`Call ${callRecordId} linked to lead ${leads[0].id}`);
+    // Cerca il lead con numero corrispondente - prova ogni pattern
+    for (const pattern of searchPatterns) {
+      if (!pattern || pattern.length < 6) continue;
+      
+      const { data: leads, error: leadError } = await supabase
+        .from('leads')
+        .select('id, phone')
+        .or(`phone.ilike.%${pattern}%,mobile.ilike.%${pattern}%`)
+        .limit(1);
+
+      if (leadError) {
+        console.error('Error searching leads:', leadError);
+        continue;
+      }
+
+      if (leads && leads.length > 0) {
+        // Collega al lead trovato
+        const { error: updateError } = await supabase
+          .from('call_records')
+          .update({ 
+            lead_id: leads[0].id,
+            matched_by: 'phone_number_auto'
+          })
+          .eq('id', callRecordId);
+
+        if (updateError) {
+          console.error('Error linking call to lead:', updateError);
+        } else {
+          console.log(`Call ${callRecordId} linked to lead ${leads[0].id} via pattern: ${pattern}`);
+        }
+        return; // Match trovato, esci
       }
     }
+    
+    console.log(`No lead found for call ${callRecordId}`);
   } catch (error) {
     console.error('Error in matchAndLinkLead:', error);
   }
