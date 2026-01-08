@@ -21,6 +21,8 @@ interface CallRecordData {
   call_time: string;
   duration_seconds: number;
   unique_call_id: string;
+  extension_number?: string;
+  direction?: string;
 }
 
 Deno.serve(async (req) => {
@@ -34,176 +36,309 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Starting IMAP sync for call records...');
+    console.log('Starting IMAP sync for call records (cron job)...');
 
-    // Get active IMAP configuration
-    const { data: configs, error: configError } = await supabase
-      .from('imap_config')
+    // Get all active PBX numbers with their IMAP configurations
+    const { data: pbxNumbers, error: pbxError } = await supabase
+      .from('pbx_numbers')
       .select('*')
-      .eq('is_active', true)
-      .limit(1);
+      .eq('is_active', true);
 
-    if (configError || !configs || configs.length === 0) {
-      console.log('No active IMAP configuration found');
-      return new Response(
-        JSON.stringify({ error: 'No active IMAP configuration found. Please configure IMAP settings first.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (pbxError) {
+      console.error('Error fetching PBX numbers:', pbxError);
+      throw pbxError;
     }
 
-    const config = configs[0];
-    console.log(`Using IMAP config: ${config.name} (${config.host}:${config.port})`);
-
-    // Connect to IMAP server
-    const imapConfig: ImapConfig = {
-      host: config.host,
-      port: config.port,
-      username: config.username,
-      password: config.password_encrypted, // In production, decrypt this
-      folder: config.folder || 'INBOX'
-    };
-
-    // Connect and authenticate
-    const conn = await connectToImap(imapConfig);
-    if (!conn) {
-      throw new Error('Failed to connect to IMAP server');
-    }
-
-    try {
-      // Read greeting
-      await readResponse(conn);
-      
-      // Authenticate
-      await sendCommand(conn, `LOGIN "${imapConfig.username}" "${imapConfig.password}"`);
-      
-      // Select folder
-      await sendCommand(conn, `SELECT "${imapConfig.folder}"`);
-      
-      // Get sync state to know which emails we've already processed
-      const { data: syncState } = await supabase
-        .from('imap_sync_state')
-        .select('*')
-        .eq('config_id', config.id)
-        .single();
-
-      // Search for unread emails (or all emails if first sync)
-      const searchCriteria = config.search_criteria || 'UNSEEN';
-      console.log(`Search criteria: ${searchCriteria}`);
-      const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
-      console.log(`Search response: ${searchResponse}`);
-      const messageIds = extractMessageIds(searchResponse);
-
-      console.log(`Found ${messageIds.length} messages to process`);
-
-      // Limit to 50 messages per sync to avoid timeout
-      const MAX_MESSAGES_PER_SYNC = 50;
-      const messagesToProcess = messageIds.slice(0, MAX_MESSAGES_PER_SYNC);
-      
-      if (messageIds.length > MAX_MESSAGES_PER_SYNC) {
-        console.log(`Processing only first ${MAX_MESSAGES_PER_SYNC} messages to avoid timeout`);
-      }
-
-      let processedCount = 0;
-      let newCallRecords = 0;
-
-      for (const msgId of messagesToProcess) {
-        try {
-          // Fetch email content
-          const emailResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
-          const emailData = parseEmailBody(emailResponse);
-
-          // Extract call record data
-          const callData = extractCallRecordData(emailData.body);
-
-          if (callData) {
-            console.log(`Processing call record: ${callData.unique_call_id}`);
-
-            // Check if call record already exists
-            const { data: existing } = await supabase
-              .from('call_records')
-              .select('id')
-              .eq('unique_call_id', callData.unique_call_id)
-              .single();
-
-            if (!existing) {
-              // Insert new call record
-              const { error: insertError } = await supabase
-                .from('call_records')
-                .insert({
-                  caller_number: callData.caller_number,
-                  called_number: callData.called_number,
-                  service: callData.service,
-                  call_date: callData.call_date,
-                  call_time: callData.call_time,
-                  duration_seconds: callData.duration_seconds,
-                  unique_call_id: callData.unique_call_id,
-                  recording_url: null // TODO: Handle MP3 attachments
-                });
-
-              if (insertError) {
-                console.error('Error inserting call record:', insertError);
-              } else {
-                newCallRecords++;
-                console.log(`Created call record: ${callData.unique_call_id}`);
-              }
-            }
-
-            processedCount++;
-          }
-        } catch (error) {
-          console.error(`Error processing message ${msgId}:`, error);
-        }
-      }
-
-      // Update sync state
-      await supabase
-        .from('imap_sync_state')
-        .upsert({
-          config_id: config.id,
-          last_sync_at: new Date().toISOString(),
-          emails_processed: (syncState?.emails_processed || 0) + processedCount
-        }, {
-          onConflict: 'config_id'
-        });
-
-      // Update config last_sync_at
-      await supabase
-        .from('imap_config')
-        .update({ last_sync_at: new Date().toISOString() })
-        .eq('id', config.id);
-
-      // Logout
-      await sendCommand(conn, 'LOGOUT');
-
-      console.log(`Sync complete: ${processedCount} emails processed, ${newCallRecords} new call records created`);
-
+    if (!pbxNumbers || pbxNumbers.length === 0) {
+      console.log('No active PBX numbers found');
       return new Response(
-        JSON.stringify({
-          success: true,
-          emails_processed: processedCount,
-          new_call_records: newCallRecords,
-          total_found: messageIds.length,
-          config_name: config.name
-        }),
+        JSON.stringify({ message: 'No active PBX numbers configured' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
 
-    } finally {
+    const results = [];
+
+    for (const pbx of pbxNumbers) {
+      // Skip if no IMAP config
+      if (!pbx.imap_host || !pbx.imap_username || !pbx.imap_password) {
+        console.log(`Skipping PBX ${pbx.name}: No IMAP configuration`);
+        results.push({ pbx_id: pbx.id, name: pbx.name, status: 'skipped', reason: 'No IMAP config' });
+        continue;
+      }
+
       try {
-        conn.close();
-      } catch (e) {
-        console.error('Error closing connection:', e);
+        console.log(`Processing PBX: ${pbx.name} (${pbx.pbx_number})`);
+        const result = await syncPbxEmails(supabase, pbx);
+        results.push({ pbx_id: pbx.id, name: pbx.name, ...result });
+      } catch (error) {
+        console.error(`Error syncing PBX ${pbx.name}:`, error);
+        results.push({ pbx_id: pbx.id, name: pbx.name, status: 'error', error: error.message });
       }
     }
 
+    // Also check legacy imap_config table for backward compatibility
+    const { data: legacyConfigs } = await supabase
+      .from('imap_config')
+      .select('*')
+      .eq('is_active', true);
+
+    if (legacyConfigs && legacyConfigs.length > 0) {
+      for (const config of legacyConfigs) {
+        try {
+          console.log(`Processing legacy config: ${config.name}`);
+          const result = await syncLegacyConfig(supabase, config);
+          results.push({ config_id: config.id, name: config.name, type: 'legacy', ...result });
+        } catch (error) {
+          console.error(`Error syncing legacy config ${config.name}:`, error);
+          results.push({ config_id: config.id, name: config.name, type: 'legacy', status: 'error', error: error.message });
+        }
+      }
+    }
+
+    console.log('Sync complete:', JSON.stringify(results));
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        timestamp: new Date().toISOString(),
+        results
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
-    console.error('Error in IMAP sync:', error);
+    console.error('Error in IMAP sync cron:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Sync emails for a specific PBX number
+async function syncPbxEmails(supabase: any, pbx: any) {
+  const imapConfig: ImapConfig = {
+    host: pbx.imap_host,
+    port: pbx.imap_port || 993,
+    username: pbx.imap_username,
+    password: pbx.imap_password,
+    folder: pbx.imap_folder || 'INBOX'
+  };
+
+  const conn = await connectToImap(imapConfig);
+  if (!conn) {
+    throw new Error('Failed to connect to IMAP server');
+  }
+
+  try {
+    // Read greeting
+    await readResponse(conn);
+    
+    // Authenticate
+    await sendCommand(conn, `LOGIN "${imapConfig.username}" "${imapConfig.password}"`);
+    
+    // Select folder
+    await sendCommand(conn, `SELECT "${imapConfig.folder}"`);
+    
+    // Search for unread emails
+    const searchCriteria = pbx.imap_search_criteria || 'UNSEEN';
+    console.log(`Search criteria: ${searchCriteria}`);
+    const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
+    const messageIds = extractMessageIds(searchResponse);
+
+    console.log(`Found ${messageIds.length} messages for PBX ${pbx.name}`);
+
+    // Get extensions for this PBX to match calls to users
+    const { data: extensions } = await supabase
+      .from('phone_extensions')
+      .select('extension_number, user_id, profiles(full_name)')
+      .eq('pbx_id', pbx.id);
+
+    const extensionMap = new Map();
+    if (extensions) {
+      for (const ext of extensions) {
+        extensionMap.set(ext.extension_number, {
+          user_id: ext.user_id,
+          user_name: ext.profiles?.full_name
+        });
+      }
+    }
+
+    // Limit to 50 messages per sync
+    const MAX_MESSAGES_PER_SYNC = 50;
+    const messagesToProcess = messageIds.slice(0, MAX_MESSAGES_PER_SYNC);
+
+    let processedCount = 0;
+    let newCallRecords = 0;
+
+    for (const msgId of messagesToProcess) {
+      try {
+        const emailResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
+        const emailData = parseEmailBody(emailResponse);
+        const callData = extractCallRecordData(emailData.body);
+
+        if (callData) {
+          // Check if record exists
+          const { data: existing } = await supabase
+            .from('call_records')
+            .select('id')
+            .eq('unique_call_id', callData.unique_call_id)
+            .single();
+
+          if (!existing) {
+            // Try to match extension to user
+            let operatorId = null;
+            let operatorName = null;
+            
+            if (callData.extension_number && extensionMap.has(callData.extension_number)) {
+              const extData = extensionMap.get(callData.extension_number);
+              operatorId = extData.user_id;
+              operatorName = extData.user_name;
+            }
+
+            const { error: insertError } = await supabase
+              .from('call_records')
+              .insert({
+                caller_number: callData.caller_number,
+                called_number: callData.called_number,
+                service: callData.service || pbx.name,
+                call_date: callData.call_date,
+                call_time: callData.call_time,
+                duration_seconds: callData.duration_seconds,
+                unique_call_id: callData.unique_call_id,
+                extension_number: callData.extension_number,
+                direction: callData.direction,
+                operator_id: operatorId,
+                operator_name: operatorName,
+                recording_url: null
+              });
+
+            if (!insertError) {
+              newCallRecords++;
+            } else {
+              console.error('Insert error:', insertError);
+            }
+          }
+
+          processedCount++;
+        }
+      } catch (error) {
+        console.error(`Error processing message ${msgId}:`, error);
+      }
+    }
+
+    // Update last sync time
+    await supabase
+      .from('pbx_numbers')
+      .update({ last_sync_at: new Date().toISOString() })
+      .eq('id', pbx.id);
+
+    await sendCommand(conn, 'LOGOUT');
+
+    return {
+      status: 'success',
+      emails_processed: processedCount,
+      new_call_records: newCallRecords,
+      total_found: messageIds.length
+    };
+
+  } finally {
+    try {
+      conn.close();
+    } catch (e) {
+      // Ignore close errors
+    }
+  }
+}
+
+// Sync legacy imap_config (backward compatibility)
+async function syncLegacyConfig(supabase: any, config: any) {
+  const imapConfig: ImapConfig = {
+    host: config.host,
+    port: config.port,
+    username: config.username,
+    password: config.password_encrypted,
+    folder: config.folder || 'INBOX'
+  };
+
+  const conn = await connectToImap(imapConfig);
+  if (!conn) {
+    throw new Error('Failed to connect to IMAP server');
+  }
+
+  try {
+    await readResponse(conn);
+    await sendCommand(conn, `LOGIN "${imapConfig.username}" "${imapConfig.password}"`);
+    await sendCommand(conn, `SELECT "${imapConfig.folder}"`);
+
+    const searchCriteria = config.search_criteria || 'UNSEEN';
+    const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
+    const messageIds = extractMessageIds(searchResponse);
+
+    const MAX_MESSAGES_PER_SYNC = 50;
+    const messagesToProcess = messageIds.slice(0, MAX_MESSAGES_PER_SYNC);
+
+    let processedCount = 0;
+    let newCallRecords = 0;
+
+    for (const msgId of messagesToProcess) {
+      try {
+        const emailResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
+        const emailData = parseEmailBody(emailResponse);
+        const callData = extractCallRecordData(emailData.body);
+
+        if (callData) {
+          const { data: existing } = await supabase
+            .from('call_records')
+            .select('id')
+            .eq('unique_call_id', callData.unique_call_id)
+            .single();
+
+          if (!existing) {
+            const { error: insertError } = await supabase
+              .from('call_records')
+              .insert({
+                caller_number: callData.caller_number,
+                called_number: callData.called_number,
+                service: callData.service,
+                call_date: callData.call_date,
+                call_time: callData.call_time,
+                duration_seconds: callData.duration_seconds,
+                unique_call_id: callData.unique_call_id,
+                extension_number: callData.extension_number,
+                direction: callData.direction
+              });
+
+            if (!insertError) newCallRecords++;
+          }
+          processedCount++;
+        }
+      } catch (error) {
+        console.error(`Error processing message ${msgId}:`, error);
+      }
+    }
+
+    await supabase
+      .from('imap_config')
+      .update({ last_sync_at: new Date().toISOString() })
+      .eq('id', config.id);
+
+    await sendCommand(conn, 'LOGOUT');
+
+    return {
+      status: 'success',
+      emails_processed: processedCount,
+      new_call_records: newCallRecords,
+      total_found: messageIds.length
+    };
+
+  } finally {
+    try {
+      conn.close();
+    } catch (e) {}
+  }
+}
 
 async function connectToImap(config: ImapConfig): Promise<Deno.TcpConn | null> {
   try {
@@ -225,7 +360,6 @@ async function connectToImap(config: ImapConfig): Promise<Deno.TcpConn | null> {
 
 async function sendCommand(conn: Deno.TcpConn, command: string): Promise<string> {
   const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
   
   const tag = 'A' + Math.floor(Math.random() * 1000);
   await conn.write(encoder.encode(`${tag} ${command}\r\n`));
@@ -265,8 +399,6 @@ function extractMessageIds(response: string): number[] {
 }
 
 function parseEmailBody(response: string): { body: string } {
-  // Extract email body from IMAP FETCH response
-  // This is a simplified version
   const bodyMatch = response.match(/\{(\d+)\}\r\n([\s\S]+)/);
   if (bodyMatch) {
     return { body: bodyMatch[2] };
@@ -282,9 +414,20 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   const timeMatch = emailBody.match(/Ora:\s*(.+)/i);
   const durationMatch = emailBody.match(/Durata:\s*([\d.]+)\s*Secondi/i);
   const idMatch = emailBody.match(/ID Univoco Chiamata:\s*(.+)/i);
+  const extensionMatch = emailBody.match(/Interno:\s*(\d+)/i) || emailBody.match(/Extension:\s*(\d+)/i);
+  const directionMatch = emailBody.match(/Direzione:\s*(.+)/i) || emailBody.match(/Direction:\s*(.+)/i);
 
   if (!idMatch) {
     return null;
+  }
+
+  let direction = directionMatch?.[1]?.trim().toLowerCase();
+  if (!direction) {
+    if (emailBody.toLowerCase().includes('in entrata') || emailBody.toLowerCase().includes('incoming')) {
+      direction = 'inbound';
+    } else if (emailBody.toLowerCase().includes('in uscita') || emailBody.toLowerCase().includes('outgoing')) {
+      direction = 'outbound';
+    }
   }
 
   return {
@@ -294,6 +437,8 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
     call_date: dateMatch?.[1]?.trim() || '',
     call_time: timeMatch?.[1]?.trim() || '',
     duration_seconds: parseFloat(durationMatch?.[1] || '0'),
-    unique_call_id: idMatch[1].trim()
+    unique_call_id: idMatch[1].trim(),
+    extension_number: extensionMatch?.[1]?.trim(),
+    direction: direction
   };
 }

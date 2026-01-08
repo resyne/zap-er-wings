@@ -86,3 +86,8 @@ verify_jwt = false
   name = "process-email-queue"
   cron = "*/5 * * * *"  # Runs every 5 minutes
   region = "eu-west-1"
+
+[[edge_runtime.scheduled_functions]]
+  name = "sync-call-records-imap"
+  cron = "* * * * *"  # Runs every minute
+  region = "eu-west-1"
