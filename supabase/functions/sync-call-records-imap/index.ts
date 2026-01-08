@@ -254,15 +254,9 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
 // Sync legacy imap_config (backward compatibility)
 async function syncLegacyConfig(supabase: any, config: any) {
-  // Skip configs with "ALL" search criteria to avoid timeout (too many emails)
+  // Use the configured search criteria - default to UNSEEN if not set
   const searchCriteria = config.search_criteria || 'UNSEEN';
-  if (searchCriteria.toUpperCase() === 'ALL') {
-    console.log(`Skipping config ${config.name}: ALL search criteria not supported (too many emails)`);
-    return {
-      status: 'skipped',
-      reason: 'ALL search criteria not supported - use UNSEEN'
-    };
-  }
+  console.log(`Config ${config.name} using search criteria: ${searchCriteria}`);
 
   const imapConfig: ImapConfig = {
     host: config.host,
