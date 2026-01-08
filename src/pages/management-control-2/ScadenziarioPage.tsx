@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
@@ -57,7 +58,12 @@ import {
   Receipt,
   Search,
   Plus,
+  Upload,
+  X,
+  File,
+  Image as ImageIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Scadenza {
   id: string;
@@ -117,6 +123,8 @@ export default function ScadenziarioPage() {
   const [dataRegistrazione, setDataRegistrazione] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [metodoRegistrazione, setMetodoRegistrazione] = useState<string>("bonifico");
   const [noteRegistrazione, setNoteRegistrazione] = useState<string>("");
+  const [paymentFiles, setPaymentFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   // Helper function - defined early to be used in useMemo
   const getGiorniScadenza = (dataScadenza: string) => {
@@ -246,13 +254,48 @@ export default function ScadenziarioPage() {
       data,
       metodo,
       note,
+      files,
     }: {
       scadenza: Scadenza;
       importo: number;
       data: string;
       metodo: string;
       note: string;
+      files: File[];
     }) => {
+      // Upload files first
+      const uploadedFiles: { path: string; name: string; size: number; type: string }[] = [];
+      
+      if (files.length > 0) {
+        setUploadingFiles(true);
+        try {
+          for (const file of files) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `payments/${scadenza.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+            const { error: uploadError, data: uploadData } = await supabase.storage
+              .from('accounting-files')
+              .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+              });
+
+            if (uploadError) {
+              console.error('File upload error:', uploadError);
+              // Continue with other files
+            } else if (uploadData) {
+              uploadedFiles.push({
+                path: uploadData.path,
+                name: file.name,
+                size: file.size,
+                type: file.type
+              });
+            }
+          }
+        } finally {
+          setUploadingFiles(false);
+        }
+      }
       // 1. Crea evento finanziario
       const eventoFinanziario = {
         document_date: data,
@@ -350,7 +393,7 @@ export default function ScadenziarioPage() {
       const { error: righeError } = await supabase.from("prima_nota_lines").insert(righe);
       if (righeError) throw righeError;
 
-      // 4. Crea movimento scadenza
+      // 4. Crea movimento scadenza with file attachments
       const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert({
         scadenza_id: scadenza.id,
         evento_finanziario_id: eventoData.id,
@@ -358,7 +401,8 @@ export default function ScadenziarioPage() {
         importo,
         data_movimento: data,
         metodo_pagamento: metodo,
-        note,
+        note: note + (uploadedFiles.length > 0 ? `\n\nAllegati: ${uploadedFiles.map(f => f.name).join(', ')}` : ''),
+        attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
       });
 
       if (movimentoError) throw movimentoError;
@@ -399,12 +443,32 @@ export default function ScadenziarioPage() {
     setDataRegistrazione(format(new Date(), "yyyy-MM-dd"));
     setMetodoRegistrazione("bonifico");
     setNoteRegistrazione("");
+    setPaymentFiles([]);
   };
 
   const openRegistraDialog = (scadenza: Scadenza) => {
     setSelectedScadenza(scadenza);
     setImportoRegistrazione(scadenza.importo_residuo.toString());
+    setPaymentFiles([]);
     setRegistraDialogOpen(true);
+  };
+
+  const onDropFiles = useCallback((acceptedFiles: File[]) => {
+    setPaymentFiles(prev => [...prev, ...acceptedFiles]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: onDropFiles,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif'],
+      'application/pdf': ['.pdf'],
+      'video/*': ['.mp4', '.mov', '.avi', '.webm'],
+    },
+    maxSize: 20 * 1024 * 1024, // 20MB
+  });
+
+  const removeFile = (index: number) => {
+    setPaymentFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleRegistra = () => {
@@ -425,6 +489,7 @@ export default function ScadenziarioPage() {
       data: dataRegistrazione,
       metodo: metodoRegistrazione,
       note: noteRegistrazione,
+      files: paymentFiles,
     });
   };
 
@@ -929,6 +994,60 @@ export default function ScadenziarioPage() {
                 placeholder="Eventuali note..."
                 rows={2}
               />
+            </div>
+
+            {/* File Upload Area */}
+            <div className="space-y-2">
+              <Label>Prova di pagamento (opzionale)</Label>
+              <div
+                {...getRootProps()}
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
+                  isDragActive
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-primary hover:bg-accent/50"
+                )}
+              >
+                <input {...getInputProps()} />
+                <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+                {isDragActive ? (
+                  <p className="text-sm text-primary">Rilascia i file qui...</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Trascina qui ricevute, screenshot o documenti (max 20MB)
+                  </p>
+                )}
+              </div>
+              
+              {/* File List */}
+              {paymentFiles.length > 0 && (
+                <div className="space-y-1 mt-2">
+                  {paymentFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-muted rounded-md text-sm"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {file.type.startsWith('image/') ? (
+                          <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                        ) : (
+                          <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="truncate">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        className="shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
