@@ -225,10 +225,17 @@ export default function LeadKpiPage() {
       // Fetch call records for call statistics
       const { data: callRecords, error: callRecordsError } = await supabase
         .from('call_records')
-        .select('id, operator_id, operator_name, call_date, duration_seconds')
+        .select('id, operator_id, operator_name, call_date, duration_seconds, extension_number')
         .order('call_date', { ascending: false });
 
       if (callRecordsError) throw callRecordsError;
+
+      // Fetch phone extensions to map calls without operator_id
+      const { data: phoneExtensions, error: phoneExtensionsError } = await supabase
+        .from('phone_extensions')
+        .select('extension_number, operator_name, user_id');
+
+      if (phoneExtensionsError) throw phoneExtensionsError;
 
       const now = new Date();
       const thirtyDaysAgo = subDays(now, 30);
@@ -498,14 +505,26 @@ export default function LeadKpiPage() {
       const callStatsMap = new Map<string, UserCallStats>();
       
       callRecords?.forEach(call => {
-        const operatorId = call.operator_id;
+        // Determine operator from operator_id or extension_number
+        let operatorId = call.operator_id;
+        let operatorName = call.operator_name;
+        
+        // If no operator_id, try to find operator from extension_number
+        if (!operatorId && call.extension_number) {
+          const extension = phoneExtensions?.find(ext => ext.extension_number === call.extension_number);
+          if (extension) {
+            operatorId = extension.user_id;
+            operatorName = extension.operator_name;
+          }
+        }
+        
         if (!operatorId) return;
 
         if (!callStatsMap.has(operatorId)) {
           const profile = profiles?.find(p => p.id === operatorId);
           const userName = profile 
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || call.operator_name || 'Unknown'
-            : call.operator_name || 'Unknown';
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || operatorName || 'Unknown'
+            : operatorName || 'Unknown';
           
           callStatsMap.set(operatorId, {
             userId: operatorId,
@@ -536,7 +555,16 @@ export default function LeadKpiPage() {
 
       // Calculate average calls per day for each user
       callStatsMap.forEach(stats => {
-        const userCalls = callRecords?.filter(c => c.operator_id === stats.userId) || [];
+        // Filter calls for this user considering both operator_id and extension mapping
+        const userCalls = callRecords?.filter(c => {
+          if (c.operator_id === stats.userId) return true;
+          if (!c.operator_id && c.extension_number) {
+            const ext = phoneExtensions?.find(e => e.extension_number === c.extension_number);
+            return ext?.user_id === stats.userId;
+          }
+          return false;
+        }) || [];
+        
         if (userCalls.length > 0) {
           const dates = userCalls.map(c => new Date(c.call_date));
           const oldestDate = new Date(Math.min(...dates.map(d => d.getTime())));
