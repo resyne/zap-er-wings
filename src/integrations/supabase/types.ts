@@ -7377,6 +7377,7 @@ export type Database = {
           materials_used: string | null
           notes: string | null
           production_work_order_id: string | null
+          report_number: string | null
           specialized_technician_hours: number | null
           start_time: string | null
           status: string
@@ -7407,6 +7408,7 @@ export type Database = {
           materials_used?: string | null
           notes?: string | null
           production_work_order_id?: string | null
+          report_number?: string | null
           specialized_technician_hours?: number | null
           start_time?: string | null
           status?: string
@@ -7437,6 +7439,7 @@ export type Database = {
           materials_used?: string | null
           notes?: string | null
           production_work_order_id?: string | null
+          report_number?: string | null
           specialized_technician_hours?: number | null
           start_time?: string | null
           status?: string
@@ -9515,6 +9518,7 @@ export type Database = {
       generate_quote_code: { Args: never; Returns: string }
       generate_recurring_tasks: { Args: never; Returns: undefined }
       generate_sales_order_number: { Args: never; Returns: string }
+      generate_service_report_number: { Args: never; Returns: string }
       generate_service_work_order_number:
         | { Args: never; Returns: string }
         | { Args: { sales_order_number?: string }; Returns: string }
