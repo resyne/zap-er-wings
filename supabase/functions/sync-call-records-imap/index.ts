@@ -141,8 +141,12 @@ async function syncPbxEmails(supabase: any, pbx: any) {
     // Select folder
     await sendCommand(conn, `SELECT "${imapConfig.folder}"`);
     
-    // Search for unread emails
-    const searchCriteria = pbx.imap_search_criteria || 'UNSEEN';
+    // Search for recent emails (last 7 days) - use SINCE instead of UNSEEN to handle pre-read emails
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dateStr = `${sevenDaysAgo.getDate()}-${months[sevenDaysAgo.getMonth()]}-${sevenDaysAgo.getFullYear()}`;
+    const searchCriteria = pbx.imap_search_criteria || `SINCE ${dateStr}`;
     console.log(`Search criteria: ${searchCriteria}`);
     const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
     const messageIds = extractMessageIds(searchResponse);
@@ -271,9 +275,13 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
 // Sync legacy imap_config (backward compatibility)
 async function syncLegacyConfig(supabase: any, config: any) {
-  // ALWAYS use UNSEEN to only process unread emails - ignore config setting
-  const searchCriteria = 'UNSEEN';
-  console.log(`Config ${config.name} using search criteria: ${searchCriteria} (forced for safety)`);
+  // Use SINCE to search emails from last 7 days - handles pre-read emails
+  const today = new Date();
+  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateStr = `${sevenDaysAgo.getDate()}-${months[sevenDaysAgo.getMonth()]}-${sevenDaysAgo.getFullYear()}`;
+  const searchCriteria = `SINCE ${dateStr}`;
+  console.log(`Config ${config.name} using search criteria: ${searchCriteria}`);
 
   const imapConfig: ImapConfig = {
     host: config.host,
