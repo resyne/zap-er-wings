@@ -18,7 +18,7 @@ import {
   Settings, Mail, Brain, ChevronDown, ChevronRight, User, MessageSquare, Sparkles, 
   Link2, Plus, Pencil, Trash2, ListChecks, Building2, ArrowLeft
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { ImapConfigDialog } from "@/components/crm/ImapConfigDialog";
@@ -81,6 +81,7 @@ export default function CallRecordsPage() {
   const queryClient = useQueryClient();
   const [selectedPbx, setSelectedPbx] = useState<PbxNumber | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [timeFilter, setTimeFilter] = useState<"all" | "today" | "week" | "month">("week");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   
   // Dialog states
@@ -438,7 +439,27 @@ export default function CallRecordsPage() {
       })
     : [];
 
-  const filteredCalls = pbxCalls?.filter(record =>
+  // Filtro temporale
+  const filterByTime = (calls: CallRecord[] | undefined) => {
+    if (!calls) return [];
+    return calls.filter(record => {
+      const callDate = parseISO(record.call_date);
+      switch (timeFilter) {
+        case "today":
+          return isToday(callDate);
+        case "week":
+          return isThisWeek(callDate, { weekStartsOn: 1 });
+        case "month":
+          return isThisMonth(callDate);
+        default:
+          return true;
+      }
+    });
+  };
+
+  const timeFilteredCalls = filterByTime(pbxCalls);
+
+  const filteredCalls = timeFilteredCalls?.filter(record =>
     record.caller_number.includes(searchTerm) ||
     record.called_number.includes(searchTerm) ||
     record.unique_call_id.includes(searchTerm) ||
@@ -625,13 +646,66 @@ export default function CallRecordsPage() {
           {/* CHIAMATE */}
           <TabsContent value="calls">
             <Card>
-              <CardHeader>
-                <CardTitle>Registrazioni Chiamate</CardTitle>
-                <CardDescription>Chiamate associate al centralino {selectedPbx.name}</CardDescription>
+              <CardHeader className="pb-2">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Registrazioni Chiamate</CardTitle>
+                    <CardDescription>Chiamate associate al centralino {selectedPbx.name}</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => syncCallsMutation.mutate()}
+                      disabled={syncCallsMutation.isPending}
+                      size="sm"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${syncCallsMutation.isPending ? 'animate-spin' : ''}`} />
+                      Sincronizza
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <div className="relative">
+                {/* Filters Bar */}
+                <div className="flex flex-col md:flex-row gap-3 mb-4">
+                  {/* Time Filter Tabs */}
+                  <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+                    <Button 
+                      variant={timeFilter === "today" ? "default" : "ghost"} 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setTimeFilter("today")}
+                    >
+                      Oggi
+                    </Button>
+                    <Button 
+                      variant={timeFilter === "week" ? "default" : "ghost"} 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setTimeFilter("week")}
+                    >
+                      Settimana
+                    </Button>
+                    <Button 
+                      variant={timeFilter === "month" ? "default" : "ghost"} 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setTimeFilter("month")}
+                    >
+                      Mese
+                    </Button>
+                    <Button 
+                      variant={timeFilter === "all" ? "default" : "ghost"} 
+                      size="sm" 
+                      className="h-8 px-3"
+                      onClick={() => setTimeFilter("all")}
+                    >
+                      Tutto
+                    </Button>
+                  </div>
+
+                  {/* Search */}
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Cerca per numero, operatore, lead..."
@@ -639,6 +713,12 @@ export default function CallRecordsPage() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
                     />
+                  </div>
+
+                  {/* Results count */}
+                  <div className="flex items-center text-sm text-muted-foreground whitespace-nowrap">
+                    <Phone className="h-4 w-4 mr-1" />
+                    {filteredCalls?.length || 0} chiamate
                   </div>
                 </div>
 
