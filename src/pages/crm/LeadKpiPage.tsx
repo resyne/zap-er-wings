@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter } from "lucide-react";
+import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter, Phone } from "lucide-react";
 import { format, subDays, differenceInDays, differenceInHours, startOfDay, startOfWeek, startOfMonth, endOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
@@ -34,6 +34,16 @@ interface SalesPerformance {
   conversionRate: number;
   avgResponseTime: number;
   totalValue: number;
+}
+
+interface UserCallStats {
+  userId: string;
+  userName: string;
+  callsToday: number;
+  callsThisWeek: number;
+  callsThisMonth: number;
+  totalCalls: number;
+  avgCallsPerDay: number;
 }
 
 interface LeadsByStatus {
@@ -136,6 +146,7 @@ export default function LeadKpiPage() {
   const [timeline, setTimeline] = useState<LeadTimeline[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [userActivityStats, setUserActivityStats] = useState<UserActivityStats[]>([]);
+  const [userCallStats, setUserCallStats] = useState<UserCallStats[]>([]);
   const [activityFilter, setActivityFilter] = useState<'today' | 'week' | 'month' | 'all'>('week');
 
   useEffect(() => {
@@ -211,8 +222,19 @@ export default function LeadKpiPage() {
 
       if (aiLogsError) throw aiLogsError;
 
+      // Fetch call records for call statistics
+      const { data: callRecords, error: callRecordsError } = await supabase
+        .from('call_records')
+        .select('id, operator_id, operator_name, call_date, duration_seconds')
+        .order('call_date', { ascending: false });
+
+      if (callRecordsError) throw callRecordsError;
+
       const now = new Date();
       const thirtyDaysAgo = subDays(now, 30);
+      const todayStart = startOfDay(now);
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const monthStart = startOfMonth(now);
 
       // Calculate KPIs
       const totalLeads = leads?.length || 0;
@@ -471,6 +493,59 @@ export default function LeadKpiPage() {
       });
 
       setUserActivityStats(Array.from(userStatsMap.values()));
+
+      // Calculate user call statistics
+      const callStatsMap = new Map<string, UserCallStats>();
+      
+      callRecords?.forEach(call => {
+        const operatorId = call.operator_id;
+        if (!operatorId) return;
+
+        if (!callStatsMap.has(operatorId)) {
+          const profile = profiles?.find(p => p.id === operatorId);
+          const userName = profile 
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || call.operator_name || 'Unknown'
+            : call.operator_name || 'Unknown';
+          
+          callStatsMap.set(operatorId, {
+            userId: operatorId,
+            userName,
+            callsToday: 0,
+            callsThisWeek: 0,
+            callsThisMonth: 0,
+            totalCalls: 0,
+            avgCallsPerDay: 0,
+          });
+        }
+
+        const stats = callStatsMap.get(operatorId)!;
+        const callDate = new Date(call.call_date);
+        
+        stats.totalCalls++;
+        
+        if (callDate >= todayStart) {
+          stats.callsToday++;
+        }
+        if (callDate >= weekStart) {
+          stats.callsThisWeek++;
+        }
+        if (callDate >= monthStart) {
+          stats.callsThisMonth++;
+        }
+      });
+
+      // Calculate average calls per day for each user
+      callStatsMap.forEach(stats => {
+        const userCalls = callRecords?.filter(c => c.operator_id === stats.userId) || [];
+        if (userCalls.length > 0) {
+          const dates = userCalls.map(c => new Date(c.call_date));
+          const oldestDate = new Date(Math.min(...dates.map(d => d.getTime())));
+          const daysSinceFirst = Math.max(differenceInDays(now, oldestDate), 1);
+          stats.avgCallsPerDay = stats.totalCalls / daysSinceFirst;
+        }
+      });
+
+      setUserCallStats(Array.from(callStatsMap.values()));
 
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
@@ -766,7 +841,66 @@ export default function LeadKpiPage() {
             </span>
           </div>
 
-          {/* Card statistiche utenti */}
+          {/* Statistiche Chiamate per Utente */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Statistiche Chiamate per Utente
+              </CardTitle>
+              <CardDescription>
+                Numero di chiamate effettuate per giorno, settimana e mese
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {userCallStats.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Utente</TableHead>
+                      <TableHead className="text-center">Oggi</TableHead>
+                      <TableHead className="text-center">Questa Settimana</TableHead>
+                      <TableHead className="text-center">Questo Mese</TableHead>
+                      <TableHead className="text-center">Totale</TableHead>
+                      <TableHead className="text-center">Media/Giorno</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {userCallStats.map((stats) => (
+                      <TableRow key={stats.userId}>
+                        <TableCell className="font-medium">{stats.userName}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="bg-blue-500/10 border-blue-500/20">
+                            {stats.callsToday}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="bg-green-500/10 border-green-500/20">
+                            {stats.callsThisWeek}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="bg-orange-500/10 border-orange-500/20">
+                            {stats.callsThisMonth}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">{stats.totalCalls}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">
+                          {stats.avgCallsPerDay.toFixed(1)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  Nessuna statistica chiamate disponibile
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Card statistiche attività utenti */}
           <div className="grid gap-4 md:grid-cols-3">
             {salesPerformance.map(user => {
               const userActivities = getFilteredActivityLogs().filter(
@@ -774,6 +908,7 @@ export default function LeadKpiPage() {
               );
               const completedCount = userActivities.filter(a => a.status === 'completed').length;
               const scheduledCount = userActivities.filter(a => a.status === 'scheduled').length;
+              const userCalls = userCallStats.find(s => s.userId === user.userId);
               
               return (
                 <Card key={user.userId} className="overflow-hidden">
@@ -799,6 +934,26 @@ export default function LeadKpiPage() {
                         ⏰ {scheduledCount} Programmate
                       </Badge>
                     </div>
+
+                    {userCalls && userCalls.totalCalls > 0 && (
+                      <div className="pt-2 border-t">
+                        <div className="flex items-center gap-1 mb-1.5">
+                          <Phone className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs font-medium text-muted-foreground">Chiamate</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="secondary" className="text-xs">
+                            Oggi: {userCalls.callsToday}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            Sett: {userCalls.callsThisWeek}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            Mese: {userCalls.callsThisMonth}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="pt-2 border-t space-y-1">
                       <div className="text-xs text-muted-foreground">
