@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,11 +24,19 @@ import {
   Trash2,
   Edit,
   Eye,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+
+interface Project {
+  id: string;
+  customer_name: string;
+  code: string;
+  status: string;
+}
 
 interface KeyResult {
   id: string;
@@ -41,6 +50,7 @@ interface KeyResult {
   status: string;
   project_id?: string;
   created_at: string;
+  project?: Project | null;
 }
 
 interface StrategicObjective {
@@ -66,6 +76,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
 
 export default function StrategyPage() {
+  const navigate = useNavigate();
   const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
@@ -118,16 +129,21 @@ export default function StrategyPage() {
       const { data: objectivesData, error: objError } = await query;
       if (objError) throw objError;
 
-      // Fetch key results for each objective
+      // Fetch key results for each objective with their linked projects
       const objectivesWithKRs = await Promise.all(
         (objectivesData || []).map(async (obj) => {
           const { data: krData } = await supabase
             .from("key_results")
-            .select("*")
+            .select("*, management_projects!key_results_project_id_fkey(id, customer_name, code, status)")
             .eq("objective_id", obj.id)
             .order("created_at", { ascending: true });
           
-          return { ...obj, key_results: krData || [] };
+          const krsWithProjects = (krData || []).map((kr: any) => ({
+            ...kr,
+            project: kr.management_projects || null,
+          }));
+          
+          return { ...obj, key_results: krsWithProjects };
         })
       );
 
@@ -183,7 +199,26 @@ export default function StrategyPage() {
     }
 
     try {
-      const { error } = await supabase.from("key_results").insert({
+      // 1. Generate project code
+      const projectCode = `PRJ-${Date.now().toString(36).toUpperCase()}`;
+      
+      // 2. Create the project first
+      const { data: projectData, error: projectError } = await supabase
+        .from("management_projects")
+        .insert({
+          customer_name: newKR.title,
+          code: projectCode,
+          project_type: "strategic",
+          status: "planning",
+          objective_id: selectedObjective.id,
+        })
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      // 3. Create the Key Result linked to the project
+      const { error: krError } = await supabase.from("key_results").insert({
         objective_id: selectedObjective.id,
         title: newKR.title,
         description: newKR.description || null,
@@ -192,11 +227,26 @@ export default function StrategyPage() {
         unit: newKR.unit,
         deadline: newKR.deadline || null,
         status: "on_track",
+        project_id: projectData.id,
       });
 
-      if (error) throw error;
+      if (krError) throw krError;
 
-      toast.success("Key Result creato!");
+      // 4. Update the project with the key_result_id (reverse link)
+      const { data: krData } = await supabase
+        .from("key_results")
+        .select("id")
+        .eq("project_id", projectData.id)
+        .single();
+
+      if (krData) {
+        await supabase
+          .from("management_projects")
+          .update({ key_result_id: krData.id })
+          .eq("id", projectData.id);
+      }
+
+      toast.success("Key Result e Progetto creati!");
       setIsNewKROpen(false);
       setNewKR({
         title: "",
@@ -225,12 +275,26 @@ export default function StrategyPage() {
   };
 
   const handleDeleteKR = async (id: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo Key Result?")) return;
+    if (!confirm("Sei sicuro di voler eliminare questo Key Result e il progetto collegato?")) return;
     
     try {
+      // First, get the KR to find linked project
+      const { data: kr } = await supabase
+        .from("key_results")
+        .select("project_id")
+        .eq("id", id)
+        .single();
+
+      // Delete the Key Result
       const { error } = await supabase.from("key_results").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Key Result eliminato");
+
+      // Delete the linked project if exists
+      if (kr?.project_id) {
+        await supabase.from("management_projects").delete().eq("id", kr.project_id);
+      }
+
+      toast.success("Key Result e Progetto eliminati");
       fetchObjectives();
     } catch (error: any) {
       toast.error("Errore nell'eliminazione: " + error.message);
@@ -531,12 +595,26 @@ export default function StrategyPage() {
                                       {kr.current_value} / {kr.target_value} {kr.unit}
                                     </span>
                                   </div>
-                                  {kr.deadline && (
-                                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                                      <Clock className="h-3 w-3" />
-                                      Scadenza: {format(new Date(kr.deadline), "dd MMM yyyy", { locale: it })}
-                                    </div>
-                                  )}
+                                  <div className="flex items-center gap-3 mt-2">
+                                    {kr.deadline && (
+                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Clock className="h-3 w-3" />
+                                        Scadenza: {format(new Date(kr.deadline), "dd MMM yyyy", { locale: it })}
+                                      </div>
+                                    )}
+                                    {kr.project && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 px-2 text-xs text-primary"
+                                        onClick={() => navigate(`/controllo-gestione/projects`)}
+                                      >
+                                        <FolderKanban className="h-3 w-3 mr-1" />
+                                        {kr.project.code}
+                                        <ExternalLink className="h-2.5 w-2.5 ml-1" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
                                 <Button
                                   variant="ghost"
