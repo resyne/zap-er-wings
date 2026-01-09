@@ -25,6 +25,14 @@ interface CallRecordData {
   direction?: string;
 }
 
+interface EmailParseResult {
+  body: string;
+  mp3Attachment?: {
+    filename: string;
+    data: Uint8Array;
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -214,6 +222,29 @@ async function syncPbxEmails(supabase: any, pbx: any) {
               }
             }
 
+            // Upload MP3 to storage if present
+            let recordingUrl: string | null = null;
+            if (emailData.mp3Attachment) {
+              const storagePath = `${callData.call_date}/${callData.unique_call_id}.mp3`;
+              const { error: uploadError } = await supabase.storage
+                .from('call-recordings')
+                .upload(storagePath, emailData.mp3Attachment.data, {
+                  contentType: 'audio/mpeg',
+                  upsert: true
+                });
+
+              if (uploadError) {
+                console.error('Failed to upload MP3:', uploadError);
+              } else {
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                  .from('call-recordings')
+                  .getPublicUrl(storagePath);
+                recordingUrl = urlData?.publicUrl || storagePath;
+                console.log(`Uploaded recording: ${recordingUrl}`);
+              }
+            }
+
             const { error: insertError } = await supabase
               .from('call_records')
               .insert({
@@ -230,13 +261,13 @@ async function syncPbxEmails(supabase: any, pbx: any) {
                 operator_name: operatorName,
                 lead_id: leadMatch?.id || null,
                 matched_by: leadMatch?.matched_by || null,
-                recording_url: null
+                recording_url: recordingUrl
               });
 
             if (!insertError) {
               newCallRecords++;
               
-              // Get the inserted record ID for AI analysis
+              // Get the inserted record ID
               const { data: insertedRecord } = await supabase
                 .from('call_records')
                 .select('id')
@@ -244,8 +275,13 @@ async function syncPbxEmails(supabase: any, pbx: any) {
                 .single();
               
               if (insertedRecord) {
-                // Trigger AI analysis asynchronously
-                triggerAIAnalysis(insertedRecord.id, callData);
+                // If we have a recording, trigger transcription first
+                if (recordingUrl) {
+                  await triggerTranscription(insertedRecord.id, recordingUrl);
+                } else {
+                  // No recording - trigger AI analysis with basic call info
+                  triggerAIAnalysis(insertedRecord.id, callData);
+                }
               }
             } else {
               console.error('Insert error:', insertError);
@@ -348,6 +384,28 @@ async function syncLegacyConfig(supabase: any, config: any) {
               }
             }
 
+            // Upload MP3 to storage if present
+            let recordingUrl: string | null = null;
+            if (emailData.mp3Attachment) {
+              const storagePath = `${callData.call_date}/${callData.unique_call_id}.mp3`;
+              const { error: uploadError } = await supabase.storage
+                .from('call-recordings')
+                .upload(storagePath, emailData.mp3Attachment.data, {
+                  contentType: 'audio/mpeg',
+                  upsert: true
+                });
+
+              if (uploadError) {
+                console.error('Failed to upload MP3:', uploadError);
+              } else {
+                const { data: urlData } = supabase.storage
+                  .from('call-recordings')
+                  .getPublicUrl(storagePath);
+                recordingUrl = urlData?.publicUrl || storagePath;
+                console.log(`Uploaded recording: ${recordingUrl}`);
+              }
+            }
+
             const { error: insertError } = await supabase
               .from('call_records')
               .insert({
@@ -361,13 +419,14 @@ async function syncLegacyConfig(supabase: any, config: any) {
                 extension_number: callData.extension_number,
                 direction: callData.direction,
                 lead_id: leadMatch?.id || null,
-                matched_by: leadMatch?.matched_by || null
+                matched_by: leadMatch?.matched_by || null,
+                recording_url: recordingUrl
               });
 
             if (!insertError) {
               newCallRecords++;
               
-              // Get the inserted record ID for AI analysis
+              // Get the inserted record ID
               const { data: insertedRecord } = await supabase
                 .from('call_records')
                 .select('id')
@@ -375,8 +434,13 @@ async function syncLegacyConfig(supabase: any, config: any) {
                 .single();
               
               if (insertedRecord) {
-                // Trigger AI analysis asynchronously
-                triggerAIAnalysis(insertedRecord.id, callData);
+                // If we have a recording, trigger transcription first
+                if (recordingUrl) {
+                  await triggerTranscription(insertedRecord.id, recordingUrl);
+                } else {
+                  // No recording - trigger AI analysis with basic call info
+                  triggerAIAnalysis(insertedRecord.id, callData);
+                }
               }
             }
           }
@@ -526,64 +590,103 @@ function extractMessageIds(response: string): number[] {
     .filter(id => !isNaN(id));
 }
 
-function parseEmailBody(response: string): { body: string } {
-  // Try to find call data patterns directly anywhere in the email
-  // Pattern 1: Outbound calls with "ID Univoco Chiamata"
-  const outboundMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Univoco Chiamata:\s*[^\r\n]+/i);
-  if (outboundMatch) {
-    console.log('Found outbound call data pattern');
-    return { body: outboundMatch[0] };
-  }
-  
-  // Pattern 2: Inbound calls with "ID Chiamata" (without "Univoco")
-  const inboundMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Chiamata:\s*[^\r\n]+/i);
-  if (inboundMatch) {
-    console.log('Found inbound call data pattern');
-    return { body: inboundMatch[0] };
-  }
-  
-  // Look for text/plain section and try to decode it
-  // The email is multipart - find the text/plain part between boundaries
+function parseEmailBody(response: string): EmailParseResult {
+  let result: EmailParseResult = { body: '' };
+  let mp3Attachment: { filename: string; data: Uint8Array } | undefined;
+
+  // Look for MP3 attachment in the email
   const boundaryMatch = response.match(/boundary="?([^"\r\n]+)"?/i);
   if (boundaryMatch) {
     const boundary = boundaryMatch[1];
     const parts = response.split('--' + boundary);
     
     for (const part of parts) {
-      // Find text/plain part
+      // Check for MP3 attachment
+      const isAudioPart = part.toLowerCase().includes('audio/mpeg') || 
+                          part.toLowerCase().includes('audio/mp3') ||
+                          part.toLowerCase().includes('.mp3');
+      
+      if (isAudioPart) {
+        // Extract filename
+        const filenameMatch = part.match(/filename="?([^"\r\n]+\.mp3)"?/i) ||
+                             part.match(/name="?([^"\r\n]+\.mp3)"?/i);
+        const filename = filenameMatch?.[1] || 'recording.mp3';
+        
+        // Check if base64 encoded
+        const isBase64 = part.toLowerCase().includes('content-transfer-encoding: base64');
+        
+        if (isBase64) {
+          // Find content after headers (double newline)
+          const contentStart = part.search(/\r?\n\r?\n/);
+          if (contentStart > -1) {
+            let base64Content = part.substring(contentStart).trim();
+            // Remove trailing boundary marker and whitespace
+            base64Content = base64Content.split('--')[0].replace(/\s/g, '');
+            
+            try {
+              // Decode base64 to binary
+              const binaryString = atob(base64Content);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              mp3Attachment = { filename, data: bytes };
+              console.log(`Found MP3 attachment: ${filename}, size: ${bytes.length} bytes`);
+            } catch (e) {
+              console.error('Failed to decode MP3 base64:', e);
+            }
+          }
+        }
+      }
+      
+      // Find text/plain part for call data
       if (part.includes('Content-Type: text/plain') || part.includes('content-type: text/plain')) {
-        // Check encoding
         const isBase64 = part.toLowerCase().includes('content-transfer-encoding: base64');
         const isQP = part.toLowerCase().includes('content-transfer-encoding: quoted-printable');
         
-        // Find content after headers (double newline)
         const contentStart = part.search(/\r?\n\r?\n/);
         if (contentStart > -1) {
           let content = part.substring(contentStart).trim();
-          // Remove trailing boundary marker
           content = content.split('--')[0].trim();
           
           if (isBase64) {
             try {
               content = atob(content.replace(/\s/g, ''));
-              console.log('Decoded base64 text/plain:', content.substring(0, 200));
             } catch (e) {
-              console.log('Base64 decode failed');
+              console.log('Base64 decode failed for text part');
             }
           } else if (isQP) {
             content = decodeQuotedPrintable(content);
-            console.log('Decoded QP text/plain:', content.substring(0, 200));
           }
           
-          return { body: content };
+          result.body = content;
         }
       }
     }
   }
   
-  // Last resort: return the raw response but log a sample from deeper in the content
-  console.log('No structured content found, raw sample at 1000:', response.substring(1000, 1500));
-  return { body: response };
+  // If no body found in parts, try pattern matching on raw response
+  if (!result.body) {
+    // Pattern 1: Outbound calls with "ID Univoco Chiamata"
+    const outboundMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Univoco Chiamata:\s*[^\r\n]+/i);
+    if (outboundMatch) {
+      result.body = outboundMatch[0];
+    } else {
+      // Pattern 2: Inbound calls with "ID Chiamata"
+      const inboundMatch = response.match(/Numero Chiamante:\s*[^\r\n]+[\s\S]*?ID Chiamata:\s*[^\r\n]+/i);
+      if (inboundMatch) {
+        result.body = inboundMatch[0];
+      } else {
+        result.body = response;
+      }
+    }
+  }
+  
+  if (mp3Attachment) {
+    result.mp3Attachment = mp3Attachment;
+  }
+  
+  return result;
 }
 
 function decodeQuotedPrintable(str: string): string {
@@ -742,6 +845,46 @@ Durata: ${callData.duration_seconds} secondi`;
     }
   } catch (error) {
     console.error(`Error triggering AI analysis for call ${callRecordId}:`, error);
+  }
+}
+
+// Trigger audio transcription for a call with recording
+async function triggerTranscription(callRecordId: string, recordingUrl: string) {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase credentials for transcription trigger');
+      return;
+    }
+
+    console.log(`Triggering transcription for call ${callRecordId}`);
+    
+    const transcribeUrl = `${supabaseUrl}/functions/v1/transcribe-call-audio`;
+    
+    // Fire and forget - don't wait for transcription to complete
+    fetch(transcribeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        call_record_id: callRecordId,
+        recording_url: recordingUrl
+      })
+    }).then(response => {
+      if (!response.ok) {
+        console.error(`Transcription trigger failed for call ${callRecordId}:`, response.status);
+      } else {
+        console.log(`Transcription triggered successfully for call ${callRecordId}`);
+      }
+    }).catch(error => {
+      console.error(`Error triggering transcription for call ${callRecordId}:`, error);
+    });
+  } catch (error) {
+    console.error(`Error in triggerTranscription for call ${callRecordId}:`, error);
   }
 }
 
