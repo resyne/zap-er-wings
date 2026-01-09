@@ -202,7 +202,17 @@ async function syncPbxEmails(supabase: any, pbx: any) {
             }
 
             // Try to find matching lead by phone number
-            const leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
+            let leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
+
+            // If no lead found, create a new one automatically
+            if (!leadMatch) {
+              const customerPhone = callData.direction === 'in' ? callData.caller_number : callData.called_number;
+              const newLead = await createLeadFromCall(supabase, customerPhone);
+              if (newLead) {
+                leadMatch = { id: newLead.id, matched_by: 'auto_created' };
+                console.log(`Created new lead from call: ${newLead.id}`);
+              }
+            }
 
             const { error: insertError } = await supabase
               .from('call_records')
@@ -326,8 +336,18 @@ async function syncLegacyConfig(supabase: any, config: any) {
 
           if (!existing) {
             // Try to find matching lead by phone number
-            const leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
+            let leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
             
+            // If no lead found, create a new one automatically
+            if (!leadMatch) {
+              const customerPhone = callData.direction === 'in' ? callData.caller_number : callData.called_number;
+              const newLead = await createLeadFromCall(supabase, customerPhone);
+              if (newLead) {
+                leadMatch = { id: newLead.id, matched_by: 'auto_created' };
+                console.log(`Created new lead from call: ${newLead.id}`);
+              }
+            }
+
             const { error: insertError } = await supabase
               .from('call_records')
               .insert({
@@ -722,5 +742,53 @@ Durata: ${callData.duration_seconds} secondi`;
     }
   } catch (error) {
     console.error(`Error triggering AI analysis for call ${callRecordId}:`, error);
+  }
+}
+
+// Create a new lead from call when no match is found
+async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{ id: string } | null> {
+  try {
+    // Check if there's already a lead with this phone number to avoid duplicates
+    const normalizedPhone = normalizeItalianPhone(phoneNumber);
+    
+    if (!normalizedPhone || normalizedPhone.length < 6) {
+      console.log('Phone number too short to create lead:', phoneNumber);
+      return null;
+    }
+
+    const { data: existingLead } = await supabase
+      .from('leads')
+      .select('id')
+      .or(`phone.ilike.%${normalizedPhone}%,mobile.ilike.%${normalizedPhone}%`)
+      .limit(1)
+      .single();
+
+    if (existingLead) {
+      console.log('Lead already exists with this phone:', existingLead.id);
+      return existingLead;
+    }
+
+    // Create new lead with status "nuovo"
+    const { data: newLead, error } = await supabase
+      .from('leads')
+      .insert({
+        name: 'Lead da chiamata',
+        phone: phoneNumber,
+        status: 'nuovo',
+        source: 'phone_call',
+        notes: `Lead creato automaticamente da chiamata telefonica il ${new Date().toLocaleDateString('it-IT')}`
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating lead from call:', error);
+      return null;
+    }
+
+    return newLead;
+  } catch (error) {
+    console.error('Error in createLeadFromCall:', error);
+    return null;
   }
 }
