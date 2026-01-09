@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -32,12 +33,15 @@ import {
   Eye,
   EyeOff,
   Sparkles,
-  Settings2
+  Settings2,
+  ShieldCheck,
+  XCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addMonths } from "date-fns";
 import { it } from "date-fns/locale";
 import { GovernancePresetDialog } from "@/components/strategy/GovernancePresetDialog";
+import { useGovernancePreset, ValidationResult } from "@/hooks/useGovernancePreset";
 
 // ==================== TYPES ====================
 
@@ -174,6 +178,12 @@ export default function StrategyPage() {
   // Collapsible states
   const [visionOpen, setVisionOpen] = useState(true);
   const [focusOpen, setFocusOpen] = useState(true);
+
+  // Validation states
+  const [visionValidation, setVisionValidation] = useState<ValidationResult | null>(null);
+  const [focusValidation, setFocusValidation] = useState<ValidationResult | null>(null);
+  const [objectiveValidation, setObjectiveValidation] = useState<ValidationResult | null>(null);
+  const [krValidation, setKRValidation] = useState<ValidationResult | null>(null);
   
   // Form states
   const [newVision, setNewVision] = useState({
@@ -206,6 +216,15 @@ export default function StrategyPage() {
     unit: "%",
     deadline: "",
   });
+
+  // Governance Preset Hook
+  const {
+    preset,
+    validateVision,
+    validateFocus,
+    validateObjective,
+    validateKeyResult,
+  } = useGovernancePreset(selectedBU?.id || null);
 
   // ==================== DATA FETCHING ====================
 
@@ -372,10 +391,19 @@ export default function StrategyPage() {
       return;
     }
 
-    if (vision) {
-      toast.error("Esiste già una Vision attiva. Archiviala prima di crearne una nuova.");
+    // WiseRule validation
+    const validation = validateVision(
+      { title: newVision.title, start_date: newVision.start_date, end_date: newVision.end_date },
+      !!vision
+    );
+
+    if (!validation.valid) {
+      validation.errors.forEach(err => toast.error(err));
       return;
     }
+
+    // Show warnings but allow to proceed
+    validation.warnings.forEach(warn => toast.warning(warn));
 
     try {
       const { error } = await supabase.from("strategic_visions").insert({
@@ -389,8 +417,9 @@ export default function StrategyPage() {
 
       if (error) throw error;
 
-      toast.success("Vision creata con successo!");
+      toast.success("✅ Vision creata con successo!");
       setIsNewVisionOpen(false);
+      setVisionValidation(null);
       setNewVision({
         title: "",
         description: "",
@@ -402,6 +431,19 @@ export default function StrategyPage() {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
+
+  // Real-time vision validation
+  useEffect(() => {
+    if (isNewVisionOpen && newVision.title) {
+      const validation = validateVision(
+        { title: newVision.title, start_date: newVision.start_date, end_date: newVision.end_date },
+        !!vision
+      );
+      setVisionValidation(validation);
+    } else {
+      setVisionValidation(null);
+    }
+  }, [isNewVisionOpen, newVision, vision, validateVision]);
 
   const handleArchiveVision = async () => {
     if (!vision || !selectedBU) return;
@@ -435,19 +477,23 @@ export default function StrategyPage() {
       return;
     }
 
-    if (!vision) {
-      toast.error("Devi prima creare una Vision attiva");
+    // WiseRule validation
+    const validation = validateFocus(
+      { title: newFocus.title, start_date: newFocus.start_date, end_date: newFocus.end_date },
+      !!vision,
+      !!focus
+    );
+
+    if (!validation.valid) {
+      validation.errors.forEach(err => toast.error(err));
       return;
     }
 
-    if (focus) {
-      toast.error("Esiste già un Focus attivo. Archivialo prima di crearne uno nuovo.");
-      return;
-    }
+    validation.warnings.forEach(warn => toast.warning(warn));
 
     try {
       const { error } = await supabase.from("strategic_focus").insert({
-        vision_id: vision.id,
+        vision_id: vision?.id,
         title: newFocus.title,
         description: newFocus.description || null,
         start_date: newFocus.start_date,
@@ -458,8 +504,9 @@ export default function StrategyPage() {
 
       if (error) throw error;
 
-      toast.success("Focus Strategico creato!");
+      toast.success("✅ Focus Strategico creato!");
       setIsNewFocusOpen(false);
+      setFocusValidation(null);
       setNewFocus({
         title: "",
         description: "",
@@ -471,6 +518,20 @@ export default function StrategyPage() {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
+
+  // Real-time focus validation
+  useEffect(() => {
+    if (isNewFocusOpen && newFocus.title) {
+      const validation = validateFocus(
+        { title: newFocus.title, start_date: newFocus.start_date, end_date: newFocus.end_date },
+        !!vision,
+        !!focus
+      );
+      setFocusValidation(validation);
+    } else {
+      setFocusValidation(null);
+    }
+  }, [isNewFocusOpen, newFocus, vision, focus, validateFocus]);
 
   const handleArchiveFocus = async () => {
     if (!focus || !selectedBU) return;
@@ -497,15 +558,20 @@ export default function StrategyPage() {
       return;
     }
 
-    if (!focus) {
-      toast.error("Devi prima creare un Focus Strategico attivo");
+    // WiseRule validation
+    const activeObjectivesCount = objectives.filter(o => o.status !== "archived" && o.status !== "completed").length;
+    const validation = validateObjective(
+      { title: newObjective.title, scope_included: newObjective.scope_included },
+      !!focus,
+      activeObjectivesCount
+    );
+
+    if (!validation.valid) {
+      validation.errors.forEach(err => toast.error(err));
       return;
     }
 
-    if (newObjective.scope_included.length === 0) {
-      toast.error("Seleziona almeno un'area coinvolta");
-      return;
-    }
+    validation.warnings.forEach(warn => toast.warning(warn));
 
     try {
       const { error } = await supabase.from("strategic_objectives").insert({
@@ -513,7 +579,7 @@ export default function StrategyPage() {
         description: newObjective.description || null,
         quarter: newObjective.quarter,
         year: newObjective.year,
-        focus_id: focus.id,
+        focus_id: focus?.id,
         scope_included: newObjective.scope_included,
         scope_excluded: newObjective.scope_excluded,
         status: "draft",
@@ -523,8 +589,9 @@ export default function StrategyPage() {
 
       if (error) throw error;
 
-      toast.success("Obiettivo creato con successo!");
+      toast.success("✅ Obiettivo creato con successo!");
       setIsNewObjectiveOpen(false);
+      setObjectiveValidation(null);
       setNewObjective({
         title: "",
         description: "",
@@ -538,6 +605,21 @@ export default function StrategyPage() {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
+
+  // Real-time objective validation
+  useEffect(() => {
+    if (isNewObjectiveOpen && newObjective.title) {
+      const activeObjectivesCount = objectives.filter(o => o.status !== "archived" && o.status !== "completed").length;
+      const validation = validateObjective(
+        { title: newObjective.title, scope_included: newObjective.scope_included },
+        !!focus,
+        activeObjectivesCount
+      );
+      setObjectiveValidation(validation);
+    } else {
+      setObjectiveValidation(null);
+    }
+  }, [isNewObjectiveOpen, newObjective, focus, objectives, validateObjective]);
 
   const handleDeleteObjective = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo obiettivo?") || !selectedBU) return;
@@ -559,6 +641,20 @@ export default function StrategyPage() {
       toast.error("Inserisci un titolo per il Key Result");
       return;
     }
+
+    // WiseRule validation
+    const currentKRCount = selectedObjective.key_results?.length || 0;
+    const validation = validateKeyResult(
+      { title: newKR.title, target_value: newKR.target_value },
+      currentKRCount
+    );
+
+    if (!validation.valid) {
+      validation.errors.forEach(err => toast.error(err));
+      return;
+    }
+
+    validation.warnings.forEach(warn => toast.warning(warn));
 
     try {
       const projectCode = `PRJ-${Date.now().toString(36).toUpperCase()}`;
@@ -596,8 +692,9 @@ export default function StrategyPage() {
         .update({ key_result_id: krData.id })
         .eq("id", projectData.id);
 
-      toast.success("Key Result e Progetto creati!");
+      toast.success("✅ Key Result e Progetto creati!");
       setIsNewKROpen(false);
+      setKRValidation(null);
       setNewKR({
         title: "",
         description: "",
@@ -610,6 +707,20 @@ export default function StrategyPage() {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
+
+  // Real-time KR validation
+  useEffect(() => {
+    if (isNewKROpen && newKR.title && selectedObjective) {
+      const currentKRCount = selectedObjective.key_results?.length || 0;
+      const validation = validateKeyResult(
+        { title: newKR.title, target_value: newKR.target_value },
+        currentKRCount
+      );
+      setKRValidation(validation);
+    } else {
+      setKRValidation(null);
+    }
+  }, [isNewKROpen, newKR, selectedObjective, validateKeyResult]);
 
   const handleDeleteKR = async (id: string) => {
     if (!confirm("Eliminare questo Key Result e il progetto collegato?") || !selectedBU) return;
@@ -1019,8 +1130,33 @@ export default function StrategyPage() {
                             />
                           </div>
                         </div>
+
+                        {/* WiseRule Validation Feedback */}
+                        {visionValidation && (visionValidation.errors.length > 0 || visionValidation.warnings.length > 0) && (
+                          <div className="space-y-2">
+                            {visionValidation.errors.map((err, i) => (
+                              <Alert key={i} variant="destructive" className="py-2">
+                                <XCircle className="h-4 w-4" />
+                                <AlertDescription className="text-sm">{err}</AlertDescription>
+                              </Alert>
+                            ))}
+                            {visionValidation.warnings.map((warn, i) => (
+                              <Alert key={i} className="py-2 border-amber-200 bg-amber-50 dark:bg-amber-950">
+                                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                <AlertDescription className="text-sm text-amber-800 dark:text-amber-200">{warn}</AlertDescription>
+                              </Alert>
+                            ))}
+                          </div>
+                        )}
+
+                        {preset && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>WiseRule: {preset.name} ({preset.ai_severity})</span>
+                          </div>
+                        )}
                         
-                        <Button onClick={handleCreateVision} className="w-full">
+                        <Button onClick={handleCreateVision} className="w-full" disabled={visionValidation?.valid === false}>
                           Crea Vision
                         </Button>
                       </div>
@@ -1155,8 +1291,33 @@ export default function StrategyPage() {
                             />
                           </div>
                         </div>
+
+                        {/* WiseRule Validation Feedback */}
+                        {focusValidation && (focusValidation.errors.length > 0 || focusValidation.warnings.length > 0) && (
+                          <div className="space-y-2">
+                            {focusValidation.errors.map((err, i) => (
+                              <Alert key={i} variant="destructive" className="py-2">
+                                <XCircle className="h-4 w-4" />
+                                <AlertDescription className="text-sm">{err}</AlertDescription>
+                              </Alert>
+                            ))}
+                            {focusValidation.warnings.map((warn, i) => (
+                              <Alert key={i} className="py-2 border-amber-200 bg-amber-50 dark:bg-amber-950">
+                                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                <AlertDescription className="text-sm text-amber-800 dark:text-amber-200">{warn}</AlertDescription>
+                              </Alert>
+                            ))}
+                          </div>
+                        )}
+
+                        {preset && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>WiseRule: {preset.name}</span>
+                          </div>
+                        )}
                         
-                        <Button onClick={handleCreateFocus} className="w-full">
+                        <Button onClick={handleCreateFocus} className="w-full" disabled={focusValidation?.valid === false}>
                           Crea Focus
                         </Button>
                       </div>
