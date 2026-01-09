@@ -8220,17 +8220,67 @@ export type Database = {
           },
         ]
       }
+      strategic_focus: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          start_date: string
+          status: string | null
+          title: string
+          updated_at: string
+          vision_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          start_date: string
+          status?: string | null
+          title: string
+          updated_at?: string
+          vision_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+          vision_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategic_focus_vision_id_fkey"
+            columns: ["vision_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_visions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategic_objectives: {
         Row: {
           created_at: string
           created_by: string | null
           description: string | null
           effort: string | null
+          focus_id: string | null
           id: string
           impact: string | null
           owner_id: string | null
           quarter: string | null
           risk_level: string | null
+          scope_excluded: string[] | null
+          scope_included: string[] | null
           source: string
           start_date: string | null
           status: string
@@ -8245,11 +8295,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           effort?: string | null
+          focus_id?: string | null
           id?: string
           impact?: string | null
           owner_id?: string | null
           quarter?: string | null
           risk_level?: string | null
+          scope_excluded?: string[] | null
+          scope_included?: string[] | null
           source?: string
           start_date?: string | null
           status?: string
@@ -8264,11 +8317,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           effort?: string | null
+          focus_id?: string | null
           id?: string
           impact?: string | null
           owner_id?: string | null
           quarter?: string | null
           risk_level?: string | null
+          scope_excluded?: string[] | null
+          scope_included?: string[] | null
           source?: string
           start_date?: string | null
           status?: string
@@ -8277,6 +8333,53 @@ export type Database = {
           updated_at?: string
           wise_analysis?: Json | null
           year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategic_objectives_focus_id_fkey"
+            columns: ["focus_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_focus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategic_visions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          observation_kpis: Json | null
+          start_date: string
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          observation_kpis?: Json | null
+          start_date: string
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          observation_kpis?: Json | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
