@@ -1840,7 +1840,7 @@ export default function LeadsPage() {
                                         isMobile ? "h-3 w-3" : "h-4 w-4"
                                       )} />
                                       <h4 className={cn(
-                                        "font-semibold truncate",
+                                        "font-semibold break-words",
                                         isMobile ? "text-xs" : "text-sm"
                                       )}>{lead.company_name}</h4>
                                       {lead.status === "new" && (
@@ -1895,7 +1895,7 @@ export default function LeadsPage() {
                                     </div>
                                     {lead.contact_name && (
                                       <p className={cn(
-                                        "text-muted-foreground truncate",
+                                        "text-muted-foreground break-words",
                                         isMobile ? "text-[10px] ml-5" : "text-xs ml-6"
                                       )}>{lead.contact_name}</p>
                                     )}
