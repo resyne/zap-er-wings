@@ -2694,6 +2694,167 @@ export type Database = {
           },
         ]
       }
+      governance_presets: {
+        Row: {
+          ai_highlight_bottlenecks: boolean | null
+          ai_highlight_production_risks: boolean | null
+          ai_propose_objective: boolean | null
+          ai_reject_non_measurable_kr: boolean | null
+          ai_severity: string | null
+          ai_suggest_focus: boolean | null
+          ai_suggest_milestones: boolean | null
+          ai_suggest_vision: boolean | null
+          ai_validate_focus_okr_coherence: boolean | null
+          ai_warning_load_timeline: boolean | null
+          business_unit_id: string
+          created_at: string
+          focus_max_active: number | null
+          focus_max_duration_months: number | null
+          focus_max_okr_cycles: number | null
+          focus_min_duration_months: number | null
+          focus_required_for_okr: boolean | null
+          guardrail_cash_buffer: boolean | null
+          guardrail_margin_min: boolean | null
+          guardrail_override_role: string | null
+          guardrail_team_load_max: boolean | null
+          guardrail_violation_action: string | null
+          id: string
+          kr_baseline_required: boolean | null
+          kr_max_per_objective: number | null
+          kr_metric_erp_required: boolean | null
+          kr_min_per_objective: number | null
+          kr_owner_required: boolean | null
+          kr_target_required: boolean | null
+          name: string
+          objective_default_duration_days: number | null
+          objective_focus_required: boolean | null
+          objective_max_active: number | null
+          objective_max_duration_days: number | null
+          objective_scope_required: boolean | null
+          philosophy: string | null
+          task_cross_kr: boolean | null
+          task_effort_required: boolean | null
+          task_linked_to_kr: boolean | null
+          task_without_kr_allowed: boolean | null
+          temporal_auto_realign: boolean | null
+          temporal_validation: boolean | null
+          updated_at: string
+          vision_kpi_observation: boolean | null
+          vision_max_active: number | null
+          vision_max_duration_months: number | null
+          vision_min_duration_months: number | null
+          vision_required_for_focus: boolean | null
+        }
+        Insert: {
+          ai_highlight_bottlenecks?: boolean | null
+          ai_highlight_production_risks?: boolean | null
+          ai_propose_objective?: boolean | null
+          ai_reject_non_measurable_kr?: boolean | null
+          ai_severity?: string | null
+          ai_suggest_focus?: boolean | null
+          ai_suggest_milestones?: boolean | null
+          ai_suggest_vision?: boolean | null
+          ai_validate_focus_okr_coherence?: boolean | null
+          ai_warning_load_timeline?: boolean | null
+          business_unit_id: string
+          created_at?: string
+          focus_max_active?: number | null
+          focus_max_duration_months?: number | null
+          focus_max_okr_cycles?: number | null
+          focus_min_duration_months?: number | null
+          focus_required_for_okr?: boolean | null
+          guardrail_cash_buffer?: boolean | null
+          guardrail_margin_min?: boolean | null
+          guardrail_override_role?: string | null
+          guardrail_team_load_max?: boolean | null
+          guardrail_violation_action?: string | null
+          id?: string
+          kr_baseline_required?: boolean | null
+          kr_max_per_objective?: number | null
+          kr_metric_erp_required?: boolean | null
+          kr_min_per_objective?: number | null
+          kr_owner_required?: boolean | null
+          kr_target_required?: boolean | null
+          name?: string
+          objective_default_duration_days?: number | null
+          objective_focus_required?: boolean | null
+          objective_max_active?: number | null
+          objective_max_duration_days?: number | null
+          objective_scope_required?: boolean | null
+          philosophy?: string | null
+          task_cross_kr?: boolean | null
+          task_effort_required?: boolean | null
+          task_linked_to_kr?: boolean | null
+          task_without_kr_allowed?: boolean | null
+          temporal_auto_realign?: boolean | null
+          temporal_validation?: boolean | null
+          updated_at?: string
+          vision_kpi_observation?: boolean | null
+          vision_max_active?: number | null
+          vision_max_duration_months?: number | null
+          vision_min_duration_months?: number | null
+          vision_required_for_focus?: boolean | null
+        }
+        Update: {
+          ai_highlight_bottlenecks?: boolean | null
+          ai_highlight_production_risks?: boolean | null
+          ai_propose_objective?: boolean | null
+          ai_reject_non_measurable_kr?: boolean | null
+          ai_severity?: string | null
+          ai_suggest_focus?: boolean | null
+          ai_suggest_milestones?: boolean | null
+          ai_suggest_vision?: boolean | null
+          ai_validate_focus_okr_coherence?: boolean | null
+          ai_warning_load_timeline?: boolean | null
+          business_unit_id?: string
+          created_at?: string
+          focus_max_active?: number | null
+          focus_max_duration_months?: number | null
+          focus_max_okr_cycles?: number | null
+          focus_min_duration_months?: number | null
+          focus_required_for_okr?: boolean | null
+          guardrail_cash_buffer?: boolean | null
+          guardrail_margin_min?: boolean | null
+          guardrail_override_role?: string | null
+          guardrail_team_load_max?: boolean | null
+          guardrail_violation_action?: string | null
+          id?: string
+          kr_baseline_required?: boolean | null
+          kr_max_per_objective?: number | null
+          kr_metric_erp_required?: boolean | null
+          kr_min_per_objective?: number | null
+          kr_owner_required?: boolean | null
+          kr_target_required?: boolean | null
+          name?: string
+          objective_default_duration_days?: number | null
+          objective_focus_required?: boolean | null
+          objective_max_active?: number | null
+          objective_max_duration_days?: number | null
+          objective_scope_required?: boolean | null
+          philosophy?: string | null
+          task_cross_kr?: boolean | null
+          task_effort_required?: boolean | null
+          task_linked_to_kr?: boolean | null
+          task_without_kr_allowed?: boolean | null
+          temporal_auto_realign?: boolean | null
+          temporal_validation?: boolean | null
+          updated_at?: string
+          vision_kpi_observation?: boolean | null
+          vision_max_active?: number | null
+          vision_max_duration_months?: number | null
+          vision_min_duration_months?: number | null
+          vision_required_for_focus?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "governance_presets_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: true
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employees: {
         Row: {
           created_at: string

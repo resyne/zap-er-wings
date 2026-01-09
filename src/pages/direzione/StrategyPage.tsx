@@ -31,11 +31,13 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addMonths } from "date-fns";
 import { it } from "date-fns/locale";
+import { GovernancePresetDialog } from "@/components/strategy/GovernancePresetDialog";
 
 // ==================== TYPES ====================
 
@@ -908,6 +910,17 @@ export default function StrategyPage() {
             </div>
           </div>
         </div>
+        <GovernancePresetDialog
+          businessUnitId={selectedBU.id}
+          businessUnitName={selectedBU.name}
+          businessUnitCode={selectedBU.code}
+          trigger={
+            <Button variant="outline" className="gap-2">
+              <Settings2 className="h-4 w-4" />
+              Governance Preset
+            </Button>
+          }
+        />
       </div>
 
       {/* 1️⃣ VISION SECTION */}
