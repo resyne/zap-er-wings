@@ -261,6 +261,9 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
 
     console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 4));
 
+    // Cerca lead esistente con pattern di ricerca
+    let foundLeadId: string | null = null;
+
     // Usa raw SQL con la funzione normalize_phone per gestire numeri con spazi
     const { data: leads, error: leadError } = await supabase
       .rpc('find_lead_by_normalized_phone', { search_pattern: normalized.slice(-9) });
@@ -278,36 +281,57 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
           .limit(1);
 
         if (fallbackLeads && fallbackLeads.length > 0) {
-          const { error: updateError } = await supabase
-            .from('call_records')
-            .update({ 
-              lead_id: fallbackLeads[0].id,
-              matched_by: 'phone_number_auto'
-            })
-            .eq('id', callRecordId);
-
-          if (!updateError) {
-            console.log(`Call ${callRecordId} linked to lead ${fallbackLeads[0].id} via fallback pattern: ${pattern}`);
-          }
-          return;
+          foundLeadId = fallbackLeads[0].id;
+          console.log(`Found existing lead ${foundLeadId} via fallback pattern: ${pattern}`);
+          break;
         }
       }
     } else if (leads && leads.length > 0) {
-      // Collega al lead trovato via RPC
+      foundLeadId = leads[0].id;
+      console.log(`Found existing lead ${foundLeadId} via normalized phone`);
+    }
+
+    // Se non abbiamo trovato un lead e il numero è valido, creiamone uno nuovo
+    if (!foundLeadId && normalized.length >= 6) {
+      console.log(`No lead found for ${customerNumber}, creating new lead...`);
+      
+      const { data: newLead, error: createError } = await supabase
+        .from('leads')
+        .insert({
+          contact_name: 'Lead da chiamata',
+          company_name: 'Da identificare',
+          phone: customerNumber,
+          status: 'new',
+          source: 'phone_call',
+          notes: `Lead creato automaticamente da chiamata telefonica il ${new Date().toLocaleDateString('it-IT')}`
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('Error creating lead from call:', createError);
+      } else if (newLead) {
+        foundLeadId = newLead.id;
+        console.log(`Created new lead ${foundLeadId} from call`);
+      }
+    }
+
+    // Collega la chiamata al lead (esistente o appena creato)
+    if (foundLeadId) {
       const { error: updateError } = await supabase
         .from('call_records')
         .update({ 
-          lead_id: leads[0].id,
-          matched_by: 'phone_number_auto'
+          lead_id: foundLeadId,
+          matched_by: foundLeadId ? 'phone_number_auto' : 'auto_created'
         })
         .eq('id', callRecordId);
 
       if (!updateError) {
-        console.log(`Call ${callRecordId} linked to lead ${leads[0].id} via normalized phone`);
+        console.log(`Call ${callRecordId} linked to lead ${foundLeadId}`);
       }
+    } else {
+      console.log(`Could not create or find lead for call ${callRecordId}`);
     }
-    
-    console.log(`No lead found for call ${callRecordId}`);
   } catch (error) {
     console.error('Error in matchAndLinkLead:', error);
   }

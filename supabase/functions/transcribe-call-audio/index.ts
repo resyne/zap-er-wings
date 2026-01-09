@@ -39,25 +39,25 @@ serve(async (req) => {
 
     // Download the audio file from Supabase Storage
     let audioData: Uint8Array;
+    let storagePath = recording_url;
     
-    if (recording_url.startsWith('http')) {
-      // It's a full URL - download directly
-      const response = await fetch(recording_url);
-      if (!response.ok) {
-        throw new Error(`Failed to download audio: ${response.status}`);
-      }
-      audioData = new Uint8Array(await response.arrayBuffer());
-    } else {
-      // It's a storage path - download from Supabase
-      const { data, error } = await supabase.storage
-        .from('call-recordings')
-        .download(recording_url);
-      
-      if (error || !data) {
-        throw new Error(`Failed to download from storage: ${error?.message}`);
-      }
-      audioData = new Uint8Array(await data.arrayBuffer());
+    // Extract storage path from public URL if needed
+    // URL format: https://{project}.supabase.co/storage/v1/object/public/call-recordings/{path}
+    if (recording_url.includes('/storage/v1/object/public/call-recordings/')) {
+      storagePath = recording_url.split('/storage/v1/object/public/call-recordings/')[1];
+      console.log(`Extracted storage path: ${storagePath}`);
     }
+    
+    // Always use Supabase storage download (works for both public and private buckets)
+    const { data, error } = await supabase.storage
+      .from('call-recordings')
+      .download(storagePath);
+    
+    if (error || !data) {
+      console.error(`Failed to download from storage: ${error?.message}`);
+      throw new Error(`Failed to download from storage: ${error?.message}`);
+    }
+    audioData = new Uint8Array(await data.arrayBuffer());
 
     console.log(`Downloaded audio file: ${audioData.length} bytes`);
 

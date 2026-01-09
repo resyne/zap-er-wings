@@ -915,9 +915,10 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
     const { data: newLead, error } = await supabase
       .from('leads')
       .insert({
-        name: 'Lead da chiamata',
+        contact_name: 'Lead da chiamata',
+        company_name: 'Da identificare',
         phone: phoneNumber,
-        status: 'nuovo',
+        status: 'new',
         source: 'phone_call',
         notes: `Lead creato automaticamente da chiamata telefonica il ${new Date().toLocaleDateString('it-IT')}`
       })
