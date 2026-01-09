@@ -3303,6 +3303,7 @@ export type Database = {
           id: string
           objective_id: string
           priority: number | null
+          project_id: string | null
           status: string | null
           target_value: number
           title: string
@@ -3317,6 +3318,7 @@ export type Database = {
           id?: string
           objective_id: string
           priority?: number | null
+          project_id?: string | null
           status?: string | null
           target_value: number
           title: string
@@ -3331,6 +3333,7 @@ export type Database = {
           id?: string
           objective_id?: string
           priority?: number | null
+          project_id?: string | null
           status?: string | null
           target_value?: number
           title?: string
@@ -3343,6 +3346,13 @@ export type Database = {
             columns: ["objective_id"]
             isOneToOne: false
             referencedRelation: "strategic_objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_results_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "management_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -3892,7 +3902,9 @@ export type Database = {
           estimated_costs: number | null
           estimated_revenue: number | null
           id: string
+          key_result_id: string | null
           machine_model: string | null
+          objective_id: string | null
           profit_center_id: string | null
           project_type: string
           start_date: string | null
@@ -3910,7 +3922,9 @@ export type Database = {
           estimated_costs?: number | null
           estimated_revenue?: number | null
           id?: string
+          key_result_id?: string | null
           machine_model?: string | null
+          objective_id?: string | null
           profit_center_id?: string | null
           project_type: string
           start_date?: string | null
@@ -3928,7 +3942,9 @@ export type Database = {
           estimated_costs?: number | null
           estimated_revenue?: number | null
           id?: string
+          key_result_id?: string | null
           machine_model?: string | null
+          objective_id?: string | null
           profit_center_id?: string | null
           project_type?: string
           start_date?: string | null
@@ -3936,6 +3952,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "management_projects_key_result_id_fkey"
+            columns: ["key_result_id"]
+            isOneToOne: false
+            referencedRelation: "key_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_projects_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_objectives"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "management_projects_profit_center_id_fkey"
             columns: ["profit_center_id"]
@@ -8199,6 +8229,7 @@ export type Database = {
           id: string
           impact: string | null
           owner_id: string | null
+          quarter: string | null
           risk_level: string | null
           source: string
           start_date: string | null
@@ -8207,6 +8238,7 @@ export type Database = {
           title: string
           updated_at: string
           wise_analysis: Json | null
+          year: number | null
         }
         Insert: {
           created_at?: string
@@ -8216,6 +8248,7 @@ export type Database = {
           id?: string
           impact?: string | null
           owner_id?: string | null
+          quarter?: string | null
           risk_level?: string | null
           source?: string
           start_date?: string | null
@@ -8224,6 +8257,7 @@ export type Database = {
           title: string
           updated_at?: string
           wise_analysis?: Json | null
+          year?: number | null
         }
         Update: {
           created_at?: string
@@ -8233,6 +8267,7 @@ export type Database = {
           id?: string
           impact?: string | null
           owner_id?: string | null
+          quarter?: string | null
           risk_level?: string | null
           source?: string
           start_date?: string | null
@@ -8241,6 +8276,7 @@ export type Database = {
           title?: string
           updated_at?: string
           wise_analysis?: Json | null
+          year?: number | null
         }
         Relationships: []
       }
