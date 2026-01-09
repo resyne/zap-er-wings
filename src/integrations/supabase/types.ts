@@ -708,6 +708,42 @@ export type Database = {
           },
         ]
       }
+      business_units: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           all_day: boolean | null
@@ -8222,6 +8258,7 @@ export type Database = {
       }
       strategic_focus: {
         Row: {
+          business_unit_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -8234,6 +8271,7 @@ export type Database = {
           vision_id: string | null
         }
         Insert: {
+          business_unit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -8246,6 +8284,7 @@ export type Database = {
           vision_id?: string | null
         }
         Update: {
+          business_unit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -8259,6 +8298,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "strategic_focus_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "strategic_focus_vision_id_fkey"
             columns: ["vision_id"]
             isOneToOne: false
@@ -8269,6 +8315,7 @@ export type Database = {
       }
       strategic_objectives: {
         Row: {
+          business_unit_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -8291,6 +8338,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          business_unit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -8313,6 +8361,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          business_unit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -8336,6 +8385,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "strategic_objectives_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "strategic_objectives_focus_id_fkey"
             columns: ["focus_id"]
             isOneToOne: false
@@ -8346,6 +8402,7 @@ export type Database = {
       }
       strategic_visions: {
         Row: {
+          business_unit_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -8358,6 +8415,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          business_unit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -8370,6 +8428,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          business_unit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -8381,7 +8440,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "strategic_visions_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       structural_accounts: {
         Row: {

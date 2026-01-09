@@ -21,20 +21,33 @@ import {
   FolderKanban,
   Clock,
   Trash2,
-  Eye,
   Compass,
   Focus,
-  Crosshair,
   ExternalLink,
-  Sparkles,
+  Info,
   AlertTriangle,
-  Info
+  Building2,
+  ArrowLeft,
+  Settings,
+  Eye,
+  EyeOff,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addMonths } from "date-fns";
 import { it } from "date-fns/locale";
 
 // ==================== TYPES ====================
+
+interface BusinessUnit {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  color: string;
+  logo_url?: string;
+  is_active: boolean;
+}
 
 interface Project {
   id: string;
@@ -68,6 +81,7 @@ interface StrategicObjective {
   focus_id?: string;
   scope_included?: string[];
   scope_excluded?: string[];
+  business_unit_id?: string;
   target_date?: string;
   created_at: string;
   key_results?: KeyResult[];
@@ -79,10 +93,10 @@ interface StrategicFocus {
   title: string;
   description?: string;
   status: string;
+  business_unit_id?: string;
   start_date: string;
   end_date?: string;
   created_at: string;
-  objectives?: StrategicObjective[];
 }
 
 interface StrategicVision {
@@ -90,11 +104,11 @@ interface StrategicVision {
   title: string;
   description?: string;
   status: string;
+  business_unit_id?: string;
   start_date: string;
   end_date?: string;
   observation_kpis?: any[];
   created_at: string;
-  focuses?: StrategicFocus[];
 }
 
 // ==================== CONSTANTS ====================
@@ -119,12 +133,26 @@ const AREAS = [
   "Logistica",
 ];
 
+function getCurrentQuarter(): string {
+  const month = new Date().getMonth();
+  if (month < 3) return "Q1";
+  if (month < 6) return "Q2";
+  if (month < 9) return "Q3";
+  return "Q4";
+}
+
 // ==================== COMPONENT ====================
 
 export default function StrategyPage() {
   const navigate = useNavigate();
   
-  // Data states
+  // Business Unit states
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>([]);
+  const [selectedBU, setSelectedBU] = useState<BusinessUnit | null>(null);
+  const [isManageBUOpen, setIsManageBUOpen] = useState(false);
+  const [newBU, setNewBU] = useState({ name: "", code: "", description: "", color: "#3B82F6" });
+  
+  // Data states for selected BU
   const [vision, setVision] = useState<StrategicVision | null>(null);
   const [focus, setFocus] = useState<StrategicFocus | null>(null);
   const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
@@ -177,23 +205,30 @@ export default function StrategyPage() {
     deadline: "",
   });
 
-  function getCurrentQuarter(): string {
-    const month = new Date().getMonth();
-    if (month < 3) return "Q1";
-    if (month < 6) return "Q2";
-    if (month < 9) return "Q3";
-    return "Q4";
-  }
-
   // ==================== DATA FETCHING ====================
 
-  const fetchData = async () => {
+  const fetchBusinessUnits = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("business_units")
+        .select("*")
+        .order("name");
+      
+      if (error) throw error;
+      setBusinessUnits(data || []);
+    } catch (error: any) {
+      console.error("Error fetching business units:", error);
+    }
+  };
+
+  const fetchDataForBU = async (buId: string) => {
     setIsLoading(true);
     try {
-      // Fetch active Vision (only 1 allowed)
+      // Fetch active Vision for this BU (only 1 allowed)
       const { data: visionData } = await supabase
         .from("strategic_visions")
         .select("*")
+        .eq("business_unit_id", buId)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -208,10 +243,11 @@ export default function StrategyPage() {
         setVision(null);
       }
 
-      // Fetch active Focus (only 1 allowed)
+      // Fetch active Focus for this BU (only 1 allowed)
       const { data: focusData } = await supabase
         .from("strategic_focus")
         .select("*")
+        .eq("business_unit_id", buId)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -219,10 +255,11 @@ export default function StrategyPage() {
       
       setFocus(focusData || null);
 
-      // Fetch objectives with filters
+      // Fetch objectives with filters for this BU
       let query = supabase
         .from("strategic_objectives")
         .select("*")
+        .eq("business_unit_id", buId)
         .order("created_at", { ascending: false });
       
       if (selectedQuarter !== "all") {
@@ -262,30 +299,90 @@ export default function StrategyPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [selectedQuarter, selectedYear]);
+    fetchBusinessUnits();
+  }, []);
 
-  // ==================== VISION HANDLERS ====================
+  useEffect(() => {
+    if (selectedBU) {
+      fetchDataForBU(selectedBU.id);
+    }
+  }, [selectedBU, selectedQuarter, selectedYear]);
 
-  const handleCreateVision = async () => {
-    if (!newVision.title.trim()) {
-      toast.error("Inserisci un titolo per la Vision");
+  // ==================== BU HANDLERS ====================
+
+  const handleCreateBU = async () => {
+    if (!newBU.name.trim() || !newBU.code.trim()) {
+      toast.error("Inserisci nome e codice");
       return;
     }
 
     try {
-      // Check if there's already an active vision
-      if (vision) {
-        toast.error("Esiste già una Vision attiva. Archiviala prima di crearne una nuova.");
-        return;
-      }
+      const { error } = await supabase.from("business_units").insert({
+        name: newBU.name,
+        code: newBU.code.toUpperCase(),
+        description: newBU.description || null,
+        color: newBU.color,
+        is_active: true,
+      });
 
+      if (error) throw error;
+      toast.success("Attività creata!");
+      setNewBU({ name: "", code: "", description: "", color: "#3B82F6" });
+      fetchBusinessUnits();
+    } catch (error: any) {
+      toast.error("Errore: " + error.message);
+    }
+  };
+
+  const handleToggleBU = async (bu: BusinessUnit) => {
+    try {
+      await supabase
+        .from("business_units")
+        .update({ is_active: !bu.is_active })
+        .eq("id", bu.id);
+      fetchBusinessUnits();
+    } catch (error: any) {
+      toast.error("Errore: " + error.message);
+    }
+  };
+
+  const handleDeleteBU = async (bu: BusinessUnit) => {
+    if (!confirm(`Eliminare l'attività ${bu.name}? Tutti i dati strategici collegati verranno eliminati.`)) return;
+    
+    try {
+      const { error } = await supabase.from("business_units").delete().eq("id", bu.id);
+      if (error) throw error;
+      toast.success("Attività eliminata");
+      fetchBusinessUnits();
+      if (selectedBU?.id === bu.id) {
+        setSelectedBU(null);
+      }
+    } catch (error: any) {
+      toast.error("Errore: " + error.message);
+    }
+  };
+
+  // ==================== VISION HANDLERS ====================
+
+  const handleCreateVision = async () => {
+    if (!newVision.title.trim() || !selectedBU) {
+      toast.error("Inserisci un titolo per la Vision");
+      return;
+    }
+
+    if (vision) {
+      toast.error("Esiste già una Vision attiva. Archiviala prima di crearne una nuova.");
+      return;
+    }
+
+    try {
       const { error } = await supabase.from("strategic_visions").insert({
         title: newVision.title,
         description: newVision.description || null,
         start_date: newVision.start_date,
         end_date: newVision.end_date || null,
         status: "active",
+        business_unit_id: selectedBU.id,
       });
 
       if (error) throw error;
@@ -298,14 +395,14 @@ export default function StrategyPage() {
         start_date: format(new Date(), "yyyy-MM-dd"),
         end_date: format(addMonths(new Date(), 12), "yyyy-MM-dd"),
       });
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
 
   const handleArchiveVision = async () => {
-    if (!vision) return;
+    if (!vision || !selectedBU) return;
     if (!confirm("Archiviare la Vision attuale? Gli OKR in corso verranno archiviati.")) return;
 
     try {
@@ -314,7 +411,6 @@ export default function StrategyPage() {
         .update({ status: "archived" })
         .eq("id", vision.id);
       
-      // Also archive the focus
       if (focus) {
         await supabase
           .from("strategic_focus")
@@ -323,7 +419,7 @@ export default function StrategyPage() {
       }
 
       toast.success("Vision archiviata");
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore: " + error.message);
     }
@@ -332,7 +428,7 @@ export default function StrategyPage() {
   // ==================== FOCUS HANDLERS ====================
 
   const handleCreateFocus = async () => {
-    if (!newFocus.title.trim()) {
+    if (!newFocus.title.trim() || !selectedBU) {
       toast.error("Inserisci un titolo per il Focus Strategico");
       return;
     }
@@ -355,6 +451,7 @@ export default function StrategyPage() {
         start_date: newFocus.start_date,
         end_date: newFocus.end_date || null,
         status: "active",
+        business_unit_id: selectedBU.id,
       });
 
       if (error) throw error;
@@ -367,14 +464,14 @@ export default function StrategyPage() {
         start_date: format(new Date(), "yyyy-MM-dd"),
         end_date: format(addMonths(new Date(), 6), "yyyy-MM-dd"),
       });
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
 
   const handleArchiveFocus = async () => {
-    if (!focus) return;
+    if (!focus || !selectedBU) return;
     if (!confirm("Archiviare il Focus attuale?")) return;
 
     try {
@@ -384,7 +481,7 @@ export default function StrategyPage() {
         .eq("id", focus.id);
 
       toast.success("Focus archiviato");
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore: " + error.message);
     }
@@ -393,7 +490,7 @@ export default function StrategyPage() {
   // ==================== OBJECTIVE HANDLERS ====================
 
   const handleCreateObjective = async () => {
-    if (!newObjective.title.trim()) {
+    if (!newObjective.title.trim() || !selectedBU) {
       toast.error("Inserisci un titolo per l'Obiettivo");
       return;
     }
@@ -419,6 +516,7 @@ export default function StrategyPage() {
         scope_excluded: newObjective.scope_excluded,
         status: "draft",
         source: "manual",
+        business_unit_id: selectedBU.id,
       });
 
       if (error) throw error;
@@ -433,20 +531,20 @@ export default function StrategyPage() {
         scope_included: [],
         scope_excluded: [],
       });
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
 
   const handleDeleteObjective = async (id: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo obiettivo?")) return;
+    if (!confirm("Sei sicuro di voler eliminare questo obiettivo?") || !selectedBU) return;
     
     try {
       const { error } = await supabase.from("strategic_objectives").delete().eq("id", id);
       if (error) throw error;
       toast.success("Obiettivo eliminato");
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore nell'eliminazione: " + error.message);
     }
@@ -455,16 +553,14 @@ export default function StrategyPage() {
   // ==================== KR HANDLERS ====================
 
   const handleCreateKR = async () => {
-    if (!selectedObjective || !newKR.title.trim()) {
+    if (!selectedObjective || !newKR.title.trim() || !selectedBU) {
       toast.error("Inserisci un titolo per il Key Result");
       return;
     }
 
     try {
-      // 1. Generate project code
       const projectCode = `PRJ-${Date.now().toString(36).toUpperCase()}`;
       
-      // 2. Create the project first
       const { data: projectData, error: projectError } = await supabase
         .from("management_projects")
         .insert({
@@ -479,7 +575,6 @@ export default function StrategyPage() {
 
       if (projectError) throw projectError;
 
-      // 3. Create the Key Result linked to the project
       const { data: krData, error: krError } = await supabase.from("key_results").insert({
         objective_id: selectedObjective.id,
         title: newKR.title,
@@ -494,7 +589,6 @@ export default function StrategyPage() {
 
       if (krError) throw krError;
 
-      // 4. Update the project with the key_result_id (reverse link)
       await supabase
         .from("management_projects")
         .update({ key_result_id: krData.id })
@@ -509,14 +603,14 @@ export default function StrategyPage() {
         unit: "%",
         deadline: "",
       });
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore nella creazione: " + error.message);
     }
   };
 
   const handleDeleteKR = async (id: string) => {
-    if (!confirm("Eliminare questo Key Result e il progetto collegato?")) return;
+    if (!confirm("Eliminare questo Key Result e il progetto collegato?") || !selectedBU) return;
     
     try {
       const { data: kr } = await supabase
@@ -533,7 +627,7 @@ export default function StrategyPage() {
       }
 
       toast.success("Key Result eliminato");
-      fetchData();
+      fetchDataForBU(selectedBU.id);
     } catch (error: any) {
       toast.error("Errore: " + error.message);
     }
@@ -601,21 +695,215 @@ export default function StrategyPage() {
     }
   };
 
-  // ==================== RENDER ====================
+  // ==================== RENDER: DASHBOARD VIEW ====================
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+  if (!selectedBU) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
               <Target className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Strategy</h1>
+              <h1 className="text-2xl font-bold">Strategy Dashboard</h1>
               <p className="text-muted-foreground text-sm">
-                Sistema OKR con <span className="font-medium text-indigo-600">WiseRule</span>
+                Seleziona un'attività per gestire Vision, Focus e OKR
+              </p>
+            </div>
+          </div>
+          <Dialog open={isManageBUOpen} onOpenChange={setIsManageBUOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Settings className="h-4 w-4 mr-2" />
+                Gestisci Attività
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Gestione Attività (Business Units)</DialogTitle>
+                <DialogDescription>
+                  Aggiungi, modifica o rimuovi le attività aziendali
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                {/* Add new BU */}
+                <div className="p-4 border rounded-lg space-y-4">
+                  <h4 className="font-medium">Nuova Attività</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Nome *</Label>
+                      <Input
+                        value={newBU.name}
+                        onChange={(e) => setNewBU({ ...newBU, name: e.target.value })}
+                        placeholder="Es: ZAPPER"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Codice *</Label>
+                      <Input
+                        value={newBU.code}
+                        onChange={(e) => setNewBU({ ...newBU, code: e.target.value.toUpperCase() })}
+                        placeholder="Es: ZAP"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2 col-span-2">
+                      <Label>Descrizione</Label>
+                      <Input
+                        value={newBU.description}
+                        onChange={(e) => setNewBU({ ...newBU, description: e.target.value })}
+                        placeholder="Descrizione opzionale"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Colore</Label>
+                      <Input
+                        type="color"
+                        value={newBU.color}
+                        onChange={(e) => setNewBU({ ...newBU, color: e.target.value })}
+                        className="h-10 p-1"
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleCreateBU} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi Attività
+                  </Button>
+                </div>
+
+                {/* Existing BUs */}
+                <div className="space-y-2">
+                  <h4 className="font-medium">Attività Esistenti</h4>
+                  {businessUnits.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">Nessuna attività definita</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {businessUnits.map((bu) => (
+                        <div
+                          key={bu.id}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-lg border",
+                            !bu.is_active && "opacity-50"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-4 h-4 rounded-full"
+                              style={{ backgroundColor: bu.color }}
+                            />
+                            <div>
+                              <span className="font-medium">{bu.name}</span>
+                              <span className="text-sm text-muted-foreground ml-2">({bu.code})</span>
+                              {bu.description && (
+                                <p className="text-xs text-muted-foreground">{bu.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleToggleBU(bu)}
+                              title={bu.is_active ? "Disattiva" : "Attiva"}
+                            >
+                              {bu.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteBU(bu)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Business Units Cards */}
+        {businessUnits.filter(bu => bu.is_active).length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-12 text-center">
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium mb-2">Nessuna Attività Definita</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Crea la tua prima attività per iniziare a definire la strategia
+              </p>
+              <Button onClick={() => setIsManageBUOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Aggiungi Attività
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {businessUnits.filter(bu => bu.is_active).map((bu) => (
+              <Card 
+                key={bu.id}
+                className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
+                onClick={() => setSelectedBU(bu)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
+                      style={{ backgroundColor: bu.color }}
+                    >
+                      {bu.code.substring(0, 2)}
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">{bu.name}</CardTitle>
+                      {bu.description && (
+                        <CardDescription>{bu.description}</CardDescription>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Clicca per gestire strategia</span>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ==================== RENDER: STRATEGY VIEW FOR SELECTED BU ====================
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header with Back Button */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setSelectedBU(null)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
+              style={{ backgroundColor: selectedBU.color }}
+            >
+              {selectedBU.code.substring(0, 2)}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{selectedBU.name}</h1>
+              <p className="text-muted-foreground text-sm">
+                Strategy OKR con <span className="font-medium text-indigo-600">WiseRule</span>
               </p>
             </div>
           </div>
@@ -666,7 +954,7 @@ export default function StrategyPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-lg">
                       <DialogHeader>
-                        <DialogTitle>Nuova Vision</DialogTitle>
+                        <DialogTitle>Nuova Vision per {selectedBU.name}</DialogTitle>
                         <DialogDescription>
                           Definisci la direzione strategica di medio periodo (6-12 mesi)
                         </DialogDescription>
@@ -677,7 +965,6 @@ export default function StrategyPage() {
                             <Info className="h-4 w-4 text-amber-600 mt-0.5" />
                             <div className="text-sm text-amber-800 dark:text-amber-200">
                               <strong>Caratteristiche:</strong> Qualitativa, senza KPI diretti, non gestita come OKR.
-                              <br />Esempi: "Espandere sui mercati esteri", "Rendere il fatturato più ricorrente"
                             </div>
                           </div>
                         </div>
@@ -687,7 +974,7 @@ export default function StrategyPage() {
                           <Input
                             value={newVision.title}
                             onChange={(e) => setNewVision({ ...newVision, title: e.target.value })}
-                            placeholder="Es: Espandere ZAPPER sui mercati esteri"
+                            placeholder="Es: Espandere sui mercati esteri"
                           />
                         </div>
                         
@@ -696,7 +983,7 @@ export default function StrategyPage() {
                           <Textarea
                             value={newVision.description}
                             onChange={(e) => setNewVision({ ...newVision, description: e.target.value })}
-                            placeholder="Descrivi cosa significa questa Vision per l'azienda..."
+                            placeholder="Descrivi cosa significa questa Vision..."
                             rows={3}
                           />
                         </div>
@@ -711,7 +998,7 @@ export default function StrategyPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label>Data Fine (opzionale)</Label>
+                            <Label>Data Fine</Label>
                             <Input
                               type="date"
                               value={newVision.end_date}
@@ -769,7 +1056,7 @@ export default function StrategyPage() {
                       Focus Strategico
                       <Badge variant="outline" className="text-xs font-normal">6 mesi</Badge>
                     </CardTitle>
-                    <CardDescription>Strategic Theme - La priorità dominante che guida le scelte operative</CardDescription>
+                    <CardDescription>Strategic Theme - La priorità dominante</CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -813,8 +1100,7 @@ export default function StrategyPage() {
                           <div className="flex gap-2">
                             <Info className="h-4 w-4 text-purple-600 mt-0.5" />
                             <div className="text-sm text-purple-800 dark:text-purple-200">
-                              <strong>Caratteristiche:</strong> Tematico, non numerico. È il ponte tra Vision e OKR.
-                              <br />Esempi: "Crescita commerciale", "Scalabilità vendite", "Internazionalizzazione"
+                              <strong>Caratteristiche:</strong> Tematico, non numerico. Ponte tra Vision e OKR.
                             </div>
                           </div>
                         </div>
@@ -833,7 +1119,7 @@ export default function StrategyPage() {
                           <Textarea
                             value={newFocus.description}
                             onChange={(e) => setNewFocus({ ...newFocus, description: e.target.value })}
-                            placeholder="Descrivi cosa comporta questo focus..."
+                            placeholder="Descrivi questo focus..."
                             rows={2}
                           />
                         </div>
@@ -877,7 +1163,6 @@ export default function StrategyPage() {
                         {format(new Date(focus.start_date), "MMM yyyy", { locale: it })}
                         {focus.end_date && ` → ${format(new Date(focus.end_date), "MMM yyyy", { locale: it })}`}
                       </span>
-                      <span>Collegato a: {vision?.title}</span>
                     </div>
                   </div>
                   <div className="flex justify-end">
@@ -898,7 +1183,7 @@ export default function StrategyPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900">
-                <Crosshair className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -910,34 +1195,26 @@ export default function StrategyPage() {
             </div>
             <Dialog open={isNewObjectiveOpen} onOpenChange={setIsNewObjectiveOpen}>
               <DialogTrigger asChild>
-                <Button 
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                  disabled={!focus}
-                >
+                <Button disabled={!focus}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nuovo Objective
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-xl">
                 <DialogHeader>
                   <DialogTitle>Nuovo Objective</DialogTitle>
                   <DialogDescription>
-                    Definisci un obiettivo per il trimestre (collegato al Focus: {focus?.title})
+                    Definisci l'obiettivo principale del trimestre (max 90 giorni)
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 pt-4">
+                <div className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Trimestre</Label>
-                      <Select 
-                        value={newObjective.quarter} 
-                        onValueChange={(v) => setNewObjective({ ...newObjective, quarter: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Label>Quarter</Label>
+                      <Select value={newObjective.quarter} onValueChange={(v) => setNewObjective({ ...newObjective, quarter: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {QUARTERS.map((q) => (
+                          {QUARTERS.map(q => (
                             <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -945,22 +1222,17 @@ export default function StrategyPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Anno</Label>
-                      <Select 
-                        value={String(newObjective.year)} 
-                        onValueChange={(v) => setNewObjective({ ...newObjective, year: parseInt(v) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Select value={String(newObjective.year)} onValueChange={(v) => setNewObjective({ ...newObjective, year: parseInt(v) })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {YEARS.map((y) => (
+                          {YEARS.map(y => (
                             <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Titolo Objective *</Label>
                     <Input
@@ -975,12 +1247,11 @@ export default function StrategyPage() {
                     <Textarea
                       value={newObjective.description}
                       onChange={(e) => setNewObjective({ ...newObjective, description: e.target.value })}
-                      placeholder="Descrivi cosa significa raggiungere questo obiettivo..."
+                      placeholder="Descrivi l'obiettivo in dettaglio..."
                       rows={2}
                     />
                   </div>
 
-                  {/* Scope */}
                   <div className="space-y-3">
                     <Label>Aree Coinvolte *</Label>
                     <div className="flex flex-wrap gap-2">
@@ -991,9 +1262,6 @@ export default function StrategyPage() {
                           variant={newObjective.scope_included.includes(area) ? "default" : "outline"}
                           size="sm"
                           onClick={() => toggleScopeArea(area, "included")}
-                          className={cn(
-                            newObjective.scope_included.includes(area) && "bg-emerald-600 hover:bg-emerald-700"
-                          )}
                         >
                           {area}
                         </Button>
@@ -1256,7 +1524,6 @@ export default function StrategyPage() {
                 <Info className="h-4 w-4 text-emerald-600 mt-0.5" />
                 <div className="text-sm text-emerald-800 dark:text-emerald-200">
                   <strong>Un KR deve essere:</strong> Misurabile con metrica, baseline e target.
-                  <br />NON è un task o un deliverable.
                 </div>
               </div>
             </div>
@@ -1266,7 +1533,7 @@ export default function StrategyPage() {
               <Input
                 value={newKR.title}
                 onChange={(e) => setNewKR({ ...newKR, title: e.target.value })}
-                placeholder="Es: Aumentare conversione Offerta→Ordine dal 18% al 28%"
+                placeholder="Es: Aumentare conversione dal 18% al 28%"
               />
             </div>
             
