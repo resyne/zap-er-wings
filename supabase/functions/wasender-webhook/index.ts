@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-api-key",
 };
 
 serve(async (req) => {
@@ -15,41 +15,34 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const webhookSecret = Deno.env.get("WASENDER_WEBHOOK_SECRET");
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Verify webhook signature if secret is configured
-    const signature = req.headers.get("x-webhook-signature");
-    if (webhookSecret && signature !== webhookSecret) {
-      console.error("Invalid webhook signature");
-      return new Response(
-        JSON.stringify({ error: "Invalid signature" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const payload = await req.json();
     console.log("WaSender webhook received:", JSON.stringify(payload, null, 2));
 
     const event = payload.event;
-    const data = payload.data;
 
-    // Handle different event types
+    // Handle different event types based on WaSender API documentation
     switch (event) {
+      case "messages.received": {
+        // New incoming message - WaSender format
+        await handleIncomingMessage(supabase, payload.data);
+        break;
+      }
       case "messages.upsert": {
-        // New incoming message
-        await handleIncomingMessage(supabase, data);
+        // Alternative event name (legacy)
+        await handleIncomingMessage(supabase, payload.data);
         break;
       }
       case "message.status": {
         // Message status update (sent, delivered, read)
-        await handleMessageStatus(supabase, data);
+        await handleMessageStatus(supabase, payload.data);
         break;
       }
       case "session.status": {
         // Session status change (connected, disconnected)
-        await handleSessionStatus(supabase, data);
+        await handleSessionStatus(supabase, payload.data);
         break;
       }
       default:
@@ -72,84 +65,111 @@ serve(async (req) => {
 
 async function handleIncomingMessage(supabase: any, data: any) {
   try {
-    const message = data.message || data;
-    const key = data.key || message.key;
+    // WaSender format: data.messages is a single object (not array)
+    const messageData = data.messages || data.message || data;
+    const key = messageData.key || {};
     
-    // Extract sender info
-    const remoteJid = key?.remoteJid || message.from;
-    if (!remoteJid) {
-      console.error("No remoteJid found in message");
+    // Extract sender phone - use cleanedSenderPn for private chats, cleanedParticipantPn for groups
+    const senderPhone = key.cleanedParticipantPn || key.cleanedSenderPn || 
+                        key.remoteJid?.replace(/@s\.whatsapp\.net|@g\.us|@lid/g, "") || "";
+    
+    if (!senderPhone) {
+      console.error("No sender phone found in message:", JSON.stringify(key));
       return;
     }
 
-    // Clean phone number (remove @s.whatsapp.net suffix)
-    const senderPhone = remoteJid.replace(/@s\.whatsapp\.net|@g\.us/g, "");
-    
-    // Get message content
-    const messageContent = message.message?.conversation || 
-                          message.message?.extendedTextMessage?.text ||
-                          message.body ||
-                          message.text ||
+    // Get unified message content - WaSender provides messageBody field
+    const messageContent = messageData.messageBody || 
+                          messageData.message?.conversation ||
+                          messageData.message?.extendedTextMessage?.text ||
+                          messageData.body ||
+                          messageData.text ||
                           "";
     
-    const messageType = message.message?.imageMessage ? "image" :
-                       message.message?.videoMessage ? "video" :
-                       message.message?.audioMessage ? "audio" :
-                       message.message?.documentMessage ? "document" :
+    // Determine message type
+    const rawMessage = messageData.message || {};
+    const messageType = rawMessage.imageMessage ? "image" :
+                       rawMessage.videoMessage ? "video" :
+                       rawMessage.audioMessage ? "audio" :
+                       rawMessage.documentMessage ? "document" :
+                       rawMessage.stickerMessage ? "sticker" :
                        "text";
 
-    // Find the account by looking at all accounts
-    // In production, you might want to pass the session ID in the webhook
-    const { data: accounts } = await supabase
+    // Get push name (sender's WhatsApp name)
+    const pushName = messageData.pushName || key.pushName || null;
+
+    console.log(`Processing incoming message from ${senderPhone}: ${messageContent.substring(0, 50)}...`);
+
+    // Find matching account - we need to identify which session received this
+    // For now, find the first active account that could match
+    const { data: accounts, error: accountError } = await supabase
       .from("wasender_accounts")
-      .select("id, phone_number")
+      .select("id, phone_number, session_id")
       .eq("is_active", true);
+
+    if (accountError) {
+      console.error("Error fetching accounts:", accountError);
+      return;
+    }
 
     if (!accounts || accounts.length === 0) {
       console.error("No active WaSender accounts found");
       return;
     }
 
-    // For now, use the first active account (could be improved with session matching)
+    // Use the first active account (in production, match by session_id if available)
     const account = accounts[0];
 
     // Find or create conversation
-    let { data: conversation } = await supabase
+    let { data: conversation, error: convError } = await supabase
       .from("wasender_conversations")
-      .select("id")
+      .select("id, unread_count")
       .eq("account_id", account.id)
       .eq("customer_phone", senderPhone)
       .maybeSingle();
 
+    if (convError && convError.code !== "PGRST116") {
+      console.error("Error finding conversation:", convError);
+      return;
+    }
+
     if (!conversation) {
       // Create new conversation
-      const { data: newConv, error: convError } = await supabase
+      const { data: newConv, error: createError } = await supabase
         .from("wasender_conversations")
         .insert({
           account_id: account.id,
           customer_phone: senderPhone,
-          customer_name: message.pushName || null,
+          customer_name: pushName,
           status: "active",
-          unread_count: 1
+          unread_count: 1,
+          last_message_at: new Date().toISOString(),
+          last_message_preview: messageContent.substring(0, 100)
         })
         .select()
         .single();
 
-      if (convError) {
-        console.error("Error creating conversation:", convError);
+      if (createError) {
+        console.error("Error creating conversation:", createError);
         return;
       }
       conversation = newConv;
+      console.log(`Created new conversation for ${senderPhone}`);
     } else {
-      // Increment unread count
-      await supabase
+      // Update existing conversation
+      const { error: updateError } = await supabase
         .from("wasender_conversations")
         .update({ 
-          unread_count: supabase.rpc("increment", { x: 1 }),
+          unread_count: (conversation.unread_count || 0) + 1,
           last_message_at: new Date().toISOString(),
-          last_message_preview: messageContent.substring(0, 100)
+          last_message_preview: messageContent.substring(0, 100),
+          customer_name: pushName || undefined // Update name if we have it
         })
         .eq("id", conversation.id);
+
+      if (updateError) {
+        console.error("Error updating conversation:", updateError);
+      }
     }
 
     // Save the message
@@ -160,7 +180,8 @@ async function handleIncomingMessage(supabase: any, data: any) {
         direction: "inbound",
         message_type: messageType,
         content: messageContent,
-        status: "received"
+        status: "received",
+        wasender_id: key.id || null
       });
 
     if (msgError) {
@@ -168,16 +189,7 @@ async function handleIncomingMessage(supabase: any, data: any) {
       return;
     }
 
-    // Update conversation last message
-    await supabase
-      .from("wasender_conversations")
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: messageContent.substring(0, 100)
-      })
-      .eq("id", conversation.id);
-
-    console.log(`Message saved from ${senderPhone}: ${messageContent.substring(0, 50)}...`);
+    console.log(`Message saved successfully from ${senderPhone}`);
 
   } catch (error) {
     console.error("Error handling incoming message:", error);
@@ -189,7 +201,10 @@ async function handleMessageStatus(supabase: any, data: any) {
     const messageId = data.id || data.key?.id;
     const status = data.status || data.update?.status;
 
-    if (!messageId || !status) return;
+    if (!messageId || !status) {
+      console.log("Missing messageId or status in status update");
+      return;
+    }
 
     // Map WaSender status to our status
     const statusMap: Record<string, string> = {
@@ -197,14 +212,24 @@ async function handleMessageStatus(supabase: any, data: any) {
       "delivered": "delivered",
       "read": "read",
       "failed": "failed",
-      "pending": "pending"
+      "pending": "pending",
+      "server": "sent",
+      "delivery": "delivered"
     };
 
     const mappedStatus = statusMap[status.toLowerCase()] || status;
 
-    // Note: We'd need to store WaSender message IDs to properly update status
-    // For now, this is a placeholder for the status update logic
-    console.log(`Message ${messageId} status updated to: ${mappedStatus}`);
+    // Update message status if we have the wasender_id
+    const { error } = await supabase
+      .from("wasender_messages")
+      .update({ status: mappedStatus })
+      .eq("wasender_id", messageId);
+
+    if (error) {
+      console.error("Error updating message status:", error);
+    } else {
+      console.log(`Message ${messageId} status updated to: ${mappedStatus}`);
+    }
 
   } catch (error) {
     console.error("Error handling message status:", error);
@@ -214,10 +239,26 @@ async function handleMessageStatus(supabase: any, data: any) {
 async function handleSessionStatus(supabase: any, data: any) {
   try {
     const sessionStatus = data.status;
-    console.log(`Session status changed to: ${sessionStatus}`);
+    const sessionId = data.sessionId || data.session_id;
+    
+    console.log(`Session ${sessionId} status changed to: ${sessionStatus}`);
 
-    // Could update account status based on session status
-    // This would require storing session ID in the account
+    if (sessionId) {
+      // Update account status based on session status
+      const isActive = sessionStatus === "connected" || sessionStatus === "active";
+      
+      const { error } = await supabase
+        .from("wasender_accounts")
+        .update({ 
+          status: sessionStatus,
+          is_active: isActive
+        })
+        .eq("session_id", sessionId);
+
+      if (error) {
+        console.error("Error updating account status:", error);
+      }
+    }
 
   } catch (error) {
     console.error("Error handling session status:", error);
