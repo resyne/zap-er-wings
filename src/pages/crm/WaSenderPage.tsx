@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +15,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   MessageCircle, Plus, Settings, ArrowLeft, Building2, 
-  Send, Phone, CreditCard, FileText, RefreshCw, Check,
-  CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
+  Send, Phone, CreditCard, RefreshCw, Check,
+  CheckCheck, Clock, AlertCircle, User, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
-  ExternalLink, Zap
+  ExternalLink, Zap, Users, Webhook, Link2
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -37,6 +37,8 @@ interface WaSenderAccount {
   business_unit_id: string;
   phone_number: string;
   account_name: string | null;
+  api_key: string | null;
+  webhook_secret: string | null;
   status: string;
   credits_balance: number;
   is_active: boolean;
@@ -79,16 +81,30 @@ interface CreditTransaction {
   created_at: string;
 }
 
+interface WaSenderContact {
+  id: string;
+  account_id: string;
+  phone: string;
+  name: string | null;
+  customer_id: string | null;
+  lead_id: string | null;
+  tags: string[];
+  created_at: string;
+}
+
 export default function WaSenderPage() {
   const queryClient = useQueryClient();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedBU, setSelectedBU] = useState<BusinessUnit | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<WaSenderAccount | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<WaSenderConversation | null>(null);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [isCreditDialogOpen, setIsCreditDialogOpen] = useState(false);
   const [isNewConversationDialogOpen, setIsNewConversationDialogOpen] = useState(false);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [conversationSearch, setConversationSearch] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
   const [newContactData, setNewContactData] = useState({
     phone: '',
     name: '',
@@ -98,10 +114,24 @@ export default function WaSenderPage() {
   
   const [accountFormData, setAccountFormData] = useState({
     phone_number: '',
-    account_name: ''
+    account_name: '',
+    api_key: ''
+  });
+
+  const [contactFormData, setContactFormData] = useState({
+    phone: '',
+    name: '',
+    customer_id: '',
+    lead_id: '',
+    tags: ''
   });
 
   const [creditAmount, setCreditAmount] = useState('');
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedConversation]);
 
   // Query per clienti e lead (per associazione)
   const { data: customers } = useQuery({
@@ -160,7 +190,7 @@ export default function WaSenderPage() {
     enabled: !!selectedBU
   });
 
-  const { data: conversations } = useQuery({
+  const { data: conversations, refetch: refetchConversations } = useQuery({
     queryKey: ['wasender-conversations', selectedAccount?.id],
     queryFn: async () => {
       if (!selectedAccount) return [];
@@ -168,14 +198,15 @@ export default function WaSenderPage() {
         .from('wasender_conversations')
         .select('*')
         .eq('account_id', selectedAccount.id)
-        .order('last_message_at', { ascending: false });
+        .order('last_message_at', { ascending: false, nullsFirst: false });
       if (error) throw error;
       return data as WaSenderConversation[];
     },
-    enabled: !!selectedAccount
+    enabled: !!selectedAccount,
+    refetchInterval: 5000 // Auto refresh every 5 seconds
   });
 
-  const { data: messages } = useQuery({
+  const { data: messages, refetch: refetchMessages } = useQuery({
     queryKey: ['wasender-messages', selectedConversation?.id],
     queryFn: async () => {
       if (!selectedConversation) return [];
@@ -185,9 +216,35 @@ export default function WaSenderPage() {
         .eq('conversation_id', selectedConversation.id)
         .order('created_at', { ascending: true });
       if (error) throw error;
+      
+      // Mark as read
+      if (selectedConversation.unread_count > 0) {
+        await (supabase as any)
+          .from('wasender_conversations')
+          .update({ unread_count: 0 })
+          .eq('id', selectedConversation.id);
+        refetchConversations();
+      }
+      
       return data as WaSenderMessage[];
     },
-    enabled: !!selectedConversation
+    enabled: !!selectedConversation,
+    refetchInterval: 3000 // Auto refresh every 3 seconds
+  });
+
+  const { data: contacts } = useQuery({
+    queryKey: ['wasender-contacts', selectedAccount?.id],
+    queryFn: async () => {
+      if (!selectedAccount) return [];
+      const { data, error } = await (supabase as any)
+        .from('wasender_contacts')
+        .select('*')
+        .eq('account_id', selectedAccount.id)
+        .order('name', { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return data as WaSenderContact[];
+    },
+    enabled: !!selectedAccount
   });
 
   const { data: creditTransactions } = useQuery({
@@ -212,7 +269,8 @@ export default function WaSenderPage() {
       const { error } = await (supabase as any).from('wasender_accounts').insert({
         business_unit_id: selectedBU!.id,
         phone_number: data.phone_number,
-        account_name: data.account_name || null
+        account_name: data.account_name || null,
+        api_key: data.api_key || null
       });
       if (error) throw error;
     },
@@ -220,7 +278,97 @@ export default function WaSenderPage() {
       queryClient.invalidateQueries({ queryKey: ['wasender-accounts'] });
       toast.success('Account WaSender aggiunto');
       setIsAccountDialogOpen(false);
-      setAccountFormData({ phone_number: '', account_name: '' });
+      setAccountFormData({ phone_number: '', account_name: '', api_key: '' });
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const saveContactMutation = useMutation({
+    mutationFn: async (data: typeof contactFormData) => {
+      const tags = data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const { error } = await (supabase as any).from('wasender_contacts').insert({
+        account_id: selectedAccount!.id,
+        phone: data.phone,
+        name: data.name || null,
+        customer_id: data.customer_id || null,
+        lead_id: data.lead_id || null,
+        tags
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wasender-contacts'] });
+      toast.success('Contatto aggiunto');
+      setIsContactDialogOpen(false);
+      setContactFormData({ phone: '', name: '', customer_id: '', lead_id: '', tags: '' });
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const syncContactsMutation = useMutation({
+    mutationFn: async () => {
+      let synced = 0;
+      
+      // Sync customers with phone numbers
+      if (customers) {
+        for (const customer of customers) {
+          if (!customer.phone) continue;
+          
+          // Check if contact exists
+          const { data: existing } = await (supabase as any)
+            .from('wasender_contacts')
+            .select('id')
+            .eq('account_id', selectedAccount!.id)
+            .eq('phone', customer.phone)
+            .maybeSingle();
+          
+          if (!existing) {
+            await (supabase as any).from('wasender_contacts').insert({
+              account_id: selectedAccount!.id,
+              phone: customer.phone,
+              name: customer.name,
+              customer_id: customer.id,
+              tags: ['cliente']
+            });
+            synced++;
+          }
+        }
+      }
+      
+      // Sync leads with phone numbers
+      if (leads) {
+        for (const lead of leads) {
+          if (!lead.phone) continue;
+          
+          const { data: existing } = await (supabase as any)
+            .from('wasender_contacts')
+            .select('id')
+            .eq('account_id', selectedAccount!.id)
+            .eq('phone', lead.phone)
+            .maybeSingle();
+          
+          if (!existing) {
+            await (supabase as any).from('wasender_contacts').insert({
+              account_id: selectedAccount!.id,
+              phone: lead.phone,
+              name: lead.contact_name,
+              lead_id: lead.id,
+              tags: ['lead']
+            });
+            synced++;
+          }
+        }
+      }
+      
+      return synced;
+    },
+    onSuccess: (synced) => {
+      queryClient.invalidateQueries({ queryKey: ['wasender-contacts'] });
+      toast.success(`${synced} contatti sincronizzati`);
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -259,7 +407,6 @@ export default function WaSenderPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      // Chiama l'edge function per inviare il messaggio via WaSenderAPI
       const { data, error } = await supabase.functions.invoke('wasender-send', {
         body: {
           to: selectedConversation!.customer_phone,
@@ -278,16 +425,15 @@ export default function WaSenderPage() {
       queryClient.invalidateQueries({ queryKey: ['wasender-messages'] });
       queryClient.invalidateQueries({ queryKey: ['wasender-conversations'] });
       setNewMessage('');
-      toast.success('Messaggio inviato');
     },
     onError: (error: Error) => {
-      toast.error(`Errore: ${error.message}`);
+      toast.error(`Errore invio: ${error.message}`);
     }
   });
 
   const createConversationMutation = useMutation({
     mutationFn: async (data: typeof newContactData) => {
-      // Verifica se esiste già una conversazione con questo numero
+      // Check if conversation exists
       const { data: existing } = await (supabase as any)
         .from('wasender_conversations')
         .select('id')
@@ -296,7 +442,13 @@ export default function WaSenderPage() {
         .maybeSingle();
 
       if (existing) {
-        throw new Error('Esiste già una conversazione con questo numero');
+        // Select existing conversation
+        const { data: conv } = await (supabase as any)
+          .from('wasender_conversations')
+          .select('*')
+          .eq('id', existing.id)
+          .single();
+        return conv;
       }
 
       const { data: newConv, error } = await (supabase as any).from('wasender_conversations').insert({
@@ -313,7 +465,7 @@ export default function WaSenderPage() {
     },
     onSuccess: (newConv) => {
       queryClient.invalidateQueries({ queryKey: ['wasender-conversations'] });
-      toast.success('Nuova conversazione creata');
+      toast.success('Conversazione pronta');
       setIsNewConversationDialogOpen(false);
       setNewContactData({ phone: '', name: '', customer_id: '', lead_id: '' });
       setSelectedConversation(newConv);
@@ -325,25 +477,35 @@ export default function WaSenderPage() {
 
   const deleteConversationMutation = useMutation({
     mutationFn: async (conversationId: string) => {
-      // Prima elimina i messaggi
       await (supabase as any).from('wasender_messages').delete().eq('conversation_id', conversationId);
-      // Poi elimina la conversazione
       const { error } = await (supabase as any).from('wasender_conversations').delete().eq('id', conversationId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wasender-conversations'] });
       toast.success('Conversazione eliminata');
-      if (selectedConversation) {
-        setSelectedConversation(null);
-      }
+      setSelectedConversation(null);
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
     }
   });
 
-  // Filtra conversazioni in base alla ricerca
+  const deleteContactMutation = useMutation({
+    mutationFn: async (contactId: string) => {
+      const { error } = await (supabase as any).from('wasender_contacts').delete().eq('id', contactId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wasender-contacts'] });
+      toast.success('Contatto eliminato');
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Filtra conversazioni
   const filteredConversations = conversations?.filter(conv => {
     if (!conversationSearch) return true;
     const search = conversationSearch.toLowerCase();
@@ -351,6 +513,17 @@ export default function WaSenderPage() {
       conv.customer_name?.toLowerCase().includes(search) ||
       conv.customer_phone.toLowerCase().includes(search) ||
       conv.last_message_preview?.toLowerCase().includes(search)
+    );
+  });
+
+  // Filtra contatti
+  const filteredContacts = contacts?.filter(contact => {
+    if (!contactSearch) return true;
+    const search = contactSearch.toLowerCase();
+    return (
+      contact.name?.toLowerCase().includes(search) ||
+      contact.phone.toLowerCase().includes(search) ||
+      contact.tags?.some(t => t.toLowerCase().includes(search))
     );
   });
 
@@ -364,7 +537,26 @@ export default function WaSenderPage() {
     }
   };
 
-  // Se non è selezionata nessuna BU, mostra la selezione
+  const startConversationFromContact = (contact: WaSenderContact) => {
+    setNewContactData({
+      phone: contact.phone,
+      name: contact.name || '',
+      customer_id: contact.customer_id || '',
+      lead_id: contact.lead_id || ''
+    });
+    createConversationMutation.mutate({
+      phone: contact.phone,
+      name: contact.name || '',
+      customer_id: contact.customer_id || '',
+      lead_id: contact.lead_id || ''
+    });
+  };
+
+  const webhookUrl = `${window.location.origin.includes('localhost') 
+    ? 'https://rucjkoleodtwrbftwgsm.supabase.co' 
+    : window.location.origin.replace('preview--', '').replace('.lovable.app', '.supabase.co')}/functions/v1/wasender-webhook`;
+
+  // Se non è selezionata nessuna BU
   if (!selectedBU) {
     return (
       <div className="container mx-auto p-6 space-y-6">
@@ -408,9 +600,9 @@ export default function WaSenderPage() {
   // Vista dettaglio BU
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header con back */}
+      {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => { setSelectedBU(null); setSelectedAccount(null); }}>
+        <Button variant="ghost" size="sm" onClick={() => { setSelectedBU(null); setSelectedAccount(null); setSelectedConversation(null); }}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Torna alle attività
         </Button>
@@ -423,7 +615,7 @@ export default function WaSenderPage() {
             WaSender - {selectedBU.name}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gestisci numeri, chat e crediti via WaSenderAPI
+            Gestisci numeri, contatti, chat e crediti via WaSenderAPI
           </p>
         </div>
         <Button onClick={() => setIsAccountDialogOpen(true)}>
@@ -439,7 +631,7 @@ export default function WaSenderPage() {
             <Button
               key={account.id}
               variant={selectedAccount?.id === account.id ? "default" : "outline"}
-              onClick={() => setSelectedAccount(account)}
+              onClick={() => { setSelectedAccount(account); setSelectedConversation(null); }}
               className="flex items-center gap-2"
             >
               <Phone className="h-4 w-4" />
@@ -457,6 +649,10 @@ export default function WaSenderPage() {
             <TabsTrigger value="chats" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               Chat
+            </TabsTrigger>
+            <TabsTrigger value="contacts" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Contatti
             </TabsTrigger>
             <TabsTrigger value="credits" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -495,14 +691,14 @@ export default function WaSenderPage() {
                     {filteredConversations?.map(conv => (
                       <div
                         key={conv.id}
-                        className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                        className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors group ${
                           selectedConversation?.id === conv.id ? 'bg-muted' : ''
                         }`}
                         onClick={() => setSelectedConversation(conv)}
                       >
                         <div className="flex items-start gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-emerald-100 text-emerald-700">
                               {conv.customer_name?.charAt(0) || <User className="h-4 w-4" />}
                             </AvatarFallback>
                           </Avatar>
@@ -518,7 +714,7 @@ export default function WaSenderPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (confirm('Eliminare questa conversazione?')) {
@@ -546,16 +742,10 @@ export default function WaSenderPage() {
                       <div className="p-8 text-center text-muted-foreground">
                         <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>{conversationSearch ? 'Nessun risultato' : 'Nessuna conversazione'}</p>
-                        {!conversationSearch && (
-                          <Button 
-                            variant="link" 
-                            className="mt-2"
-                            onClick={() => setIsNewConversationDialogOpen(true)}
-                          >
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Avvia nuova chat
-                          </Button>
-                        )}
+                        <Button variant="link" className="mt-2" onClick={() => setIsNewConversationDialogOpen(true)}>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Avvia nuova chat
+                        </Button>
                       </div>
                     )}
                   </ScrollArea>
@@ -569,7 +759,7 @@ export default function WaSenderPage() {
                     <CardHeader className="pb-2 border-b">
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-emerald-100 text-emerald-700">
                             {selectedConversation.customer_name?.charAt(0) || <User className="h-4 w-4" />}
                           </AvatarFallback>
                         </Avatar>
@@ -596,7 +786,7 @@ export default function WaSenderPage() {
                                     : 'bg-muted'
                                 }`}
                               >
-                                <p className="text-sm">{msg.content}</p>
+                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                                 <div className={`flex items-center justify-end gap-1 mt-1 ${
                                   msg.direction === 'outbound' ? 'text-emerald-100' : 'text-muted-foreground'
                                 }`}>
@@ -605,9 +795,13 @@ export default function WaSenderPage() {
                                   </span>
                                   {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                                 </div>
+                                {msg.error_message && (
+                                  <p className="text-xs text-red-200 mt-1">{msg.error_message}</p>
+                                )}
                               </div>
                             </div>
                           ))}
+                          <div ref={messagesEndRef} />
                         </div>
                       </ScrollArea>
                       <div className="p-4 border-t">
@@ -617,7 +811,8 @@ export default function WaSenderPage() {
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newMessage.trim()) {
+                              if (e.key === 'Enter' && !e.shiftKey && newMessage.trim()) {
+                                e.preventDefault();
                                 sendMessageMutation.mutate(newMessage.trim());
                               }
                             }}
@@ -636,12 +831,106 @@ export default function WaSenderPage() {
                   <CardContent className="h-full flex items-center justify-center">
                     <div className="text-center text-muted-foreground">
                       <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                      <p>Seleziona una conversazione</p>
+                      <p>Seleziona una conversazione per iniziare</p>
                     </div>
                   </CardContent>
                 )}
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Contacts Tab */}
+          <TabsContent value="contacts" className="mt-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Rubrica Contatti</CardTitle>
+                  <CardDescription>Gestisci i contatti per invio messaggi rapido</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => syncContactsMutation.mutate()} disabled={syncContactsMutation.isPending}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${syncContactsMutation.isPending ? 'animate-spin' : ''}`} />
+                    Sincronizza da CRM
+                  </Button>
+                  <Button onClick={() => setIsContactDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuovo Contatto
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cerca contatti..."
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                      className="pl-8 max-w-sm"
+                    />
+                  </div>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Telefono</TableHead>
+                      <TableHead>Tag</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContacts?.map(contact => (
+                      <TableRow key={contact.id}>
+                        <TableCell className="font-medium">{contact.name || '-'}</TableCell>
+                        <TableCell>{contact.phone}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {contact.tags?.map(tag => (
+                              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {contact.customer_id && <Badge variant="outline">Cliente</Badge>}
+                          {contact.lead_id && <Badge variant="outline">Lead</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startConversationFromContact(contact)}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Eliminare questo contatto?')) {
+                                  deleteContactMutation.mutate(contact.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!filteredContacts || filteredContacts.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          Nessun contatto trovato
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Credits Tab */}
@@ -662,7 +951,7 @@ export default function WaSenderPage() {
                   <CardTitle className="text-sm text-muted-foreground">Stato Account</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Badge variant={selectedAccount.is_active ? 'default' : 'secondary'}>
+                  <Badge variant={selectedAccount.is_active ? 'default' : 'secondary'} className="bg-emerald-600">
                     {selectedAccount.is_active ? 'Attivo' : 'Inattivo'}
                   </Badge>
                 </CardContent>
@@ -694,9 +983,7 @@ export default function WaSenderPage() {
                   <TableBody>
                     {creditTransactions?.map(tx => (
                       <TableRow key={tx.id}>
-                        <TableCell>
-                          {format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm')}
-                        </TableCell>
+                        <TableCell>{format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
                         <TableCell>
                           <Badge variant={tx.transaction_type === 'topup' ? 'default' : 'secondary'}>
                             {tx.transaction_type === 'topup' ? 'Ricarica' : 
@@ -725,11 +1012,69 @@ export default function WaSenderPage() {
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="mt-4 space-y-6">
+            {/* Webhook Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Webhook className="h-5 w-5" />
+                  Configurazione Webhook
+                </CardTitle>
+                <CardDescription>
+                  Configura il webhook su WaSenderAPI per ricevere messaggi in arrivo
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Webhook URL</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={webhookUrl}
+                      readOnly 
+                      className="bg-muted font-mono text-sm"
+                    />
+                    <Button variant="outline" size="icon" onClick={() => {
+                      navigator.clipboard.writeText(webhookUrl);
+                      toast.success('URL copiato!');
+                    }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50 space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Istruzioni di configurazione
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                    <li>Vai su <strong>WaSenderAPI Dashboard</strong> → <strong>Sessions</strong></li>
+                    <li>Seleziona la tua sessione WhatsApp</li>
+                    <li>Nella sezione <strong>Webhook URL</strong>, inserisci l'URL sopra</li>
+                    <li>Se richiesto, inserisci un <strong>Webhook Secret</strong> per la verifica</li>
+                    <li>Abilita gli eventi: <code>messages.upsert</code>, <code>message.status</code></li>
+                    <li>Salva le impostazioni</li>
+                  </ol>
+                  <Button variant="link" className="p-0 h-auto" asChild>
+                    <a 
+                      href="https://wasenderapi.com/api-docs/webhooks/webhook-setup" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Documentazione Webhooks
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* API Configuration */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5 text-emerald-600" />
-                  Configurazione WaSenderAPI
+                  Configurazione API
                 </CardTitle>
                 <CardDescription>
                   Endpoint e configurazioni per l'invio messaggi via WaSenderAPI
@@ -756,13 +1101,13 @@ export default function WaSenderPage() {
                   <div className="bg-muted rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
 {`{
   "to": "+39123456789",
-  "text": "Ciao, questo è un messaggio di test!"
+  "text": "Ciao, questo è un messaggio!"
 }`}
                   </div>
                 </div>
-                <div className="rounded-lg border p-4 bg-amber-50 dark:bg-amber-950/30">
-                  <p className="text-sm text-amber-800 dark:text-amber-200">
-                    <strong>Nota:</strong> L'API key WaSender è memorizzata in modo sicuro nei secrets del progetto e utilizzata automaticamente per l'invio dei messaggi.
+                <div className="rounded-lg border p-4 bg-emerald-50 dark:bg-emerald-950/30">
+                  <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                    <strong>✓</strong> L'API key WaSender è configurata e utilizzata automaticamente per l'invio dei messaggi.
                   </p>
                 </div>
                 <Button variant="link" className="p-0 h-auto" asChild>
@@ -773,7 +1118,7 @@ export default function WaSenderPage() {
                     className="flex items-center gap-1"
                   >
                     <ExternalLink className="h-3 w-3" />
-                    Documentazione WaSenderAPI
+                    Documentazione completa WaSenderAPI
                   </a>
                 </Button>
               </CardContent>
@@ -822,6 +1167,18 @@ export default function WaSenderPage() {
                 onChange={(e) => setAccountFormData(prev => ({ ...prev, account_name: e.target.value }))}
               />
             </div>
+            <div>
+              <Label>API Key (opzionale)</Label>
+              <Input
+                type="password"
+                placeholder="API Key specifica per questo account"
+                value={accountFormData.api_key}
+                onChange={(e) => setAccountFormData(prev => ({ ...prev, api_key: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Se vuoto, verrà usata la chiave globale WASENDER_API_KEY
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>
@@ -829,7 +1186,101 @@ export default function WaSenderPage() {
             </Button>
             <Button 
               onClick={() => saveAccountMutation.mutate(accountFormData)}
-              disabled={!accountFormData.phone_number}
+              disabled={!accountFormData.phone_number || saveAccountMutation.isPending}
+            >
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Contact Dialog */}
+      <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuovo Contatto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Numero di Telefono *</Label>
+              <Input
+                placeholder="Es: +39 333 1234567"
+                value={contactFormData.phone}
+                onChange={(e) => setContactFormData(prev => ({ ...prev, phone: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Nome</Label>
+              <Input
+                placeholder="Nome del contatto"
+                value={contactFormData.name}
+                onChange={(e) => setContactFormData(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Tag (separati da virgola)</Label>
+              <Input
+                placeholder="Es: cliente, vip, newsletter"
+                value={contactFormData.tags}
+                onChange={(e) => setContactFormData(prev => ({ ...prev, tags: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Associa a Cliente</Label>
+                <Select 
+                  value={contactFormData.customer_id} 
+                  onValueChange={(v) => setContactFormData(prev => ({ 
+                    ...prev, 
+                    customer_id: v,
+                    lead_id: ''
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessuno</SelectItem>
+                    {customers?.map(customer => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Associa a Lead</Label>
+                <Select 
+                  value={contactFormData.lead_id} 
+                  onValueChange={(v) => setContactFormData(prev => ({ 
+                    ...prev, 
+                    lead_id: v,
+                    customer_id: ''
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessuno</SelectItem>
+                    {leads?.map(lead => (
+                      <SelectItem key={lead.id} value={lead.id}>
+                        {lead.contact_name || lead.phone || 'Lead'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsContactDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={() => saveContactMutation.mutate(contactFormData)}
+              disabled={!contactFormData.phone || saveContactMutation.isPending}
             >
               Salva
             </Button>
@@ -897,6 +1348,38 @@ export default function WaSenderPage() {
                 onChange={(e) => setNewContactData(prev => ({ ...prev, name: e.target.value }))}
               />
             </div>
+
+            {/* Quick select from contacts */}
+            {contacts && contacts.length > 0 && (
+              <div>
+                <Label>Oppure seleziona dalla rubrica</Label>
+                <Select 
+                  onValueChange={(contactId) => {
+                    const contact = contacts.find(c => c.id === contactId);
+                    if (contact) {
+                      setNewContactData({
+                        phone: contact.phone,
+                        name: contact.name || '',
+                        customer_id: contact.customer_id || '',
+                        lead_id: contact.lead_id || ''
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona contatto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contacts.map(contact => (
+                      <SelectItem key={contact.id} value={contact.id}>
+                        {contact.name || contact.phone} - {contact.phone}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Associa a Cliente</Label>
@@ -940,16 +1423,13 @@ export default function WaSenderPage() {
                     <SelectItem value="">Nessuno</SelectItem>
                     {leads?.map(lead => (
                       <SelectItem key={lead.id} value={lead.id}>
-                        {lead.contact_name || lead.phone || 'Lead senza nome'}
+                        {lead.contact_name || lead.phone || 'Lead'}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Puoi associare la conversazione a un cliente o lead esistente per tracciare le comunicazioni.
-            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -962,7 +1442,7 @@ export default function WaSenderPage() {
               onClick={() => createConversationMutation.mutate(newContactData)}
               disabled={!newContactData.phone || createConversationMutation.isPending}
             >
-              {createConversationMutation.isPending ? 'Creazione...' : 'Avvia Chat'}
+              {createConversationMutation.isPending ? 'Avvio...' : 'Avvia Chat'}
             </Button>
           </DialogFooter>
         </DialogContent>
