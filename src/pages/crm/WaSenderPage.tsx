@@ -15,14 +15,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   MessageCircle, Plus, Settings, ArrowLeft, Building2, 
-  Send, Phone, CreditCard, RefreshCw, Check,
+  Phone, CreditCard, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
-  ExternalLink, Zap, Users, Webhook, Link2
+  ExternalLink, Zap, Users, Webhook, Link2, Image, FileText, Video
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
+import WaSenderChatInput from "@/components/wasender/WaSenderChatInput";
 
 interface BusinessUnit {
   id: string;
@@ -102,7 +103,7 @@ export default function WaSenderPage() {
   const [isCreditDialogOpen, setIsCreditDialogOpen] = useState(false);
   const [isNewConversationDialogOpen, setIsNewConversationDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
-  const [newMessage, setNewMessage] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [conversationSearch, setConversationSearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
   const [newContactData, setNewContactData] = useState({
@@ -405,31 +406,10 @@ export default function WaSenderPage() {
     }
   });
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const { data, error } = await supabase.functions.invoke('wasender-send', {
-        body: {
-          to: selectedConversation!.customer_phone,
-          text: content,
-          accountId: selectedAccount!.id,
-          conversationId: selectedConversation!.id
-        }
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wasender-messages'] });
-      queryClient.invalidateQueries({ queryKey: ['wasender-conversations'] });
-      setNewMessage('');
-    },
-    onError: (error: Error) => {
-      toast.error(`Errore invio: ${error.message}`);
-    }
-  });
+  const handleMessageSent = () => {
+    queryClient.invalidateQueries({ queryKey: ['wasender-messages'] });
+    queryClient.invalidateQueries({ queryKey: ['wasender-conversations'] });
+  };
 
   const createConversationMutation = useMutation({
     mutationFn: async (data: typeof newContactData) => {
@@ -786,7 +766,49 @@ export default function WaSenderPage() {
                                     : 'bg-muted'
                                 }`}
                               >
-                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                {/* Media preview */}
+                                {msg.media_url && msg.message_type === 'image' && (
+                                  <img 
+                                    src={msg.media_url} 
+                                    alt="Immagine" 
+                                    className="max-w-full rounded mb-2 max-h-48 object-cover"
+                                  />
+                                )}
+                                {msg.media_url && msg.message_type === 'video' && (
+                                  <video 
+                                    src={msg.media_url} 
+                                    controls 
+                                    className="max-w-full rounded mb-2 max-h-48"
+                                  />
+                                )}
+                                {msg.media_url && msg.message_type === 'document' && (
+                                  <a 
+                                    href={msg.media_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center gap-2 p-2 rounded mb-2 ${
+                                      msg.direction === 'outbound' ? 'bg-emerald-700' : 'bg-background'
+                                    }`}
+                                  >
+                                    <FileText className="h-5 w-5" />
+                                    <span className="text-sm underline">Apri documento</span>
+                                  </a>
+                                )}
+                                
+                                {msg.content && (
+                                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                )}
+                                
+                                {!msg.content && msg.message_type === 'image' && (
+                                  <p className="text-sm opacity-75">📷 Immagine</p>
+                                )}
+                                {!msg.content && msg.message_type === 'video' && (
+                                  <p className="text-sm opacity-75">🎬 Video</p>
+                                )}
+                                {!msg.content && msg.message_type === 'document' && (
+                                  <p className="text-sm opacity-75">📄 Documento</p>
+                                )}
+                                
                                 <div className={`flex items-center justify-end gap-1 mt-1 ${
                                   msg.direction === 'outbound' ? 'text-emerald-100' : 'text-muted-foreground'
                                 }`}>
@@ -804,27 +826,14 @@ export default function WaSenderPage() {
                           <div ref={messagesEndRef} />
                         </div>
                       </ScrollArea>
-                      <div className="p-4 border-t">
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Scrivi un messaggio..."
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey && newMessage.trim()) {
-                                e.preventDefault();
-                                sendMessageMutation.mutate(newMessage.trim());
-                              }
-                            }}
-                          />
-                          <Button 
-                            onClick={() => newMessage.trim() && sendMessageMutation.mutate(newMessage.trim())}
-                            disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <WaSenderChatInput
+                        conversationId={selectedConversation.id}
+                        customerPhone={selectedConversation.customer_phone}
+                        accountId={selectedAccount.id}
+                        onMessageSent={handleMessageSent}
+                        isSending={isSendingMessage}
+                        setIsSending={setIsSendingMessage}
+                      />
                     </CardContent>
                   </>
                 ) : (
