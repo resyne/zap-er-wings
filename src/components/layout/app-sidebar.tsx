@@ -39,7 +39,8 @@ import {
   Palette,
   CheckSquare,
   Phone,
-  Shield
+  Shield,
+  MessageCircle
 } from "lucide-react";
 
 import {
@@ -100,6 +101,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Offerte", url: "/crm/offers", icon: FileText },
       { title: "Configuratore Prodotti", url: "/crm/product-configurator", icon: Settings },
       { title: "Call Records", url: "/crm/call-records", icon: Phone },
+      { title: "WhatsApp", url: "/crm/whatsapp", icon: MessageCircle },
     ]
   },
   {
