@@ -954,7 +954,7 @@ export default function WhatsAppPage() {
                   </Label>
                   <div className="flex gap-2">
                     <Input 
-                      value={`${window.location.origin.replace('preview--', '').replace('.lovable.app', '.functions.supabase.co')}/functions/v1/whatsapp-webhook`}
+                      value="https://erp.abbattitorizapper.it/functions/v1/whatsapp-webhook"
                       readOnly 
                       className="bg-muted font-mono text-sm"
                     />
@@ -962,7 +962,7 @@ export default function WhatsAppPage() {
                       variant="outline" 
                       size="icon"
                       onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin.replace('preview--', '').replace('.lovable.app', '.functions.supabase.co')}/functions/v1/whatsapp-webhook`);
+                        navigator.clipboard.writeText('https://erp.abbattitorizapper.it/functions/v1/whatsapp-webhook');
                         toast.success('URL copiato negli appunti');
                       }}
                     >
