@@ -18,7 +18,7 @@ import {
   Phone, CreditCard, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
-  ExternalLink, Zap, Users, Webhook, Link2, Image, FileText, Video
+  ExternalLink, Zap, Users, Webhook, Link2, Image, FileText, Video, Mic
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -781,6 +781,13 @@ export default function WaSenderPage() {
                                     className="max-w-full rounded mb-2 max-h-48"
                                   />
                                 )}
+                                {msg.media_url && msg.message_type === 'audio' && (
+                                  <audio 
+                                    src={msg.media_url} 
+                                    controls 
+                                    className="w-full max-w-xs mb-2"
+                                  />
+                                )}
                                 {msg.media_url && msg.message_type === 'document' && (
                                   <a 
                                     href={msg.media_url} 
@@ -807,6 +814,9 @@ export default function WaSenderPage() {
                                 )}
                                 {!msg.content && msg.message_type === 'document' && (
                                   <p className="text-sm opacity-75">📄 Documento</p>
+                                )}
+                                {!msg.content && msg.message_type === 'audio' && (
+                                  <p className="text-sm opacity-75">🎵 Audio</p>
                                 )}
                                 
                                 <div className={`flex items-center justify-end gap-1 mt-1 ${
