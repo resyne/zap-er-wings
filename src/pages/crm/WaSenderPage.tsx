@@ -149,7 +149,7 @@ export default function WaSenderPage() {
     queryKey: ['wasender-accounts', selectedBU?.id],
     queryFn: async () => {
       if (!selectedBU) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wasender_accounts')
         .select('*')
         .eq('business_unit_id', selectedBU.id)
@@ -164,7 +164,7 @@ export default function WaSenderPage() {
     queryKey: ['wasender-conversations', selectedAccount?.id],
     queryFn: async () => {
       if (!selectedAccount) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wasender_conversations')
         .select('*')
         .eq('account_id', selectedAccount.id)
@@ -179,7 +179,7 @@ export default function WaSenderPage() {
     queryKey: ['wasender-messages', selectedConversation?.id],
     queryFn: async () => {
       if (!selectedConversation) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wasender_messages')
         .select('*')
         .eq('conversation_id', selectedConversation.id)
@@ -194,7 +194,7 @@ export default function WaSenderPage() {
     queryKey: ['wasender-credits', selectedAccount?.id],
     queryFn: async () => {
       if (!selectedAccount) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wasender_credit_transactions')
         .select('*')
         .eq('account_id', selectedAccount.id)
@@ -209,7 +209,7 @@ export default function WaSenderPage() {
   // Mutations
   const saveAccountMutation = useMutation({
     mutationFn: async (data: typeof accountFormData) => {
-      const { error } = await supabase.from('wasender_accounts').insert({
+      const { error } = await (supabase as any).from('wasender_accounts').insert({
         business_unit_id: selectedBU!.id,
         phone_number: data.phone_number,
         account_name: data.account_name || null
@@ -231,7 +231,7 @@ export default function WaSenderPage() {
     mutationFn: async (amount: number) => {
       const newBalance = (selectedAccount!.credits_balance || 0) + amount;
       
-      await supabase.from('wasender_credit_transactions').insert({
+      await (supabase as any).from('wasender_credit_transactions').insert({
         account_id: selectedAccount!.id,
         amount: amount,
         transaction_type: 'topup',
@@ -239,7 +239,7 @@ export default function WaSenderPage() {
         notes: 'Ricarica manuale'
       });
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('wasender_accounts')
         .update({ credits_balance: newBalance })
         .eq('id', selectedAccount!.id);
@@ -288,7 +288,7 @@ export default function WaSenderPage() {
   const createConversationMutation = useMutation({
     mutationFn: async (data: typeof newContactData) => {
       // Verifica se esiste già una conversazione con questo numero
-      const { data: existing } = await supabase
+      const { data: existing } = await (supabase as any)
         .from('wasender_conversations')
         .select('id')
         .eq('account_id', selectedAccount!.id)
@@ -299,7 +299,7 @@ export default function WaSenderPage() {
         throw new Error('Esiste già una conversazione con questo numero');
       }
 
-      const { data: newConv, error } = await supabase.from('wasender_conversations').insert({
+      const { data: newConv, error } = await (supabase as any).from('wasender_conversations').insert({
         account_id: selectedAccount!.id,
         customer_phone: data.phone,
         customer_name: data.name || null,
@@ -326,9 +326,9 @@ export default function WaSenderPage() {
   const deleteConversationMutation = useMutation({
     mutationFn: async (conversationId: string) => {
       // Prima elimina i messaggi
-      await supabase.from('wasender_messages').delete().eq('conversation_id', conversationId);
+      await (supabase as any).from('wasender_messages').delete().eq('conversation_id', conversationId);
       // Poi elimina la conversazione
-      const { error } = await supabase.from('wasender_conversations').delete().eq('id', conversationId);
+      const { error } = await (supabase as any).from('wasender_conversations').delete().eq('id', conversationId);
       if (error) throw error;
     },
     onSuccess: () => {

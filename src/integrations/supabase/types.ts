@@ -9437,6 +9437,196 @@ export type Database = {
         }
         Relationships: []
       }
+      wasender_accounts: {
+        Row: {
+          account_name: string | null
+          business_unit_id: string
+          created_at: string
+          credits_balance: number | null
+          id: string
+          is_active: boolean | null
+          phone_number: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          business_unit_id: string
+          created_at?: string
+          credits_balance?: number | null
+          id?: string
+          is_active?: boolean | null
+          phone_number: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          business_unit_id?: string
+          created_at?: string
+          credits_balance?: number | null
+          id?: string
+          is_active?: boolean | null
+          phone_number?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wasender_accounts_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wasender_conversations: {
+        Row: {
+          account_id: string
+          created_at: string
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          lead_id: string | null
+          status: string | null
+          unread_count: number | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          lead_id?: string | null
+          status?: string | null
+          unread_count?: number | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          lead_id?: string | null
+          status?: string | null
+          unread_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wasender_conversations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "wasender_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wasender_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wasender_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wasender_credit_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          balance_after: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          transaction_type: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          balance_after?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          transaction_type: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          balance_after?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wasender_credit_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "wasender_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wasender_messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          direction: string
+          error_message: string | null
+          id: string
+          media_url: string | null
+          message_type: string | null
+          status: string | null
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          message_type?: string | null
+          status?: string | null
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          media_url?: string | null
+          message_type?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wasender_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wasender_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_logs: {
         Row: {
           created_at: string
