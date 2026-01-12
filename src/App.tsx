@@ -15,6 +15,7 @@ import PeoplePage from "./pages/hr/PeoplePage";
 import SafetyPage from "./pages/hr/SafetyPage";
 import CallRecordsPage from "./pages/crm/CallRecordsPage";
 import PhoneExtensionsPage from "./pages/crm/PhoneExtensionsPage";
+import WhatsAppPage from "./pages/crm/WhatsAppPage";
 import TechniciansPage from "./pages/hr/TechniciansPage";
 import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
 import NotFound from "./pages/NotFound";
@@ -152,6 +153,7 @@ const App = () => (
                 <Route path="crm/offers" element={<OffersPage />} />
                 <Route path="crm/call-records" element={<CallRecordsPage />} />
                 <Route path="crm/phone-extensions" element={<PhoneExtensionsPage />} />
+                <Route path="crm/whatsapp" element={<WhatsAppPage />} />
                 <Route path="crm/product-configurator" element={<ProductConfiguratorPage />} />
                 <Route path="mfg/products" element={<ProductCatalogPage />} />
                 <Route path="warehouse/materials" element={<MaterialsPage />} />
