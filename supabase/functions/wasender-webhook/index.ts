@@ -74,6 +74,94 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[^\d+]/g, "").replace(/^\+/, "");
 }
 
+// Helper function to download and store media from WaSender
+async function downloadAndStoreMedia(
+  supabase: any, 
+  mediaUrl: string, 
+  messageType: string, 
+  conversationId: string,
+  wasenderId: string
+): Promise<string | null> {
+  try {
+    // Skip if no URL or if it's already our storage URL
+    if (!mediaUrl) return null;
+    if (mediaUrl.includes("supabase.co/storage")) return mediaUrl;
+
+    console.log(`Downloading media from: ${mediaUrl.substring(0, 100)}...`);
+
+    // Try to download the media
+    const response = await fetch(mediaUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to download media: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    // Determine file extension based on message type and content type
+    const contentType = response.headers.get("content-type") || "";
+    let extension = "bin";
+    
+    if (messageType === "audio") {
+      if (contentType.includes("ogg")) extension = "ogg";
+      else if (contentType.includes("mp3")) extension = "mp3";
+      else if (contentType.includes("mpeg")) extension = "mp3";
+      else if (contentType.includes("webm")) extension = "webm";
+      else if (contentType.includes("m4a")) extension = "m4a";
+      else extension = "ogg"; // WhatsApp typically uses ogg for voice
+    } else if (messageType === "image") {
+      if (contentType.includes("jpeg") || contentType.includes("jpg")) extension = "jpg";
+      else if (contentType.includes("png")) extension = "png";
+      else if (contentType.includes("gif")) extension = "gif";
+      else if (contentType.includes("webp")) extension = "webp";
+      else extension = "jpg";
+    } else if (messageType === "video") {
+      if (contentType.includes("mp4")) extension = "mp4";
+      else if (contentType.includes("webm")) extension = "webm";
+      else extension = "mp4";
+    } else if (messageType === "document") {
+      if (contentType.includes("pdf")) extension = "pdf";
+      else extension = "bin";
+    }
+
+    // Generate unique filename
+    const fileName = `${Date.now()}-${wasenderId.substring(0, 8)}.${extension}`;
+    const filePath = `${conversationId}/${fileName}`;
+
+    // Upload to Supabase storage
+    const { error: uploadError } = await supabase.storage
+      .from("wasender-media")
+      .upload(filePath, uint8Array, {
+        contentType: contentType || `${messageType}/${extension}`,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading media to storage:", uploadError);
+      return null;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from("wasender-media")
+      .getPublicUrl(filePath);
+
+    console.log(`Media saved to storage: ${publicUrl}`);
+    return publicUrl;
+
+  } catch (error) {
+    console.error("Error downloading/storing media:", error);
+    return null;
+  }
+}
+
 async function handleIncomingMessage(supabase: any, data: any, sessionId?: string) {
   try {
     // WaSender format: data.messages is a single object (not array)
@@ -126,50 +214,49 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     // Determine message type and extract media URL
     const rawMessage = messageData.message || {};
     let messageType = "text";
-    let mediaUrl: string | null = null;
+    let originalMediaUrl: string | null = null;
 
     if (rawMessage.imageMessage) {
       messageType = "image";
-      // WaSender may provide directPath or url for media
-      mediaUrl = rawMessage.imageMessage.url || 
+      originalMediaUrl = rawMessage.imageMessage.url || 
                  messageData.mediaUrl || 
                  messageData.media?.url ||
                  null;
     } else if (rawMessage.videoMessage) {
       messageType = "video";
-      mediaUrl = rawMessage.videoMessage.url || 
+      originalMediaUrl = rawMessage.videoMessage.url || 
                  messageData.mediaUrl || 
                  messageData.media?.url ||
                  null;
     } else if (rawMessage.audioMessage) {
       messageType = "audio";
-      mediaUrl = rawMessage.audioMessage.url || 
+      originalMediaUrl = rawMessage.audioMessage.url || 
                  messageData.mediaUrl || 
                  messageData.media?.url ||
                  null;
     } else if (rawMessage.documentMessage) {
       messageType = "document";
-      mediaUrl = rawMessage.documentMessage.url || 
+      originalMediaUrl = rawMessage.documentMessage.url || 
                  messageData.mediaUrl || 
                  messageData.media?.url ||
                  null;
     } else if (rawMessage.stickerMessage) {
       messageType = "sticker";
-      mediaUrl = rawMessage.stickerMessage.url || 
+      originalMediaUrl = rawMessage.stickerMessage.url || 
                  messageData.mediaUrl || 
                  messageData.media?.url ||
                  null;
     }
 
     // Also check for top-level media fields (some WaSender versions)
-    if (!mediaUrl && messageData.mediaUrl) {
-      mediaUrl = messageData.mediaUrl;
+    if (!originalMediaUrl && messageData.mediaUrl) {
+      originalMediaUrl = messageData.mediaUrl;
     }
-    if (!mediaUrl && messageData.media?.url) {
-      mediaUrl = messageData.media.url;
+    if (!originalMediaUrl && messageData.media?.url) {
+      originalMediaUrl = messageData.media.url;
     }
-    if (!mediaUrl && messageData.media?.link) {
-      mediaUrl = messageData.media.link;
+    if (!originalMediaUrl && messageData.media?.link) {
+      originalMediaUrl = messageData.media.link;
     }
 
     // Get push name (sender's WhatsApp name)
@@ -234,6 +321,21 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
         conversation = conv;
         break;
       }
+    }
+
+    // Generate a temporary conversation ID for file storage (we'll update it after)
+    const tempConversationId = conversation?.id || `temp-${Date.now()}`;
+
+    // Download and store media if present
+    let mediaUrl: string | null = null;
+    if (originalMediaUrl && messageType !== "text") {
+      mediaUrl = await downloadAndStoreMedia(
+        supabase, 
+        originalMediaUrl, 
+        messageType, 
+        tempConversationId,
+        wasenderId
+      );
     }
 
     if (!conversation) {
