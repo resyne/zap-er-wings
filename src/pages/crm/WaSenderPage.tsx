@@ -1229,10 +1229,10 @@ export default function WaSenderPage() {
               <div>
                 <Label>Associa a Cliente</Label>
                 <Select 
-                  value={contactFormData.customer_id} 
+                  value={contactFormData.customer_id || "none"} 
                   onValueChange={(v) => setContactFormData(prev => ({ 
                     ...prev, 
-                    customer_id: v,
+                    customer_id: v === "none" ? "" : v,
                     lead_id: ''
                   }))}
                 >
@@ -1240,7 +1240,7 @@ export default function WaSenderPage() {
                     <SelectValue placeholder="Seleziona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {customers?.map(customer => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}
@@ -1252,10 +1252,10 @@ export default function WaSenderPage() {
               <div>
                 <Label>Associa a Lead</Label>
                 <Select 
-                  value={contactFormData.lead_id} 
+                  value={contactFormData.lead_id || "none"} 
                   onValueChange={(v) => setContactFormData(prev => ({ 
                     ...prev, 
-                    lead_id: v,
+                    lead_id: v === "none" ? "" : v,
                     customer_id: ''
                   }))}
                 >
@@ -1263,7 +1263,7 @@ export default function WaSenderPage() {
                     <SelectValue placeholder="Seleziona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {leads?.map(lead => (
                       <SelectItem key={lead.id} value={lead.id}>
                         {lead.contact_name || lead.phone || 'Lead'}
@@ -1384,19 +1384,19 @@ export default function WaSenderPage() {
               <div>
                 <Label>Associa a Cliente</Label>
                 <Select 
-                  value={newContactData.customer_id} 
+                  value={newContactData.customer_id || "none"} 
                   onValueChange={(v) => setNewContactData(prev => ({ 
                     ...prev, 
-                    customer_id: v,
+                    customer_id: v === "none" ? "" : v,
                     lead_id: '',
-                    name: prev.name || customers?.find(c => c.id === v)?.name || ''
+                    name: v === "none" ? prev.name : (prev.name || customers?.find(c => c.id === v)?.name || '')
                   }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {customers?.map(customer => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}
@@ -1408,19 +1408,19 @@ export default function WaSenderPage() {
               <div>
                 <Label>Associa a Lead</Label>
                 <Select 
-                  value={newContactData.lead_id} 
+                  value={newContactData.lead_id || "none"} 
                   onValueChange={(v) => setNewContactData(prev => ({ 
                     ...prev, 
-                    lead_id: v,
+                    lead_id: v === "none" ? "" : v,
                     customer_id: '',
-                    name: prev.name || leads?.find(l => l.id === v)?.contact_name || ''
+                    name: v === "none" ? prev.name : (prev.name || leads?.find(l => l.id === v)?.contact_name || '')
                   }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {leads?.map(lead => (
                       <SelectItem key={lead.id} value={lead.id}>
                         {lead.contact_name || lead.phone || 'Lead'}
