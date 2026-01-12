@@ -123,14 +123,54 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
                           messageData.text ||
                           "";
     
-    // Determine message type
+    // Determine message type and extract media URL
     const rawMessage = messageData.message || {};
-    const messageType = rawMessage.imageMessage ? "image" :
-                       rawMessage.videoMessage ? "video" :
-                       rawMessage.audioMessage ? "audio" :
-                       rawMessage.documentMessage ? "document" :
-                       rawMessage.stickerMessage ? "sticker" :
-                       "text";
+    let messageType = "text";
+    let mediaUrl: string | null = null;
+
+    if (rawMessage.imageMessage) {
+      messageType = "image";
+      // WaSender may provide directPath or url for media
+      mediaUrl = rawMessage.imageMessage.url || 
+                 messageData.mediaUrl || 
+                 messageData.media?.url ||
+                 null;
+    } else if (rawMessage.videoMessage) {
+      messageType = "video";
+      mediaUrl = rawMessage.videoMessage.url || 
+                 messageData.mediaUrl || 
+                 messageData.media?.url ||
+                 null;
+    } else if (rawMessage.audioMessage) {
+      messageType = "audio";
+      mediaUrl = rawMessage.audioMessage.url || 
+                 messageData.mediaUrl || 
+                 messageData.media?.url ||
+                 null;
+    } else if (rawMessage.documentMessage) {
+      messageType = "document";
+      mediaUrl = rawMessage.documentMessage.url || 
+                 messageData.mediaUrl || 
+                 messageData.media?.url ||
+                 null;
+    } else if (rawMessage.stickerMessage) {
+      messageType = "sticker";
+      mediaUrl = rawMessage.stickerMessage.url || 
+                 messageData.mediaUrl || 
+                 messageData.media?.url ||
+                 null;
+    }
+
+    // Also check for top-level media fields (some WaSender versions)
+    if (!mediaUrl && messageData.mediaUrl) {
+      mediaUrl = messageData.mediaUrl;
+    }
+    if (!mediaUrl && messageData.media?.url) {
+      mediaUrl = messageData.media.url;
+    }
+    if (!mediaUrl && messageData.media?.link) {
+      mediaUrl = messageData.media.link;
+    }
 
     // Get push name (sender's WhatsApp name)
     const pushName = messageData.pushName || key.pushName || null;
@@ -197,7 +237,14 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     }
 
     if (!conversation) {
-      // Create new conversation
+      // Create new conversation with appropriate preview
+      const preview = messageContent ? messageContent.substring(0, 100) :
+                     messageType === "audio" ? "🎵 Audio" :
+                     messageType === "image" ? "📷 Immagine" :
+                     messageType === "video" ? "🎬 Video" :
+                     messageType === "document" ? "📄 Documento" :
+                     messageType === "sticker" ? "🎨 Sticker" : "";
+      
       const { data: newConv, error: createError } = await supabase
         .from("wasender_conversations")
         .insert({
@@ -207,7 +254,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
           status: "active",
           unread_count: 1,
           last_message_at: new Date().toISOString(),
-          last_message_preview: messageContent.substring(0, 100)
+          last_message_preview: preview
         })
         .select()
         .single();
@@ -219,13 +266,20 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
       conversation = newConv;
       console.log(`Created new conversation for ${senderPhone}`);
     } else {
-      // Update existing conversation
+      // Update existing conversation with appropriate preview
+      const preview = messageContent ? messageContent.substring(0, 100) :
+                     messageType === "audio" ? "🎵 Audio" :
+                     messageType === "image" ? "📷 Immagine" :
+                     messageType === "video" ? "🎬 Video" :
+                     messageType === "document" ? "📄 Documento" :
+                     messageType === "sticker" ? "🎨 Sticker" : "";
+      
       const { error: updateError } = await supabase
         .from("wasender_conversations")
         .update({ 
           unread_count: (conversation.unread_count || 0) + 1,
           last_message_at: new Date().toISOString(),
-          last_message_preview: messageContent.substring(0, 100),
+          last_message_preview: preview,
           customer_name: pushName || undefined // Update name if we have it
         })
         .eq("id", conversation.id);
@@ -236,14 +290,15 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
       console.log(`Updated existing conversation for ${senderPhone}`);
     }
 
-    // Save the message
+    // Save the message with media URL if present
     const { error: msgError } = await supabase
       .from("wasender_messages")
       .insert({
         conversation_id: conversation.id,
         direction: "inbound",
         message_type: messageType,
-        content: messageContent,
+        content: messageContent || null,
+        media_url: mediaUrl,
         status: "received",
         wasender_id: wasenderId
       });
@@ -253,7 +308,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
       return;
     }
 
-    console.log(`Message saved successfully from ${senderPhone}`);
+    console.log(`Message saved successfully from ${senderPhone}, type: ${messageType}, has media: ${!!mediaUrl}`);
 
   } catch (error) {
     console.error("Error handling incoming message:", error);
