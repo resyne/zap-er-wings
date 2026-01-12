@@ -8,9 +8,16 @@ const corsHeaders = {
 
 interface SendMessageRequest {
   to: string;
-  text: string;
+  text?: string;
   accountId: string;
   conversationId: string;
+  // Media options
+  imageUrl?: string;
+  videoUrl?: string;
+  documentUrl?: string;
+  audioUrl?: string;
+  fileName?: string;
+  messageType?: "text" | "image" | "video" | "document" | "audio";
 }
 
 serve(async (req) => {
@@ -32,11 +39,21 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { to, text, accountId, conversationId } = await req.json() as SendMessageRequest;
+    const body = await req.json() as SendMessageRequest;
+    const { to, text, accountId, conversationId, imageUrl, videoUrl, documentUrl, audioUrl, fileName, messageType = "text" } = body;
 
-    if (!to || !text) {
+    if (!to) {
       return new Response(
-        JSON.stringify({ error: "Parametri mancanti: to, text richiesti" }),
+        JSON.stringify({ error: "Parametro 'to' mancante" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate that we have content to send
+    const hasMedia = imageUrl || videoUrl || documentUrl || audioUrl;
+    if (!text && !hasMedia) {
+      return new Response(
+        JSON.stringify({ error: "Devi fornire un testo o un file da inviare" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -44,7 +61,33 @@ serve(async (req) => {
     // Normalize phone number (remove spaces, ensure format)
     const normalizedPhone = to.replace(/\s+/g, "").replace(/^00/, "+");
 
-    console.log(`Sending WaSender message to ${normalizedPhone}`);
+    console.log(`Sending WaSender message to ${normalizedPhone}, type: ${messageType}`);
+
+    // Build the request body for WaSender API
+    const wasenderBody: Record<string, string> = {
+      to: normalizedPhone,
+    };
+
+    // Add text/caption if provided
+    if (text) {
+      wasenderBody.text = text;
+    }
+
+    // Add media URL based on type
+    if (imageUrl) {
+      wasenderBody.imageUrl = imageUrl;
+    } else if (videoUrl) {
+      wasenderBody.videoUrl = videoUrl;
+    } else if (documentUrl) {
+      wasenderBody.documentUrl = documentUrl;
+      if (fileName) {
+        wasenderBody.fileName = fileName;
+      }
+    } else if (audioUrl) {
+      wasenderBody.audioUrl = audioUrl;
+    }
+
+    console.log("WaSender request body:", JSON.stringify(wasenderBody));
 
     // Call WaSenderAPI
     const wasenderResponse = await fetch("https://www.wasenderapi.com/api/send-message", {
@@ -53,22 +96,29 @@ serve(async (req) => {
         "Authorization": `Bearer ${wasenderApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        to: normalizedPhone,
-        text: text,
-      }),
+      body: JSON.stringify(wasenderBody),
     });
 
     const wasenderData = await wasenderResponse.json();
     console.log("WaSender response:", wasenderData);
+
+    // Determine the actual message type
+    const actualMessageType = imageUrl ? "image" : 
+                              videoUrl ? "video" : 
+                              documentUrl ? "document" : 
+                              audioUrl ? "audio" : "text";
+
+    // Get media URL for storage
+    const mediaUrl = imageUrl || videoUrl || documentUrl || audioUrl || null;
 
     if (!wasenderResponse.ok) {
       // Save failed message to database
       await supabase.from("wasender_messages").insert({
         conversation_id: conversationId,
         direction: "outbound",
-        message_type: "text",
-        content: text,
+        message_type: actualMessageType,
+        content: text || null,
+        media_url: mediaUrl,
         status: "failed",
         error_message: wasenderData.message || wasenderData.error || "Errore sconosciuto",
       });
@@ -88,9 +138,11 @@ serve(async (req) => {
       .insert({
         conversation_id: conversationId,
         direction: "outbound",
-        message_type: "text",
-        content: text,
+        message_type: actualMessageType,
+        content: text || null,
+        media_url: mediaUrl,
         status: "sent",
+        wasender_id: wasenderData.data?.msgId?.toString() || null,
       })
       .select()
       .single();
@@ -100,11 +152,16 @@ serve(async (req) => {
     }
 
     // Update conversation with last message
+    const preview = text || (actualMessageType === "image" ? "📷 Immagine" : 
+                            actualMessageType === "video" ? "🎬 Video" : 
+                            actualMessageType === "document" ? "📄 Documento" : 
+                            actualMessageType === "audio" ? "🎵 Audio" : "Messaggio");
+    
     await supabase
       .from("wasender_conversations")
       .update({
         last_message_at: new Date().toISOString(),
-        last_message_preview: text.substring(0, 100),
+        last_message_preview: preview.substring(0, 100),
       })
       .eq("id", conversationId);
 
