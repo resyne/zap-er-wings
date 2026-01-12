@@ -17,7 +17,8 @@ import {
   MessageCircle, Plus, Settings, ArrowLeft, Building2, 
   Send, Phone, CreditCard, FileText, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
-  DollarSign, MessageSquare, UserPlus, Search
+  DollarSign, MessageSquare, UserPlus, Search, Copy, 
+  ExternalLink, Webhook, Shield, Link2
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -893,7 +894,8 @@ export default function WhatsAppPage() {
           </TabsContent>
 
           {/* Settings Tab */}
-          <TabsContent value="settings" className="mt-4">
+          <TabsContent value="settings" className="mt-4 space-y-6">
+            {/* Account Info Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Configurazione Account</CardTitle>
@@ -928,6 +930,184 @@ export default function WhatsAppPage() {
                   <Badge variant={selectedAccount.is_active ? 'default' : 'secondary'}>
                     {selectedAccount.status}
                   </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Webhook Configuration Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Webhook className="h-5 w-5" />
+                  Configurazione Webhook
+                </CardTitle>
+                <CardDescription>
+                  Configura il webhook per ricevere messaggi in tempo reale da WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Webhook URL */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Callback URL
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={`${window.location.origin.replace('preview--', '').replace('.lovable.app', '.functions.supabase.co')}/functions/v1/whatsapp-webhook`}
+                      readOnly 
+                      className="bg-muted font-mono text-sm"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin.replace('preview--', '').replace('.lovable.app', '.functions.supabase.co')}/functions/v1/whatsapp-webhook`);
+                        toast.success('URL copiato negli appunti');
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Copia questo URL e incollalo nella configurazione del webhook su Meta Business Manager
+                  </p>
+                </div>
+
+                {/* Verify Token */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Verify Token
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value="WHATSAPP_VERIFY_TOKEN_ZAPPER"
+                      readOnly 
+                      className="bg-muted font-mono text-sm"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText('WHATSAPP_VERIFY_TOKEN_ZAPPER');
+                        toast.success('Token copiato negli appunti');
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Usa questo token come "Verify Token" durante la configurazione del webhook
+                  </p>
+                </div>
+
+                {/* Webhook Fields */}
+                <div className="space-y-2">
+                  <Label>Campi Webhook da sottoscrivere</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['messages', 'message_template_status_update', 'message_template_quality_update'].map(field => (
+                      <div key={field} className="flex items-center gap-2 p-2 rounded-md bg-muted">
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-mono">{field}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Assicurati di selezionare questi campi nella configurazione del webhook
+                  </p>
+                </div>
+
+                {/* Instructions */}
+                <div className="rounded-lg border p-4 bg-muted/50 space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Istruzioni di configurazione
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                    <li>Vai su <strong>Meta Business Manager</strong> → <strong>WhatsApp</strong> → <strong>Configuration</strong></li>
+                    <li>Nella sezione <strong>Webhook</strong>, clicca su <strong>Edit</strong></li>
+                    <li>Inserisci il <strong>Callback URL</strong> copiato sopra</li>
+                    <li>Inserisci il <strong>Verify Token</strong> copiato sopra</li>
+                    <li>Clicca su <strong>Verify and save</strong></li>
+                    <li>Sottoscrivi i campi: <code>messages</code>, <code>message_template_status_update</code></li>
+                  </ol>
+                  <Button variant="link" className="p-0 h-auto" asChild>
+                    <a 
+                      href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started#configure-webhooks" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Documentazione ufficiale Meta
+                    </a>
+                  </Button>
+                </div>
+
+                {/* Test Webhook */}
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div>
+                    <p className="font-medium">Test Webhook</p>
+                    <p className="text-sm text-muted-foreground">
+                      Verifica che il webhook sia configurato correttamente
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const webhookUrl = `${window.location.origin.replace('preview--', '').replace('.lovable.app', '.functions.supabase.co')}/functions/v1/whatsapp-webhook`;
+                        const testUrl = `${webhookUrl}?hub.mode=subscribe&hub.verify_token=WHATSAPP_VERIFY_TOKEN_ZAPPER&hub.challenge=test123`;
+                        const response = await fetch(testUrl);
+                        if (response.ok) {
+                          toast.success('Webhook verificato correttamente!');
+                        } else {
+                          toast.error('Errore nella verifica del webhook');
+                        }
+                      } catch (error) {
+                        toast.error('Impossibile raggiungere il webhook');
+                      }
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Testa Webhook
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* API Configuration Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Configurazione API
+                </CardTitle>
+                <CardDescription>
+                  Endpoint e configurazioni per l'invio messaggi
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>API Endpoint (Graph API v21.0)</Label>
+                  <Input 
+                    value={`https://graph.facebook.com/v21.0/${selectedAccount.phone_number_id}/messages`}
+                    readOnly 
+                    className="bg-muted font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Headers richiesti</Label>
+                  <div className="bg-muted rounded-md p-3 font-mono text-xs space-y-1">
+                    <p><span className="text-blue-600">Authorization:</span> Bearer {"<ACCESS_TOKEN>"}</p>
+                    <p><span className="text-blue-600">Content-Type:</span> application/json</p>
+                  </div>
+                </div>
+                <div className="rounded-lg border p-4 bg-amber-50 dark:bg-amber-950/30">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Nota:</strong> L'access token è memorizzato in modo sicuro e utilizzato automaticamente per l'invio dei messaggi.
+                  </p>
                 </div>
               </CardContent>
             </Card>
