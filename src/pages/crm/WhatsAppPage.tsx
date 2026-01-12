@@ -17,7 +17,7 @@ import {
   MessageCircle, Plus, Settings, ArrowLeft, Building2, 
   Send, Phone, CreditCard, FileText, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
-  DollarSign, MessageSquare
+  DollarSign, MessageSquare, UserPlus, Search
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -107,7 +107,15 @@ export default function WhatsAppPage() {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isCreditDialogOpen, setIsCreditDialogOpen] = useState(false);
+  const [isNewConversationDialogOpen, setIsNewConversationDialogOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [newContactData, setNewContactData] = useState({
+    phone: '',
+    name: '',
+    customer_id: '',
+    lead_id: ''
+  });
   
   const [accountFormData, setAccountFormData] = useState({
     phone_number_id: '',
@@ -125,6 +133,34 @@ export default function WhatsAppPage() {
   });
 
   const [creditAmount, setCreditAmount] = useState('');
+
+  // Query per clienti e lead (per associazione)
+  const { data: customers } = useQuery({
+    queryKey: ['customers-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, phone, email')
+        .eq('active', true)
+        .order('name')
+        .limit(100);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: leads } = useQuery({
+    queryKey: ['leads-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, contact_name, phone, email')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data;
+    }
+  });
 
   // Queries
   const { data: businessUnits } = useQuery({
@@ -323,6 +359,75 @@ export default function WhatsAppPage() {
     }
   });
 
+  const createConversationMutation = useMutation({
+    mutationFn: async (data: typeof newContactData) => {
+      // Verifica se esiste già una conversazione con questo numero
+      const { data: existing } = await supabase
+        .from('whatsapp_conversations')
+        .select('id')
+        .eq('account_id', selectedAccount!.id)
+        .eq('customer_phone', data.phone)
+        .maybeSingle();
+
+      if (existing) {
+        throw new Error('Esiste già una conversazione con questo numero');
+      }
+
+      const { data: newConv, error } = await supabase.from('whatsapp_conversations').insert({
+        account_id: selectedAccount!.id,
+        customer_phone: data.phone,
+        customer_name: data.name || null,
+        customer_id: data.customer_id || null,
+        lead_id: data.lead_id || null,
+        status: 'active'
+      }).select().single();
+      
+      if (error) throw error;
+      return newConv;
+    },
+    onSuccess: (newConv) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      toast.success('Nuova conversazione creata');
+      setIsNewConversationDialogOpen(false);
+      setNewContactData({ phone: '', name: '', customer_id: '', lead_id: '' });
+      setSelectedConversation(newConv);
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      // Prima elimina i messaggi
+      await supabase.from('whatsapp_messages').delete().eq('conversation_id', conversationId);
+      // Poi elimina la conversazione
+      const { error } = await supabase.from('whatsapp_conversations').delete().eq('id', conversationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      toast.success('Conversazione eliminata');
+      if (selectedConversation) {
+        setSelectedConversation(null);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Filtra conversazioni in base alla ricerca
+  const filteredConversations = conversations?.filter(conv => {
+    if (!conversationSearch) return true;
+    const search = conversationSearch.toLowerCase();
+    return (
+      conv.customer_name?.toLowerCase().includes(search) ||
+      conv.customer_phone.toLowerCase().includes(search) ||
+      conv.last_message_preview?.toLowerCase().includes(search)
+    );
+  });
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'read': return <CheckCheck className="h-3 w-3 text-blue-500" />;
@@ -465,11 +570,25 @@ export default function WhatsAppPage() {
               {/* Conversations List */}
               <Card className="lg:col-span-1">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Conversazioni</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Conversazioni</CardTitle>
+                    <Button size="sm" onClick={() => setIsNewConversationDialogOpen(true)}>
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="relative mt-2">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cerca conversazioni..."
+                      value={conversationSearch}
+                      onChange={(e) => setConversationSearch(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <ScrollArea className="h-[520px]">
-                    {conversations?.map(conv => (
+                  <ScrollArea className="h-[480px]">
+                    {filteredConversations?.map(conv => (
                       <div
                         key={conv.id}
                         className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
@@ -488,9 +607,24 @@ export default function WhatsAppPage() {
                               <p className="font-medium truncate">
                                 {conv.customer_name || conv.customer_phone}
                               </p>
-                              {conv.unread_count > 0 && (
-                                <Badge className="bg-green-600">{conv.unread_count}</Badge>
-                              )}
+                              <div className="flex items-center gap-1">
+                                {conv.unread_count > 0 && (
+                                  <Badge className="bg-green-600">{conv.unread_count}</Badge>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Eliminare questa conversazione?')) {
+                                      deleteConversationMutation.mutate(conv.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground truncate">
                               {conv.last_message_preview || 'Nessun messaggio'}
@@ -504,10 +638,20 @@ export default function WhatsAppPage() {
                         </div>
                       </div>
                     ))}
-                    {(!conversations || conversations.length === 0) && (
+                    {(!filteredConversations || filteredConversations.length === 0) && (
                       <div className="p-8 text-center text-muted-foreground">
                         <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Nessuna conversazione</p>
+                        <p>{conversationSearch ? 'Nessun risultato' : 'Nessuna conversazione'}</p>
+                        {!conversationSearch && (
+                          <Button 
+                            variant="link" 
+                            className="mt-2"
+                            onClick={() => setIsNewConversationDialogOpen(true)}
+                          >
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Avvia nuova chat
+                          </Button>
+                        )}
                       </div>
                     )}
                   </ScrollArea>
@@ -973,6 +1117,103 @@ export default function WhatsAppPage() {
               disabled={!creditAmount || parseFloat(creditAmount) <= 0}
             >
               Ricarica
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Conversation Dialog */}
+      <Dialog open={isNewConversationDialogOpen} onOpenChange={setIsNewConversationDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuova Conversazione</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Numero di Telefono *</Label>
+              <Input
+                placeholder="Es: +39 333 1234567"
+                value={newContactData.phone}
+                onChange={(e) => setNewContactData(prev => ({ ...prev, phone: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Inserisci il numero con prefisso internazionale
+              </p>
+            </div>
+            <div>
+              <Label>Nome Contatto</Label>
+              <Input
+                placeholder="Nome del contatto"
+                value={newContactData.name}
+                onChange={(e) => setNewContactData(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Associa a Cliente</Label>
+                <Select 
+                  value={newContactData.customer_id} 
+                  onValueChange={(v) => setNewContactData(prev => ({ 
+                    ...prev, 
+                    customer_id: v,
+                    lead_id: '', // Clear lead if customer selected
+                    name: prev.name || customers?.find(c => c.id === v)?.name || ''
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessuno</SelectItem>
+                    {customers?.map(customer => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Associa a Lead</Label>
+                <Select 
+                  value={newContactData.lead_id} 
+                  onValueChange={(v) => setNewContactData(prev => ({ 
+                    ...prev, 
+                    lead_id: v,
+                    customer_id: '', // Clear customer if lead selected
+                    name: prev.name || leads?.find(l => l.id === v)?.contact_name || ''
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessuno</SelectItem>
+                    {leads?.map(lead => (
+                      <SelectItem key={lead.id} value={lead.id}>
+                        {lead.contact_name || lead.phone || 'Lead senza nome'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Puoi associare la conversazione a un cliente o lead esistente per tracciare le comunicazioni.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsNewConversationDialogOpen(false);
+              setNewContactData({ phone: '', name: '', customer_id: '', lead_id: '' });
+            }}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={() => createConversationMutation.mutate(newContactData)}
+              disabled={!newContactData.phone || createConversationMutation.isPending}
+            >
+              {createConversationMutation.isPending ? 'Creazione...' : 'Avvia Chat'}
             </Button>
           </DialogFooter>
         </DialogContent>
