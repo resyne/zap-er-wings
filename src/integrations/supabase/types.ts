@@ -9447,6 +9447,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           phone_number: string
+          session_id: string | null
           status: string | null
           updated_at: string
           webhook_secret: string | null
@@ -9460,6 +9461,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           phone_number: string
+          session_id?: string | null
           status?: string | null
           updated_at?: string
           webhook_secret?: string | null
@@ -9473,6 +9475,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           phone_number?: string
+          session_id?: string | null
           status?: string | null
           updated_at?: string
           webhook_secret?: string | null
@@ -9658,6 +9661,7 @@ export type Database = {
           media_url: string | null
           message_type: string | null
           status: string | null
+          wasender_id: string | null
         }
         Insert: {
           content?: string | null
@@ -9669,6 +9673,7 @@ export type Database = {
           media_url?: string | null
           message_type?: string | null
           status?: string | null
+          wasender_id?: string | null
         }
         Update: {
           content?: string | null
@@ -9680,6 +9685,7 @@ export type Database = {
           media_url?: string | null
           message_type?: string | null
           status?: string | null
+          wasender_id?: string | null
         }
         Relationships: [
           {
