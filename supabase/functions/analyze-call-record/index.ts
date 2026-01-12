@@ -295,15 +295,20 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
     if (!foundLeadId && normalized.length >= 6) {
       console.log(`No lead found for ${customerNumber}, creating new lead...`);
       
+      // Genera codice random per identificare il lead
+      const randomCode = `CALL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const callDate = new Date().toLocaleDateString('it-IT');
+      const callTime = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      
       const { data: newLead, error: createError } = await supabase
         .from('leads')
         .insert({
-          contact_name: 'Lead da chiamata',
+          contact_name: `Lead ${randomCode}`,
           company_name: 'Da identificare',
           phone: customerNumber,
           status: 'new',
           source: 'phone_call',
-          notes: `Lead creato automaticamente da chiamata telefonica il ${new Date().toLocaleDateString('it-IT')}`
+          notes: `Lead creato automaticamente da chiamata telefonica.\nCodice: ${randomCode}\nData: ${callDate} ore ${callTime}\nNumero: ${customerNumber}`
         })
         .select('id')
         .single();
@@ -312,7 +317,7 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
         console.error('Error creating lead from call:', createError);
       } else if (newLead) {
         foundLeadId = newLead.id;
-        console.log(`Created new lead ${foundLeadId} from call`);
+        console.log(`Created new lead ${foundLeadId} with code ${randomCode} from call`);
       }
     }
 
