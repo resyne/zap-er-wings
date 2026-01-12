@@ -18,7 +18,7 @@ import {
   Phone, CreditCard, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
-  ExternalLink, Zap, Users, Webhook, Link2, Image, FileText, Video, Mic
+  ExternalLink, Zap, Users, Webhook, Link2, Image, FileText, Video, Mic, Music
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -781,12 +781,24 @@ export default function WaSenderPage() {
                                     className="max-w-full rounded mb-2 max-h-48"
                                   />
                                 )}
-                                {msg.media_url && msg.message_type === 'audio' && (
-                                  <audio 
-                                    src={msg.media_url} 
-                                    controls 
-                                    className="w-full max-w-xs mb-2"
-                                  />
+                                {msg.message_type === 'audio' && (
+                                  <div className="mb-2">
+                                    {msg.media_url ? (
+                                      <audio 
+                                        src={msg.media_url} 
+                                        controls 
+                                        className="w-full max-w-[280px]"
+                                        preload="metadata"
+                                      />
+                                    ) : (
+                                      <div className={`flex items-center gap-2 p-3 rounded ${
+                                        msg.direction === 'outbound' ? 'bg-emerald-700/50' : 'bg-muted'
+                                      }`}>
+                                        <Music className="h-5 w-5" />
+                                        <span className="text-sm">Messaggio vocale (non disponibile)</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                                 {msg.media_url && msg.message_type === 'document' && (
                                   <a 
@@ -806,17 +818,14 @@ export default function WaSenderPage() {
                                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                                 )}
                                 
-                                {!msg.content && msg.message_type === 'image' && (
+                                {!msg.content && msg.message_type === 'image' && !msg.media_url && (
                                   <p className="text-sm opacity-75">📷 Immagine</p>
                                 )}
-                                {!msg.content && msg.message_type === 'video' && (
+                                {!msg.content && msg.message_type === 'video' && !msg.media_url && (
                                   <p className="text-sm opacity-75">🎬 Video</p>
                                 )}
-                                {!msg.content && msg.message_type === 'document' && (
+                                {!msg.content && msg.message_type === 'document' && !msg.media_url && (
                                   <p className="text-sm opacity-75">📄 Documento</p>
-                                )}
-                                {!msg.content && msg.message_type === 'audio' && (
-                                  <p className="text-sm opacity-75">🎵 Audio</p>
                                 )}
                                 
                                 <div className={`flex items-center justify-end gap-1 mt-1 ${
