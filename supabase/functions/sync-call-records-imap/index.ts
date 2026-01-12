@@ -911,16 +911,21 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
       return existingLead;
     }
 
+    // Genera codice random per identificare il lead
+    const randomCode = `CALL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const callDate = new Date().toLocaleDateString('it-IT');
+    const callTime = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
     // Create new lead with status "nuovo"
     const { data: newLead, error } = await supabase
       .from('leads')
       .insert({
-        contact_name: 'Lead da chiamata',
+        contact_name: `Lead ${randomCode}`,
         company_name: 'Da identificare',
         phone: phoneNumber,
         status: 'new',
         source: 'phone_call',
-        notes: `Lead creato automaticamente da chiamata telefonica il ${new Date().toLocaleDateString('it-IT')}`
+        notes: `Lead creato automaticamente da chiamata telefonica.\nCodice: ${randomCode}\nData: ${callDate} ore ${callTime}\nNumero: ${phoneNumber}`
       })
       .select('id')
       .single();
