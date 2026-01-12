@@ -9440,6 +9440,7 @@ export type Database = {
       wasender_accounts: {
         Row: {
           account_name: string | null
+          api_key: string | null
           business_unit_id: string
           created_at: string
           credits_balance: number | null
@@ -9448,9 +9449,11 @@ export type Database = {
           phone_number: string
           status: string | null
           updated_at: string
+          webhook_secret: string | null
         }
         Insert: {
           account_name?: string | null
+          api_key?: string | null
           business_unit_id: string
           created_at?: string
           credits_balance?: number | null
@@ -9459,9 +9462,11 @@ export type Database = {
           phone_number: string
           status?: string | null
           updated_at?: string
+          webhook_secret?: string | null
         }
         Update: {
           account_name?: string | null
+          api_key?: string | null
           business_unit_id?: string
           created_at?: string
           credits_balance?: number | null
@@ -9470,6 +9475,7 @@ export type Database = {
           phone_number?: string
           status?: string | null
           updated_at?: string
+          webhook_secret?: string | null
         }
         Relationships: [
           {
@@ -9477,6 +9483,64 @@ export type Database = {
             columns: ["business_unit_id"]
             isOneToOne: false
             referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wasender_contacts: {
+        Row: {
+          account_id: string
+          created_at: string
+          customer_id: string | null
+          id: string
+          lead_id: string | null
+          name: string | null
+          phone: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string | null
+          phone: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string | null
+          phone?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wasender_contacts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "wasender_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wasender_contacts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wasender_contacts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
