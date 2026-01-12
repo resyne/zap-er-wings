@@ -24,18 +24,22 @@ serve(async (req) => {
     const event = payload.event;
 
     // Handle different event types based on WaSender API documentation
+    // NOTE: WaSender sends BOTH messages.upsert AND messages.received for the same message
+    // We only handle messages.upsert to avoid duplicates
     switch (event) {
-      case "messages.received": {
-        // New incoming message - WaSender format
-        await handleIncomingMessage(supabase, payload.data);
-        break;
-      }
       case "messages.upsert": {
-        // Alternative event name (legacy)
-        await handleIncomingMessage(supabase, payload.data);
+        // New incoming message - primary handler
+        await handleIncomingMessage(supabase, payload.data, payload.sessionId);
         break;
       }
-      case "message.status": {
+      case "messages.received":
+      case "messages-personal.received": {
+        // Skip - these are duplicate of messages.upsert
+        console.log("Skipping duplicate event (handled via messages.upsert):", event);
+        break;
+      }
+      case "message.status":
+      case "message-receipt.update": {
         // Message status update (sent, delivered, read)
         await handleMessageStatus(supabase, payload.data);
         break;
@@ -63,15 +67,48 @@ serve(async (req) => {
   }
 });
 
-async function handleIncomingMessage(supabase: any, data: any) {
+// Helper function to normalize phone numbers
+function normalizePhone(phone: string): string {
+  if (!phone) return "";
+  // Remove all non-numeric characters except leading +
+  return phone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+}
+
+async function handleIncomingMessage(supabase: any, data: any, sessionId?: string) {
   try {
     // WaSender format: data.messages is a single object (not array)
     const messageData = data.messages || data.message || data;
     const key = messageData.key || {};
     
+    // Get wasender message ID for deduplication
+    const wasenderId = key.id;
+    if (!wasenderId) {
+      console.error("No message ID found, skipping");
+      return;
+    }
+
+    // Check if message already exists (deduplication)
+    const { data: existingMsg } = await supabase
+      .from("wasender_messages")
+      .select("id")
+      .eq("wasender_id", wasenderId)
+      .maybeSingle();
+
+    if (existingMsg) {
+      console.log(`Message ${wasenderId} already exists, skipping duplicate`);
+      return;
+    }
+
+    // Skip messages sent by us (fromMe = true)
+    if (key.fromMe === true) {
+      console.log("Skipping outbound message (fromMe=true)");
+      return;
+    }
+    
     // Extract sender phone - use cleanedSenderPn for private chats, cleanedParticipantPn for groups
-    const senderPhone = key.cleanedParticipantPn || key.cleanedSenderPn || 
-                        key.remoteJid?.replace(/@s\.whatsapp\.net|@g\.us|@lid/g, "") || "";
+    const rawPhone = key.cleanedParticipantPn || key.cleanedSenderPn || 
+                     key.remoteJid?.replace(/@s\.whatsapp\.net|@g\.us|@lid/g, "") || "";
+    const senderPhone = normalizePhone(rawPhone);
     
     if (!senderPhone) {
       console.error("No sender phone found in message:", JSON.stringify(key));
@@ -100,37 +137,63 @@ async function handleIncomingMessage(supabase: any, data: any) {
 
     console.log(`Processing incoming message from ${senderPhone}: ${messageContent.substring(0, 50)}...`);
 
-    // Find matching account - we need to identify which session received this
-    // For now, find the first active account that could match
-    const { data: accounts, error: accountError } = await supabase
-      .from("wasender_accounts")
-      .select("id, phone_number, session_id")
-      .eq("is_active", true);
-
-    if (accountError) {
-      console.error("Error fetching accounts:", accountError);
-      return;
+    // Find matching account by session_id if provided, otherwise use first active
+    let account = null;
+    
+    if (sessionId) {
+      const { data: matchedAccount } = await supabase
+        .from("wasender_accounts")
+        .select("id, phone_number, session_id")
+        .eq("session_id", sessionId)
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      account = matchedAccount;
     }
 
-    if (!accounts || accounts.length === 0) {
-      console.error("No active WaSender accounts found");
-      return;
+    if (!account) {
+      // Fallback to first active account
+      const { data: accounts, error: accountError } = await supabase
+        .from("wasender_accounts")
+        .select("id, phone_number, session_id")
+        .eq("is_active", true)
+        .limit(1);
+
+      if (accountError) {
+        console.error("Error fetching accounts:", accountError);
+        return;
+      }
+
+      if (!accounts || accounts.length === 0) {
+        console.error("No active WaSender accounts found");
+        return;
+      }
+      
+      account = accounts[0];
     }
 
-    // Use the first active account (in production, match by session_id if available)
-    const account = accounts[0];
+    // Find existing conversation - search with normalized phone
+    // Try multiple formats to find existing conversation
+    const phoneVariants = [
+      senderPhone,
+      `+${senderPhone}`,
+      senderPhone.replace(/^0/, "39"), // Italian numbers
+    ];
 
-    // Find or create conversation
-    let { data: conversation, error: convError } = await supabase
-      .from("wasender_conversations")
-      .select("id, unread_count")
-      .eq("account_id", account.id)
-      .eq("customer_phone", senderPhone)
-      .maybeSingle();
-
-    if (convError && convError.code !== "PGRST116") {
-      console.error("Error finding conversation:", convError);
-      return;
+    let conversation = null;
+    
+    for (const phoneVariant of phoneVariants) {
+      const { data: conv } = await supabase
+        .from("wasender_conversations")
+        .select("id, unread_count, customer_phone")
+        .eq("account_id", account.id)
+        .or(`customer_phone.eq.${phoneVariant},customer_phone.ilike.%${senderPhone.slice(-9)}`)
+        .maybeSingle();
+      
+      if (conv) {
+        conversation = conv;
+        break;
+      }
     }
 
     if (!conversation) {
@@ -170,6 +233,7 @@ async function handleIncomingMessage(supabase: any, data: any) {
       if (updateError) {
         console.error("Error updating conversation:", updateError);
       }
+      console.log(`Updated existing conversation for ${senderPhone}`);
     }
 
     // Save the message
@@ -181,7 +245,7 @@ async function handleIncomingMessage(supabase: any, data: any) {
         message_type: messageType,
         content: messageContent,
         status: "received",
-        wasender_id: key.id || null
+        wasender_id: wasenderId
       });
 
     if (msgError) {
