@@ -74,22 +74,126 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[^\d+]/g, "").replace(/^\+/, "");
 }
 
-// Helper function to download and store media from WaSender
+// Helper: base64 string to bytes
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function getWhatsAppHkdfInfo(mediaType: string): string {
+  switch (mediaType) {
+    case "image":
+    case "sticker":
+      return "WhatsApp Image Keys";
+    case "video":
+      return "WhatsApp Video Keys";
+    case "audio":
+      return "WhatsApp Audio Keys";
+    case "document":
+      return "WhatsApp Document Keys";
+    default:
+      return "WhatsApp Media Keys";
+  }
+}
+
+function normalizeMimeType(mimeType?: string | null): string | null {
+  if (!mimeType) return null;
+  return mimeType.split(";")[0]?.trim() || null;
+}
+
+function guessExtension(messageType: string, mimeType?: string | null): string {
+  const mt = normalizeMimeType(mimeType) || "";
+
+  if (messageType === "audio") {
+    if (mt.includes("ogg")) return "ogg";
+    if (mt.includes("mpeg") || mt.includes("mp3")) return "mp3";
+    if (mt.includes("webm")) return "webm";
+    if (mt.includes("mp4") || mt.includes("m4a")) return "m4a";
+    return "ogg";
+  }
+
+  if (messageType === "video") {
+    if (mt.includes("webm")) return "webm";
+    return "mp4";
+  }
+
+  if (messageType === "image" || messageType === "sticker") {
+    if (mt.includes("png")) return "png";
+    if (mt.includes("webp")) return "webp";
+    if (mt.includes("gif")) return "gif";
+    return "jpg";
+  }
+
+  if (messageType === "document") {
+    if (mt.includes("pdf")) return "pdf";
+    return "bin";
+  }
+
+  return "bin";
+}
+
+function defaultContentType(messageType: string, extension: string): string {
+  if (messageType === "audio") return extension === "mp3" ? "audio/mpeg" : "audio/ogg";
+  if (messageType === "video") return extension === "webm" ? "video/webm" : "video/mp4";
+  if (messageType === "image" || messageType === "sticker") return `image/${extension === "jpg" ? "jpeg" : extension}`;
+  if (messageType === "document") return extension === "pdf" ? "application/pdf" : "application/octet-stream";
+  return "application/octet-stream";
+}
+
+async function decryptWhatsAppMedia(
+  encryptedBytes: Uint8Array,
+  mediaKeyB64: string,
+  mediaType: string
+): Promise<Uint8Array> {
+  const mediaKey = base64ToBytes(mediaKeyB64);
+  const info = new TextEncoder().encode(getWhatsAppHkdfInfo(mediaType));
+
+  const keyMaterial = await crypto.subtle.importKey("raw", mediaKey, "HKDF", false, ["deriveBits"]);
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(0),
+      info,
+    },
+    keyMaterial,
+    112 * 8
+  );
+
+  const keys = new Uint8Array(derivedBits);
+  const iv = keys.slice(0, 16);
+  const cipherKey = keys.slice(16, 48);
+
+  // Remove last 10 bytes (MAC)
+  const ciphertext = encryptedBytes.slice(0, Math.max(0, encryptedBytes.length - 10));
+
+  const aesKey = await crypto.subtle.importKey("raw", cipherKey, { name: "AES-CBC" }, false, ["decrypt"]);
+  const plaintextBuf = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, aesKey, ciphertext);
+  return new Uint8Array(plaintextBuf);
+}
+
+// Helper function to download and store (and decrypt, if needed) media from WaSender
 async function downloadAndStoreMedia(
-  supabase: any, 
-  mediaUrl: string, 
-  messageType: string, 
-  conversationId: string,
-  wasenderId: string
+  supabase: any,
+  params: {
+    mediaUrl: string;
+    mediaKey?: string | null;
+    mimeType?: string | null;
+    messageType: string;
+    conversationId: string;
+    wasenderId: string;
+  }
 ): Promise<string | null> {
+  const { mediaUrl, mediaKey, mimeType, messageType, conversationId, wasenderId } = params;
+
   try {
-    // Skip if no URL or if it's already our storage URL
     if (!mediaUrl) return null;
     if (mediaUrl.includes("supabase.co/storage")) return mediaUrl;
 
-    console.log(`Downloading media from: ${mediaUrl.substring(0, 100)}...`);
+    console.log(`Downloading media (${messageType}) from: ${mediaUrl.substring(0, 120)}...`);
 
-    // Try to download the media
     const response = await fetch(mediaUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0",
@@ -101,45 +205,32 @@ async function downloadAndStoreMedia(
       return null;
     }
 
-    const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+    const respMime = normalizeMimeType(response.headers.get("content-type")) || null;
+    const effectiveMime = normalizeMimeType(mimeType) || respMime;
 
-    // Determine file extension based on message type and content type
-    const contentType = response.headers.get("content-type") || "";
-    let extension = "bin";
-    
-    if (messageType === "audio") {
-      if (contentType.includes("ogg")) extension = "ogg";
-      else if (contentType.includes("mp3")) extension = "mp3";
-      else if (contentType.includes("mpeg")) extension = "mp3";
-      else if (contentType.includes("webm")) extension = "webm";
-      else if (contentType.includes("m4a")) extension = "m4a";
-      else extension = "ogg"; // WhatsApp typically uses ogg for voice
-    } else if (messageType === "image") {
-      if (contentType.includes("jpeg") || contentType.includes("jpg")) extension = "jpg";
-      else if (contentType.includes("png")) extension = "png";
-      else if (contentType.includes("gif")) extension = "gif";
-      else if (contentType.includes("webp")) extension = "webp";
-      else extension = "jpg";
-    } else if (messageType === "video") {
-      if (contentType.includes("mp4")) extension = "mp4";
-      else if (contentType.includes("webm")) extension = "webm";
-      else extension = "mp4";
-    } else if (messageType === "document") {
-      if (contentType.includes("pdf")) extension = "pdf";
-      else extension = "bin";
+    const arrayBuffer = await response.arrayBuffer();
+    let bytes = new Uint8Array(arrayBuffer);
+
+    // If we have a mediaKey, WaSender provides WhatsApp encrypted media (.enc). Decrypt it.
+    if (mediaKey) {
+      try {
+        bytes = await decryptWhatsAppMedia(bytes, mediaKey, messageType);
+      } catch (e) {
+        console.error("Media decryption failed:", e);
+        return null;
+      }
     }
 
-    // Generate unique filename
+    const extension = guessExtension(messageType, effectiveMime);
+    const contentType = effectiveMime || defaultContentType(messageType, extension);
+
     const fileName = `${Date.now()}-${wasenderId.substring(0, 8)}.${extension}`;
     const filePath = `${conversationId}/${fileName}`;
 
-    // Upload to Supabase storage
     const { error: uploadError } = await supabase.storage
       .from("wasender-media")
-      .upload(filePath, uint8Array, {
-        contentType: contentType || `${messageType}/${extension}`,
+      .upload(filePath, bytes, {
+        contentType,
         upsert: false,
       });
 
@@ -148,14 +239,12 @@ async function downloadAndStoreMedia(
       return null;
     }
 
-    // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from("wasender-media")
       .getPublicUrl(filePath);
 
     console.log(`Media saved to storage: ${publicUrl}`);
     return publicUrl;
-
   } catch (error) {
     console.error("Error downloading/storing media:", error);
     return null;
@@ -211,41 +300,48 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
                           messageData.text ||
                           "";
     
-    // Determine message type and extract media URL
+    // Determine message type and extract media info
     const rawMessage = messageData.message || {};
     let messageType = "text";
     let originalMediaUrl: string | null = null;
+    let mediaKey: string | null = null;
+    let mediaMimeType: string | null = null;
 
     if (rawMessage.imageMessage) {
+      const m = rawMessage.imageMessage;
       messageType = "image";
-      originalMediaUrl = rawMessage.imageMessage.url || 
-                 messageData.mediaUrl || 
-                 messageData.media?.url ||
-                 null;
+      mediaKey = m.mediaKey || null;
+      mediaMimeType = m.mimetype || null;
+      originalMediaUrl = m.url || messageData.mediaUrl || messageData.media?.url || null;
+      if (!originalMediaUrl && m.directPath) originalMediaUrl = `https://mmg.whatsapp.net${m.directPath}`;
     } else if (rawMessage.videoMessage) {
+      const m = rawMessage.videoMessage;
       messageType = "video";
-      originalMediaUrl = rawMessage.videoMessage.url || 
-                 messageData.mediaUrl || 
-                 messageData.media?.url ||
-                 null;
+      mediaKey = m.mediaKey || null;
+      mediaMimeType = m.mimetype || null;
+      originalMediaUrl = m.url || messageData.mediaUrl || messageData.media?.url || null;
+      if (!originalMediaUrl && m.directPath) originalMediaUrl = `https://mmg.whatsapp.net${m.directPath}`;
     } else if (rawMessage.audioMessage) {
+      const m = rawMessage.audioMessage;
       messageType = "audio";
-      originalMediaUrl = rawMessage.audioMessage.url || 
-                 messageData.mediaUrl || 
-                 messageData.media?.url ||
-                 null;
+      mediaKey = m.mediaKey || null;
+      mediaMimeType = m.mimetype || null;
+      originalMediaUrl = m.url || messageData.mediaUrl || messageData.media?.url || null;
+      if (!originalMediaUrl && m.directPath) originalMediaUrl = `https://mmg.whatsapp.net${m.directPath}`;
     } else if (rawMessage.documentMessage) {
+      const m = rawMessage.documentMessage;
       messageType = "document";
-      originalMediaUrl = rawMessage.documentMessage.url || 
-                 messageData.mediaUrl || 
-                 messageData.media?.url ||
-                 null;
+      mediaKey = m.mediaKey || null;
+      mediaMimeType = m.mimetype || null;
+      originalMediaUrl = m.url || messageData.mediaUrl || messageData.media?.url || null;
+      if (!originalMediaUrl && m.directPath) originalMediaUrl = `https://mmg.whatsapp.net${m.directPath}`;
     } else if (rawMessage.stickerMessage) {
+      const m = rawMessage.stickerMessage;
       messageType = "sticker";
-      originalMediaUrl = rawMessage.stickerMessage.url || 
-                 messageData.mediaUrl || 
-                 messageData.media?.url ||
-                 null;
+      mediaKey = m.mediaKey || null;
+      mediaMimeType = m.mimetype || null;
+      originalMediaUrl = m.url || messageData.mediaUrl || messageData.media?.url || null;
+      if (!originalMediaUrl && m.directPath) originalMediaUrl = `https://mmg.whatsapp.net${m.directPath}`;
     }
 
     // Also check for top-level media fields (some WaSender versions)
@@ -326,16 +422,17 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     // Generate a temporary conversation ID for file storage (we'll update it after)
     const tempConversationId = conversation?.id || `temp-${Date.now()}`;
 
-    // Download and store media if present
+    // Download/decrypt and store media if present
     let mediaUrl: string | null = null;
     if (originalMediaUrl && messageType !== "text") {
-      mediaUrl = await downloadAndStoreMedia(
-        supabase, 
-        originalMediaUrl, 
-        messageType, 
-        tempConversationId,
-        wasenderId
-      );
+      mediaUrl = await downloadAndStoreMedia(supabase, {
+        mediaUrl: originalMediaUrl,
+        mediaKey,
+        mimeType: mediaMimeType,
+        messageType,
+        conversationId: tempConversationId,
+        wasenderId,
+      });
     }
 
     if (!conversation) {
