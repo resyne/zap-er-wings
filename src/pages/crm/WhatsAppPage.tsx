@@ -953,16 +953,18 @@ export default function WhatsAppPage() {
                     Callback URL
                   </Label>
                   <div className="flex gap-2">
-                    <Input 
-                      value="https://erp.abbattitorizapper.it/functions/v1/whatsapp-webhook"
-                      readOnly 
+                    <Input
+                      value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`}
+                      readOnly
                       className="bg-muted font-mono text-sm"
                     />
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="icon"
                       onClick={() => {
-                        navigator.clipboard.writeText('https://erp.abbattitorizapper.it/functions/v1/whatsapp-webhook');
+                        navigator.clipboard.writeText(
+                          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`
+                        );
                         toast.success('URL copiato negli appunti');
                       }}
                     >
