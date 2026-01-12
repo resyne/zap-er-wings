@@ -1334,10 +1334,10 @@ export default function WhatsAppPage() {
               <div>
                 <Label>Associa a Cliente</Label>
                 <Select 
-                  value={newContactData.customer_id} 
+                  value={newContactData.customer_id || "none"} 
                   onValueChange={(v) => setNewContactData(prev => ({ 
                     ...prev, 
-                    customer_id: v,
+                    customer_id: v === "none" ? "" : v,
                     lead_id: '', // Clear lead if customer selected
                     name: prev.name || customers?.find(c => c.id === v)?.name || ''
                   }))}
@@ -1346,7 +1346,7 @@ export default function WhatsAppPage() {
                     <SelectValue placeholder="Seleziona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {customers?.map(customer => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}
@@ -1358,10 +1358,10 @@ export default function WhatsAppPage() {
               <div>
                 <Label>Associa a Lead</Label>
                 <Select 
-                  value={newContactData.lead_id} 
+                  value={newContactData.lead_id || "none"} 
                   onValueChange={(v) => setNewContactData(prev => ({ 
                     ...prev, 
-                    lead_id: v,
+                    lead_id: v === "none" ? "" : v,
                     customer_id: '', // Clear customer if lead selected
                     name: prev.name || leads?.find(l => l.id === v)?.contact_name || ''
                   }))}
@@ -1370,7 +1370,7 @@ export default function WhatsAppPage() {
                     <SelectValue placeholder="Seleziona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {leads?.map(lead => (
                       <SelectItem key={lead.id} value={lead.id}>
                         {lead.contact_name || lead.phone || 'Lead senza nome'}
