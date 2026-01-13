@@ -1045,12 +1045,6 @@ export default function LeadsPage() {
 
   const priorityOrder: Record<string, number> = { hot: 0, mid: 1, low: 2 };
 
-  // Debug: log leads con archived = true
-  const archivedLeadsInMemory = leads.filter(l => l.archived === true);
-  console.log('showArchived:', showArchived);
-  console.log('Total leads in memory:', leads.length);
-  console.log('Archived leads in memory:', archivedLeadsInMemory.length, archivedLeadsInMemory.map(l => ({ id: l.id, company: l.company_name, archived: l.archived, pipeline: l.pipeline })));
-
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
       .toLowerCase()
@@ -1796,8 +1790,12 @@ export default function LeadsPage() {
             </Select>
           </div>
           <Button
+            type="button"
             variant={showArchived ? "default" : "outline"}
-            onClick={() => setShowArchived(!showArchived)}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowArchived((prev) => !prev);
+            }}
             size="sm"
           >
             <Archive className="h-4 w-4 mr-2" />
