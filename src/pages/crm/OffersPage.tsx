@@ -73,6 +73,7 @@ interface Customer {
   id: string;
   name: string;
   email?: string;
+  phone?: string;
   address?: string;
   tax_id?: string;
   code?: string;
@@ -242,7 +243,7 @@ export default function OffersPage() {
       // Load customers
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
-        .select('id, name, email, address, tax_id, code, company_name')
+        .select('id, name, email, phone, address, tax_id, code, company_name')
         .eq('active', true);
 
       if (customersError) throw customersError;
@@ -626,6 +627,142 @@ export default function OffersPage() {
       toast({
         title: "Errore",
         description: "Errore nell'invio dell'email",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendWhatsApp = async (offer: Offer) => {
+    try {
+      const customer = customers.find(c => c.id === offer.customer_id);
+      if (!customer?.phone) {
+        toast({
+          title: "Errore",
+          description: "Il cliente non ha un numero di telefono",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get first active wasender account
+      const { data: wasenderAccount, error: accountError } = await supabase
+        .from('wasender_accounts')
+        .select('id, phone_number')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      if (accountError || !wasenderAccount) {
+        toast({
+          title: "Errore",
+          description: "Nessun account WhatsApp attivo configurato",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Generazione PDF",
+        description: "Sto generando il PDF dell'offerta...",
+      });
+
+      // Generate PDF blob
+      const pdfBlob = await generateOfferPDF(offer);
+      
+      // Upload PDF to Supabase Storage
+      const fileName = `offerta-${offer.number}-${Date.now()}.pdf`;
+      const filePath = `offers/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('wasender-media')
+        .upload(filePath, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Error uploading PDF:', uploadError);
+        throw new Error('Errore nel caricamento del PDF');
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('wasender-media')
+        .getPublicUrl(filePath);
+
+      const pdfUrl = urlData.publicUrl;
+
+      // Normalize phone number
+      let phoneNumber = customer.phone.replace(/\s+/g, '').replace(/^00/, '+');
+      if (!phoneNumber.startsWith('+')) {
+        phoneNumber = '+39' + phoneNumber.replace(/^0/, '');
+      }
+
+      // Check if conversation exists, or create one
+      let conversationId: string;
+      const { data: existingConv } = await supabase
+        .from('wasender_conversations')
+        .select('id')
+        .eq('account_id', wasenderAccount.id)
+        .ilike('customer_phone', `%${phoneNumber.slice(-10)}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingConv) {
+        conversationId = existingConv.id;
+      } else {
+        const { data: newConv, error: convError } = await supabase
+          .from('wasender_conversations')
+          .insert({
+            account_id: wasenderAccount.id,
+            customer_phone: phoneNumber,
+            customer_name: customer.name,
+          })
+          .select()
+          .single();
+
+        if (convError || !newConv) {
+          throw new Error('Errore nella creazione della conversazione');
+        }
+        conversationId = newConv.id;
+      }
+
+      // Send message with document
+      const messageText = `📄 *Offerta ${offer.number}*\n\n${offer.title}\n\nImporto: €${offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+      
+      const { error: sendError } = await supabase.functions.invoke('wasender-send', {
+        body: {
+          to: phoneNumber,
+          text: messageText,
+          documentUrl: pdfUrl,
+          fileName: `Offerta_${offer.number}.pdf`,
+          messageType: 'document',
+          accountId: wasenderAccount.id,
+          conversationId: conversationId,
+        }
+      });
+
+      if (sendError) {
+        throw sendError;
+      }
+
+      // Update offer status
+      await supabase
+        .from('offers')
+        .update({ status: 'offerta_inviata' })
+        .eq('id', offer.id);
+
+      toast({
+        title: "Offerta Inviata",
+        description: `PDF inviato via WhatsApp a ${customer.name}`,
+      });
+      
+      loadData();
+    } catch (error) {
+      console.error('Error sending WhatsApp:', error);
+      toast({
+        title: "Errore",
+        description: error instanceof Error ? error.message : "Errore nell'invio WhatsApp",
         variant: "destructive",
       });
     }
@@ -2387,9 +2524,18 @@ export default function OffersPage() {
                       >
                         <Download className="h-4 w-4" />
                       </Button>
+                      <Button
+                        variant="default"
+                        size="icon"
+                        onClick={() => handleSendWhatsApp(selectedOffer)}
+                        title="Invia PDF su WhatsApp"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Condividi questo link con il cliente per visualizzare l'offerta
+                      Condividi questo link con il cliente o invia il PDF via WhatsApp
                     </p>
                   </>
                 ) : (
