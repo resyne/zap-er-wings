@@ -1051,7 +1051,9 @@ export default function LeadsPage() {
       .includes(searchTerm.toLowerCase());
     const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
     const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
-    const matchesArchived = showArchived ? lead.archived : !lead.archived;
+    // showArchived: true = mostra SOLO archiviati, false = mostra SOLO non archiviati
+    const isArchived = lead.archived === true;
+    const matchesArchived = showArchived ? isArchived : !isArchived;
     return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
   }).sort((a, b) => {
     const priorityA = priorityOrder[a.priority || ''] ?? 99;
