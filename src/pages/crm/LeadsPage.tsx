@@ -2506,6 +2506,41 @@ export default function LeadsPage() {
                   <Edit className="h-4 w-4 mr-1" />
                   Modifica
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    handleArchiveLead(selectedLead.id, !selectedLead.archived);
+                    setIsDetailsDialogOpen(false);
+                  }}
+                >
+                  {selectedLead.archived ? (
+                    <>
+                      <ArchiveRestore className="h-4 w-4 mr-1" />
+                      Ripristina
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-4 w-4 mr-1" />
+                      Archivia
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    if (confirm("Sei sicuro di voler eliminare questo lead?")) {
+                      handleDeleteLead(selectedLead.id);
+                      setIsDetailsDialogOpen(false);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Elimina
+                </Button>
                 {selectedLead.status === "negotiation" && (
                   <>
                     <Button
