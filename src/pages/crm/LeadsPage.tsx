@@ -100,8 +100,8 @@ const pipelines = ["Zapper", "Vesuviano", "Zapper Pro", "Resyne"];
 const countries = ["Italia", "Francia", "Germania"];
 // Tutte le colonne per la Kanban
 const kanbanStatuses = [
-  { id: "pre_qualified", title: "Pre-Qualificato", color: "bg-purple-100 text-purple-800" },
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
+  { id: "pre_qualified", title: "Pre-Qualificato", color: "bg-purple-100 text-purple-800" },
   { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
   { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
   { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
