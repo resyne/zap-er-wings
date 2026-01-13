@@ -589,9 +589,8 @@ export default function WaSenderPage() {
     });
   };
 
-  const webhookUrl = `${window.location.origin.includes('localhost') 
-    ? 'https://rucjkoleodtwrbftwgsm.supabase.co' 
-    : window.location.origin.replace('preview--', '').replace('.lovable.app', '.supabase.co')}/functions/v1/wasender-webhook`;
+  // Always use the Supabase project URL for the webhook endpoint
+  const webhookUrl = `https://rucjkoleodtwrbftwgsm.supabase.co/functions/v1/wasender-webhook`;
 
   // Se non è selezionata nessuna BU
   if (!selectedBU) {
