@@ -27,6 +27,7 @@ import { CreateOfferDialog } from "@/components/dashboard/CreateOfferDialog";
 import { cn } from "@/lib/utils";
 import { LeadMap } from "@/components/crm/LeadMap";
 import { MapIcon } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 interface Lead {
@@ -105,8 +106,7 @@ const kanbanStatuses = [
   { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
   { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
   { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
-  { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" },
-  { id: "archived", title: "Archivio", color: "bg-gray-100 text-gray-800" }
+  { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" }
 ];
 
 // Tutti gli stati per i form (stessi del kanban)
@@ -1062,17 +1062,7 @@ export default function LeadsPage() {
   // Group leads by status (solo per le fasi kanban)
   // I lead pre_qualificato vanno nella colonna "pre_qualified"
   const leadsByStatus = kanbanStatuses.reduce((acc, status) => {
-    if (status.id === "archived") {
-      // Nella colonna Archivio vanno i lead archiviati
-      acc[status.id] = leads.filter(lead => {
-        const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase());
-        const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
-        const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
-        return matchesSearch && matchesPipeline && matchesCountry && lead.archived;
-      });
-    } else if (status.id === "pre_qualified") {
+    if (status.id === "pre_qualified") {
       // Nella colonna Pre-Qualificato vanno i lead con pre_qualificato = true e status = new
       acc[status.id] = filteredLeads.filter(lead => lead.pre_qualificato === true && lead.status === "new");
     } else if (status.id === "new") {
@@ -1840,9 +1830,9 @@ export default function LeadsPage() {
       {activeView === "kanban" ? (
         /* Kanban Board */
         <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex gap-4 overflow-x-auto pb-4">
           {kanbanStatuses.map(status => (
-            <div key={status.id} className="bg-muted/30 rounded-lg p-4 min-w-[300px]">
+            <div key={status.id} className="bg-muted/30 rounded-lg p-4 min-w-[280px] max-w-[280px] flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm">{status.title}</h3>
                 <Badge variant="secondary" className={status.color}>
@@ -1852,13 +1842,14 @@ export default function LeadsPage() {
               
               <Droppable droppableId={status.id}>
                 {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`${isMobile ? 'min-h-[200px] space-y-2' : 'min-h-[200px] space-y-3'} ${
-                      snapshot.isDraggingOver ? 'bg-muted/50' : ''
-                    }`}
-                  >
+                  <ScrollArea className="h-[calc(100vh-380px)]">
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`space-y-2 pr-2 ${
+                        snapshot.isDraggingOver ? 'bg-muted/50' : ''
+                      }`}
+                    >
                     {leadsByStatus[status.id]?.map((lead, index) => (
                       <Draggable key={lead.id} draggableId={lead.id} index={index}>
                         {(provided, snapshot) => (
@@ -2008,6 +1999,7 @@ export default function LeadsPage() {
                     ))}
                     {provided.placeholder}
                   </div>
+                  </ScrollArea>
                 )}
               </Droppable>
             </div>
