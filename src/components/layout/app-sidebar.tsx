@@ -101,8 +101,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Offerte", url: "/crm/offers", icon: FileText },
       { title: "Configuratore Prodotti", url: "/crm/product-configurator", icon: Settings },
       { title: "Call Records", url: "/crm/call-records", icon: Phone },
-      { title: "WhatsApp", url: "/crm/whatsapp", icon: MessageCircle },
-      { title: "WaSender", url: "/crm/wasender", icon: MessageCircle },
+      { title: "ERP WhatsApp", url: "/crm/wasender", icon: MessageCircle },
     ]
   },
   {
@@ -240,6 +239,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Sistema",
     items: [
+      { title: "WhatsAppAPI", url: "/crm/whatsapp", icon: MessageCircle },
       { title: "Integrazioni", url: "/integrations", icon: Zap },
       { title: "Impostazioni", url: "/settings", icon: Settings },
     ]
