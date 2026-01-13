@@ -902,7 +902,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
     const { data: existingLead } = await supabase
       .from('leads')
       .select('id')
-      .or(`phone.ilike.%${normalizedPhone}%,mobile.ilike.%${normalizedPhone}%`)
+      .filter('phone', 'ilike', `%${normalizedPhone}%`)
       .limit(1)
       .single();
 

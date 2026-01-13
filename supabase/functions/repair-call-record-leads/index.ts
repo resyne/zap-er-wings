@@ -68,7 +68,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string, callDate: 
     const { data: existingLead } = await supabase
       .from('leads')
       .select('id')
-      .or(`phone.ilike.%${normalizedPhone}%,mobile.ilike.%${normalizedPhone}%`)
+      .filter('phone', 'ilike', `%${normalizedPhone}%`)
       .limit(1)
       .single();
 
