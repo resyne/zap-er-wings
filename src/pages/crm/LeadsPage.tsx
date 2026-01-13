@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
 import LeadCallHistory from "@/components/crm/LeadCallHistory";
+import LeadWhatsApp from "@/components/crm/LeadWhatsApp";
 import { GenerateConfiguratorLink } from "@/components/crm/GenerateConfiguratorLink";
 import { ConfiguratorStatus } from "@/components/crm/ConfiguratorStatus";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -2477,6 +2478,26 @@ export default function LeadsPage() {
                 <CollapsibleContent>
                   <div className="px-3 pb-3 border-t pt-3">
                     <LeadCallHistory leadId={selectedLead.id} />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* WhatsApp - Collapsible */}
+              <Collapsible defaultOpen={false} className="border rounded-lg bg-card">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm font-medium">WhatsApp</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-3 pb-3 border-t pt-3">
+                    <LeadWhatsApp 
+                      leadId={selectedLead.id} 
+                      leadPhone={selectedLead.phone} 
+                      leadName={selectedLead.contact_name || selectedLead.company_name}
+                    />
                   </div>
                 </CollapsibleContent>
               </Collapsible>
