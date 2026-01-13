@@ -245,35 +245,46 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
 
     // Normalizza il numero per gestire varianti italiane
     const normalized = normalizeItalianPhone(customerNumber);
-    
-    // Genera pattern di ricerca - usa segmenti più corti per gestire spazi nel DB
+
+    // Genera pattern di ricerca - usa segmenti più corti per gestire formati diversi nel DB (+, spazi, ecc.)
     const searchPatterns: string[] = [];
     if (normalized.length >= 6) {
-      // Ultimi 6 digit sono sufficientemente unici e funzionano anche con spazi
       const last6 = normalized.slice(-6);
       const last7 = normalized.slice(-7);
       const last8 = normalized.slice(-8);
-      searchPatterns.push(last6);
-      searchPatterns.push(last7);
-      searchPatterns.push(last8);
-      searchPatterns.push(normalized); // Pattern completo come fallback
+      const last9 = normalized.slice(-9);
+
+      // Segmenti corti sono spesso sufficienti e funzionano anche se il DB contiene spazi/prefissi
+      searchPatterns.push(last6, last7, last8, last9);
+
+      // Pattern completo come fallback
+      searchPatterns.push(normalized);
     }
 
-    console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 4));
+    console.log(`Searching lead for call ${callRecordId} with patterns:`, searchPatterns.slice(0, 5));
 
     // Cerca lead esistente con pattern di ricerca
     let foundLeadId: string | null = null;
 
-    // Usa raw SQL con la funzione normalize_phone per gestire numeri con spazi
+    // 1) Prova con RPC (se disponibile)
+    const rpcSearchPattern = normalized.length >= 9 ? normalized.slice(-9) : normalized;
     const { data: leads, error: leadError } = await supabase
-      .rpc('find_lead_by_normalized_phone', { search_pattern: normalized.slice(-9) });
+      .rpc('find_lead_by_normalized_phone', { search_pattern: rpcSearchPattern });
 
-    if (leadError) {
-      // Fallback: cerca senza RPC usando pattern più corto
-      console.log('RPC not available, using fallback search');
+    if (!leadError && leads && leads.length > 0) {
+      foundLeadId = leads[0].id;
+      console.log(`Found existing lead ${foundLeadId} via normalized phone (RPC)`);
+    } else {
+      // 2) Fallback SEMPRE (anche quando la RPC esiste ma non trova risultati)
+      if (leadError) {
+        console.log('RPC error, using fallback search:', leadError);
+      } else {
+        console.log('RPC returned no lead, using fallback search');
+      }
+
       for (const pattern of searchPatterns) {
         if (!pattern || pattern.length < 4) continue;
-        
+
         const { data: fallbackLeads } = await supabase
           .from('leads')
           .select('id, phone')
@@ -286,9 +297,6 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
           break;
         }
       }
-    } else if (leads && leads.length > 0) {
-      foundLeadId = leads[0].id;
-      console.log(`Found existing lead ${foundLeadId} via normalized phone`);
     }
 
     // Se non abbiamo trovato un lead e il numero è valido, creiamone uno nuovo
