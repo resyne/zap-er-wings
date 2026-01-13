@@ -485,6 +485,60 @@ export default function WaSenderPage() {
     }
   });
 
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      // Prima elimina tutti i dati correlati
+      // 1. Elimina i messaggi di tutte le conversazioni dell'account
+      const { data: convs } = await (supabase as any)
+        .from('wasender_conversations')
+        .select('id')
+        .eq('account_id', accountId);
+      
+      if (convs && convs.length > 0) {
+        const convIds = convs.map((c: any) => c.id);
+        await (supabase as any)
+          .from('wasender_messages')
+          .delete()
+          .in('conversation_id', convIds);
+      }
+      
+      // 2. Elimina le conversazioni
+      await (supabase as any)
+        .from('wasender_conversations')
+        .delete()
+        .eq('account_id', accountId);
+      
+      // 3. Elimina i contatti
+      await (supabase as any)
+        .from('wasender_contacts')
+        .delete()
+        .eq('account_id', accountId);
+      
+      // 4. Elimina le transazioni crediti
+      await (supabase as any)
+        .from('wasender_credit_transactions')
+        .delete()
+        .eq('account_id', accountId);
+      
+      // 5. Infine elimina l'account
+      const { error } = await (supabase as any)
+        .from('wasender_accounts')
+        .delete()
+        .eq('id', accountId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wasender-accounts'] });
+      setSelectedAccount(null);
+      setSelectedConversation(null);
+      toast.success('Numero e tutti i dati correlati eliminati');
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore eliminazione: ${error.message}`);
+    }
+  });
+
   // Filtra conversazioni
   const filteredConversations = conversations?.filter(conv => {
     if (!conversationSearch) return true;
@@ -608,16 +662,29 @@ export default function WaSenderPage() {
       {accounts && accounts.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {accounts.map(account => (
-            <Button
-              key={account.id}
-              variant={selectedAccount?.id === account.id ? "default" : "outline"}
-              onClick={() => { setSelectedAccount(account); setSelectedConversation(null); }}
-              className="flex items-center gap-2"
-            >
-              <Phone className="h-4 w-4" />
-              {account.phone_number}
-              {account.account_name && <span className="text-xs opacity-70">({account.account_name})</span>}
-            </Button>
+            <div key={account.id} className="flex items-center gap-1 group">
+              <Button
+                variant={selectedAccount?.id === account.id ? "default" : "outline"}
+                onClick={() => { setSelectedAccount(account); setSelectedConversation(null); }}
+                className="flex items-center gap-2"
+              >
+                <Phone className="h-4 w-4" />
+                {account.phone_number}
+                {account.account_name && <span className="text-xs opacity-70">({account.account_name})</span>}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => {
+                  if (confirm(`Eliminare il numero ${account.phone_number} e tutti i dati correlati (chat, contatti, crediti)?`)) {
+                    deleteAccountMutation.mutate(account.id);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
           ))}
         </div>
       )}
