@@ -105,7 +105,8 @@ const kanbanStatuses = [
   { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
   { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
   { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
-  { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" }
+  { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" },
+  { id: "archived", title: "Archivio", color: "bg-gray-100 text-gray-800" }
 ];
 
 // Tutti gli stati per i form (stessi del kanban)
@@ -827,19 +828,30 @@ export default function LeadsPage() {
     }
 
     try {
-      // Determina il nuovo status e se aggiornare pre_qualificato
-      let updateData: { status: string; pre_qualificato?: boolean } = { status: destination.droppableId };
+      // Determina il nuovo status e se aggiornare pre_qualificato/archived
+      let updateData: { status: string; pre_qualificato?: boolean; archived?: boolean } = { status: destination.droppableId };
       
-      // Se si sposta DA pre_qualified verso un'altra colonna, imposta pre_qualificato = false
-      if (source.droppableId === "pre_qualified" && destination.droppableId !== "pre_qualified") {
-        updateData.pre_qualificato = false;
-        updateData.status = destination.droppableId === "pre_qualified" ? "new" : destination.droppableId;
-      }
-      
-      // Se si sposta VERSO pre_qualified, imposta pre_qualificato = true e status = new
-      if (destination.droppableId === "pre_qualified") {
-        updateData.pre_qualificato = true;
-        updateData.status = "new";
+      // Se si sposta VERSO archivio, imposta archived = true
+      if (destination.droppableId === "archived") {
+        updateData.archived = true;
+        updateData.status = lead.status; // mantieni lo status precedente
+      } else {
+        // Se si sposta DA archivio, ripristina
+        if (source.droppableId === "archived") {
+          updateData.archived = false;
+        }
+        
+        // Se si sposta DA pre_qualified verso un'altra colonna, imposta pre_qualificato = false
+        if (source.droppableId === "pre_qualified" && destination.droppableId !== "pre_qualified") {
+          updateData.pre_qualificato = false;
+          updateData.status = destination.droppableId;
+        }
+        
+        // Se si sposta VERSO pre_qualified, imposta pre_qualificato = true e status = new
+        if (destination.droppableId === "pre_qualified") {
+          updateData.pre_qualificato = true;
+          updateData.status = "new";
+        }
       }
 
       const { error } = await supabase
@@ -1050,7 +1062,17 @@ export default function LeadsPage() {
   // Group leads by status (solo per le fasi kanban)
   // I lead pre_qualificato vanno nella colonna "pre_qualified"
   const leadsByStatus = kanbanStatuses.reduce((acc, status) => {
-    if (status.id === "pre_qualified") {
+    if (status.id === "archived") {
+      // Nella colonna Archivio vanno i lead archiviati
+      acc[status.id] = leads.filter(lead => {
+        const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+        const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
+        const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
+        return matchesSearch && matchesPipeline && matchesCountry && lead.archived;
+      });
+    } else if (status.id === "pre_qualified") {
       // Nella colonna Pre-Qualificato vanno i lead con pre_qualificato = true e status = new
       acc[status.id] = filteredLeads.filter(lead => lead.pre_qualificato === true && lead.status === "new");
     } else if (status.id === "new") {
@@ -1853,29 +1875,14 @@ export default function LeadsPage() {
                               setIsDetailsDialogOpen(true);
                             }}
                           >
-                             <CardContent className={cn(
-                               "space-y-2",
-                               isMobile ? "p-3" : "p-4"
-                             )}>
-                                 {/* Header con titolo e azioni */}
+                             <CardContent className="p-3 space-y-2">
+                                 {/* Header con titolo e priorità */}
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">
-                                    <div className={cn("flex items-center gap-2", isMobile ? "mb-0.5" : "mb-1")}>
-                                      <Building2 className={cn(
-                                        "text-primary flex-shrink-0",
-                                        isMobile ? "h-3 w-3" : "h-4 w-4"
-                                      )} />
-                                      <h4 className={cn(
-                                        "font-semibold break-words",
-                                        isMobile ? "text-xs" : "text-sm"
-                                      )}>{lead.company_name}</h4>
-                                      {lead.status === "new" && (
-                                        <Badge 
-                                          className={cn(
-                                            "bg-yellow-500 text-yellow-950 border-yellow-600 animate-pulse font-semibold",
-                                            isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
-                                          )}
-                                        >
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <h4 className="text-sm font-semibold truncate max-w-[140px]">{lead.company_name}</h4>
+                                      {lead.status === "new" && !lead.pre_qualificato && (
+                                        <Badge className="bg-yellow-500 text-yellow-950 text-[9px] px-1 py-0 h-4 animate-pulse">
                                           NUOVO
                                         </Badge>
                                       )}
@@ -1893,16 +1900,13 @@ export default function LeadsPage() {
                                         }}
                                       >
                                         <SelectTrigger 
-                                          className={cn(
-                                            "h-auto border-0 p-0 focus:ring-0 bg-transparent shadow-none",
-                                            isMobile ? "text-[9px]" : "text-[10px]"
-                                          )}
+                                          className="h-auto border-0 p-0 focus:ring-0 bg-transparent shadow-none text-[9px]"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <Badge 
                                             className={cn(
                                               leadPriorities.find(p => p.id === lead.priority)?.color || "bg-gray-100 text-gray-800",
-                                              isMobile ? "text-[9px] px-1.5 py-0 h-4" : "text-[10px] px-2 py-0.5 h-5"
+                                              "text-[9px] px-1.5 py-0 h-4"
                                             )}
                                           >
                                             {leadPriorities.find(p => p.id === lead.priority)?.title || '-'}
@@ -1920,13 +1924,10 @@ export default function LeadsPage() {
                                       </Select>
                                     </div>
                                     {lead.contact_name && (
-                                      <p className={cn(
-                                        "text-muted-foreground break-words",
-                                        isMobile ? "text-[10px] ml-5" : "text-xs ml-6"
-                                      )}>{lead.contact_name}</p>
+                                      <p className="text-[10px] text-muted-foreground truncate">{lead.contact_name}</p>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                  <div className="flex items-center gap-0.5 flex-shrink-0">
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -1934,426 +1935,72 @@ export default function LeadsPage() {
                                         e.stopPropagation();
                                         handleEditLead(lead);
                                       }}
-                                      className={cn(
-                                        "p-0 hover:bg-muted",
-                                        isMobile ? "h-6 w-6" : "h-7 w-7"
-                                      )}
+                                      className="h-6 w-6 p-0 hover:bg-muted"
                                     >
-                                      <Edit className={cn(isMobile ? "h-3 w-3" : "h-3.5 w-3.5")} />
+                                      <Edit className="h-3 w-3" />
                                     </Button>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className={cn(
-                                            "p-0 text-destructive hover:text-destructive hover:bg-destructive/10",
-                                            isMobile ? "h-6 w-6" : "h-7 w-7"
-                                          )}
-                                        >
-                                          <Trash2 className={cn(isMobile ? "h-3 w-3" : "h-3.5 w-3.5")} />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                     <AlertDialogContent>
-                                       <AlertDialogHeader>
-                                         <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                                         <AlertDialogDescription>
-                                           Questa azione non può essere annullata. Il lead verrà eliminato definitivamente dal sistema.
-                                         </AlertDialogDescription>
-                                       </AlertDialogHeader>
-                                       <AlertDialogFooter>
-                                         <AlertDialogCancel>Annulla</AlertDialogCancel>
-                                         <AlertDialogAction
-                                           onClick={() => handleDeleteLead(lead.id)}
-                                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                         >
-                                           Elimina
-                                         </AlertDialogAction>
-                                       </AlertDialogFooter>
-                                     </AlertDialogContent>
-                                   </AlertDialog>
-                                 </div>
-                               </div>
-
-                                 {/* Informazioni di contatto */}
-                                 <div className={`${isMobile ? 'space-y-1 border-t pt-1.5' : 'space-y-2 border-t pt-2'}`}>
-                                   {lead.email && (
-                                     <div className="flex items-center gap-2">
-                                       <Mail className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
-                                       <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground truncate`}>{lead.email}</span>
-                                     </div>
-                                   )}
-                                   
-                                   {lead.phone && (
-                                     <div className="flex items-center gap-2">
-                                       <Phone className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
-                                       <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>{lead.phone}</span>
-                                     </div>
-                                   )}
-                                   
-                                   {/* Data e utente creazione */}
-                                   <div className="flex items-center gap-2">
-                                     <Clock className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
-                                     <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground`}>
-                                       {new Date(lead.created_at).toLocaleString('it-IT', {
-                                         day: '2-digit',
-                                         month: '2-digit',
-                                         year: 'numeric',
-                                         hour: '2-digit',
-                                         minute: '2-digit'
-                                       })}
-                                     </span>
-                                   </div>
-                                   
-                                   <div className="flex items-center gap-2">
-                                     <User className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-muted-foreground flex-shrink-0`} />
-                                     <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground truncate`}>
-                                       {lead.created_by ? 
-                                         (() => {
-                                           const creator = users.find(u => u.id === lead.created_by);
-                                           return creator ? `${creator.first_name} ${creator.last_name}` : 'Utente sconosciuto';
-                                         })()
-                                         : (lead.source === 'zapier' ? 'Zapier automation' : 'Sistema')
-                                       }
-                                     </span>
-                                   </div>
-                                 </div>
-                                 
-                                  {/* Prossima attività */}
-                                  {(lead.next_activity_type || lead.next_activity_date) && (() => {
-                                    const isOverdue = lead.next_activity_date && new Date(lead.next_activity_date) < new Date();
-                                    return (
-                                    <div className={`${isMobile ? 'border-t pt-1.5' : 'border-t pt-2'} ${isOverdue ? 'bg-destructive/10 -mx-3 px-3 py-2 rounded-b-lg border-l-4 border-l-destructive' : ''}`}>
-                                      <div className={`flex items-center gap-2 ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
-                                        <Calendar className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} flex-shrink-0 ${isOverdue ? 'text-destructive' : 'text-blue-600'}`} />
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium ${isOverdue ? 'text-destructive' : 'text-blue-600'}`}>
-                                          Prossima attività
-                                        </span>
-                                        {isOverdue && (
-                                          <Badge variant="destructive" className={`${isMobile ? 'text-[9px] px-1 py-0 h-3.5' : 'text-[10px] px-1.5 py-0 h-4'} animate-pulse`}>
-                                            Scaduta!
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <div className={`${isMobile ? 'ml-4 space-y-0.5' : 'ml-5 space-y-1'}`}>
-                                        {lead.next_activity_type && (
-                                          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                            <span className="font-medium">
-                                              {lead.next_activity_type === "call" ? "Chiamata" :
-                                               lead.next_activity_type === "email" ? "Email" :
-                                               lead.next_activity_type === "meeting" ? "Incontro" :
-                                               lead.next_activity_type === "demo" ? "Demo" :
-                                               lead.next_activity_type === "follow_up" ? "Follow-up" :
-                                               lead.next_activity_type === "quote" ? "Preventivo" :
-                                               lead.next_activity_type}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {lead.next_activity_date && (
-                                          <div className={`flex items-center gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'} ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                            <Clock className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
-                                            <span>
-                                              {new Date(lead.next_activity_date).toLocaleDateString('it-IT', {
-                                                day: '2-digit',
-                                                month: '2-digit',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                              })}
-                                            </span>
-                                          </div>
-                                        )}
-                                         {lead.next_activity_notes && (
-                                           <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} italic truncate ${isOverdue ? 'text-destructive/80' : 'text-muted-foreground'}`}>
-                                             {lead.next_activity_notes}
-                                           </div>
-                                         )}
-                                         {lead.next_activity_assigned_to && (
-                                           <div className={`flex items-center gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'} ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                             <User className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
-                                             <span>
-                                               {users.find(u => u.id === lead.next_activity_assigned_to)?.first_name} {users.find(u => u.id === lead.next_activity_assigned_to)?.last_name}
-                                             </span>
-                                           </div>
-                                         )}
-                                       </div>
-                                    </div>
-                                    );
-                                  })()}
-
-                                  {/* Offerta collegata o pulsante per collegarla */}
-                                  <div className="border-t pt-2">
-                                    {offers.filter(o => o.lead_id === lead.id).length > 0 ? (
-                                      <>
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <FileText className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                          <span className="text-xs font-medium text-purple-600">
-                                            Offerte Collegate ({offers.filter(o => o.lead_id === lead.id).length})
-                                          </span>
-                                        </div>
-                                        <div className="ml-5 space-y-2">
-                                          {offers.filter(o => o.lead_id === lead.id).map(linkedOffer => (
-                                            <div key={linkedOffer.id} className="space-y-1 pb-2 border-b last:border-b-0">
-                                              <div className="text-xs">
-                                                <span className="font-medium">{linkedOffer.number}</span>
-                                                {" - "}
-                                                <span className="text-muted-foreground">{linkedOffer.title}</span>
-                                              </div>
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-xs text-green-600 font-medium">
-                                                  €{linkedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                                                </span>
-                                                <Select
-                                                  value={linkedOffer.status}
-                                                  onValueChange={(value) => {
-                                                    // Update offer status
-                                                    supabase
-                                                      .from('offers')
-                                                      .update({ status: value })
-                                                      .eq('id', linkedOffer.id)
-                                                      .then(() => loadOffers());
-                                                  }}
-                                                >
-                                                  <SelectTrigger className="h-6 text-xs w-[90px]">
-                                                    <SelectValue />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="richiesta_offerta">Richiesta</SelectItem>
-                                                    <SelectItem value="offerta_pronta">Pronta</SelectItem>
-                                                    <SelectItem value="offerta_inviata">Inviata</SelectItem>
-                                                    <SelectItem value="negoziazione">Negoziazione</SelectItem>
-                                                    <SelectItem value="accettata">Accettata</SelectItem>
-                                                    <SelectItem value="rifiutata">Rifiutata</SelectItem>
-                                                  </SelectContent>
-                                                </Select>
-                                                <Button
-                                                   size="sm"
-                                                   variant="ghost"
-                                                   className="h-6 w-6 p-0"
-                                                   title="Apri offerta"
-                                                   onClick={(e) => {
-                                                     e.stopPropagation();
-                                                     navigate(`/crm/offers?offer=${linkedOffer.id}`);
-                                                   }}
-                                                 >
-                                                   <ExternalLink className="h-3 w-3" />
-                                                 </Button>
-                                                 <Button
-                                                      size="sm"
-                                                      variant="ghost"
-                                                      className="h-6 w-6 p-0"
-                                                      title="Scarica PDF"
-                                                      onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        let code = linkedOffer.unique_code;
-                                                        if (!code) {
-                                                          // Generate unique code if missing
-                                                          const { data: codeData } = await supabase.rpc('generate_offer_code');
-                                                          if (codeData) {
-                                                            await supabase
-                                                              .from('offers')
-                                                              .update({ unique_code: codeData })
-                                                              .eq('id', linkedOffer.id);
-                                                            code = codeData;
-                                                            loadOffers();
-                                                          }
-                                                        }
-                                                        if (code) {
-                                                          window.open(`https://www.erp.abbattitorizapper.it/offerta/${code}?print=true`, '_blank');
-                                                        }
-                                                      }}
-                                                    >
-                                                      <Download className="h-3 w-3" />
-                                                    </Button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="w-full h-8 text-xs"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleCreateOfferForLead(lead);
-                                          }}
-                                        >
-                                          <Plus className="h-3 w-3 mr-1" />
-                                          Crea Offerta
-                                        </Button>
-                                        <Dialog>
-                                          <DialogTrigger asChild>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="w-full h-8 text-xs"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <Link className="h-3 w-3 mr-1" />
-                                              Collega Offerta
-                                            </Button>
-                                          </DialogTrigger>
-                                          <DialogContent onClick={(e) => e.stopPropagation()}>
-                                            <DialogHeader>
-                                              <DialogTitle>Collega un'offerta esistente</DialogTitle>
-                                            </DialogHeader>
-                                            <div className="space-y-4">
-                                              <div>
-                                                <Label>Seleziona Offerta</Label>
-                                                <Select onValueChange={(value) => handleLinkOfferToLead(lead.id, value)}>
-                                                  <SelectTrigger>
-                                                    <SelectValue placeholder="Seleziona un'offerta" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {offers.filter(o => !o.lead_id).map(offer => (
-                                                      <SelectItem key={offer.id} value={offer.id}>
-                                                        {offer.number} - {offer.title} (€{offer.amount.toLocaleString()})
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                              </div>
-                                            </div>
-                                          </DialogContent>
-                                        </Dialog>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Link Configuratore per Vesuviano */}
-                                  {lead.pipeline === "Vesuviano" && (
-                                    <div className="border-t pt-2" onClick={(e) => e.stopPropagation()}>
-                                      <GenerateConfiguratorLink
-                                        leadId={lead.id}
-                                        leadName={lead.company_name}
-                                        pipeline={lead.pipeline}
-                                        existingLink={lead.external_configurator_link}
-                                      />
-                                    </div>
-                                  )}
-
-                                {/* Footer con valore e fonte */}
-                                <div className="flex items-center justify-between border-t pt-2">
-                                  <div className="flex items-center gap-2">
-                                    {lead.value && (
-                                      <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
-                                        {formatAmount(lead.value, hideAmounts)}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {lead.source && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {lead.source === "zapier" ? (
-                                          <div className="flex items-center gap-1">
-                                            <Zap className="h-3 w-3" />
-                                            <span>Zapier</span>
-                                          </div>
-                                        ) : (
-                                          lead.source === "social_media" ? "Social" :
-                                          lead.source === "website" ? "Web" :
-                                          lead.source === "referral" ? "Referral" :
-                                          lead.source === "cold_call" ? "Cold Call" :
-                                          lead.source === "trade_show" ? "Fiera" :
-                                          "Altro"
-                                        )}
-                                      </Badge>
-                                    )}
                                     <div 
                                       {...provided.dragHandleProps}
                                       className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-muted"
                                     >
-                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                      <GripVertical className="h-3 w-3 text-muted-foreground" />
                                     </div>
-                                   </div>
-                                 </div>
+                                  </div>
+                                </div>
 
-                                {/* Bottoni Vinto/Perso/Archivia */}
-                                {!lead.archived && (
-                                  <div className="space-y-2 pt-2 border-t">
-                                    {lead.status === "negotiation" && (
-                                      <div className="flex gap-2">
-                                        <Button
-                                          size="sm"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleWinLead(lead);
-                                          }}
-                                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                        >
-                                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                                          Vinto
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="destructive"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleLoseLead(lead);
-                                          }}
-                                          className="flex-1"
-                                        >
-                                          <XCircle className="h-3 w-3 mr-1" />
-                                          Perso
-                                        </Button>
+                                 {/* Info compatte: telefono + valore */}
+                                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                   <div className="flex items-center gap-1">
+                                     {lead.phone && (
+                                       <>
+                                         <Phone className="h-2.5 w-2.5" />
+                                         <span className="truncate max-w-[80px]">{lead.phone}</span>
+                                       </>
+                                     )}
+                                   </div>
+                                   {lead.value && (
+                                     <span className="text-xs font-semibold text-green-600">
+                                       {formatAmount(lead.value, hideAmounts)}
+                                     </span>
+                                   )}
+                                 </div>
+                                 
+                                  {/* Prossima attività - compatto */}
+                                  {lead.next_activity_date && (() => {
+                                    const isOverdue = new Date(lead.next_activity_date) < new Date();
+                                    return (
+                                      <div className={`flex items-center gap-1.5 text-[10px] ${isOverdue ? 'text-destructive font-medium' : 'text-blue-600'}`}>
+                                        <Calendar className="h-2.5 w-2.5" />
+                                        <span>
+                                          {new Date(lead.next_activity_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+                                        </span>
+                                        {isOverdue && <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3">!</Badge>}
                                       </div>
-                                    )}
+                                    );
+                                  })()}
+
+                                  {/* Offerte - solo se esistono, altrimenti bottone crea */}
+                                  {offers.filter(o => o.lead_id === lead.id).length > 0 ? (
+                                    <div className="flex items-center gap-1.5 text-[10px]">
+                                      <FileText className="h-2.5 w-2.5 text-purple-600" />
+                                      <span className="text-purple-600 font-medium">
+                                        {offers.filter(o => o.lead_id === lead.id).length} offerta/e
+                                      </span>
+                                    </div>
+                                  ) : (
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={async (e) => {
+                                      className="w-full h-6 text-[10px]"
+                                      onClick={(e) => {
                                         e.stopPropagation();
-                                        const { error } = await supabase
-                                          .from('leads')
-                                          .update({ archived: true })
-                                          .eq('id', lead.id);
-                                        
-                                        if (!error) {
-                                          toast({
-                                            title: "Lead archiviato",
-                                            description: "Il lead è stato archiviato con successo."
-                                          });
-                                          loadLeads();
-                                        }
+                                        handleCreateOfferForLead(lead);
                                       }}
-                                      className="w-full"
                                     >
-                                      <Archive className="h-3 w-3 mr-1" />
-                                      Archivia
+                                      <Plus className="h-2.5 w-2.5 mr-1" />
+                                      Crea Offerta
                                     </Button>
-                                  </div>
-                                )}
-                                {lead.archived && (
-                                  <div className="pt-2 border-t">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        const { error } = await supabase
-                                          .from('leads')
-                                          .update({ archived: false })
-                                          .eq('id', lead.id);
-                                        
-                                        if (!error) {
-                                          toast({
-                                            title: "Lead ripristinato",
-                                            description: "Il lead è stato ripristinato con successo."
-                                          });
-                                          loadLeads();
-                                        }
-                                      }}
-                                      className="w-full"
-                                    >
-                                      <Archive className="h-3 w-3 mr-1" />
-                                      Ripristina
-                                    </Button>
-                                  </div>
-                                )}
+                                  )}
                               </CardContent>
                           </Card>
                         )}
