@@ -11,6 +11,7 @@ interface SendMessageRequest {
   text?: string;
   accountId: string;
   conversationId: string;
+  messageId?: string; // If provided, update existing message instead of creating new
   // Media options
   imageUrl?: string;
   videoUrl?: string;
@@ -40,7 +41,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body = await req.json() as SendMessageRequest;
-    const { to, text, accountId, conversationId, imageUrl, videoUrl, documentUrl, audioUrl, fileName, messageType = "text" } = body;
+    const { to, text, accountId, conversationId, messageId, imageUrl, videoUrl, documentUrl, audioUrl, fileName, messageType = "text" } = body;
 
     if (!to) {
       return new Response(
@@ -112,16 +113,25 @@ serve(async (req) => {
     const mediaUrl = imageUrl || videoUrl || documentUrl || audioUrl || null;
 
     if (!wasenderResponse.ok) {
-      // Save failed message to database
-      await supabase.from("wasender_messages").insert({
-        conversation_id: conversationId,
-        direction: "outbound",
-        message_type: actualMessageType,
-        content: text || null,
-        media_url: mediaUrl,
-        status: "failed",
-        error_message: wasenderData.message || wasenderData.error || "Errore sconosciuto",
-      });
+      // Update or insert failed message
+      if (messageId) {
+        await supabase.from("wasender_messages")
+          .update({
+            status: "failed",
+            error_message: wasenderData.message || wasenderData.error || "Errore sconosciuto",
+          })
+          .eq("id", messageId);
+      } else {
+        await supabase.from("wasender_messages").insert({
+          conversation_id: conversationId,
+          direction: "outbound",
+          message_type: actualMessageType,
+          content: text || null,
+          media_url: mediaUrl,
+          status: "failed",
+          error_message: wasenderData.message || wasenderData.error || "Errore sconosciuto",
+        });
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -132,23 +142,44 @@ serve(async (req) => {
       );
     }
 
-    // Save successful message to database
-    const { data: messageData, error: messageError } = await supabase
-      .from("wasender_messages")
-      .insert({
-        conversation_id: conversationId,
-        direction: "outbound",
-        message_type: actualMessageType,
-        content: text || null,
-        media_url: mediaUrl,
-        status: "sent",
-        wasender_id: wasenderData.data?.msgId?.toString() || null,
-      })
-      .select()
-      .single();
+    // Update or insert successful message
+    let messageData;
+    if (messageId) {
+      // Update existing message
+      const { data, error: updateError } = await supabase
+        .from("wasender_messages")
+        .update({
+          status: "sent",
+          wasender_id: wasenderData.data?.msgId?.toString() || null,
+        })
+        .eq("id", messageId)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error("Error updating message:", updateError);
+      }
+      messageData = data;
+    } else {
+      // Insert new message (for calls without pre-created message)
+      const { data, error: insertError } = await supabase
+        .from("wasender_messages")
+        .insert({
+          conversation_id: conversationId,
+          direction: "outbound",
+          message_type: actualMessageType,
+          content: text || null,
+          media_url: mediaUrl,
+          status: "sent",
+          wasender_id: wasenderData.data?.msgId?.toString() || null,
+        })
+        .select()
+        .single();
 
-    if (messageError) {
-      console.error("Error saving message:", messageError);
+      if (insertError) {
+        console.error("Error saving message:", insertError);
+      }
+      messageData = data;
     }
 
     // Update conversation with last message
