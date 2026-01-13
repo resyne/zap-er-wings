@@ -719,7 +719,8 @@ export default function WaSenderPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Conversazioni</CardTitle>
                     <Button size="sm" onClick={() => setIsNewConversationDialogOpen(true)}>
-                      <UserPlus className="h-4 w-4" />
+                      <Plus className="h-4 w-4 mr-1" />
+                      Nuova Chat
                     </Button>
                   </div>
                   <div className="relative mt-2">
@@ -1377,117 +1378,204 @@ export default function WaSenderPage() {
 
       {/* New Conversation Dialog */}
       <Dialog open={isNewConversationDialogOpen} onOpenChange={setIsNewConversationDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Nuova Conversazione</DialogTitle>
+            <DialogTitle>Nuova Chat</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Numero di Telefono *</Label>
-              <Input
-                placeholder="Es: +39 333 1234567"
-                value={newContactData.phone}
-                onChange={(e) => setNewContactData(prev => ({ ...prev, phone: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Inserisci il numero con prefisso internazionale
-              </p>
-            </div>
-            <div>
-              <Label>Nome Contatto</Label>
-              <Input
-                placeholder="Nome del contatto"
-                value={newContactData.name}
-                onChange={(e) => setNewContactData(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
+          <Tabs defaultValue="contacts" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="contacts" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Seleziona Contatto
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                Nuovo Numero
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Quick select from contacts */}
-            {contacts && contacts.length > 0 && (
-              <div>
-                <Label>Oppure seleziona dalla rubrica</Label>
-                <Select 
-                  onValueChange={(contactId) => {
-                    const contact = contacts.find(c => c.id === contactId);
-                    if (contact) {
-                      setNewContactData({
-                        phone: contact.phone,
-                        name: contact.name || '',
-                        customer_id: contact.customer_id || '',
-                        lead_id: contact.lead_id || ''
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona contatto..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contacts.map(contact => (
-                      <SelectItem key={contact.id} value={contact.id}>
-                        {contact.name || contact.phone} - {contact.phone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Tab: Select from Leads/Customers */}
+            <TabsContent value="contacts" className="space-y-4 mt-4">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cerca lead o cliente..."
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  className="pl-8"
+                />
               </div>
-            )}
+              
+              <ScrollArea className="h-[300px] border rounded-md">
+                {/* Leads Section */}
+                {leads && leads.filter(l => l.phone).length > 0 && (
+                  <div className="p-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">Lead</p>
+                    {leads
+                      .filter(l => l.phone)
+                      .filter(l => 
+                        !contactSearch || 
+                        l.contact_name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                        l.phone?.includes(contactSearch) ||
+                        l.email?.toLowerCase().includes(contactSearch.toLowerCase())
+                      )
+                      .map(lead => (
+                        <div
+                          key={lead.id}
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setNewContactData({
+                              phone: lead.phone || '',
+                              name: lead.contact_name || '',
+                              customer_id: '',
+                              lead_id: lead.id
+                            });
+                          }}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-orange-100 text-orange-700 text-xs">
+                              {lead.contact_name?.charAt(0) || 'L'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{lead.contact_name || 'Lead'}</p>
+                            <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                          </div>
+                          {newContactData.lead_id === lead.id && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+                
+                {/* Customers Section */}
+                {customers && customers.filter(c => c.phone).length > 0 && (
+                  <div className="p-2 border-t">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">Clienti</p>
+                    {customers
+                      .filter(c => c.phone)
+                      .filter(c => 
+                        !contactSearch || 
+                        c.name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                        c.phone?.includes(contactSearch) ||
+                        c.email?.toLowerCase().includes(contactSearch.toLowerCase())
+                      )
+                      .map(customer => (
+                        <div
+                          key={customer.id}
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setNewContactData({
+                              phone: customer.phone || '',
+                              name: customer.name || '',
+                              customer_id: customer.id,
+                              lead_id: ''
+                            });
+                          }}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">
+                              {customer.name?.charAt(0) || 'C'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{customer.name}</p>
+                            <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                          </div>
+                          {newContactData.customer_id === customer.id && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
 
-            <div className="grid grid-cols-2 gap-4">
+                {/* WaSender Contacts */}
+                {contacts && contacts.length > 0 && (
+                  <div className="p-2 border-t">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1">Rubrica WaSender</p>
+                    {contacts
+                      .filter(c => 
+                        !contactSearch || 
+                        c.name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                        c.phone?.includes(contactSearch)
+                      )
+                      .map(contact => (
+                        <div
+                          key={contact.id}
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setNewContactData({
+                              phone: contact.phone,
+                              name: contact.name || '',
+                              customer_id: contact.customer_id || '',
+                              lead_id: contact.lead_id || ''
+                            });
+                          }}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xs">
+                              {contact.name?.charAt(0) || <Phone className="h-3 w-3" />}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{contact.name || contact.phone}</p>
+                            <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                          </div>
+                          {newContactData.phone === contact.phone && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {(!leads?.filter(l => l.phone).length && !customers?.filter(c => c.phone).length && !contacts?.length) && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nessun contatto con numero di telefono</p>
+                  </div>
+                )}
+              </ScrollArea>
+
+              {newContactData.phone && (
+                <div className="p-3 bg-muted rounded-md">
+                  <p className="text-sm font-medium">Selezionato:</p>
+                  <p className="text-sm">{newContactData.name || 'N/A'} - {newContactData.phone}</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Tab: Manual Entry */}
+            <TabsContent value="manual" className="space-y-4 mt-4">
               <div>
-                <Label>Associa a Cliente</Label>
-                <Select 
-                  value={newContactData.customer_id || "none"} 
-                  onValueChange={(v) => setNewContactData(prev => ({ 
-                    ...prev, 
-                    customer_id: v === "none" ? "" : v,
-                    lead_id: '',
-                    name: v === "none" ? prev.name : (prev.name || customers?.find(c => c.id === v)?.name || '')
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nessuno</SelectItem>
-                    {customers?.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Numero di Telefono *</Label>
+                <Input
+                  placeholder="Es: +39 333 1234567"
+                  value={newContactData.phone}
+                  onChange={(e) => setNewContactData(prev => ({ ...prev, phone: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Inserisci il numero con prefisso internazionale
+                </p>
               </div>
               <div>
-                <Label>Associa a Lead</Label>
-                <Select 
-                  value={newContactData.lead_id || "none"} 
-                  onValueChange={(v) => setNewContactData(prev => ({ 
-                    ...prev, 
-                    lead_id: v === "none" ? "" : v,
-                    customer_id: '',
-                    name: v === "none" ? prev.name : (prev.name || leads?.find(l => l.id === v)?.contact_name || '')
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nessuno</SelectItem>
-                    {leads?.map(lead => (
-                      <SelectItem key={lead.id} value={lead.id}>
-                        {lead.contact_name || lead.phone || 'Lead'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Nome Contatto</Label>
+                <Input
+                  placeholder="Nome del contatto"
+                  value={newContactData.name}
+                  onChange={(e) => setNewContactData(prev => ({ ...prev, name: e.target.value }))}
+                />
               </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setIsNewConversationDialogOpen(false);
               setNewContactData({ phone: '', name: '', customer_id: '', lead_id: '' });
+              setContactSearch('');
             }}>
               Annulla
             </Button>
