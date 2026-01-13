@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
 import LeadFileUpload from "@/components/crm/LeadFileUpload";
@@ -762,6 +763,30 @@ export default function LeadsPage() {
       toast({
         title: "Errore",
         description: "Impossibile eliminare il lead: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleArchiveLead = async (leadId: string, archive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ archived: archive })
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, archived: archive } : l));
+
+      toast({
+        title: archive ? "Lead archiviato" : "Lead ripristinato",
+        description: archive ? "Il lead è stato archiviato" : "Il lead è stato ripristinato",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare il lead: " + error.message,
         variant: "destructive",
       });
     }
@@ -1964,17 +1989,48 @@ export default function LeadsPage() {
                                     )}
                                   </div>
                                   <div className="flex items-center gap-0.5 flex-shrink-0">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditLead(lead);
-                                      }}
-                                      className="h-6 w-6 p-0 hover:bg-muted"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 hover:bg-muted"
+                                        >
+                                          <MoreVertical className="h-3 w-3" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                        <DropdownMenuItem onClick={() => handleEditLead(lead)}>
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Modifica
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleArchiveLead(lead.id, !lead.archived)}>
+                                          {lead.archived ? (
+                                            <>
+                                              <ArchiveRestore className="h-4 w-4 mr-2" />
+                                              Ripristina
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Archive className="h-4 w-4 mr-2" />
+                                              Archivia
+                                            </>
+                                          )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem 
+                                          className="text-destructive focus:text-destructive"
+                                          onClick={() => {
+                                            if (confirm("Sei sicuro di voler eliminare questo lead?")) {
+                                              handleDeleteLead(lead.id);
+                                            }
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Elimina
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <div 
                                       {...provided.dragHandleProps}
                                       className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-muted"
