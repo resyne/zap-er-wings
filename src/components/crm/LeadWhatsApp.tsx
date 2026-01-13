@@ -48,6 +48,7 @@ interface WaSenderMessage {
   message_type: string;
   content: string | null;
   media_url: string | null;
+  file_name: string | null;
   status: string;
   error_message: string | null;
   created_at: string;
@@ -287,7 +288,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
             className="flex items-center gap-2 text-sm text-blue-500 hover:underline"
           >
             <FileText className="h-4 w-4" />
-            Apri documento
+            <span className="truncate max-w-[150px]">{msg.file_name || 'Documento'}</span>
           </a>
         );
       default:

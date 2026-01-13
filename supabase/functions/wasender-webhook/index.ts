@@ -306,6 +306,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     let originalMediaUrl: string | null = null;
     let mediaKey: string | null = null;
     let mediaMimeType: string | null = null;
+    let fileName: string | null = null;
 
     if (rawMessage.imageMessage) {
       const m = rawMessage.imageMessage;
@@ -333,6 +334,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
       messageType = "document";
       mediaKey = m.mediaKey || null;
       mediaMimeType = m.mimetype || null;
+      fileName = m.fileName || m.title || null;
       originalMediaUrl = m.url || messageData.mediaUrl || messageData.media?.url || null;
       if (!originalMediaUrl && m.directPath) originalMediaUrl = `https://mmg.whatsapp.net${m.directPath}`;
     } else if (rawMessage.stickerMessage) {
@@ -498,6 +500,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
         message_type: messageType,
         content: messageContent || null,
         media_url: mediaUrl,
+        file_name: fileName,
         status: "received",
         wasender_id: wasenderId
       });
