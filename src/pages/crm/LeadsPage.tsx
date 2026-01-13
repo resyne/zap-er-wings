@@ -1037,7 +1037,7 @@ export default function LeadsPage() {
     const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    const matchesPipeline = !selectedPipeline || lead.pipeline === selectedPipeline;
+    const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
     const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
     const matchesArchived = showArchived ? lead.archived : !lead.archived;
     return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
