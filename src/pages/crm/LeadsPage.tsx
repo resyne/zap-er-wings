@@ -125,6 +125,7 @@ export default function LeadsPage() {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("Zapper");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("priority");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -1056,9 +1057,30 @@ export default function LeadsPage() {
     const matchesArchived = showArchived ? isArchived : !isArchived;
     return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
   }).sort((a, b) => {
-    const priorityA = priorityOrder[a.priority || ''] ?? 99;
-    const priorityB = priorityOrder[b.priority || ''] ?? 99;
-    return priorityA - priorityB;
+    switch (sortBy) {
+      case "priority":
+        const priorityA = priorityOrder[a.priority || ''] ?? 99;
+        const priorityB = priorityOrder[b.priority || ''] ?? 99;
+        return priorityA - priorityB;
+      case "created_desc":
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case "created_asc":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "company_asc":
+        return (a.company_name || '').localeCompare(b.company_name || '');
+      case "company_desc":
+        return (b.company_name || '').localeCompare(a.company_name || '');
+      case "value_desc":
+        return (b.value || 0) - (a.value || 0);
+      case "value_asc":
+        return (a.value || 0) - (b.value || 0);
+      case "next_activity":
+        const dateA = a.next_activity_date ? new Date(a.next_activity_date).getTime() : Infinity;
+        const dateB = b.next_activity_date ? new Date(b.next_activity_date).getTime() : Infinity;
+        return dateA - dateB;
+      default:
+        return 0;
+    }
   });
 
   // Group leads by status (solo per le fasi kanban)
@@ -1786,6 +1808,24 @@ export default function LeadsPage() {
                     {country}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="sort-filter">Ordina:</Label>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Ordina per..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="priority">Priorità</SelectItem>
+                <SelectItem value="created_desc">Data creazione (recenti)</SelectItem>
+                <SelectItem value="created_asc">Data creazione (meno recenti)</SelectItem>
+                <SelectItem value="company_asc">Azienda (A-Z)</SelectItem>
+                <SelectItem value="company_desc">Azienda (Z-A)</SelectItem>
+                <SelectItem value="value_desc">Valore (alto-basso)</SelectItem>
+                <SelectItem value="value_asc">Valore (basso-alto)</SelectItem>
+                <SelectItem value="next_activity">Prossima attività</SelectItem>
               </SelectContent>
             </Select>
           </div>
