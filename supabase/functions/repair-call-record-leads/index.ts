@@ -64,16 +64,28 @@ async function createLeadFromCall(supabase: any, phoneNumber: string, callDate: 
       return null;
     }
 
-    // Check duplicates
-    const { data: existingLead } = await supabase
-      .from('leads')
-      .select('id')
-      .filter('phone', 'ilike', `%${normalizedPhone}%`)
-      .limit(1)
-      .single();
+    // Search with multiple patterns to catch all variations
+    const searchPatterns = [
+      phoneNumber, // Original format (e.g., +393802375325)
+      normalizedPhone, // Normalized (e.g., 3802375325)
+      normalizedPhone.slice(-8), // Last 8 digits
+      normalizedPhone.slice(-6), // Last 6 digits
+    ];
 
-    if (existingLead) {
-      return existingLead;
+    for (const pattern of searchPatterns) {
+      if (!pattern || pattern.length < 6) continue;
+      
+      const { data: existingLead } = await supabase
+        .from('leads')
+        .select('id')
+        .filter('phone', 'ilike', `%${pattern}%`)
+        .limit(1)
+        .single();
+
+      if (existingLead) {
+        console.log('Lead already exists with this phone pattern:', pattern, existingLead.id);
+        return existingLead;
+      }
     }
 
     const randomCode = `CALL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -81,7 +93,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string, callDate: 
     const { data: newLead, error } = await supabase
       .from('leads')
       .insert({
-        contact_name: `Lead ${randomCode}`,
+        contact_name: 'Lead da chiamata',
         company_name: 'Da identificare',
         phone: phoneNumber,
         status: 'new',
