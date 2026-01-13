@@ -39,6 +39,7 @@ interface WaSenderAccount {
   phone_number: string;
   account_name: string | null;
   api_key: string | null;
+  session_id: string | null;
   webhook_secret: string | null;
   status: string;
   credits_balance: number;
@@ -116,7 +117,8 @@ export default function WaSenderPage() {
   const [accountFormData, setAccountFormData] = useState({
     phone_number: '',
     account_name: '',
-    api_key: ''
+    api_key: '',
+    session_id: ''
   });
 
   const [contactFormData, setContactFormData] = useState({
@@ -271,7 +273,8 @@ export default function WaSenderPage() {
         business_unit_id: selectedBU!.id,
         phone_number: data.phone_number,
         account_name: data.account_name || null,
-        api_key: data.api_key || null
+        api_key: data.api_key || null,
+        session_id: data.session_id || null
       });
       if (error) throw error;
     },
@@ -279,7 +282,7 @@ export default function WaSenderPage() {
       queryClient.invalidateQueries({ queryKey: ['wasender-accounts'] });
       toast.success('Account WaSender aggiunto');
       setIsAccountDialogOpen(false);
-      setAccountFormData({ phone_number: '', account_name: '', api_key: '' });
+      setAccountFormData({ phone_number: '', account_name: '', api_key: '', session_id: '' });
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -1119,6 +1122,29 @@ export default function WaSenderPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Session ID Status */}
+                <div className="space-y-2">
+                  <Label>Session ID</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input 
+                      value={selectedAccount?.session_id || 'Non configurato'}
+                      readOnly 
+                      className={`bg-muted font-mono text-sm ${!selectedAccount?.session_id ? 'text-destructive' : ''}`}
+                    />
+                    {!selectedAccount?.session_id && (
+                      <Badge variant="destructive">Mancante</Badge>
+                    )}
+                    {selectedAccount?.session_id && (
+                      <Badge className="bg-emerald-600">Configurato</Badge>
+                    )}
+                  </div>
+                  {!selectedAccount?.session_id && (
+                    <p className="text-xs text-destructive">
+                      ⚠️ Il Session ID è richiesto per ricevere messaggi. Elimina questo account e ricrealo inserendo il Session ID dalla dashboard WaSenderAPI.
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Webhook URL</Label>
                   <div className="flex gap-2">
@@ -1263,6 +1289,17 @@ export default function WaSenderPage() {
               />
             </div>
             <div>
+              <Label>Session ID *</Label>
+              <Input
+                placeholder="ID sessione da WaSenderAPI (es: session_abc123)"
+                value={accountFormData.session_id}
+                onChange={(e) => setAccountFormData(prev => ({ ...prev, session_id: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Trova il Session ID nella dashboard WaSenderAPI → Sessions
+              </p>
+            </div>
+            <div>
               <Label>API Key (opzionale)</Label>
               <Input
                 type="password"
@@ -1281,7 +1318,7 @@ export default function WaSenderPage() {
             </Button>
             <Button 
               onClick={() => saveAccountMutation.mutate(accountFormData)}
-              disabled={!accountFormData.phone_number || saveAccountMutation.isPending}
+              disabled={!accountFormData.phone_number || !accountFormData.session_id || saveAccountMutation.isPending}
             >
               Salva
             </Button>
