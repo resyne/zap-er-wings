@@ -703,10 +703,6 @@ export default function WaSenderPage() {
               <Users className="h-4 w-4" />
               Contatti
             </TabsTrigger>
-            <TabsTrigger value="credits" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Crediti
-            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Impostazioni
@@ -1021,83 +1017,6 @@ export default function WaSenderPage() {
                       <TableRow>
                         <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                           Nessun contatto trovato
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Credits Tab */}
-          <TabsContent value="credits" className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Saldo Attuale</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold text-emerald-600">
-                    €{selectedAccount.credits_balance?.toFixed(2) || '0.00'}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Stato Account</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Badge variant={selectedAccount.is_active ? 'default' : 'secondary'} className="bg-emerald-600">
-                    {selectedAccount.is_active ? 'Attivo' : 'Inattivo'}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Storico Transazioni</CardTitle>
-                  <CardDescription>Ricariche e consumi crediti</CardDescription>
-                </div>
-                <Button onClick={() => setIsCreditDialogOpen(true)}>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Ricarica Crediti
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Importo</TableHead>
-                      <TableHead>Saldo</TableHead>
-                      <TableHead>Note</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {creditTransactions?.map(tx => (
-                      <TableRow key={tx.id}>
-                        <TableCell>{format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
-                        <TableCell>
-                          <Badge variant={tx.transaction_type === 'topup' ? 'default' : 'secondary'}>
-                            {tx.transaction_type === 'topup' ? 'Ricarica' : 
-                             tx.transaction_type === 'message_sent' ? 'Messaggio' : tx.transaction_type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className={tx.amount > 0 ? 'text-emerald-600' : 'text-red-600'}>
-                          {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)}€
-                        </TableCell>
-                        <TableCell>{tx.balance_after?.toFixed(2) || '-'}€</TableCell>
-                        <TableCell className="text-muted-foreground">{tx.notes || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                    {(!creditTransactions || creditTransactions.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          Nessuna transazione
                         </TableCell>
                       </TableRow>
                     )}
