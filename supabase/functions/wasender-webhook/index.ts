@@ -410,7 +410,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     for (const phoneVariant of phoneVariants) {
       const { data: conv } = await supabase
         .from("wasender_conversations")
-        .select("id, unread_count, customer_phone")
+        .select("id, unread_count, customer_phone, lead_id")
         .eq("account_id", account.id)
         .or(`customer_phone.eq.${phoneVariant},customer_phone.ilike.%${senderPhone.slice(-9)}`)
         .maybeSingle();
@@ -418,6 +418,26 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
       if (conv) {
         conversation = conv;
         break;
+      }
+    }
+
+    // If no conversation found, try to find a lead with this phone number
+    let matchedLeadId: string | null = null;
+    let matchedLeadName: string | null = null;
+    
+    if (!conversation) {
+      // Search for lead by phone number (try multiple formats)
+      const phoneSuffixLike = `%${senderPhone.slice(-9)}`;
+      const { data: matchedLead } = await supabase
+        .from("leads")
+        .select("id, first_name, last_name, phone")
+        .or(`phone.ilike.${phoneSuffixLike},phone.eq.${senderPhone},phone.eq.+${senderPhone}`)
+        .maybeSingle();
+      
+      if (matchedLead) {
+        matchedLeadId = matchedLead.id;
+        matchedLeadName = [matchedLead.first_name, matchedLead.last_name].filter(Boolean).join(" ") || null;
+        console.log(`Found matching lead for ${senderPhone}: ${matchedLeadId} (${matchedLeadName})`);
       }
     }
 
@@ -451,7 +471,8 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
         .insert({
           account_id: account.id,
           customer_phone: senderPhone,
-          customer_name: pushName,
+          customer_name: matchedLeadName || pushName, // Prefer lead name if found
+          lead_id: matchedLeadId, // Link to lead if found
           status: "active",
           unread_count: 1,
           last_message_at: new Date().toISOString(),
@@ -465,7 +486,7 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
         return;
       }
       conversation = newConv;
-      console.log(`Created new conversation for ${senderPhone}`);
+      console.log(`Created new conversation for ${senderPhone}${matchedLeadId ? ` (linked to lead ${matchedLeadId})` : ""}`);
     } else {
       // Update existing conversation with appropriate preview
       const preview = messageContent ? messageContent.substring(0, 100) :
