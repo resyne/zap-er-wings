@@ -1842,11 +1842,10 @@ export default function LeadsPage() {
               
               <Droppable droppableId={status.id}>
                 {(provided, snapshot) => (
-                  <ScrollArea className="h-[calc(100vh-260px)]">
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`space-y-2 pr-2 ${
+                      className={`space-y-2 ${
                         snapshot.isDraggingOver ? 'bg-muted/50' : ''
                       }`}
                     >
@@ -1999,7 +1998,6 @@ export default function LeadsPage() {
                     ))}
                     {provided.placeholder}
                   </div>
-                  </ScrollArea>
                 )}
               </Droppable>
             </div>
