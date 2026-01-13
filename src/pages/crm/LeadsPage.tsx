@@ -1842,7 +1842,7 @@ export default function LeadsPage() {
               
               <Droppable droppableId={status.id}>
                 {(provided, snapshot) => (
-                  <ScrollArea className="h-[calc(100vh-380px)]">
+                  <ScrollArea className="h-[calc(100vh-260px)]">
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
