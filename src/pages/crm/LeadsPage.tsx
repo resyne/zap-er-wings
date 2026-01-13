@@ -746,6 +746,17 @@ export default function LeadsPage() {
 
   const handleDeleteLead = async (leadId: string) => {
     try {
+      // Prima scollega i call_records dal lead (imposta lead_id a null)
+      const { error: callRecordsError } = await supabase
+        .from("call_records")
+        .update({ lead_id: null })
+        .eq("lead_id", leadId);
+
+      if (callRecordsError) {
+        console.error("Errore scollegamento call_records:", callRecordsError);
+      }
+
+      // Poi elimina il lead
       const { error } = await supabase
         .from("leads")
         .delete()
