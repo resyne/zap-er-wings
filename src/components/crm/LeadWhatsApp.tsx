@@ -200,8 +200,8 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
           messageId: msgData.id,
           conversationId: selectedConversation.id,
           accountId: selectedAccountId,
-          phone: selectedConversation.customer_phone,
-          content
+          to: selectedConversation.customer_phone,
+          text: content
         }
       });
 
