@@ -68,6 +68,7 @@ interface WaSenderMessage {
   message_type: string;
   content: string | null;
   media_url: string | null;
+  file_name: string | null;
   status: string;
   error_message: string | null;
   created_at: string;
@@ -875,7 +876,9 @@ export default function WaSenderPage() {
                                     }`}
                                   >
                                     <FileText className="h-5 w-5" />
-                                    <span className="text-sm underline">Apri documento</span>
+                                    <span className="text-sm underline truncate max-w-[200px]">
+                                      {msg.file_name || 'Documento'}
+                                    </span>
                                   </a>
                                 )}
                                 

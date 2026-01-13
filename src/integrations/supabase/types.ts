@@ -9660,6 +9660,7 @@ export type Database = {
           created_at: string
           direction: string
           error_message: string | null
+          file_name: string | null
           id: string
           media_url: string | null
           message_type: string | null
@@ -9672,6 +9673,7 @@ export type Database = {
           created_at?: string
           direction: string
           error_message?: string | null
+          file_name?: string | null
           id?: string
           media_url?: string | null
           message_type?: string | null
@@ -9684,6 +9686,7 @@ export type Database = {
           created_at?: string
           direction?: string
           error_message?: string | null
+          file_name?: string | null
           id?: string
           media_url?: string | null
           message_type?: string | null
