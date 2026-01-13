@@ -916,7 +916,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
     const callDate = new Date().toLocaleDateString('it-IT');
     const callTime = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-    // Create new lead with status "nuovo"
+    // Create new lead with status "nuovo" and pre_qualificato = true
     const { data: newLead, error } = await supabase
       .from('leads')
       .insert({
@@ -925,6 +925,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
         phone: phoneNumber,
         status: 'new',
         source: 'phone_call',
+        pre_qualificato: true,
         notes: `Lead creato automaticamente da chiamata telefonica.\nCodice: ${randomCode}\nData: ${callDate} ore ${callTime}\nNumero: ${phoneNumber}`
       })
       .select('id')

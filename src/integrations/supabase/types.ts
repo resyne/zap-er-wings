@@ -3795,6 +3795,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           pipeline: string | null
+          pre_qualificato: boolean | null
           priority: string | null
           source: string | null
           status: string | null
@@ -3832,6 +3833,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline?: string | null
+          pre_qualificato?: boolean | null
           priority?: string | null
           source?: string | null
           status?: string | null
@@ -3869,6 +3871,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline?: string | null
+          pre_qualificato?: boolean | null
           priority?: string | null
           source?: string | null
           status?: string | null
