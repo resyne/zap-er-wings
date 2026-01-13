@@ -398,26 +398,38 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     }
 
     // Find existing conversation - search with normalized phone
-    // Try multiple formats to find existing conversation
-    const phoneVariants = [
-      senderPhone,
-      `+${senderPhone}`,
-      senderPhone.replace(/^0/, "39"), // Italian numbers
-    ];
-
+    // Prioritize conversations linked to leads
+    const phoneSuffix = senderPhone.slice(-9);
+    
     let conversation = null;
     
-    for (const phoneVariant of phoneVariants) {
-      const { data: conv } = await supabase
+    // First, try to find a conversation linked to a lead with this phone
+    const { data: leadConvs } = await supabase
+      .from("wasender_conversations")
+      .select("id, unread_count, customer_phone, lead_id")
+      .eq("account_id", account.id)
+      .not("lead_id", "is", null)
+      .ilike("customer_phone", `%${phoneSuffix}`)
+      .limit(1);
+    
+    if (leadConvs && leadConvs.length > 0) {
+      conversation = leadConvs[0];
+      console.log(`Found conversation linked to lead: ${conversation.id} (lead_id: ${conversation.lead_id})`);
+    }
+    
+    // If no lead-linked conversation, find any conversation with this phone
+    if (!conversation) {
+      const { data: anyConvs } = await supabase
         .from("wasender_conversations")
         .select("id, unread_count, customer_phone, lead_id")
         .eq("account_id", account.id)
-        .or(`customer_phone.eq.${phoneVariant},customer_phone.ilike.%${senderPhone.slice(-9)}`)
-        .maybeSingle();
+        .ilike("customer_phone", `%${phoneSuffix}`)
+        .order("created_at", { ascending: true }) // Get the oldest one
+        .limit(1);
       
-      if (conv) {
-        conversation = conv;
-        break;
+      if (anyConvs && anyConvs.length > 0) {
+        conversation = anyConvs[0];
+        console.log(`Found existing conversation: ${conversation.id}`);
       }
     }
 
@@ -427,16 +439,16 @@ async function handleIncomingMessage(supabase: any, data: any, sessionId?: strin
     
     if (!conversation) {
       // Search for lead by phone number (try multiple formats)
-      const phoneSuffixLike = `%${senderPhone.slice(-9)}`;
+      const phoneSuffixLike = `%${phoneSuffix}`;
       const { data: matchedLead } = await supabase
         .from("leads")
         .select("id, first_name, last_name, phone")
         .or(`phone.ilike.${phoneSuffixLike},phone.eq.${senderPhone},phone.eq.+${senderPhone}`)
-        .maybeSingle();
+        .limit(1);
       
-      if (matchedLead) {
-        matchedLeadId = matchedLead.id;
-        matchedLeadName = [matchedLead.first_name, matchedLead.last_name].filter(Boolean).join(" ") || null;
+      if (matchedLead && matchedLead.length > 0) {
+        matchedLeadId = matchedLead[0].id;
+        matchedLeadName = [matchedLead[0].first_name, matchedLead[0].last_name].filter(Boolean).join(" ") || null;
         console.log(`Found matching lead for ${senderPhone}: ${matchedLeadId} (${matchedLeadName})`);
       }
     }
