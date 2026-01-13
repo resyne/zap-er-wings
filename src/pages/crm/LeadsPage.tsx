@@ -45,6 +45,7 @@ interface Lead {
   notes?: string;
   assigned_to?: string;
   priority?: string;
+  pre_qualificato?: boolean;
   next_activity_type?: string;
   next_activity_date?: string;
   next_activity_notes?: string;
@@ -99,6 +100,7 @@ const pipelines = ["Zapper", "Vesuviano", "Zapper Pro", "Resyne"];
 const countries = ["Italia", "Francia", "Germania"];
 // Tutte le colonne per la Kanban
 const kanbanStatuses = [
+  { id: "pre_qualified", title: "Pre-Qualificato", color: "bg-purple-100 text-purple-800" },
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
   { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
   { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
@@ -825,9 +827,24 @@ export default function LeadsPage() {
     }
 
     try {
+      // Determina il nuovo status e se aggiornare pre_qualificato
+      let updateData: { status: string; pre_qualificato?: boolean } = { status: destination.droppableId };
+      
+      // Se si sposta DA pre_qualified verso un'altra colonna, imposta pre_qualificato = false
+      if (source.droppableId === "pre_qualified" && destination.droppableId !== "pre_qualified") {
+        updateData.pre_qualificato = false;
+        updateData.status = destination.droppableId === "pre_qualified" ? "new" : destination.droppableId;
+      }
+      
+      // Se si sposta VERSO pre_qualified, imposta pre_qualificato = true e status = new
+      if (destination.droppableId === "pre_qualified") {
+        updateData.pre_qualificato = true;
+        updateData.status = "new";
+      }
+
       const { error } = await supabase
         .from("leads")
-        .update({ status: destination.droppableId })
+        .update(updateData)
         .eq("id", draggableId);
 
       if (error) throw error;
@@ -835,7 +852,7 @@ export default function LeadsPage() {
       // Update local state
       setLeads(prev => prev.map(l => 
         l.id === draggableId 
-          ? { ...l, status: destination.droppableId }
+          ? { ...l, ...updateData }
           : l
       ));
 
@@ -1031,14 +1048,23 @@ export default function LeadsPage() {
   });
 
   // Group leads by status (solo per le fasi kanban)
+  // I lead pre_qualificato vanno nella colonna "pre_qualified"
   const leadsByStatus = kanbanStatuses.reduce((acc, status) => {
-    acc[status.id] = filteredLeads.filter(lead => lead.status === status.id);
+    if (status.id === "pre_qualified") {
+      // Nella colonna Pre-Qualificato vanno i lead con pre_qualificato = true e status = new
+      acc[status.id] = filteredLeads.filter(lead => lead.pre_qualificato === true && lead.status === "new");
+    } else if (status.id === "new") {
+      // Nella colonna Nuovo vanno i lead con status = new ma non pre_qualificato
+      acc[status.id] = filteredLeads.filter(lead => lead.status === status.id && !lead.pre_qualificato);
+    } else {
+      acc[status.id] = filteredLeads.filter(lead => lead.status === status.id);
+    }
     return acc;
   }, {} as Record<string, Lead[]>);
 
   // Filtra solo i lead nelle fasi kanban
   const activeLeads = filteredLeads.filter(lead => 
-    kanbanStatuses.some(status => status.id === lead.status)
+    kanbanStatuses.some(status => status.id === lead.status) || lead.pre_qualificato
   );
 
   const totalLeads = filteredLeads.length;
