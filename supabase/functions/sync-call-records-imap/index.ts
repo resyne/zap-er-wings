@@ -899,16 +899,29 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
       return null;
     }
 
-    const { data: existingLead } = await supabase
-      .from('leads')
-      .select('id')
-      .filter('phone', 'ilike', `%${normalizedPhone}%`)
-      .limit(1)
-      .single();
+    // Search with multiple patterns to catch all variations
+    // Include both the original phone and normalized version
+    const searchPatterns = [
+      phoneNumber, // Original format (e.g., +393802375325)
+      normalizedPhone, // Normalized (e.g., 3802375325)
+      normalizedPhone.slice(-8), // Last 8 digits
+      normalizedPhone.slice(-6), // Last 6 digits
+    ];
 
-    if (existingLead) {
-      console.log('Lead already exists with this phone:', existingLead.id);
-      return existingLead;
+    for (const pattern of searchPatterns) {
+      if (!pattern || pattern.length < 6) continue;
+      
+      const { data: existingLead } = await supabase
+        .from('leads')
+        .select('id')
+        .filter('phone', 'ilike', `%${pattern}%`)
+        .limit(1)
+        .single();
+
+      if (existingLead) {
+        console.log('Lead already exists with this phone pattern:', pattern, existingLead.id);
+        return existingLead;
+      }
     }
 
     // Genera codice random per identificare il lead
@@ -920,7 +933,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
     const { data: newLead, error } = await supabase
       .from('leads')
       .insert({
-        contact_name: `Lead ${randomCode}`,
+        contact_name: 'Lead da chiamata',
         company_name: 'Da identificare',
         phone: phoneNumber,
         status: 'new',
@@ -936,6 +949,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string): Promise<{
       return null;
     }
 
+    console.log(`Created new lead ${newLead.id} for phone ${phoneNumber}`);
     return newLead;
   } catch (error) {
     console.error('Error in createLeadFromCall:', error);
