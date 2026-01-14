@@ -22,6 +22,7 @@ interface SendMessageRequest {
   template_params?: any[];
   media_url?: string;
   media_caption?: string;
+  header_document_url?: string; // URL del documento per header template
 }
 
 serve(async (req) => {
@@ -32,7 +33,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SendMessageRequest = await req.json();
-    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption } = body;
+    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, header_document_url } = body;
 
     // Get account details
     const { data: account, error: accountError } = await supabase
@@ -76,16 +77,39 @@ serve(async (req) => {
             code: template_language || "it",
           },
         };
+        
+        // Build components array
+        const components: any[] = [];
+        
+        // Add header component if document URL is provided
+        if (header_document_url) {
+          components.push({
+            type: "header",
+            parameters: [
+              {
+                type: "document",
+                document: {
+                  link: header_document_url
+                }
+              }
+            ]
+          });
+        }
+        
+        // Add body parameters if provided
         if (template_params && template_params.length > 0) {
-          messagePayload.template.components = [
-            {
-              type: "body",
-              parameters: template_params.map((param) => ({
-                type: "text",
-                text: param,
-              })),
-            },
-          ];
+          components.push({
+            type: "body",
+            parameters: template_params.map((param) => ({
+              type: "text",
+              text: param,
+            })),
+          });
+        }
+        
+        // Only add components if there are any
+        if (components.length > 0) {
+          messagePayload.template.components = components;
         }
         break;
 
@@ -176,7 +200,10 @@ serve(async (req) => {
 
     // Save message to database
     if (conversation) {
-      const messageContent = type === "template" ? `[Template: ${template_name}]` : content;
+      let messageContent = type === "template" ? `[Template: ${template_name}]` : content;
+      if (header_document_url) {
+        messageContent += ` [+Documento]`;
+      }
       
       await supabase.from("whatsapp_messages").insert({
         conversation_id: conversation.id,
@@ -186,7 +213,7 @@ serve(async (req) => {
         content: messageContent,
         template_name: template_name,
         template_params: template_params,
-        media_url: media_url,
+        media_url: header_document_url || media_url,
         status: "sent",
       });
 

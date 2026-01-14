@@ -18,7 +18,7 @@ import {
   Send, Phone, CreditCard, FileText, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
-  ExternalLink, Webhook, Shield, Link2
+  ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -134,6 +134,17 @@ export default function WhatsAppPage() {
   });
 
   const [creditAmount, setCreditAmount] = useState('');
+  
+  // State per invio template
+  const [isSendTemplateDialogOpen, setIsSendTemplateDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
+  const [sendTemplateData, setSendTemplateData] = useState({
+    recipientPhone: '',
+    params: [] as string[],
+    headerDocumentUrl: '',
+    headerDocumentName: ''
+  });
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
 
   // Query per clienti e lead (per associazione)
   const { data: customers } = useQuery({
@@ -397,6 +408,95 @@ export default function WhatsAppPage() {
       toast.error(`Errore: ${error.message}`);
     }
   });
+
+  // Mutation per inviare template
+  const sendTemplateMutation = useMutation({
+    mutationFn: async (data: {
+      templateName: string;
+      templateLanguage: string;
+      recipientPhone: string;
+      params: string[];
+      headerDocumentUrl?: string;
+    }) => {
+      const response = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          account_id: selectedAccount!.id,
+          to: data.recipientPhone,
+          type: 'template',
+          template_name: data.templateName,
+          template_language: data.templateLanguage,
+          template_params: data.params.length > 0 ? data.params : undefined,
+          header_document_url: data.headerDocumentUrl || undefined
+        }
+      });
+      
+      if (response.error) throw new Error(response.error.message);
+      if (!response.data?.success) throw new Error(response.data?.error || 'Errore invio template');
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
+      toast.success('Template inviato con successo');
+      setIsSendTemplateDialogOpen(false);
+      setSelectedTemplate(null);
+      setSendTemplateData({ recipientPhone: '', params: [], headerDocumentUrl: '', headerDocumentName: '' });
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Funzione per caricare documento
+  const handleDocumentUpload = async (file: File) => {
+    setIsUploadingDocument(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `whatsapp-docs/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file);
+        
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(fileName);
+        
+      setSendTemplateData(prev => ({
+        ...prev,
+        headerDocumentUrl: publicUrl,
+        headerDocumentName: file.name
+      }));
+      
+      toast.success('Documento caricato');
+    } catch (error: any) {
+      toast.error(`Errore upload: ${error.message}`);
+    } finally {
+      setIsUploadingDocument(false);
+    }
+  };
+
+  // Estrai numero di parametri dal body del template
+  const getTemplateParamCount = (template: WhatsAppTemplate) => {
+    const body = template.components?.body?.text || '';
+    const matches = body.match(/\{\{\d+\}\}/g);
+    return matches ? matches.length : 0;
+  };
+
+  // Apri dialogo invio template
+  const openSendTemplateDialog = (template: WhatsAppTemplate) => {
+    const paramCount = getTemplateParamCount(template);
+    setSelectedTemplate(template);
+    setSendTemplateData({
+      recipientPhone: '',
+      params: Array(paramCount).fill(''),
+      headerDocumentUrl: '',
+      headerDocumentName: ''
+    });
+    setIsSendTemplateDialogOpen(true);
+  };
 
   const deleteConversationMutation = useMutation({
     mutationFn: async (conversationId: string) => {
@@ -763,6 +863,7 @@ export default function WhatsAppPage() {
                       <TableHead>Lingua</TableHead>
                       <TableHead>Stato</TableHead>
                       <TableHead>Creato</TableHead>
+                      <TableHead className="text-right">Azioni</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -784,10 +885,22 @@ export default function WhatsAppPage() {
                         <TableCell>
                           {format(new Date(template.created_at), 'dd/MM/yyyy')}
                         </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {template.status === 'APPROVED' && (
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={() => openSendTemplateDialog(template)}
+                              >
+                                <Send className="h-4 w-4 mr-1" />
+                                Invia
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1425,6 +1538,159 @@ export default function WhatsAppPage() {
               disabled={!newContactData.phone || createConversationMutation.isPending}
             >
               {createConversationMutation.isPending ? 'Creazione...' : 'Avvia Chat'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Template Dialog */}
+      <Dialog open={isSendTemplateDialogOpen} onOpenChange={(open) => {
+        setIsSendTemplateDialogOpen(open);
+        if (!open) {
+          setSelectedTemplate(null);
+          setSendTemplateData({ recipientPhone: '', params: [], headerDocumentUrl: '', headerDocumentName: '' });
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Invia Template: {selectedTemplate?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Destinatario */}
+            <div>
+              <Label>Numero Destinatario *</Label>
+              <Input
+                placeholder="Es: +39 333 1234567"
+                value={sendTemplateData.recipientPhone}
+                onChange={(e) => setSendTemplateData(prev => ({ ...prev, recipientPhone: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Inserisci il numero con prefisso internazionale
+              </p>
+            </div>
+
+            {/* Anteprima Template */}
+            {selectedTemplate && (
+              <div className="rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Anteprima messaggio:</p>
+                <p className="text-sm">{selectedTemplate.components?.body?.text || 'Nessun testo'}</p>
+              </div>
+            )}
+
+            {/* Parametri Dinamici */}
+            {sendTemplateData.params.length > 0 && (
+              <div className="space-y-3">
+                <Label>Parametri Dinamici</Label>
+                <div className="space-y-2">
+                  {sendTemplateData.params.map((param, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="text-sm font-mono bg-muted px-2 py-1 rounded min-w-[50px] text-center">
+                        {`{{${index + 1}}}`}
+                      </span>
+                      <Input
+                        placeholder={`Valore per parametro ${index + 1}`}
+                        value={param}
+                        onChange={(e) => {
+                          const newParams = [...sendTemplateData.params];
+                          newParams[index] = e.target.value;
+                          setSendTemplateData(prev => ({ ...prev, params: newParams }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload Documento Header */}
+            <div className="space-y-2">
+              <Label>Allega Documento (opzionale)</Label>
+              <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                {sendTemplateData.headerDocumentUrl ? (
+                  <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <File className="h-5 w-5 text-blue-600" />
+                      <span className="text-sm font-medium truncate max-w-[200px]">
+                        {sendTemplateData.headerDocumentName}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSendTemplateData(prev => ({ 
+                        ...prev, 
+                        headerDocumentUrl: '', 
+                        headerDocumentName: '' 
+                      }))}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleDocumentUpload(file);
+                      }}
+                      disabled={isUploadingDocument}
+                    />
+                    <div className="flex flex-col items-center gap-2 py-2">
+                      {isUploadingDocument ? (
+                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                      ) : (
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                      )}
+                      <span className="text-sm text-muted-foreground">
+                        {isUploadingDocument ? 'Caricamento...' : 'Clicca per allegare un PDF'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        PDF, DOC, DOCX, XLS, XLSX
+                      </span>
+                    </div>
+                  </label>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Il documento verrà inviato come header del messaggio template
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSendTemplateDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedTemplate) {
+                  sendTemplateMutation.mutate({
+                    templateName: selectedTemplate.name,
+                    templateLanguage: selectedTemplate.language,
+                    recipientPhone: sendTemplateData.recipientPhone,
+                    params: sendTemplateData.params.filter(p => p.trim() !== ''),
+                    headerDocumentUrl: sendTemplateData.headerDocumentUrl || undefined
+                  });
+                }
+              }}
+              disabled={!sendTemplateData.recipientPhone || sendTemplateMutation.isPending}
+            >
+              {sendTemplateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Invio...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Invia Template
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
