@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
 import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplatePreview";
+import { WhatsAppTemplateCreator, TemplateFormData } from "@/components/whatsapp/WhatsAppTemplateCreator";
 import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -133,12 +134,7 @@ export default function WhatsAppPage() {
     verified_name: ''
   });
 
-  const [templateFormData, setTemplateFormData] = useState({
-    name: '',
-    language: 'it',
-    category: 'MARKETING',
-    body: ''
-  });
+  // templateFormData rimosso - ora usiamo WhatsAppTemplateCreator
 
   // Rimossa gestione crediti - Meta fattura direttamente
   
@@ -381,24 +377,54 @@ export default function WhatsAppPage() {
   });
 
   const saveTemplateMutation = useMutation({
-    mutationFn: async (data: typeof templateFormData) => {
+    mutationFn: async (data: TemplateFormData) => {
+      // Build components array in Meta format
+      const components: any[] = [];
+      
+      // Header component
+      if (data.headerType !== "none") {
+        if (data.headerType === "text" && data.headerText) {
+          components.push({
+            type: "HEADER",
+            format: "TEXT",
+            text: data.headerText
+          });
+        } else if (data.headerType !== "text") {
+          components.push({
+            type: "HEADER",
+            format: data.headerType.toUpperCase()
+          });
+        }
+      }
+      
+      // Body component (required)
+      components.push({
+        type: "BODY",
+        text: data.body
+      });
+      
+      // Footer component (optional)
+      if (data.footer) {
+        components.push({
+          type: "FOOTER",
+          text: data.footer
+        });
+      }
+
       const { error } = await supabase.from('whatsapp_templates').insert({
         account_id: selectedAccount!.id,
         name: data.name,
         language: data.language,
         category: data.category,
-        components: {
-          body: { type: 'BODY', text: data.body }
-        },
+        components: components,
         status: 'PENDING'
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
-      toast.success('Template creato');
+      toast.success('Template creato - Clicca "Carica su Meta" per inviarlo per approvazione');
       setIsTemplateDialogOpen(false);
-      setTemplateFormData({ name: '', language: 'it', category: 'MARKETING', body: '' });
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -1762,107 +1788,13 @@ export default function WhatsAppPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Template Dialog */}
-      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nuovo Template</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Nome Template *</Label>
-              <Input
-                placeholder="Es: benvenuto_cliente"
-                value={templateFormData.name}
-                onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value.toLowerCase().replace(/\s/g, '_') }))}
-              />
-            </div>
-            <div>
-              <Label>Categoria</Label>
-              <Select 
-                value={templateFormData.category} 
-                onValueChange={(v) => setTemplateFormData(prev => ({ ...prev, category: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MARKETING">Marketing</SelectItem>
-                  <SelectItem value="UTILITY">Utility</SelectItem>
-                  <SelectItem value="AUTHENTICATION">Autenticazione</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Lingua</Label>
-              <Select 
-                value={templateFormData.language} 
-                onValueChange={(v) => setTemplateFormData(prev => ({ ...prev, language: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="it">Italiano</SelectItem>
-                  <SelectItem value="en">Inglese</SelectItem>
-                  <SelectItem value="de">Tedesco</SelectItem>
-                  <SelectItem value="fr">Francese</SelectItem>
-                  <SelectItem value="es">Spagnolo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Corpo del Messaggio *</Label>
-              <Textarea
-                placeholder="Ciao {{1}}, grazie per averci contattato! Il tuo ordine {{2}} è confermato."
-                value={templateFormData.body}
-                onChange={(e) => setTemplateFormData(prev => ({ ...prev, body: e.target.value }))}
-                rows={4}
-              />
-              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Parametri Dinamici</p>
-                <p className="text-xs text-muted-foreground">
-                  Usa i placeholder per personalizzare il messaggio. Al momento dell'invio, verranno sostituiti con i valori reali.
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[1, 2, 3, 4, 5].map(num => (
-                    <Button
-                      key={num}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs font-mono"
-                      onClick={() => setTemplateFormData(prev => ({ 
-                        ...prev, 
-                        body: prev.body + `{{${num}}}` 
-                      }))}
-                    >
-                      {`{{${num}}}`}
-                    </Button>
-                  ))}
-                </div>
-                <div className="text-xs text-muted-foreground space-y-1 pt-1 border-t">
-                  <p className="font-medium">Esempio d'uso:</p>
-                  <p><code className="bg-muted px-1 rounded">{`{{1}}`}</code> → Nome cliente</p>
-                  <p><code className="bg-muted px-1 rounded">{`{{2}}`}</code> → Numero ordine</p>
-                  <p><code className="bg-muted px-1 rounded">{`{{3}}`}</code> → Data consegna</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
-              Annulla
-            </Button>
-            <Button 
-              onClick={() => saveTemplateMutation.mutate(templateFormData)}
-              disabled={!templateFormData.name || !templateFormData.body}
-            >
-              Crea Template
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add Template Dialog - New Creator Component */}
+      <WhatsAppTemplateCreator
+        isOpen={isTemplateDialogOpen}
+        onClose={() => setIsTemplateDialogOpen(false)}
+        onSave={(data) => saveTemplateMutation.mutate(data)}
+        isSaving={saveTemplateMutation.isPending}
+      />
 
       {/* Rimosso Add Credits Dialog - Meta fattura direttamente */}
 
