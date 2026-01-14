@@ -1246,14 +1246,43 @@ export default function WhatsAppPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Corpo del Messaggio *</Label>
               <Textarea
-                placeholder="Scrivi il testo del template. Usa {{1}}, {{2}} per i parametri dinamici."
+                placeholder="Ciao {{1}}, grazie per averci contattato! Il tuo ordine {{2}} è confermato."
                 value={templateFormData.body}
                 onChange={(e) => setTemplateFormData(prev => ({ ...prev, body: e.target.value }))}
                 rows={4}
               />
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Parametri Dinamici</p>
+                <p className="text-xs text-muted-foreground">
+                  Usa i placeholder per personalizzare il messaggio. Al momento dell'invio, verranno sostituiti con i valori reali.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[1, 2, 3, 4, 5].map(num => (
+                    <Button
+                      key={num}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs font-mono"
+                      onClick={() => setTemplateFormData(prev => ({ 
+                        ...prev, 
+                        body: prev.body + `{{${num}}}` 
+                      }))}
+                    >
+                      {`{{${num}}}`}
+                    </Button>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1 pt-1 border-t">
+                  <p className="font-medium">Esempio d'uso:</p>
+                  <p><code className="bg-muted px-1 rounded">{`{{1}}`}</code> → Nome cliente</p>
+                  <p><code className="bg-muted px-1 rounded">{`{{2}}`}</code> → Numero ordine</p>
+                  <p><code className="bg-muted px-1 rounded">{`{{3}}`}</code> → Data consegna</p>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
