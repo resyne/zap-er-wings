@@ -875,7 +875,41 @@ export default function WhatsAppPage() {
           </TabsContent>
 
           {/* Templates Tab */}
-          <TabsContent value="templates" className="mt-4">
+          <TabsContent value="templates" className="mt-4 space-y-4">
+            {/* Guidelines Card */}
+            <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  Guida alla creazione template WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm space-y-3">
+                <div>
+                  <h4 className="font-semibold mb-1">📁 Categorie Template</h4>
+                  <ul className="space-y-1 text-muted-foreground ml-4">
+                    <li><Badge className="bg-green-100 text-green-800 mr-2">UTILITY</Badge>Conferme ordini, aggiornamenti spedizioni, promemoria appuntamenti, notifiche account. <strong>Tasso approvazione più alto.</strong></li>
+                    <li><Badge className="bg-blue-100 text-blue-800 mr-2">MARKETING</Badge>Promozioni, offerte speciali, lancio prodotti, newsletter. <strong>Richiede consenso esplicito.</strong></li>
+                    <li><Badge className="bg-purple-100 text-purple-800 mr-2">AUTHENTICATION</Badge>Solo per codici OTP e verifica account. <strong>Non usare per altri scopi.</strong></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-1">✅ Best Practices</h4>
+                  <ul className="list-disc ml-6 text-muted-foreground space-y-0.5">
+                    <li>Usa variabili con nomi descrittivi: <code className="bg-muted px-1 rounded">{"{{nome_cliente}}"}</code>, <code className="bg-muted px-1 rounded">{"{{link_configuratore}}"}</code></li>
+                    <li>Nome template: solo lettere minuscole, numeri e underscore (es. <code className="bg-muted px-1 rounded">benvenuto_cliente_v1</code>)</li>
+                    <li>Evita parole come "gratis", "sconto", "offerta" nei template UTILITY</li>
+                    <li>Includi sempre il nome dell'azienda e un modo per contattarti</li>
+                    <li>Non inserire link abbreviati (bit.ly, tinyurl)</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-1">⏱️ Tempi di Approvazione</h4>
+                  <p className="text-muted-foreground">I template vengono revisionati da Meta entro 24-48 ore. UTILITY viene approvato più rapidamente di MARKETING.</p>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
