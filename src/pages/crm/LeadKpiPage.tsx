@@ -4,12 +4,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter, Phone } from "lucide-react";
+import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter, Phone, CalendarIcon } from "lucide-react";
 import { format, subDays, differenceInDays, differenceInHours, startOfDay, startOfWeek, startOfMonth, endOfDay } from "date-fns";
 import { it } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
 import JessyActivityLog from "@/components/crm/JessyActivityLog";
@@ -147,7 +151,8 @@ export default function LeadKpiPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [userActivityStats, setUserActivityStats] = useState<UserActivityStats[]>([]);
   const [userCallStats, setUserCallStats] = useState<UserCallStats[]>([]);
-  const [activityFilter, setActivityFilter] = useState<'today' | 'week' | 'month' | 'all'>('week');
+  const [activityFilter, setActivityFilter] = useState<'today' | 'week' | 'month' | 'all' | 'specific'>('week');
+  const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     loadDashboardData();
@@ -156,6 +161,7 @@ export default function LeadKpiPage() {
   const getFilteredActivityLogs = () => {
     const now = new Date();
     let startDate: Date;
+    let endDate: Date = endOfDay(now);
 
     switch (activityFilter) {
       case 'today':
@@ -167,6 +173,11 @@ export default function LeadKpiPage() {
       case 'month':
         startDate = startOfMonth(now);
         break;
+      case 'specific':
+        if (!specificDate) return activityLogs;
+        startDate = startOfDay(specificDate);
+        endDate = endOfDay(specificDate);
+        break;
       case 'all':
         return activityLogs;
       default:
@@ -175,7 +186,7 @@ export default function LeadKpiPage() {
 
     return activityLogs.filter(log => {
       const logDate = new Date(log.activityDate);
-      return logDate >= startDate && logDate <= endOfDay(now);
+      return logDate >= startDate && logDate <= endDate;
     });
   };
 
@@ -846,10 +857,15 @@ export default function LeadKpiPage() {
 
         <TabsContent value="sales" className="space-y-6">
           {/* Filtro periodo */}
-          <div className="flex items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg border">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg border">
+            <div className="flex flex-wrap items-center gap-3">
               <Filter className="h-5 w-5 text-muted-foreground" />
-              <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
+              <Select value={activityFilter} onValueChange={(value: any) => {
+                setActivityFilter(value);
+                if (value !== 'specific') {
+                  setSpecificDate(undefined);
+                }
+              }}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Filtra per periodo" />
                 </SelectTrigger>
@@ -857,14 +873,43 @@ export default function LeadKpiPage() {
                   <SelectItem value="today">Oggi</SelectItem>
                   <SelectItem value="week">Questa Settimana</SelectItem>
                   <SelectItem value="month">Questo Mese</SelectItem>
+                  <SelectItem value="specific">Data Specifica</SelectItem>
                   <SelectItem value="all">Tutto</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {activityFilter === 'specific' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[200px] justify-start text-left font-normal",
+                        !specificDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {specificDate ? format(specificDate, "dd/MM/yyyy", { locale: it }) : "Seleziona data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={specificDate}
+                      onSelect={setSpecificDate}
+                      initialFocus
+                      locale={it}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
             <span className="text-sm font-medium text-muted-foreground">
               {activityFilter === 'today' && '📅 Attività di oggi'}
               {activityFilter === 'week' && '📅 Attività di questa settimana'}
               {activityFilter === 'month' && '📅 Attività di questo mese'}
+              {activityFilter === 'specific' && specificDate && `📅 Attività del ${format(specificDate, "dd/MM/yyyy", { locale: it })}`}
+              {activityFilter === 'specific' && !specificDate && '📅 Seleziona una data'}
               {activityFilter === 'all' && '📅 Tutte le attività'}
             </span>
           </div>
