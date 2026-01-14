@@ -127,7 +127,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     escluso_fornitura: '',
     payment_method: '',
     payment_agreement: '',
-    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue',
+    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario',
     company_entity: 'climatel' as 'climatel' | 'unita1'
   });
 
@@ -805,6 +805,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                 <SelectItem value="reverse_charge">Reverse Charge - N.6.7 (IVA 0%)</SelectItem>
                 <SelectItem value="intra_ue">Cessione Intra UE - N.3.2 (IVA 0%)</SelectItem>
                 <SelectItem value="extra_ue">Cessione Extra UE - N.3.1 (IVA 0%)</SelectItem>
+                <SelectItem value="forfetario">Regime Forfetario - L. 190/2014 (IVA 0%)</SelectItem>
               </SelectContent>
             </Select>
           </div>
