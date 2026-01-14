@@ -969,7 +969,9 @@ export default function WhatsAppPage() {
                                       }`}
                                     >
                                       <FileText className="h-4 w-4" />
-                                      <span className="text-sm underline">Documento allegato</span>
+                                      <span className="text-sm underline">
+                                        {msg.media_url.split('/').pop()?.split('?')[0] || 'Documento allegato'}
+                                      </span>
                                     </a>
                                   )}
                                   
