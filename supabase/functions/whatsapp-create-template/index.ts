@@ -55,10 +55,47 @@ serve(async (req) => {
 
     // Add BODY component
     if (template.components?.body) {
-      components.push({
-        type: "BODY",
-        text: template.components.body.text,
+      let bodyText = template.components.body.text || "";
+      
+      // Find all named variables like {{variable_name}} and convert to positional {{1}}, {{2}}, etc.
+      const namedVarRegex = /\{\{([^}]+)\}\}/g;
+      const matches = bodyText.match(namedVarRegex) || [];
+      const uniqueVars = [...new Set(matches)];
+      
+      // Create a mapping of named vars to positional vars
+      const varMapping: Record<string, string> = {};
+      const exampleValues: string[] = [];
+      
+      uniqueVars.forEach((namedVar, index) => {
+        const varName = namedVar.replace(/\{\{|\}\}/g, "").trim();
+        varMapping[namedVar] = `{{${index + 1}}}`;
+        // Generate example value based on variable name
+        exampleValues.push(varName.includes("name") ? "Mario" : 
+                          varName.includes("email") ? "email@example.com" :
+                          varName.includes("phone") ? "+39123456789" :
+                          varName.includes("date") ? "01/01/2025" :
+                          varName.includes("amount") ? "100€" :
+                          `[${varName}]`);
       });
+      
+      // Replace named variables with positional ones
+      for (const [named, positional] of Object.entries(varMapping)) {
+        bodyText = bodyText.split(named).join(positional);
+      }
+      
+      const bodyComponent: Record<string, unknown> = {
+        type: "BODY",
+        text: bodyText,
+      };
+      
+      // Add example if there are variables
+      if (exampleValues.length > 0) {
+        bodyComponent.example = {
+          body_text: [exampleValues]
+        };
+      }
+      
+      components.push(bodyComponent);
     }
 
     // Build the request payload for Meta
