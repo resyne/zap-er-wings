@@ -419,6 +419,48 @@ export default function OffersPage() {
       // Format IVA percentage display
       const ivaPercentDisplay = isReverseCharge ? '0%' : '22%';
 
+      // Build timeline section dynamically (only include items with values)
+      const timelineItems: string[] = [];
+      const timelineProduzione = (offer as any).timeline_produzione;
+      const timelineConsegna = (offer as any).timeline_consegna;
+      const timelineInstallazione = (offer as any).timeline_installazione;
+      const timelineCollaudo = (offer as any).timeline_collaudo;
+
+      if (timelineProduzione) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Produzione</div>
+            <div>${timelineProduzione}</div>
+          </div>
+        `);
+      }
+      if (timelineConsegna) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Consegna</div>
+            <div>${timelineConsegna}</div>
+          </div>
+        `);
+      }
+      if (timelineInstallazione) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Installazione</div>
+            <div>${timelineInstallazione}</div>
+          </div>
+        `);
+      }
+      if (timelineCollaudo) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Collaudo</div>
+            <div>${timelineCollaudo}</div>
+          </div>
+        `);
+      }
+
+      const timelineSection = timelineItems.join('');
+
       // Replace all placeholders
       htmlTemplate = htmlTemplate
         .replace(/\{\{logo\}\}/g, logoUrl)
@@ -436,11 +478,14 @@ export default function OffersPage() {
         .replace(/\{\{iva_percent\}\}/g, ivaPercentDisplay)
         .replace(/\{\{totale_lordo\}\}/g, totalLordo.toFixed(2))
         .replace(/\{\{validità_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
-        .replace(/\{\{tempi_consegna\}\}/g, (offer as any).timeline_consegna || '')
+        .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
+        .replace(/\{\{timeline_section\}\}/g, timelineSection)
+        .replace(/\{\{tempi_consegna\}\}/g, timelineConsegna || '')
         .replace(/\{\{metodi_pagamento\}\}/g, [(offer as any).payment_method, (offer as any).payment_agreement].filter(Boolean).join(' - '))
-        .replace(/\{\{timeline_produzione\}\}/g, (offer as any).timeline_produzione || '')
-        .replace(/\{\{timeline_consegna\}\}/g, (offer as any).timeline_consegna || '')
-        .replace(/\{\{timeline_installazione\}\}/g, (offer as any).timeline_installazione || '')
+        .replace(/\{\{timeline_produzione\}\}/g, timelineProduzione || '')
+        .replace(/\{\{timeline_consegna\}\}/g, timelineConsegna || '')
+        .replace(/\{\{timeline_installazione\}\}/g, timelineInstallazione || '')
+        .replace(/\{\{timeline_collaudo\}\}/g, timelineCollaudo || '')
         .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
 
       // Create temporary container
