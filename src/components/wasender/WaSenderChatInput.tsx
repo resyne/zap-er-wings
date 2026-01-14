@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ export default function WaSenderChatInput({
   isSending,
   setIsSending,
 }: WaSenderChatInputProps) {
+  const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaType, setMediaType] = useState<MediaType>(null);
@@ -284,6 +286,11 @@ export default function WaSenderChatInput({
         accountId,
         conversationId,
       };
+
+      // Add sender user ID
+      if (user?.id) {
+        requestBody.sentBy = user.id;
+      }
 
       if (message.trim()) {
         requestBody.text = message.trim();

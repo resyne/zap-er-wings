@@ -9664,6 +9664,7 @@ export type Database = {
           id: string
           media_url: string | null
           message_type: string | null
+          sent_by: string | null
           status: string | null
           wasender_id: string | null
         }
@@ -9677,6 +9678,7 @@ export type Database = {
           id?: string
           media_url?: string | null
           message_type?: string | null
+          sent_by?: string | null
           status?: string | null
           wasender_id?: string | null
         }
@@ -9690,6 +9692,7 @@ export type Database = {
           id?: string
           media_url?: string | null
           message_type?: string | null
+          sent_by?: string | null
           status?: string | null
           wasender_id?: string | null
         }
