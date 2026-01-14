@@ -22,6 +22,7 @@ import {
   Image as ImageIcon, Volume2
 } from "lucide-react";
 import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
+import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplatePreview";
 import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -157,6 +158,10 @@ export default function WhatsAppPage() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [chatSelectedTemplate, setChatSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
   const [chatTemplateParams, setChatTemplateParams] = useState<string[]>([]);
+  
+  // State per preview template
+  const [isTemplatePreviewOpen, setIsTemplatePreviewOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<WhatsAppTemplate | null>(null);
 
   // Query per clienti e lead (per associazione)
   const { data: customers } = useQuery({
@@ -629,6 +634,12 @@ export default function WhatsAppPage() {
       selectedLeadId: ''
     });
     setIsSendTemplateDialogOpen(true);
+  };
+
+  // Apri preview template
+  const openTemplatePreview = (template: WhatsAppTemplate) => {
+    setPreviewTemplate(template);
+    setIsTemplatePreviewOpen(true);
   };
 
   const deleteConversationMutation = useMutation({
@@ -1202,7 +1213,11 @@ export default function WhatsAppPage() {
                   </TableHeader>
                   <TableBody>
                     {templates?.map(template => (
-                      <TableRow key={template.id}>
+                      <TableRow 
+                        key={template.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => openTemplatePreview(template)}
+                      >
                         <TableCell className="font-medium">{template.name}</TableCell>
                         <TableCell>
                           <Badge className={getCategoryColor(template.category)}>
@@ -1219,7 +1234,7 @@ export default function WhatsAppPage() {
                           {format(new Date(template.created_at), 'dd/MM/yyyy')}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {(template.status === 'PENDING' || template.status === 'FAILED') && !template.meta_template_id && (
                               <Button 
                                 variant="outline" 
@@ -1247,9 +1262,6 @@ export default function WhatsAppPage() {
                                 Invia
                               </Button>
                             )}
-                            <Button variant="ghost" size="sm">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -2169,6 +2181,20 @@ export default function WhatsAppPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Template Preview Dialog */}
+      <WhatsAppTemplatePreview
+        template={previewTemplate}
+        isOpen={isTemplatePreviewOpen}
+        onClose={() => {
+          setIsTemplatePreviewOpen(false);
+          setPreviewTemplate(null);
+        }}
+        onSendTemplate={(template) => {
+          setIsTemplatePreviewOpen(false);
+          openSendTemplateDialog(template);
+        }}
+      />
     </div>
   );
 }

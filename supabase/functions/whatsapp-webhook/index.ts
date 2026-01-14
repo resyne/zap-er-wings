@@ -48,6 +48,68 @@ serve(async (req) => {
           const changes = entry.changes || [];
           
           for (const change of changes) {
+            // Handle message_template_status_update for template status changes
+            if (change.field === "message_template_status_update") {
+              const templateUpdate = change.value;
+              console.log("Template status update:", JSON.stringify(templateUpdate, null, 2));
+              
+              const { event, message_template_id, message_template_name, message_template_language, reason } = templateUpdate;
+              
+              // Map Meta events to our status
+              let newStatus = "PENDING";
+              let rejectionReason = null;
+              
+              switch (event) {
+                case "APPROVED":
+                  newStatus = "APPROVED";
+                  break;
+                case "REJECTED":
+                  newStatus = "REJECTED";
+                  rejectionReason = reason || "Template rifiutato da Meta";
+                  break;
+                case "PENDING":
+                case "PENDING_DELETION":
+                  newStatus = "PENDING";
+                  break;
+                case "DISABLED":
+                  newStatus = "DISABLED";
+                  break;
+                case "PAUSED":
+                  newStatus = "PAUSED";
+                  break;
+                case "IN_APPEAL":
+                  newStatus = "IN_APPEAL";
+                  break;
+              }
+              
+              // Update template in database
+              const { error: updateError } = await supabase
+                .from("whatsapp_templates")
+                .update({
+                  status: newStatus,
+                  rejection_reason: rejectionReason,
+                  updated_at: new Date().toISOString()
+                })
+                .eq("meta_template_id", message_template_id);
+              
+              if (updateError) {
+                console.error("Error updating template status:", updateError);
+                // Try matching by name and language as fallback
+                await supabase
+                  .from("whatsapp_templates")
+                  .update({
+                    status: newStatus,
+                    rejection_reason: rejectionReason,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq("name", message_template_name)
+                  .eq("language", message_template_language);
+              }
+              
+              console.log(`Template ${message_template_name} status updated to ${newStatus}`);
+              continue;
+            }
+            
             if (change.field === "messages") {
               const value = change.value;
               const phoneNumberId = value.metadata?.phone_number_id;
