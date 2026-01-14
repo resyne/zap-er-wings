@@ -22,7 +22,9 @@ interface SendMessageRequest {
   template_params?: any[];
   media_url?: string;
   media_caption?: string;
+  media_filename?: string; // Nome del file per documenti
   header_document_url?: string; // URL del documento per header template
+  header_document_filename?: string; // Nome del documento per header template
   sent_by?: string; // User ID che ha inviato il messaggio
 }
 
@@ -34,7 +36,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SendMessageRequest = await req.json();
-    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, header_document_url, sent_by } = body;
+    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, media_filename, header_document_url, header_document_filename, sent_by } = body;
 
     // Get account details
     const { data: account, error: accountError } = await supabase
@@ -84,16 +86,18 @@ serve(async (req) => {
         
         // Add header component if document URL is provided
         if (header_document_url) {
+          const headerDocParam: any = {
+            type: "document",
+            document: {
+              link: header_document_url
+            }
+          };
+          if (header_document_filename) {
+            headerDocParam.document.filename = header_document_filename;
+          }
           components.push({
             type: "header",
-            parameters: [
-              {
-                type: "document",
-                document: {
-                  link: header_document_url
-                }
-              }
-            ]
+            parameters: [headerDocParam]
           });
         }
         
@@ -127,6 +131,7 @@ serve(async (req) => {
         messagePayload.document = {
           link: media_url,
           caption: media_caption,
+          filename: media_filename,
         };
         break;
 
