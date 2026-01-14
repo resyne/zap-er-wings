@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -240,7 +240,8 @@ export default function WhatsAppPage() {
       if (error) throw error;
       return data as WhatsAppConversation[];
     },
-    enabled: !!selectedAccount
+    enabled: !!selectedAccount,
+    refetchInterval: 5000 // Polling ogni 5 secondi
   });
 
   const { data: messages } = useQuery({
@@ -255,8 +256,55 @@ export default function WhatsAppPage() {
       if (error) throw error;
       return data as WhatsAppMessage[];
     },
-    enabled: !!selectedConversation
+    enabled: !!selectedConversation,
+    refetchInterval: 3000 // Polling ogni 3 secondi per messaggi attivi
   });
+
+  // Realtime subscription per messaggi e conversazioni
+  useEffect(() => {
+    if (!selectedAccount) return;
+
+    const conversationsChannel = supabase
+      .channel('whatsapp-conversations-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+          filter: `account_id=eq.${selectedAccount.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations', selectedAccount.id] });
+        }
+      )
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel('whatsapp-messages-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'whatsapp_messages'
+        },
+        (payload) => {
+          // Invalida i messaggi della conversazione attiva
+          if (selectedConversation && payload.new && (payload.new as any).conversation_id === selectedConversation.id) {
+            queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', selectedConversation.id] });
+          }
+          // Invalida sempre le conversazioni per aggiornare preview
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations', selectedAccount.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(conversationsChannel);
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [selectedAccount?.id, selectedConversation?.id, queryClient]);
 
   // Query per costi messaggi (tracking automatico)
   const { data: messageCosts } = useQuery({
