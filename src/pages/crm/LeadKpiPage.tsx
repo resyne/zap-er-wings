@@ -50,6 +50,21 @@ interface UserCallStats {
   avgCallsPerDay: number;
 }
 
+interface CallRecord {
+  id: string;
+  operator_id: string | null;
+  operator_name: string | null;
+  call_date: string;
+  duration_seconds: number;
+  extension_number: string | null;
+}
+
+interface PhoneExtension {
+  extension_number: string;
+  operator_name: string | null;
+  user_id: string | null;
+}
+
 interface LeadsByStatus {
   status: string;
   count: number;
@@ -151,6 +166,9 @@ export default function LeadKpiPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [userActivityStats, setUserActivityStats] = useState<UserActivityStats[]>([]);
   const [userCallStats, setUserCallStats] = useState<UserCallStats[]>([]);
+  const [callRecordsData, setCallRecordsData] = useState<CallRecord[]>([]);
+  const [phoneExtensionsData, setPhoneExtensionsData] = useState<PhoneExtension[]>([]);
+  const [profilesData, setProfilesData] = useState<{id: string; first_name: string | null; last_name: string | null}[]>([]);
   const [activityFilter, setActivityFilter] = useState<'today' | 'week' | 'month' | 'all' | 'specific'>('week');
   const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined);
 
@@ -188,6 +206,74 @@ export default function LeadKpiPage() {
       const logDate = new Date(log.activityDate);
       return logDate >= startDate && logDate <= endDate;
     });
+  };
+
+  // Get filtered call stats based on selected period
+  const getFilteredCallStats = () => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = endOfDay(now);
+
+    switch (activityFilter) {
+      case 'today':
+        startDate = startOfDay(now);
+        break;
+      case 'week':
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case 'month':
+        startDate = startOfMonth(now);
+        break;
+      case 'specific':
+        if (!specificDate) return [];
+        startDate = startOfDay(specificDate);
+        endDate = endOfDay(specificDate);
+        break;
+      case 'all':
+        startDate = new Date(0); // All time
+        break;
+      default:
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+    }
+
+    // Group calls by user for the selected period
+    const callStatsMap = new Map<string, { userId: string; userName: string; calls: number }>();
+    
+    callRecordsData.forEach(call => {
+      const callDate = new Date(call.call_date);
+      if (callDate < startDate || callDate > endDate) return;
+
+      let operatorId = call.operator_id;
+      let operatorName = call.operator_name;
+      
+      if (!operatorId && call.extension_number) {
+        const extension = phoneExtensionsData.find(ext => ext.extension_number === call.extension_number);
+        if (extension) {
+          operatorId = extension.user_id;
+          operatorName = extension.operator_name;
+        }
+      }
+      
+      if (!operatorId) return;
+
+      if (!callStatsMap.has(operatorId)) {
+        const profile = profilesData.find(p => p.id === operatorId);
+        const userName = profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || operatorName || 'Unknown'
+          : operatorName || 'Unknown';
+        
+        callStatsMap.set(operatorId, {
+          userId: operatorId,
+          userName,
+          calls: 0,
+        });
+      }
+
+      const stats = callStatsMap.get(operatorId)!;
+      stats.calls++;
+    });
+
+    return Array.from(callStatsMap.values()).sort((a, b) => b.calls - a.calls);
   };
 
   const loadDashboardData = async () => {
@@ -585,6 +671,9 @@ export default function LeadKpiPage() {
       });
 
       setUserCallStats(Array.from(callStatsMap.values()));
+      setCallRecordsData(callRecords || []);
+      setPhoneExtensionsData(phoneExtensions || []);
+      setProfilesData(profiles || []);
 
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
@@ -914,7 +1003,7 @@ export default function LeadKpiPage() {
             </span>
           </div>
 
-          {/* Statistiche Chiamate per Utente */}
+          {/* Statistiche Chiamate per Utente - Filtrate */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -922,54 +1011,71 @@ export default function LeadKpiPage() {
                 Statistiche Chiamate per Utente
               </CardTitle>
               <CardDescription>
-                Numero di chiamate effettuate per giorno, settimana e mese
+                {activityFilter === 'today' && 'Chiamate di oggi'}
+                {activityFilter === 'week' && 'Chiamate di questa settimana'}
+                {activityFilter === 'month' && 'Chiamate di questo mese'}
+                {activityFilter === 'specific' && specificDate && `Chiamate del ${format(specificDate, "dd/MM/yyyy", { locale: it })}`}
+                {activityFilter === 'specific' && !specificDate && 'Seleziona una data per vedere le chiamate'}
+                {activityFilter === 'all' && 'Tutte le chiamate'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {userCallStats.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Utente</TableHead>
-                      <TableHead className="text-center">Oggi</TableHead>
-                      <TableHead className="text-center">Questa Settimana</TableHead>
-                      <TableHead className="text-center">Questo Mese</TableHead>
-                      <TableHead className="text-center">Totale</TableHead>
-                      <TableHead className="text-center">Media/Giorno</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {userCallStats.map((stats) => (
-                      <TableRow key={stats.userId}>
-                        <TableCell className="font-medium">{stats.userName}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-blue-500/10 border-blue-500/20">
-                            {stats.callsToday}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-green-500/10 border-green-500/20">
-                            {stats.callsThisWeek}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-orange-500/10 border-orange-500/20">
-                            {stats.callsThisMonth}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center font-semibold">{stats.totalCalls}</TableCell>
-                        <TableCell className="text-center text-muted-foreground">
-                          {stats.avgCallsPerDay.toFixed(1)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  Nessuna statistica chiamate disponibile
-                </p>
-              )}
+              {(() => {
+                const filteredCallStats = getFilteredCallStats();
+                const totalFilteredCalls = filteredCallStats.reduce((sum, s) => sum + s.calls, 0);
+                
+                if (activityFilter === 'specific' && !specificDate) {
+                  return (
+                    <p className="text-center text-muted-foreground py-8">
+                      Seleziona una data dal calendario per vedere le statistiche chiamate
+                    </p>
+                  );
+                }
+                
+                if (filteredCallStats.length > 0) {
+                  return (
+                    <>
+                      <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          Totale chiamate nel periodo: <span className="font-bold text-foreground">{totalFilteredCalls}</span>
+                        </p>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Utente</TableHead>
+                            <TableHead className="text-center">
+                              {activityFilter === 'today' && 'Chiamate Oggi'}
+                              {activityFilter === 'week' && 'Chiamate Settimana'}
+                              {activityFilter === 'month' && 'Chiamate Mese'}
+                              {activityFilter === 'specific' && 'Chiamate Data'}
+                              {activityFilter === 'all' && 'Chiamate Totali'}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredCallStats.map((stats) => (
+                            <TableRow key={stats.userId}>
+                              <TableCell className="font-medium">{stats.userName}</TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className="bg-primary/10 border-primary/20 text-lg px-4 py-1">
+                                  {stats.calls}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </>
+                  );
+                }
+                
+                return (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nessuna chiamata trovata per il periodo selezionato
+                  </p>
+                );
+              })()}
             </CardContent>
           </Card>
 
