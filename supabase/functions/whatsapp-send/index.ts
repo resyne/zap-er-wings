@@ -23,6 +23,7 @@ interface SendMessageRequest {
   media_url?: string;
   media_caption?: string;
   header_document_url?: string; // URL del documento per header template
+  sent_by?: string; // User ID che ha inviato il messaggio
 }
 
 serve(async (req) => {
@@ -33,7 +34,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SendMessageRequest = await req.json();
-    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, header_document_url } = body;
+    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, header_document_url, sent_by } = body;
 
     // Get account details
     const { data: account, error: accountError } = await supabase
@@ -215,6 +216,7 @@ serve(async (req) => {
         template_params: template_params,
         media_url: header_document_url || media_url,
         status: "sent",
+        sent_by: sent_by || null,
       });
 
       // Update conversation
