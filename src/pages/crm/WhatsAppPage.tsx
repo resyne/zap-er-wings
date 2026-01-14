@@ -51,6 +51,7 @@ interface WhatsAppTemplate {
   id: string;
   account_id: string;
   template_id: string | null;
+  meta_template_id: string | null;
   name: string;
   language: string;
   category: string;
@@ -415,6 +416,25 @@ export default function WhatsAppPage() {
       setIsNewConversationDialogOpen(false);
       setNewContactData({ phone: '', name: '', customer_id: '', lead_id: '' });
       setSelectedConversation(newConv);
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Mutation per caricare template su Meta
+  const uploadTemplateToMetaMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const response = await supabase.functions.invoke('whatsapp-create-template', {
+        body: { template_id: templateId }
+      });
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.details?.message || response.data.error);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+      toast.success(data.message || 'Template inviato a Meta per approvazione');
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -900,6 +920,21 @@ export default function WhatsAppPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {template.status === 'PENDING' && !template.meta_template_id && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                disabled={uploadTemplateToMetaMutation.isPending}
+                                onClick={() => uploadTemplateToMetaMutation.mutate(template.id)}
+                              >
+                                {uploadTemplateToMetaMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : (
+                                  <Upload className="h-4 w-4 mr-1" />
+                                )}
+                                Carica su Meta
+                              </Button>
+                            )}
                             {template.status === 'APPROVED' && (
                               <Button 
                                 variant="default" 
