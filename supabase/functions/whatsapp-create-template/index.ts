@@ -57,30 +57,62 @@ serve(async (req) => {
     if (template.components?.body) {
       let bodyText = template.components.body.text || "";
       
-      // Find all named variables like {{variable_name}} and convert to positional {{1}}, {{2}}, etc.
-      const namedVarRegex = /\{\{([^}]+)\}\}/g;
-      const matches = bodyText.match(namedVarRegex) || [];
-      const uniqueVars = [...new Set(matches)];
+      // Find all variables {{...}}
+      const varRegex = /\{\{([^}]+)\}\}/g;
+      const matches = [...bodyText.matchAll(varRegex)];
+      const uniqueVars: string[] = [];
       
-      // Create a mapping of named vars to positional vars
+      // Collect unique variables in order of appearance
+      for (const match of matches) {
+        if (!uniqueVars.includes(match[0])) {
+          uniqueVars.push(match[0]);
+        }
+      }
+      
+      // Create a mapping and ensure sequential numbering starting from 1
       const varMapping: Record<string, string> = {};
       const exampleValues: string[] = [];
       
-      uniqueVars.forEach((namedVar, index) => {
-        const varName = namedVar.replace(/\{\{|\}\}/g, "").trim();
-        varMapping[namedVar] = `{{${index + 1}}}`;
-        // Generate example value based on variable name
-        exampleValues.push(varName.includes("name") ? "Mario" : 
-                          varName.includes("email") ? "email@example.com" :
-                          varName.includes("phone") ? "+39123456789" :
-                          varName.includes("date") ? "01/01/2025" :
-                          varName.includes("amount") ? "100€" :
-                          `[${varName}]`);
+      uniqueVars.forEach((fullVar, index) => {
+        const varContent = fullVar.replace(/\{\{|\}\}/g, "").trim();
+        const positionalVar = `{{${index + 1}}}`;
+        
+        // Only remap if it's different
+        if (fullVar !== positionalVar) {
+          varMapping[fullVar] = positionalVar;
+        }
+        
+        // Generate example value based on variable content
+        const lowerContent = varContent.toLowerCase();
+        let example = "esempio";
+        
+        if (lowerContent.includes("name") || lowerContent.includes("nome")) {
+          example = "Mario Rossi";
+        } else if (lowerContent.includes("email")) {
+          example = "email@example.com";
+        } else if (lowerContent.includes("phone") || lowerContent.includes("telefono")) {
+          example = "+39123456789";
+        } else if (lowerContent.includes("date") || lowerContent.includes("data")) {
+          example = "01/01/2025";
+        } else if (lowerContent.includes("amount") || lowerContent.includes("importo") || lowerContent.includes("prezzo")) {
+          example = "100€";
+        } else if (lowerContent.includes("link") || lowerContent.includes("url")) {
+          example = "https://example.com/link";
+        } else if (/^\d+$/.test(varContent)) {
+          // Already a number, use generic example based on index
+          const exampleMap = ["Mario Rossi", "email@example.com", "https://example.com/link", "+39123456789", "01/01/2025"];
+          example = exampleMap[index % exampleMap.length];
+        } else {
+          example = `[${varContent}]`;
+        }
+        
+        exampleValues.push(example);
       });
       
-      // Replace named variables with positional ones
-      for (const [named, positional] of Object.entries(varMapping)) {
-        bodyText = bodyText.split(named).join(positional);
+      // Replace variables with sequential positional ones
+      for (const [original, positional] of Object.entries(varMapping)) {
+        // Use a function to avoid issues with special characters in replacement
+        bodyText = bodyText.split(original).join(positional);
       }
       
       const bodyComponent: Record<string, unknown> = {
@@ -88,7 +120,7 @@ serve(async (req) => {
         text: bodyText,
       };
       
-      // Add example if there are variables
+      // Add example if there are variables (required by Meta)
       if (exampleValues.length > 0) {
         bodyComponent.example = {
           body_text: [exampleValues]
