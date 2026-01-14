@@ -2,17 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  MessageCircle, Send, Check, CheckCheck, Clock, AlertCircle, 
+  MessageCircle, Check, CheckCheck, Clock, AlertCircle, 
   Image, FileText, Video, Mic, Plus, RefreshCw, Link2
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { it } from "date-fns/locale";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import WaSenderChatInput from "@/components/wasender/WaSenderChatInput";
 
@@ -59,7 +57,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [selectedConversation, setSelectedConversation] = useState<WaSenderConversation | null>(null);
-  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   // Fetch active WaSender accounts
   const { data: accounts, isLoading: accountsLoading } = useQuery({
@@ -167,70 +165,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
     }
   });
 
-  // Send message mutation
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      if (!selectedConversation?.id || !selectedAccountId) {
-        throw new Error("Conversazione non selezionata");
-      }
-
-      const account = accounts?.find(a => a.id === selectedAccountId);
-      if (!account?.session_id) {
-        throw new Error("Account senza Session ID configurato");
-      }
-
-      // Insert message in pending state
-      const { data: msgData, error: insertError } = await supabase
-        .from('wasender_messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          direction: 'outbound',
-          message_type: 'text',
-          content,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Call edge function to send via WaSender API
-      const { error: sendError } = await supabase.functions.invoke('wasender-send', {
-        body: {
-          messageId: msgData.id,
-          conversationId: selectedConversation.id,
-          accountId: selectedAccountId,
-          to: selectedConversation.customer_phone,
-          text: content
-        }
-      });
-
-      if (sendError) {
-        // Update message status to failed
-        await supabase
-          .from('wasender_messages')
-          .update({ status: 'failed', error_message: sendError.message })
-          .eq('id', msgData.id);
-        throw sendError;
-      }
-
-      return msgData;
-    },
-    onSuccess: () => {
-      setNewMessage("");
-      refetchMessages();
-      queryClient.invalidateQueries({ queryKey: ['wasender-lead-conversation'] });
-    },
-    onError: (error: Error) => {
-      toast.error(`Errore invio: ${error.message}`);
-      refetchMessages();
-    }
-  });
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
-    sendMessageMutation.mutate(newMessage.trim());
-  };
+  // Note: sendMessageMutation removed - now using WaSenderChatInput component
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -472,30 +407,20 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
           )}
         </ScrollArea>
 
-        {/* Input area */}
-        <div className="border-t p-2">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Scrivi un messaggio..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              disabled={sendMessageMutation.isPending}
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || sendMessageMutation.isPending}
-              className="bg-emerald-500 hover:bg-emerald-600"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        {/* Input area with drag & drop support */}
+        {selectedConversation && (
+          <WaSenderChatInput
+            conversationId={selectedConversation.id}
+            customerPhone={selectedConversation.customer_phone}
+            accountId={selectedAccountId}
+            onMessageSent={() => {
+              refetchMessages();
+              queryClient.invalidateQueries({ queryKey: ['wasender-lead-conversation'] });
+            }}
+            isSending={isSending}
+            setIsSending={setIsSending}
+          />
+        )}
       </div>
 
       {/* Link to full chat */}
