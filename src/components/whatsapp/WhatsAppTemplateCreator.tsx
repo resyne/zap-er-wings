@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  FileText, Image, Video, Loader2, Plus, Type, AlertTriangle, X
+  FileText, Image, Video, Loader2, Plus, Type, AlertTriangle, X, 
+  Phone, ExternalLink, MessageSquare, Trash2
 } from "lucide-react";
 
 interface WhatsAppTemplateCreatorProps {
@@ -16,6 +17,13 @@ interface WhatsAppTemplateCreatorProps {
   onClose: () => void;
   onSave: (data: TemplateFormData) => void;
   isSaving?: boolean;
+}
+
+export interface TemplateButton {
+  type: "URL" | "PHONE_NUMBER" | "QUICK_REPLY";
+  text: string;
+  url?: string;
+  phone_number?: string;
 }
 
 export interface TemplateFormData {
@@ -26,6 +34,7 @@ export interface TemplateFormData {
   headerText: string;
   body: string;
   footer: string;
+  buttons: TemplateButton[];
 }
 
 const HEADER_OPTIONS = [
@@ -34,6 +43,12 @@ const HEADER_OPTIONS = [
   { value: "image", label: "Immagine", icon: Image, description: "Immagine JPG o PNG" },
   { value: "document", label: "Documento", icon: FileText, description: "PDF o altro documento" },
   { value: "video", label: "Video", icon: Video, description: "Video MP4" },
+];
+
+const BUTTON_TYPES = [
+  { value: "URL", label: "URL", icon: ExternalLink, description: "Apri un link" },
+  { value: "PHONE_NUMBER", label: "Chiama", icon: Phone, description: "Numero di telefono" },
+  { value: "QUICK_REPLY", label: "Risposta rapida", icon: MessageSquare, description: "Risposta predefinita" },
 ];
 
 export function WhatsAppTemplateCreator({ 
@@ -49,7 +64,8 @@ export function WhatsAppTemplateCreator({
     headerType: "none",
     headerText: "",
     body: "",
-    footer: ""
+    footer: "",
+    buttons: []
   });
 
   // Reset form when dialog opens
@@ -62,7 +78,8 @@ export function WhatsAppTemplateCreator({
         headerType: "none",
         headerText: "",
         body: "",
-        footer: ""
+        footer: "",
+        buttons: []
       });
     }
   }, [isOpen]);
@@ -83,6 +100,30 @@ export function WhatsAppTemplateCreator({
     setFormData(prev => ({
       ...prev,
       [field]: prev[field] + `{{${nextNum}}}`
+    }));
+  };
+
+  const addButton = () => {
+    if (formData.buttons.length >= 10) return;
+    setFormData(prev => ({
+      ...prev,
+      buttons: [...prev.buttons, { type: "QUICK_REPLY", text: "" }]
+    }));
+  };
+
+  const updateButton = (index: number, updates: Partial<TemplateButton>) => {
+    setFormData(prev => ({
+      ...prev,
+      buttons: prev.buttons.map((btn, i) => 
+        i === index ? { ...btn, ...updates } : btn
+      )
+    }));
+  };
+
+  const removeButton = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      buttons: prev.buttons.filter((_, i) => i !== index)
     }));
   };
 
@@ -163,7 +204,7 @@ export function WhatsAppTemplateCreator({
             </div>
 
             {/* Header Section */}
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-lg border p-4">
               <div className="flex items-center gap-2">
                 <Label className="text-base font-semibold">Header</Label>
                 <Badge variant="outline" className="text-xs">Opzionale</Badge>
@@ -247,7 +288,7 @@ export function WhatsAppTemplateCreator({
             </div>
 
             {/* Body Section */}
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-lg border p-4">
               <div className="flex items-center gap-2">
                 <Label className="text-base font-semibold">Body *</Label>
               </div>
@@ -283,21 +324,137 @@ export function WhatsAppTemplateCreator({
             </div>
 
             {/* Footer Section */}
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-lg border p-4">
               <div className="flex items-center gap-2">
                 <Label className="text-base font-semibold">Footer</Label>
                 <Badge variant="outline" className="text-xs">Opzionale</Badge>
               </div>
+              <p className="text-sm text-muted-foreground">
+                Aggiungi una breve riga di testo in fondo al template.
+              </p>
               <div>
-                <Input
+                <Label className="text-sm">Footer text</Label>
+                <Textarea
                   placeholder="Es: Rispondi STOP per annullare l'iscrizione"
                   value={formData.footer}
-                  onChange={(e) => setFormData(prev => ({ ...prev, footer: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, footer: e.target.value.slice(0, 60) }))}
+                  rows={2}
+                  className="resize-none mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Max 60 caratteri, nessuna variabile ammessa
+                  {formData.footer.length}/60 caratteri
                 </p>
               </div>
+            </div>
+
+            {/* Buttons Section */}
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <Label className="text-base font-semibold">Buttons</Label>
+                <Badge variant="outline" className="text-xs">Opzionale</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Crea fino a 10 pulsanti per far rispondere i clienti o eseguire azioni.
+              </p>
+
+              {/* Existing buttons */}
+              {formData.buttons.length > 0 && (
+                <div className="space-y-3">
+                  {formData.buttons.map((button, index) => (
+                    <div key={index} className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Pulsante {index + 1}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => removeButton(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Tipo</Label>
+                          <Select
+                            value={button.type}
+                            onValueChange={(v) => updateButton(index, { 
+                              type: v as TemplateButton["type"],
+                              url: undefined,
+                              phone_number: undefined
+                            })}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BUTTON_TYPES.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  <div className="flex items-center gap-2">
+                                    <opt.icon className="h-4 w-4" />
+                                    <span>{opt.label}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Testo pulsante</Label>
+                          <Input
+                            className="mt-1"
+                            placeholder="Es: Scopri di più"
+                            value={button.text}
+                            onChange={(e) => updateButton(index, { text: e.target.value.slice(0, 25) })}
+                            maxLength={25}
+                          />
+                        </div>
+                      </div>
+
+                      {button.type === "URL" && (
+                        <div>
+                          <Label className="text-xs">URL</Label>
+                          <Input
+                            className="mt-1"
+                            placeholder="https://esempio.com/pagina"
+                            value={button.url || ""}
+                            onChange={(e) => updateButton(index, { url: e.target.value })}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Puoi usare {"{{1}}"} per URL dinamici
+                          </p>
+                        </div>
+                      )}
+
+                      {button.type === "PHONE_NUMBER" && (
+                        <div>
+                          <Label className="text-xs">Numero di telefono</Label>
+                          <Input
+                            className="mt-1"
+                            placeholder="+39 123 456 7890"
+                            value={button.phone_number || ""}
+                            onChange={(e) => updateButton(index, { phone_number: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add button */}
+              {formData.buttons.length < 10 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-dashed"
+                  onClick={addButton}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi pulsante
+                </Button>
+              )}
             </div>
           </div>
 
@@ -375,6 +532,23 @@ export function WhatsAppTemplateCreator({
                     <div className="px-3 py-1 bg-[#dcf8c6] dark:bg-green-900/30 text-right">
                       <span className="text-[10px] text-muted-foreground">12:34</span>
                     </div>
+
+                    {/* Buttons Preview */}
+                    {formData.buttons.length > 0 && (
+                      <div className="border-t divide-y">
+                        {formData.buttons.map((btn, idx) => (
+                          <div 
+                            key={idx}
+                            className="px-3 py-2 text-center text-sm text-blue-600 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            {btn.type === "URL" && <ExternalLink className="h-3 w-3" />}
+                            {btn.type === "PHONE_NUMBER" && <Phone className="h-3 w-3" />}
+                            {btn.type === "QUICK_REPLY" && <MessageSquare className="h-3 w-3" />}
+                            {btn.text || <span className="italic text-muted-foreground">Testo pulsante...</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Variables Summary */}

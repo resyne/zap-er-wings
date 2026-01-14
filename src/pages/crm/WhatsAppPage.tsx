@@ -411,6 +411,27 @@ export default function WhatsAppPage() {
         });
       }
 
+      // Buttons component (optional)
+      if (data.buttons && data.buttons.length > 0) {
+        const buttons = data.buttons.map(btn => {
+          const buttonObj: any = {
+            type: btn.type,
+            text: btn.text
+          };
+          if (btn.type === "URL" && btn.url) {
+            buttonObj.url = btn.url;
+          }
+          if (btn.type === "PHONE_NUMBER" && btn.phone_number) {
+            buttonObj.phone_number = btn.phone_number;
+          }
+          return buttonObj;
+        });
+        components.push({
+          type: "BUTTONS",
+          buttons: buttons
+        });
+      }
+
       const { error } = await supabase.from('whatsapp_templates').insert({
         account_id: selectedAccount!.id,
         name: data.name,
