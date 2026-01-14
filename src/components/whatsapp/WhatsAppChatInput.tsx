@@ -3,8 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Send, Mic, Paperclip, Image, FileText, 
-  X, Loader2, Square, Play, Pause
+  X, Loader2, Square, Play, Pause, Phone
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -392,6 +398,25 @@ export function WhatsAppChatInput({
 
       {/* Main input row */}
       <div className="flex items-center gap-2">
+        {/* Call button - Coming soon with Twilio */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-10 w-10 shrink-0 opacity-50 cursor-not-allowed"
+                disabled
+              >
+                <Phone className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Chiamate vocali - Coming soon (Twilio)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         {/* Attachment dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
