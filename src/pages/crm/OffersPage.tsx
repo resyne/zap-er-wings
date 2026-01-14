@@ -858,7 +858,13 @@ export default function OffersPage() {
         }
       } else {
         // Crea nuova offerta
-        const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+        // Generate offer number with customer name abbreviation
+        const customerAbbr = customer.name
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase())
+          .join('')
+          .slice(0, 4) || 'CLI';
+        const offerNumber = `OFF-${customerAbbr}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
         const { data: offerData, error } = await supabase
           .from('offers')
@@ -993,7 +999,13 @@ export default function OffersPage() {
         return;
       }
 
-      const offerNumber = `RIC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      // Generate offer number with customer name abbreviation
+      const customerAbbr = offerRequest.customer_name
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('')
+        .slice(0, 4) || 'CLI';
+      const offerNumber = `RIC-${customerAbbr}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       
       const totalAmount = offerRequest.vat_regime !== 'standard'
         ? offerRequest.net_amount 
@@ -1080,7 +1092,13 @@ export default function OffersPage() {
   const handleDuplicateOffer = async (offer: Offer) => {
     try {
       // Generate new offer number
-      const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      // Generate offer number with customer name abbreviation
+      const customerAbbr = (offer.customer_name || '')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('')
+        .slice(0, 4) || 'CLI';
+      const offerNumber = `OFF-${customerAbbr}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       
       // Fetch offer items
       const { data: offerItems } = await supabase
