@@ -239,6 +239,42 @@ export default function PublicOfferPage() {
         .filter(Boolean)
         .join(' - ');
 
+      // Build timeline section dynamically (only include items with values)
+      const timelineItems = [];
+      if (translatedTimelineProduzione) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Produzione</div>
+            <div>${translatedTimelineProduzione}</div>
+          </div>
+        `);
+      }
+      if (translatedTimelineConsegna) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Consegna</div>
+            <div>${translatedTimelineConsegna}</div>
+          </div>
+        `);
+      }
+      if (translatedTimelineInstallazione) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Installazione</div>
+            <div>${translatedTimelineInstallazione}</div>
+          </div>
+        `);
+      }
+      if (translatedTimelineCollaudo) {
+        timelineItems.push(`
+          <div class="info-item">
+            <div class="info-label">Tempi di Collaudo</div>
+            <div>${translatedTimelineCollaudo}</div>
+          </div>
+        `);
+      }
+      const timelineSection = timelineItems.join('');
+
       // Determine company entity data based on template
       const companyEntity = (offer as any).company_entity || 'climatel';
       let brandOwnershipText = '';
@@ -305,6 +341,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{validita_offerta\}\}/g, offer.valid_until ? new Date(offer.valid_until).toLocaleDateString('it-IT') : '30 giorni')
         .replace(/\{\{tempi_consegna\}\}/g, translatedTimelineConsegna || '')
         .replace(/\{\{metodi_pagamento\}\}/g, paymentInfo)
+        .replace(/\{\{timeline_section\}\}/g, timelineSection)
         .replace(/\{\{timeline_produzione\}\}/g, translatedTimelineProduzione || '')
         .replace(/\{\{timeline_consegna\}\}/g, translatedTimelineConsegna || '')
         .replace(/\{\{timeline_installazione\}\}/g, translatedTimelineInstallazione || '')
