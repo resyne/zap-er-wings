@@ -248,6 +248,7 @@ export function WhatsAppChatInput({
             type: mediaType,
             media_url: mediaUrl,
             media_caption: message.trim() || undefined,
+            media_filename: mediaType === 'document' ? selectedFile.name : undefined,
             sent_by: userId
           }
         });
