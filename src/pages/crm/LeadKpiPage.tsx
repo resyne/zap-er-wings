@@ -7,16 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter, Phone, CalendarIcon } from "lucide-react";
+import { Users, TrendingUp, Clock, Target, Award, AlertCircle, Activity, Filter, Phone, CalendarIcon, PhoneIncoming, PhoneOutgoing, User, Building2 } from "lucide-react";
 import { format, subDays, differenceInDays, differenceInHours, startOfDay, startOfWeek, startOfMonth, endOfDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useHideAmounts } from "@/hooks/useHideAmounts";
 import { formatAmount } from "@/lib/formatAmount";
 import JessyActivityLog from "@/components/crm/JessyActivityLog";
+import { useNavigate } from "react-router-dom";
 
 interface LeadKPI {
   totalLeads: number;
@@ -55,8 +58,22 @@ interface CallRecord {
   operator_id: string | null;
   operator_name: string | null;
   call_date: string;
+  call_time: string;
   duration_seconds: number;
   extension_number: string | null;
+  direction: string | null;
+  caller_number: string;
+  called_number: string;
+  ai_summary: string | null;
+  ai_sentiment: string | null;
+  lead_id: string | null;
+  leads?: {
+    id: string;
+    contact_name: string | null;
+    company_name: string | null;
+    phone: string | null;
+    email: string | null;
+  } | null;
 }
 
 interface PhoneExtension {
@@ -148,6 +165,7 @@ const activityStatusLabels: Record<string, string> = {
 export default function LeadKpiPage() {
   const { toast } = useToast();
   const { hideAmounts } = useHideAmounts();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<LeadKPI>({
     totalLeads: 0,
@@ -171,6 +189,14 @@ export default function LeadKpiPage() {
   const [profilesData, setProfilesData] = useState<{id: string; first_name: string | null; last_name: string | null}[]>([]);
   const [activityFilter, setActivityFilter] = useState<'today' | 'week' | 'month' | 'all' | 'specific'>('week');
   const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined);
+  
+  // Dialog per visualizzare le chiamate di un utente
+  const [callDetailsDialog, setCallDetailsDialog] = useState<{
+    isOpen: boolean;
+    userName: string;
+    userId: string;
+    calls: CallRecord[];
+  }>({ isOpen: false, userName: '', userId: '', calls: [] });
 
   useEffect(() => {
     loadDashboardData();
@@ -276,6 +302,67 @@ export default function LeadKpiPage() {
     return Array.from(callStatsMap.values()).sort((a, b) => b.calls - a.calls);
   };
 
+  // Get filtered calls for a specific user
+  const getFilteredCallsForUser = (userId: string) => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = endOfDay(now);
+
+    switch (activityFilter) {
+      case 'today':
+        startDate = startOfDay(now);
+        break;
+      case 'week':
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case 'month':
+        startDate = startOfMonth(now);
+        break;
+      case 'specific':
+        if (!specificDate) return [];
+        startDate = startOfDay(specificDate);
+        endDate = endOfDay(specificDate);
+        break;
+      case 'all':
+        startDate = new Date(0);
+        break;
+      default:
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+    }
+
+    return callRecordsData.filter(call => {
+      const callDate = new Date(call.call_date);
+      if (callDate < startDate || callDate > endDate) return false;
+
+      let operatorId = call.operator_id;
+      if (!operatorId && call.extension_number) {
+        const extension = phoneExtensionsData.find(ext => ext.extension_number === call.extension_number);
+        if (extension) {
+          operatorId = extension.user_id;
+        }
+      }
+      
+      return operatorId === userId;
+    });
+  };
+
+  const formatDuration = (seconds: number) => {
+    if (!seconds) return '0s';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
+  const handleOpenCallDetails = (userId: string, userName: string) => {
+    const calls = getFilteredCallsForUser(userId);
+    setCallDetailsDialog({
+      isOpen: true,
+      userName,
+      userId,
+      calls,
+    });
+  };
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -322,7 +409,28 @@ export default function LeadKpiPage() {
       // Fetch call records for call statistics
       const { data: callRecords, error: callRecordsError } = await supabase
         .from('call_records')
-        .select('id, operator_id, operator_name, call_date, duration_seconds, extension_number')
+        .select(`
+          id, 
+          operator_id, 
+          operator_name, 
+          call_date, 
+          call_time,
+          duration_seconds, 
+          extension_number,
+          direction,
+          caller_number,
+          called_number,
+          ai_summary,
+          ai_sentiment,
+          lead_id,
+          leads:lead_id (
+            id,
+            contact_name,
+            company_name,
+            phone,
+            email
+          )
+        `)
         .order('call_date', { ascending: false });
 
       if (callRecordsError) throw callRecordsError;
@@ -1058,7 +1166,11 @@ export default function LeadKpiPage() {
                             <TableRow key={stats.userId}>
                               <TableCell className="font-medium">{stats.userName}</TableCell>
                               <TableCell className="text-center">
-                                <Badge variant="outline" className="bg-primary/10 border-primary/20 text-lg px-4 py-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className="bg-primary/10 border-primary/20 text-lg px-4 py-1 cursor-pointer hover:bg-primary/20 transition-colors"
+                                  onClick={() => handleOpenCallDetails(stats.userId, stats.userName)}
+                                >
                                   {stats.calls}
                                 </Badge>
                               </TableCell>
@@ -1287,6 +1399,131 @@ export default function LeadKpiPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog dettagli chiamate */}
+      <Dialog open={callDetailsDialog.isOpen} onOpenChange={(open) => setCallDetailsDialog(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Chiamate di {callDetailsDialog.userName}
+            </DialogTitle>
+            <DialogDescription>
+              {activityFilter === 'today' && 'Chiamate di oggi'}
+              {activityFilter === 'week' && 'Chiamate di questa settimana'}
+              {activityFilter === 'month' && 'Chiamate di questo mese'}
+              {activityFilter === 'specific' && specificDate && `Chiamate del ${format(specificDate, "dd/MM/yyyy", { locale: it })}`}
+              {activityFilter === 'all' && 'Tutte le chiamate'}
+              {' '}- {callDetailsDialog.calls.length} chiamate totali
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[60vh]">
+            {callDetailsDialog.calls.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nessuna chiamata trovata
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {callDetailsDialog.calls.map((call) => (
+                  <div 
+                    key={call.id} 
+                    className={cn(
+                      "p-4 border rounded-lg hover:bg-muted/50 transition-colors",
+                      call.leads?.id && "cursor-pointer"
+                    )}
+                    onClick={() => {
+                      if (call.leads?.id) {
+                        setCallDetailsDialog(prev => ({ ...prev, isOpen: false }));
+                        navigate(`/crm/leads?lead=${call.leads.id}`);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className={cn(
+                          "p-2 rounded-full",
+                          call.direction === 'inbound' ? "bg-green-500/10" : "bg-blue-500/10"
+                        )}>
+                          {call.direction === 'inbound' ? (
+                            <PhoneIncoming className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <PhoneOutgoing className="h-4 w-4 text-blue-500" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {call.direction === 'inbound' ? call.caller_number : call.called_number}
+                            </span>
+                            {call.ai_sentiment && (
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-xs",
+                                  call.ai_sentiment === 'positivo' && "bg-green-500/10 border-green-500/20 text-green-700",
+                                  call.ai_sentiment === 'negativo' && "bg-red-500/10 border-red-500/20 text-red-700",
+                                  call.ai_sentiment === 'neutro' && "bg-gray-500/10 border-gray-500/20 text-gray-700"
+                                )}
+                              >
+                                {call.ai_sentiment}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {/* Lead info */}
+                          {call.leads && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-primary font-medium">
+                                {call.leads.contact_name || 'Lead senza nome'}
+                              </span>
+                              {call.leads.company_name && (
+                                <>
+                                  <Building2 className="h-3 w-3 text-muted-foreground ml-2" />
+                                  <span className="text-muted-foreground">
+                                    {call.leads.company_name}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          
+                          {!call.leads && call.lead_id === null && (
+                            <p className="text-xs text-muted-foreground italic">
+                              Lead non associato
+                            </p>
+                          )}
+                          
+                          {/* AI Summary */}
+                          {call.ai_summary && (
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                              {call.ai_summary}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="text-right text-sm space-y-1 shrink-0">
+                        <div className="font-medium">
+                          {format(new Date(call.call_date), "dd/MM/yyyy", { locale: it })}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {call.call_time?.substring(0, 5) || '--:--'}
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {formatDuration(call.duration_seconds)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
