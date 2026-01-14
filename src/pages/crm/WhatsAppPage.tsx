@@ -920,7 +920,7 @@ export default function WhatsAppPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {template.status === 'PENDING' && !template.meta_template_id && (
+                            {(template.status === 'PENDING' || template.status === 'FAILED') && !template.meta_template_id && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
@@ -929,10 +929,12 @@ export default function WhatsAppPage() {
                               >
                                 {uploadTemplateToMetaMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : template.status === 'FAILED' ? (
+                                  <RefreshCw className="h-4 w-4 mr-1" />
                                 ) : (
                                   <Upload className="h-4 w-4 mr-1" />
                                 )}
-                                Carica su Meta
+                                {template.status === 'FAILED' ? 'Riprova' : 'Carica su Meta'}
                               </Button>
                             )}
                             {template.status === 'APPROVED' && (
