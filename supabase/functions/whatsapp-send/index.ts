@@ -227,26 +227,32 @@ serve(async (req) => {
         .eq("id", conversation.id);
     }
 
-    // Deduct credits for marketing messages
-    const conversationType = type === "template" ? "marketing" : "service";
-    const creditCost = conversationType === "marketing" ? 0.05 : 0.03; // Example costs
+    // Calcolo automatico costi Meta (pricing Italia EUR)
+    // Marketing: €0.0485, Utility: €0.0200, Authentication: €0.0415, Service: gratis
+    let conversationType = "service";
+    let creditCost = 0;
+    
+    if (type === "template") {
+      // Determina il tipo di conversazione dal template category (se disponibile)
+      // Di default per template = marketing
+      conversationType = "marketing";
+      creditCost = 0.0485;
+    } else {
+      // Messaggi di risposta in una finestra di servizio sono gratuiti
+      conversationType = "service";
+      creditCost = 0;
+    }
 
-    if (account.credits_balance && account.credits_balance >= creditCost) {
-      const newBalance = account.credits_balance - creditCost;
-
+    // Salva il tracking dei costi (senza modificare credits_balance)
+    if (creditCost > 0) {
       await supabase.from("whatsapp_credit_transactions").insert({
         account_id: account_id,
         amount: -creditCost,
         transaction_type: "message_sent",
         conversation_type: conversationType,
-        balance_after: newBalance,
+        balance_after: null, // Non tracciamo più il saldo
         notes: `Messaggio ${type} a ${recipientPhone}`,
       });
-
-      await supabase
-        .from("whatsapp_accounts")
-        .update({ credits_balance: newBalance })
-        .eq("id", account_id);
     }
 
     return new Response(

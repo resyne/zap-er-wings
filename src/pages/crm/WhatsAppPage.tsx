@@ -107,7 +107,7 @@ export default function WhatsAppPage() {
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [isCreditDialogOpen, setIsCreditDialogOpen] = useState(false);
+  // Rimossa sezione crediti - Meta fattura direttamente
   const [isNewConversationDialogOpen, setIsNewConversationDialogOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [conversationSearch, setConversationSearch] = useState("");
@@ -133,7 +133,7 @@ export default function WhatsAppPage() {
     body: ''
   });
 
-  const [creditAmount, setCreditAmount] = useState('');
+  // Rimossa gestione crediti - Meta fattura direttamente
   
   // State per invio template
   const [isSendTemplateDialogOpen, setIsSendTemplateDialogOpen] = useState(false);
@@ -248,14 +248,16 @@ export default function WhatsAppPage() {
     enabled: !!selectedConversation
   });
 
-  const { data: creditTransactions } = useQuery({
-    queryKey: ['whatsapp-credits', selectedAccount?.id],
+  // Query per costi messaggi (tracking automatico)
+  const { data: messageCosts } = useQuery({
+    queryKey: ['whatsapp-message-costs', selectedAccount?.id],
     queryFn: async () => {
       if (!selectedAccount) return [];
       const { data, error } = await supabase
         .from('whatsapp_credit_transactions')
         .select('*')
         .eq('account_id', selectedAccount.id)
+        .eq('transaction_type', 'message_sent')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -313,35 +315,7 @@ export default function WhatsAppPage() {
     }
   });
 
-  const addCreditsMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      const newBalance = (selectedAccount!.credits_balance || 0) + amount;
-      
-      await supabase.from('whatsapp_credit_transactions').insert({
-        account_id: selectedAccount!.id,
-        amount: amount,
-        transaction_type: 'topup',
-        balance_after: newBalance,
-        notes: 'Ricarica manuale'
-      });
-
-      const { error } = await supabase
-        .from('whatsapp_accounts')
-        .update({ credits_balance: newBalance })
-        .eq('id', selectedAccount!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-credits'] });
-      toast.success('Crediti aggiunti');
-      setIsCreditDialogOpen(false);
-      setCreditAmount('');
-    },
-    onError: (error: Error) => {
-      toast.error(`Errore: ${error.message}`);
-    }
-  });
+  // Rimossa addCreditsMutation - Meta fattura direttamente
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -655,9 +629,9 @@ export default function WhatsAppPage() {
               <FileText className="h-4 w-4" />
               Template
             </TabsTrigger>
-            <TabsTrigger value="credits" className="flex items-center gap-2">
+            <TabsTrigger value="costs" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
-              Crediti
+              Costi
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -917,17 +891,18 @@ export default function WhatsAppPage() {
             </Card>
           </TabsContent>
 
-          {/* Credits Tab */}
-          <TabsContent value="credits" className="mt-4">
+          {/* Costs Tab - Calcolo automatico costi Meta */}
+          <TabsContent value="costs" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Saldo Attuale</CardTitle>
+                  <CardTitle className="text-sm text-muted-foreground">Costo Stimato Mese</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold text-green-600">
-                    €{selectedAccount.credits_balance?.toFixed(2) || '0.00'}
+                  <p className="text-3xl font-bold text-orange-600">
+                    €{(messageCosts?.reduce((sum, tx) => sum + Math.abs(tx.amount), 0) || 0).toFixed(2)}
                   </p>
+                  <p className="text-xs text-muted-foreground mt-1">Basato sul pricing Meta Italia</p>
                 </CardContent>
               </Card>
               <Card>
@@ -952,51 +927,76 @@ export default function WhatsAppPage() {
               </Card>
             </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Storico Transazioni</CardTitle>
-                  <CardDescription>Ricariche e consumi crediti</CardDescription>
+            {/* Pricing Info */}
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Pricing Meta WhatsApp Business (Italia - EUR)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="rounded-lg border p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Marketing</p>
+                    <p className="text-lg font-bold text-orange-600">€0.0485</p>
+                    <p className="text-xs text-muted-foreground">per conversazione</p>
+                  </div>
+                  <div className="rounded-lg border p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Utility</p>
+                    <p className="text-lg font-bold text-blue-600">€0.0200</p>
+                    <p className="text-xs text-muted-foreground">per conversazione</p>
+                  </div>
+                  <div className="rounded-lg border p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Authentication</p>
+                    <p className="text-lg font-bold text-purple-600">€0.0415</p>
+                    <p className="text-xs text-muted-foreground">per conversazione</p>
+                  </div>
+                  <div className="rounded-lg border p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Service</p>
+                    <p className="text-lg font-bold text-green-600">Gratis</p>
+                    <p className="text-xs text-muted-foreground">prime 1000/mese</p>
+                  </div>
                 </div>
-                <Button onClick={() => setIsCreditDialogOpen(true)}>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Ricarica Crediti
-                </Button>
+                <p className="text-xs text-muted-foreground mt-3">
+                  💡 Meta fattura direttamente il tuo account Business. I costi sopra sono calcolati automaticamente per il tracking interno.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Storico Costi Messaggi</CardTitle>
+                <CardDescription>Tracking automatico dei costi per ogni messaggio inviato</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Importo</TableHead>
-                      <TableHead>Saldo</TableHead>
+                      <TableHead>Tipo Conversazione</TableHead>
+                      <TableHead>Costo</TableHead>
                       <TableHead>Note</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {creditTransactions?.map(tx => (
+                    {messageCosts?.map(tx => (
                       <TableRow key={tx.id}>
                         <TableCell>
                           {format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm')}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={tx.transaction_type === 'topup' ? 'default' : 'secondary'}>
-                            {tx.transaction_type === 'topup' ? 'Ricarica' : 
-                             tx.transaction_type === 'message_sent' ? 'Messaggio' : tx.transaction_type}
+                          <Badge variant={tx.conversation_type === 'marketing' ? 'default' : 'secondary'}>
+                            {tx.conversation_type || 'service'}
                           </Badge>
                         </TableCell>
-                        <TableCell className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                          {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)}€
+                        <TableCell className="text-orange-600">
+                          €{Math.abs(tx.amount).toFixed(4)}
                         </TableCell>
-                        <TableCell>{tx.balance_after?.toFixed(2) || '-'}€</TableCell>
                         <TableCell className="text-muted-foreground">{tx.notes || '-'}</TableCell>
                       </TableRow>
                     ))}
-                    {(!creditTransactions || creditTransactions.length === 0) && (
+                    {(!messageCosts || messageCosts.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          Nessuna transazione
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          Nessun messaggio inviato - i costi verranno tracciati automaticamente
                         </TableCell>
                       </TableRow>
                     )}
@@ -1412,39 +1412,7 @@ export default function WhatsAppPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Credits Dialog */}
-      <Dialog open={isCreditDialogOpen} onOpenChange={setIsCreditDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Ricarica Crediti</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Importo (€)</Label>
-              <Input
-                type="number"
-                placeholder="Es: 50"
-                value={creditAmount}
-                onChange={(e) => setCreditAmount(e.target.value)}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Saldo attuale: €{selectedAccount?.credits_balance?.toFixed(2) || '0.00'}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreditDialogOpen(false)}>
-              Annulla
-            </Button>
-            <Button 
-              onClick={() => addCreditsMutation.mutate(parseFloat(creditAmount))}
-              disabled={!creditAmount || parseFloat(creditAmount) <= 0}
-            >
-              Ricarica
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Rimosso Add Credits Dialog - Meta fattura direttamente */}
 
       {/* New Conversation Dialog */}
       <Dialog open={isNewConversationDialogOpen} onOpenChange={setIsNewConversationDialogOpen}>
