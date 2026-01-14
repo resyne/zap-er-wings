@@ -18,8 +18,11 @@ import {
   Send, Phone, CreditCard, FileText, RefreshCw, Check,
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
-  ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2
+  ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
+  Image as ImageIcon, Volume2
 } from "lucide-react";
+import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
+import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -88,6 +91,7 @@ interface WhatsAppMessage {
   status: string;
   error_message: string | null;
   created_at: string;
+  sent_by: string | null;
 }
 
 interface CreditTransaction {
@@ -102,6 +106,7 @@ interface CreditTransaction {
 }
 
 export default function WhatsAppPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedBU, setSelectedBU] = useState<BusinessUnit | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<WhatsAppAccount | null>(null);
@@ -180,6 +185,28 @@ export default function WhatsAppPage() {
       return data;
     }
   });
+
+  // Query per profili utenti (per mostrare chi ha inviato)
+  const { data: profiles } = useQuery({
+    queryKey: ['user-profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const getUserName = (userId: string | null) => {
+    if (!userId) return null;
+    const profile = profiles?.find(p => p.id === userId);
+    if (!profile) return null;
+    if (profile.first_name || profile.last_name) {
+      return `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    }
+    return profile.email?.split('@')[0] || null;
+  };
 
   // Queries
   const { data: businessUnits } = useQuery({
@@ -887,30 +914,88 @@ export default function WhatsAppPage() {
                     <CardContent className="p-0 flex flex-col h-[520px]">
                       <ScrollArea className="flex-1 p-4">
                         <div className="space-y-4">
-                          {messages?.map(msg => (
-                            <div
-                              key={msg.id}
-                              className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-                            >
+                          {messages?.map(msg => {
+                            const senderName = msg.direction === 'outbound' ? getUserName(msg.sent_by) : null;
+                            return (
                               <div
-                                className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                                  msg.direction === 'outbound'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-muted'
-                                }`}
+                                key={msg.id}
+                                className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                               >
-                                <p className="text-sm">{msg.content}</p>
-                                <div className={`flex items-center justify-end gap-1 mt-1 ${
-                                  msg.direction === 'outbound' ? 'text-green-100' : 'text-muted-foreground'
-                                }`}>
-                                  <span className="text-xs">
-                                    {format(new Date(msg.created_at), 'HH:mm')}
-                                  </span>
-                                  {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                                <div
+                                  className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                                    msg.direction === 'outbound'
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-muted'
+                                  }`}
+                                >
+                                  {/* Nome mittente per messaggi outbound */}
+                                  {senderName && (
+                                    <p className="text-xs font-medium text-green-200 mb-1">
+                                      {senderName}
+                                    </p>
+                                  )}
+                                  
+                                  {/* Media content */}
+                                  {msg.message_type === 'image' && msg.media_url && (
+                                    <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
+                                      <img 
+                                        src={msg.media_url} 
+                                        alt="Immagine" 
+                                        className="max-w-full rounded mb-1 cursor-pointer hover:opacity-90"
+                                      />
+                                    </a>
+                                  )}
+                                  
+                                  {msg.message_type === 'audio' && msg.media_url && (
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Volume2 className="h-4 w-4 flex-shrink-0" />
+                                      <audio 
+                                        src={msg.media_url} 
+                                        controls 
+                                        className="max-w-full h-8"
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {msg.message_type === 'document' && msg.media_url && (
+                                    <a 
+                                      href={msg.media_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className={`flex items-center gap-2 p-2 rounded mb-1 ${
+                                        msg.direction === 'outbound' 
+                                          ? 'bg-green-700 hover:bg-green-800' 
+                                          : 'bg-background hover:bg-accent'
+                                      }`}
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      <span className="text-sm underline">Documento allegato</span>
+                                    </a>
+                                  )}
+                                  
+                                  {msg.message_type === 'video' && msg.media_url && (
+                                    <video 
+                                      src={msg.media_url} 
+                                      controls 
+                                      className="max-w-full rounded mb-1"
+                                    />
+                                  )}
+                                  
+                                  {/* Text content */}
+                                  {msg.content && <p className="text-sm">{msg.content}</p>}
+                                  
+                                  <div className={`flex items-center justify-end gap-1 mt-1 ${
+                                    msg.direction === 'outbound' ? 'text-green-100' : 'text-muted-foreground'
+                                  }`}>
+                                    <span className="text-xs">
+                                      {format(new Date(msg.created_at), 'HH:mm')}
+                                    </span>
+                                    {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </ScrollArea>
                       <div className="p-4 border-t space-y-2">
@@ -1026,30 +1111,17 @@ export default function WhatsAppPage() {
                           </div>
                         )}
                         
-                        {/* Input messaggi liberi - solo se nella finestra 24h */}
+                        {/* Input messaggi - solo se nella finestra 24h */}
                         {isWithin24hWindow() && (
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Scrivi un messaggio..."
-                              value={newMessage}
-                              onChange={(e) => setNewMessage(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && newMessage.trim()) {
-                                  sendMessageMutation.mutate(newMessage.trim());
-                                }
-                              }}
-                            />
-                            <Button 
-                              onClick={() => newMessage.trim() && sendMessageMutation.mutate(newMessage.trim())}
-                              disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                            >
-                              {sendMessageMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Send className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
+                          <WhatsAppChatInput
+                            accountId={selectedAccount!.id}
+                            conversationPhone={selectedConversation.customer_phone}
+                            userId={user?.id}
+                            onMessageSent={() => {
+                              queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
+                              queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                            }}
+                          />
                         )}
                       </div>
                     </CardContent>
