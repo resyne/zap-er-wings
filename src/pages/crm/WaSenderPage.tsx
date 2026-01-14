@@ -72,6 +72,11 @@ interface WaSenderMessage {
   status: string;
   error_message: string | null;
   created_at: string;
+  sent_by: string | null;
+  sender_profile?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
 }
 
 interface CreditTransaction {
@@ -216,7 +221,10 @@ export default function WaSenderPage() {
       if (!selectedConversation) return [];
       const { data, error } = await (supabase as any)
         .from('wasender_messages')
-        .select('*')
+        .select(`
+          *,
+          sender_profile:profiles!wasender_messages_sent_by_fkey(first_name, last_name)
+        `)
         .eq('conversation_id', selectedConversation.id)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -833,6 +841,12 @@ export default function WaSenderPage() {
                                     : 'bg-muted'
                                 }`}
                               >
+                                {/* Show sender name for outbound messages */}
+                                {msg.direction === 'outbound' && msg.sender_profile && (
+                                  <p className="text-xs text-emerald-200 font-medium mb-1">
+                                    {msg.sender_profile.first_name || ''} {msg.sender_profile.last_name || ''}
+                                  </p>
+                                )}
                                 {/* Media preview */}
                                 {msg.media_url && msg.message_type === 'image' && (
                                   <img 

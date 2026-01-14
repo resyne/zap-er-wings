@@ -12,6 +12,7 @@ interface SendMessageRequest {
   accountId: string;
   conversationId: string;
   messageId?: string; // If provided, update existing message instead of creating new
+  sentBy?: string; // User ID of the sender
   // Media options
   imageUrl?: string;
   videoUrl?: string;
@@ -41,7 +42,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body = await req.json() as SendMessageRequest;
-    const { to, text, accountId, conversationId, messageId, imageUrl, videoUrl, documentUrl, audioUrl, fileName, messageType = "text" } = body;
+    const { to, text, accountId, conversationId, messageId, sentBy, imageUrl, videoUrl, documentUrl, audioUrl, fileName, messageType = "text" } = body;
 
     if (!to) {
       return new Response(
@@ -130,6 +131,7 @@ serve(async (req) => {
           media_url: mediaUrl,
           status: "failed",
           error_message: wasenderData.message || wasenderData.error || "Errore sconosciuto",
+          sent_by: sentBy || null,
         });
       }
 
@@ -172,6 +174,7 @@ serve(async (req) => {
           media_url: mediaUrl,
           status: "sent",
           wasender_id: wasenderData.data?.msgId?.toString() || null,
+          sent_by: sentBy || null,
         })
         .select()
         .single();
