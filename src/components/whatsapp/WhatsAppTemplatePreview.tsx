@@ -307,8 +307,8 @@ export function WhatsAppTemplatePreview({
               )}
             </div>
 
-            {/* Rejection reason */}
-            {template.rejection_reason && (
+            {/* Rejection reason - show only for REJECTED or FAILED status */}
+            {template.rejection_reason && (template.status === "REJECTED" || template.status === "FAILED") && (
               <Card className="border-red-200 bg-red-50">
                 <CardContent className="pt-4">
                   <div className="flex items-start gap-2">
