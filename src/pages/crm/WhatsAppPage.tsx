@@ -318,6 +318,43 @@ export default function WhatsAppPage() {
 
   // Rimossa addCreditsMutation - Meta fattura direttamente
 
+  // Mutation per aggiornare l'access token
+  const updateTokenMutation = useMutation({
+    mutationFn: async (newToken: string) => {
+      const { error } = await supabase
+        .from('whatsapp_accounts')
+        .update({ access_token: newToken, updated_at: new Date().toISOString() })
+        .eq('id', selectedAccount!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
+      toast.success('Access Token aggiornato con successo');
+      setAccountFormData(prev => ({ ...prev, access_token: '' }));
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Mutation per sincronizzare i template da Meta
+  const syncTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await supabase.functions.invoke('whatsapp-sync-templates', {
+        body: { account_id: selectedAccount!.id }
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+      toast.success(`Sincronizzati ${data.synced_count} template da Meta`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore sincronizzazione: ${error.message}`);
+    }
+  });
+
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       const { error } = await supabase.from('whatsapp_messages').insert({
@@ -1035,6 +1072,70 @@ export default function WhatsAppPage() {
                     <Input value={selectedAccount.verified_name || '-'} readOnly className="bg-muted" />
                   </div>
                 </div>
+                
+                {/* Access Token Update */}
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Access Token</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Token per l'autenticazione con Meta Graph API
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="font-mono text-xs">
+                      ••••••••{selectedAccount.id.slice(-8)}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="Inserisci nuovo Access Token..."
+                      value={accountFormData.access_token}
+                      onChange={(e) => setAccountFormData(prev => ({ ...prev, access_token: e.target.value }))}
+                    />
+                    <Button
+                      disabled={!accountFormData.access_token || updateTokenMutation.isPending}
+                      onClick={() => updateTokenMutation.mutate(accountFormData.access_token)}
+                    >
+                      {updateTokenMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Aggiorna Token
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    💡 Genera un nuovo token su Meta Business Suite → WhatsApp → API Setup
+                  </p>
+                </div>
+
+                {/* Sync Templates */}
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Sincronizza Template</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Scarica i template approvati da Meta
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={syncTemplatesMutation.isPending}
+                      onClick={() => syncTemplatesMutation.mutate()}
+                    >
+                      {syncTemplatesMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Sincronizza da Meta
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div>
                     <p className="font-medium">Stato Account</p>
