@@ -142,7 +142,8 @@ export default function WhatsAppPage() {
     recipientPhone: '',
     params: [] as string[],
     headerDocumentUrl: '',
-    headerDocumentName: ''
+    headerDocumentName: '',
+    selectedLeadId: ''
   });
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
 
@@ -162,11 +163,11 @@ export default function WhatsAppPage() {
   });
 
   const { data: leads } = useQuery({
-    queryKey: ['leads-list'],
+    queryKey: ['leads-list-whatsapp'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, contact_name, phone, email')
+        .select('id, contact_name, phone, email, pipeline, external_configurator_link')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -414,7 +415,7 @@ export default function WhatsAppPage() {
       toast.success('Template inviato con successo');
       setIsSendTemplateDialogOpen(false);
       setSelectedTemplate(null);
-      setSendTemplateData({ recipientPhone: '', params: [], headerDocumentUrl: '', headerDocumentName: '' });
+      setSendTemplateData({ recipientPhone: '', params: [], headerDocumentUrl: '', headerDocumentName: '', selectedLeadId: '' });
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -467,7 +468,8 @@ export default function WhatsAppPage() {
       recipientPhone: '',
       params: Array(paramCount).fill(''),
       headerDocumentUrl: '',
-      headerDocumentName: ''
+      headerDocumentName: '',
+      selectedLeadId: ''
     });
     setIsSendTemplateDialogOpen(true);
   };
@@ -1516,7 +1518,7 @@ export default function WhatsAppPage() {
         setIsSendTemplateDialogOpen(open);
         if (!open) {
           setSelectedTemplate(null);
-          setSendTemplateData({ recipientPhone: '', params: [], headerDocumentUrl: '', headerDocumentName: '' });
+          setSendTemplateData({ recipientPhone: '', params: [], headerDocumentUrl: '', headerDocumentName: '', selectedLeadId: '' });
         }
       }}>
         <DialogContent className="max-w-lg">
@@ -1527,6 +1529,63 @@ export default function WhatsAppPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Selezione Lead (per auto-compilare link configuratore) */}
+            <div>
+              <Label>Seleziona Lead (opzionale)</Label>
+              <Select 
+                value={sendTemplateData.selectedLeadId || "none"} 
+                onValueChange={(v) => {
+                  const leadId = v === "none" ? "" : v;
+                  const selectedLead = leads?.find(l => l.id === leadId);
+                  
+                  // Se il lead è vesuviano e ha un link configuratore, lo usiamo come parametro 3
+                  let newParams = [...sendTemplateData.params];
+                  if (selectedLead?.pipeline === 'vesuviano' && selectedLead?.external_configurator_link) {
+                    // Assicurati che ci siano almeno 3 parametri
+                    while (newParams.length < 3) {
+                      newParams.push('');
+                    }
+                    // Imposta il parametro 3 con il link del configuratore
+                    newParams[2] = selectedLead.external_configurator_link;
+                  }
+                  
+                  setSendTemplateData(prev => ({ 
+                    ...prev, 
+                    selectedLeadId: leadId,
+                    // Auto-compila telefono se disponibile
+                    recipientPhone: selectedLead?.phone || prev.recipientPhone,
+                    // Auto-compila nome come parametro 1 se disponibile
+                    params: selectedLead?.contact_name 
+                      ? newParams.map((p, i) => i === 0 ? (selectedLead.contact_name || p) : p)
+                      : newParams
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un lead..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessuno</SelectItem>
+                  {leads?.map(lead => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{lead.contact_name || lead.phone || 'Lead senza nome'}</span>
+                        {lead.pipeline === 'vesuviano' && lead.external_configurator_link && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Link2 className="h-3 w-3 mr-1" />
+                            Configuratore
+                          </Badge>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Seleziona un lead per auto-compilare telefono e parametri. Per lead Vesuviano, il link configuratore viene aggiunto come parametro 3.
+              </p>
+            </div>
+
             {/* Destinatario */}
             <div>
               <Label>Numero Destinatario *</Label>
@@ -1559,7 +1618,11 @@ export default function WhatsAppPage() {
                         {`{{${index + 1}}}`}
                       </span>
                       <Input
-                        placeholder={`Valore per parametro ${index + 1}`}
+                        placeholder={
+                          index === 0 ? 'Nome cliente' : 
+                          index === 2 ? 'Link configuratore (auto per Vesuviano)' : 
+                          `Valore per parametro ${index + 1}`
+                        }
                         value={param}
                         onChange={(e) => {
                           const newParams = [...sendTemplateData.params];
@@ -1567,6 +1630,11 @@ export default function WhatsAppPage() {
                           setSendTemplateData(prev => ({ ...prev, params: newParams }));
                         }}
                       />
+                      {index === 2 && param && (
+                        <a href={param} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>
