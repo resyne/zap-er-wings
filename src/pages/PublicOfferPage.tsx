@@ -221,6 +221,9 @@ export default function PublicOfferPage() {
       } else if (vatRegime === 'extra_ue') {
         ivaDisplay = '0.00';
         vatNote = 'N.3.1 - Cessione Extra UE';
+      } else if (vatRegime === 'forfetario') {
+        ivaDisplay = '0.00';
+        vatNote = 'Operazione effettuata ai sensi dell\'art. 1, commi da 54 a 89 della Legge n. 190/2014 – Regime forfetario';
       }
       
       // Combine IVA display with note if present

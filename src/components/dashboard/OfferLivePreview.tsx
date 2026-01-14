@@ -30,7 +30,7 @@ interface OfferLivePreviewProps {
   esclusoFornitura: string;
   paymentMethod: string;
   paymentAgreement: string;
-  vatRegime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue';
+  vatRegime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
   includeCertificazione: boolean;
   includeGaranzia: boolean;
   inclusoCustom: string;
@@ -59,7 +59,8 @@ const vatLabels = {
   standard: "IVA 22%",
   reverse_charge: "Reverse Charge (N.6.7)",
   intra_ue: "Cessione Intra UE (N.3.2)",
-  extra_ue: "Cessione Extra UE (N.3.1)"
+  extra_ue: "Cessione Extra UE (N.3.1)",
+  forfetario: "Regime Forfetario (L. 190/2014)"
 };
 
 export function OfferLivePreview({

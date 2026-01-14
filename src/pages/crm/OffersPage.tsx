@@ -54,7 +54,7 @@ interface Offer {
   payment_agreement?: string;
   archived?: boolean;
   unique_code?: string;
-  vat_regime?: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue';
+  vat_regime?: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
   approved?: boolean;
   approved_by?: string;
   approved_by_name?: string;
@@ -146,7 +146,7 @@ export default function OffersPage() {
     metodi_pagamento?: string;
     payment_method?: string;
     payment_agreement?: string;
-    vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue';
+    vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
     company_entity?: 'climatel' | 'unita1';
   }>({
     id: undefined,
@@ -176,7 +176,7 @@ export default function OffersPage() {
     subject: '',
     net_amount: 0,
     vat_amount: 0,
-    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue'
+    vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario'
   });
 
   useEffect(() => {
@@ -1563,6 +1563,7 @@ export default function OffersPage() {
                         <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
                         <SelectItem value="intra_ue">Intra UE</SelectItem>
                         <SelectItem value="extra_ue">Extra UE</SelectItem>
+                        <SelectItem value="forfetario">Regime Forfetario</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1959,13 +1960,14 @@ export default function OffersPage() {
                             </div>
                             <div className="space-y-1.5">
                               <label className="text-xs font-medium">Regime IVA</label>
-                              <Select value={newOffer.vat_regime} onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue') => setNewOffer(prev => ({ ...prev, vat_regime: value }))}>
+                              <Select value={newOffer.vat_regime} onValueChange={(value: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario') => setNewOffer(prev => ({ ...prev, vat_regime: value }))}>
                                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="standard">Standard (IVA 22%)</SelectItem>
                                   <SelectItem value="reverse_charge">Reverse Charge (N.6.7)</SelectItem>
                                   <SelectItem value="intra_ue">Cessione Intra UE (N.3.2)</SelectItem>
                                   <SelectItem value="extra_ue">Cessione Extra UE (N.3.1)</SelectItem>
+                                  <SelectItem value="forfetario">Regime Forfetario (L. 190/2014)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
