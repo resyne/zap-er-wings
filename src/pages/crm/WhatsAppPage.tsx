@@ -147,6 +147,11 @@ export default function WhatsAppPage() {
     selectedLeadId: ''
   });
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  
+  // State per chat template selector (quando fuori finestra 24h)
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [chatSelectedTemplate, setChatSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
+  const [chatTemplateParams, setChatTemplateParams] = useState<string[]>([]);
 
   // Query per clienti e lead (per associazione)
   const { data: customers } = useQuery({
@@ -219,6 +224,9 @@ export default function WhatsAppPage() {
     },
     enabled: !!selectedAccount
   });
+
+  // Template approvati per invio dalla chat
+  const approvedTemplates = templates?.filter(t => t.status === 'APPROVED');
 
   const { data: conversations } = useQuery({
     queryKey: ['whatsapp-conversations', selectedAccount?.id],
@@ -356,22 +364,39 @@ export default function WhatsAppPage() {
     }
   });
 
+  // Verifica se siamo nella finestra 24h (customer service window)
+  const isWithin24hWindow = () => {
+    if (!messages || messages.length === 0) return false;
+    
+    // Trova l'ultimo messaggio inbound (dal cliente)
+    const lastInboundMessage = [...messages]
+      .reverse()
+      .find(m => m.direction === 'inbound');
+    
+    if (!lastInboundMessage) return false;
+    
+    const lastInboundTime = new Date(lastInboundMessage.created_at).getTime();
+    const now = Date.now();
+    const hoursDiff = (now - lastInboundTime) / (1000 * 60 * 60);
+    
+    return hoursDiff < 24;
+  };
+
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      const { error } = await supabase.from('whatsapp_messages').insert({
-        conversation_id: selectedConversation!.id,
-        direction: 'outbound',
-        message_type: 'text',
-        content: content,
-        status: 'sent'
+      // Usa edge function per inviare il messaggio tramite API WhatsApp
+      const response = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          account_id: selectedAccount!.id,
+          to: selectedConversation!.customer_phone,
+          type: 'text',
+          content: content
+        }
       });
-      if (error) throw error;
-
-      // Update conversation
-      await supabase.from('whatsapp_conversations').update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: content.substring(0, 100)
-      }).eq('id', selectedConversation!.id);
+      
+      if (response.error) throw new Error(response.error.message);
+      if (!response.data?.success) throw new Error(response.data?.error || 'Errore invio messaggio');
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
@@ -840,25 +865,144 @@ export default function WhatsAppPage() {
                           ))}
                         </div>
                       </ScrollArea>
-                      <div className="p-4 border-t">
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Scrivi un messaggio..."
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newMessage.trim()) {
-                                sendMessageMutation.mutate(newMessage.trim());
-                              }
-                            }}
-                          />
-                          <Button 
-                            onClick={() => newMessage.trim() && sendMessageMutation.mutate(newMessage.trim())}
-                            disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      <div className="p-4 border-t space-y-2">
+                        {/* Warning se fuori dalla finestra 24h */}
+                        {!isWithin24hWindow() && (
+                          <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg text-sm">
+                            <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                            <span className="text-amber-800 dark:text-amber-200">
+                              Finestra 24h scaduta. Puoi inviare solo template approvati.
+                            </span>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="ml-auto"
+                              onClick={() => setShowTemplateSelector(true)}
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              Usa Template
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {/* Template Selector quando fuori finestra */}
+                        {showTemplateSelector && !isWithin24hWindow() && (
+                          <div className="p-3 bg-muted rounded-lg space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium">Seleziona template approvato</Label>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setShowTemplateSelector(false)}
+                              >
+                                ✕
+                              </Button>
+                            </div>
+                            <Select
+                              value={chatSelectedTemplate?.id || ""}
+                              onValueChange={(value) => {
+                                const template = approvedTemplates?.find(t => t.id === value);
+                                setChatSelectedTemplate(template || null);
+                                if (template) {
+                                  const paramCount = getTemplateParamCount(template);
+                                  setChatTemplateParams(Array(paramCount).fill(''));
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona un template..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {approvedTemplates?.map(t => (
+                                  <SelectItem key={t.id} value={t.id}>
+                                    {t.name} ({t.category})
+                                  </SelectItem>
+                                ))}
+                                {(!approvedTemplates || approvedTemplates.length === 0) && (
+                                  <SelectItem value="none" disabled>
+                                    Nessun template approvato
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            
+                            {chatSelectedTemplate && (
+                              <>
+                                <div className="text-xs text-muted-foreground bg-background p-2 rounded border">
+                                  {chatSelectedTemplate.components?.body?.text}
+                                </div>
+                                
+                                {getTemplateParamCount(chatSelectedTemplate) > 0 && (
+                                  <div className="space-y-2">
+                                    <Label className="text-xs">Parametri:</Label>
+                                    {chatTemplateParams.map((param, idx) => (
+                                      <Input
+                                        key={idx}
+                                        placeholder={`Parametro {{${idx + 1}}}`}
+                                        value={param}
+                                        onChange={(e) => {
+                                          const newParams = [...chatTemplateParams];
+                                          newParams[idx] = e.target.value;
+                                          setChatTemplateParams(newParams);
+                                        }}
+                                        className="h-8 text-sm"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                <Button 
+                                  className="w-full"
+                                  disabled={sendTemplateMutation.isPending}
+                                  onClick={() => {
+                                    sendTemplateMutation.mutate({
+                                      templateName: chatSelectedTemplate.name,
+                                      templateLanguage: chatSelectedTemplate.language,
+                                      recipientPhone: selectedConversation!.customer_phone,
+                                      params: chatTemplateParams.filter(p => p.trim() !== '')
+                                    });
+                                    setShowTemplateSelector(false);
+                                    setChatSelectedTemplate(null);
+                                    setChatTemplateParams([]);
+                                  }}
+                                >
+                                  {sendTemplateMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : (
+                                    <Send className="h-4 w-4 mr-2" />
+                                  )}
+                                  Invia Template
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Input messaggi liberi - solo se nella finestra 24h */}
+                        {isWithin24hWindow() && (
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Scrivi un messaggio..."
+                              value={newMessage}
+                              onChange={(e) => setNewMessage(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newMessage.trim()) {
+                                  sendMessageMutation.mutate(newMessage.trim());
+                                }
+                              }}
+                            />
+                            <Button 
+                              onClick={() => newMessage.trim() && sendMessageMutation.mutate(newMessage.trim())}
+                              disabled={!newMessage.trim() || sendMessageMutation.isPending}
+                            >
+                              {sendMessageMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </>
