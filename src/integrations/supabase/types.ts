@@ -10008,6 +10008,7 @@ export type Database = {
           example_values: Json | null
           id: string
           language: string
+          meta_template_id: string | null
           name: string
           rejection_reason: string | null
           status: string | null
@@ -10022,6 +10023,7 @@ export type Database = {
           example_values?: Json | null
           id?: string
           language?: string
+          meta_template_id?: string | null
           name: string
           rejection_reason?: string | null
           status?: string | null
@@ -10036,6 +10038,7 @@ export type Database = {
           example_values?: Json | null
           id?: string
           language?: string
+          meta_template_id?: string | null
           name?: string
           rejection_reason?: string | null
           status?: string | null

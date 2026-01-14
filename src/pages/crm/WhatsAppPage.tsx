@@ -51,7 +51,7 @@ interface WhatsAppTemplate {
   id: string;
   account_id: string;
   template_id: string | null;
-  meta_template_id: string | null;
+  meta_template_id?: string | null;
   name: string;
   language: string;
   category: string;
