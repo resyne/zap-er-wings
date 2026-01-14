@@ -297,7 +297,13 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       }
       const inclusoFornitura = inclusoItems.join('\n');
 
-      const offerNumber = `OFF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      // Generate offer number with customer name abbreviation
+      const customerAbbr = customerName
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('')
+        .slice(0, 4) || 'CLI';
+      const offerNumber = `OFF-${customerAbbr}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       const { data: offerData, error } = await supabase
         .from('offers')
