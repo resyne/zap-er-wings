@@ -2812,7 +2812,8 @@ export default function OffersPage() {
                         metodi_pagamento: (selectedOffer as any).metodi_pagamento || '',
                         payment_method: (selectedOffer as any).payment_method || '',
                         payment_agreement: (selectedOffer as any).payment_agreement || '',
-                        vat_regime: (selectedOffer as any).vat_regime || 'standard'
+                        vat_regime: (selectedOffer as any).vat_regime || 'standard',
+                        company_entity: (selectedOffer as any).company_entity || 'climatel'
                       });
                       
                       // Carica i prodotti dell'offerta
