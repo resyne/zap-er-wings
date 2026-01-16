@@ -716,6 +716,32 @@ export default function OrdersPage() {
     }
   };
 
+  const handleDismissOffer = async (offerId: string) => {
+    try {
+      // Marca l'offerta come archiviata per rimuoverla dalla lista
+      const { error } = await supabase
+        .from("offers")
+        .update({ archived: true })
+        .eq("id", offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offerta rimossa",
+        description: "L'offerta è stata rimossa dalla lista",
+      });
+
+      // Ricarica le offerte
+      loadConfirmedOffers();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile rimuovere l'offerta: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUnarchiveOrder = async (orderId: string) => {
     try {
       // Dearchivia l'ordine principale
@@ -1136,9 +1162,17 @@ export default function OrdersPage() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {confirmedOffers.map((offer) => (
-                <Card key={offer.id} className="border-2 border-success/50">
+                <Card key={offer.id} className="border-2 border-success/50 relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:text-destructive z-10"
+                    onClick={() => handleDismissOffer(offer.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between pr-6">
                       <div className="flex-1">
                         <CardTitle className="text-base">{offer.title}</CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
