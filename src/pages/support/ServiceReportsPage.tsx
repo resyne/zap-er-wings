@@ -1296,6 +1296,95 @@ export default function ServiceReportsPage() {
                 </div>
               </div>
 
+              {/* Chilometri */}
+              <div className="space-y-2">
+                <Label htmlFor="kilometers" className="text-sm font-medium flex items-center gap-2">
+                  <Car className="w-4 h-4" />
+                  Chilometri
+                </Label>
+                <Input
+                  id="kilometers"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.kilometers}
+                  onChange={(e) => handleInputChange('kilometers', e.target.value)}
+                  placeholder="0"
+                  className="h-12 text-base"
+                />
+              </div>
+
+              {/* Tecnici - Multiple */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Tecnici Coinvolti
+                </Label>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addTechnician('head')}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Capo Tecnico
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addTechnician('specialized')}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Tecnico Spec.
+                  </Button>
+                </div>
+
+                {techniciansList.length > 0 && (
+                  <div className="space-y-2">
+                    {techniciansList.map((tech) => (
+                      <div
+                        key={tech.id}
+                        className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                      >
+                        <span className="text-sm font-medium">
+                          {tech.type === 'head' ? '👷 Capo Tecnico' : '🔧 Tecnico Specializzato'}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeTechnician(tech.id)}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Riepilogo Costi */}
+                {(formData.start_time && formData.end_time && techniciansList.length > 0) && (
+                  <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                    <p className="text-xs text-muted-foreground mb-1">Riepilogo Costi Automatico</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>Ore: <span className="font-medium">{calculateHoursFromTime(formData.start_time, formData.end_time)}</span></div>
+                      <div>Km: <span className="font-medium">{formData.kilometers}</span></div>
+                      <div>Capi Tecnico: <span className="font-medium">{techniciansList.filter(t => t.type === 'head').length}</span></div>
+                      <div>Tecnici Spec.: <span className="font-medium">{techniciansList.filter(t => t.type === 'specialized').length}</span></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t text-sm">
+                      <span className="font-semibold">Totale Stimato: €{formData.amount || '0.00'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="intervention_type" className="text-sm font-medium">Tipo Intervento *</Label>
                 <Select value={formData.intervention_type || ""} onValueChange={(value) => handleInputChange('intervention_type', value)}>
