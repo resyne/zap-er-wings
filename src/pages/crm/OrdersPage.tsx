@@ -1433,6 +1433,21 @@ export default function OrdersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-2">
+                      {showArchivedOrders && order.archived && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnarchiveOrder(order.id);
+                          }}
+                          className="text-primary hover:text-primary"
+                        >
+                          <ArchiveRestore className="w-4 h-4 mr-1" />
+                          Ripristina
+                        </Button>
+                      )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm">
@@ -1488,6 +1503,7 @@ export default function OrdersPage() {
                         </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
