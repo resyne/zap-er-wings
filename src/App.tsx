@@ -137,7 +137,9 @@ const App = () => (
                 <Route path="direzione/strategy" element={<StrategyPage />} />
                 <Route path="direzione/riepilogo-operativo" element={<RiepilogoOperativoPage />} />
                 <Route path="direzione/orders" element={<OrdersPage />} />
+                
                 <Route path="personal-area" element={<DashboardPage />} />
+                <Route path="dashboard" element={<DashboardPage />} />
                 
                 <Route path="hr/people" element={<PeoplePage />} />
                 <Route path="hr/safety" element={<SafetyPage />} />
@@ -219,6 +221,7 @@ const App = () => (
                 <Route path="tasks" element={<TasksPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="personal-area/calendario" element={<CalendarioPersonale />} />
+                <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
