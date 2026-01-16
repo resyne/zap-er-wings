@@ -109,14 +109,36 @@ serve(async (req) => {
     };
 
     // Build template components for Meta API
-    const components = [];
+    const components: Record<string, unknown>[] = [];
+
+    // Normalize components - handle both array format and object format
+    let normalizedComponents: { header?: { type?: string; text?: string; format?: string }; body?: { text: string }; footer?: { text?: string }; buttons?: { type: string; text: string; url?: string; phone_number?: string }[] } = {};
+    
+    if (Array.isArray(template.components)) {
+      // Array format from DB: [{type: "BODY", text: ...}, {type: "BUTTONS", buttons: [...]}]
+      for (const comp of template.components) {
+        const compType = comp.type?.toUpperCase();
+        if (compType === "HEADER") {
+          normalizedComponents.header = { type: comp.format || "TEXT", text: comp.text };
+        } else if (compType === "BODY") {
+          normalizedComponents.body = { text: comp.text };
+        } else if (compType === "FOOTER") {
+          normalizedComponents.footer = { text: comp.text };
+        } else if (compType === "BUTTONS") {
+          normalizedComponents.buttons = comp.buttons;
+        }
+      }
+    } else if (template.components && typeof template.components === "object") {
+      // Object format: { body: { text: ... }, buttons: [...] }
+      normalizedComponents = template.components;
+    }
 
     // Add HEADER component if present
-    if (template.components?.header) {
-      const headerType = template.components.header.type?.toUpperCase() || "TEXT";
+    if (normalizedComponents.header?.text) {
+      const headerType = normalizedComponents.header.type?.toUpperCase() || "TEXT";
       
-      if (headerType === "TEXT" && template.components.header.text) {
-        const { processedText, exampleValues } = processVariables(template.components.header.text);
+      if (headerType === "TEXT") {
+        const { processedText, exampleValues } = processVariables(normalizedComponents.header.text);
         
         const headerComponent: Record<string, unknown> = {
           type: "HEADER",
@@ -159,8 +181,8 @@ serve(async (req) => {
     }
 
     // Add BODY component
-    if (template.components?.body) {
-      const { processedText, exampleValues } = processVariables(template.components.body.text || "");
+    if (normalizedComponents.body?.text) {
+      const { processedText, exampleValues } = processVariables(normalizedComponents.body.text);
       
       const bodyComponent: Record<string, unknown> = {
         type: "BODY",
@@ -177,16 +199,16 @@ serve(async (req) => {
     }
 
     // Add FOOTER component if present
-    if (template.components?.footer?.text) {
+    if (normalizedComponents.footer?.text) {
       components.push({
         type: "FOOTER",
-        text: template.components.footer.text
+        text: normalizedComponents.footer.text
       });
     }
 
     // Add BUTTONS component if present
-    if (template.components?.buttons && template.components.buttons.length > 0) {
-      const buttons = template.components.buttons.map((btn: { type: string; text: string; url?: string; phone_number?: string }) => {
+    if (normalizedComponents.buttons && normalizedComponents.buttons.length > 0) {
+      const buttons = normalizedComponents.buttons.map((btn) => {
         if (btn.type === "URL") {
           return {
             type: "URL",
