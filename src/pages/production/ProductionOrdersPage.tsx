@@ -37,6 +37,7 @@ import { ProductionTimeline } from "@/components/production/ProductionTimeline";
 import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
 import { MobileWorkOrderList } from "@/components/production/MobileWorkOrderList";
 import { MobileWorkOrderDetails } from "@/components/production/MobileWorkOrderDetails";
+import { syncOrderStatusWithWorkOrders } from "@/hooks/useOrderStatusSync";
 
 interface WorkOrder {
   id: string;
@@ -793,6 +794,12 @@ export default function WorkOrdersPage() {
       }
       
       await fetchWorkOrders();
+      
+      // Sincronizza lo stato dell'ordine padre se esiste
+      if (currentWO.sales_order_id) {
+        await syncOrderStatusWithWorkOrders(currentWO.sales_order_id);
+      }
+      
       return { woId, previousStatus, newStatus };
     };
     
@@ -1740,6 +1747,7 @@ ${allOrdersHTML}
 
     const newStatus = destination.droppableId;
     const woId = draggableId;
+    const currentWO = workOrders.find(wo => wo.id === woId);
 
     try {
       const { error } = await supabase
@@ -1755,6 +1763,11 @@ ${allOrdersHTML}
       });
 
       fetchWorkOrders();
+      
+      // Sincronizza lo stato dell'ordine padre se esiste
+      if (currentWO?.sales_order_id) {
+        await syncOrderStatusWithWorkOrders(currentWO.sales_order_id);
+      }
     } catch (error: any) {
       toast({
         title: "Errore",

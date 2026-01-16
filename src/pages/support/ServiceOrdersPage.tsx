@@ -24,6 +24,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileServiceOrderList } from "@/components/support/MobileServiceOrderList";
 import { MobileServiceOrderDetails } from "@/components/support/MobileServiceOrderDetails";
+import { syncOrderStatusWithWorkOrders } from "@/hooks/useOrderStatusSync";
 
 interface ServiceWorkOrder {
   id: string;
@@ -501,6 +502,11 @@ export default function WorkOrdersServicePage() {
 
         if (error) throw error;
         await loadServiceWorkOrders();
+        
+        // Sincronizza lo stato dell'ordine padre se esiste
+        if (workOrder.sales_order_id) {
+          await syncOrderStatusWithWorkOrders(workOrder.sales_order_id);
+        }
       },
       async () => {
         const { error } = await supabase
@@ -510,6 +516,11 @@ export default function WorkOrdersServicePage() {
 
         if (error) throw error;
         await loadServiceWorkOrders();
+        
+        // Risincronizza lo stato dell'ordine dopo l'undo
+        if (workOrder.sales_order_id) {
+          await syncOrderStatusWithWorkOrders(workOrder.sales_order_id);
+        }
       },
       {
         duration: 10000,
