@@ -127,11 +127,24 @@ export default function CertificationsPage() {
     }
   };
 
-  // Generate new serial number
+  // Generate new serial number based on existing declarations
   const generateSerialNumber = () => {
     const year = new Date().getFullYear();
-    const randomPart = Math.floor(Math.random() * 9000 + 1000);
-    return `ZPZ-${year}-${randomPart}`;
+    // Find the highest serial number from existing declarations
+    const existingSerials = declarations
+      .map(d => {
+        const match = d.serial_number.match(/ZPZ-\d{4}-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(n => n > 0);
+    
+    // Start from 1834 or the next number after the highest existing
+    const baseNumber = 1834;
+    const nextNumber = existingSerials.length > 0 
+      ? Math.max(baseNumber, Math.max(...existingSerials) + 1)
+      : baseNumber;
+    
+    return `ZPZ-${year}-${nextNumber}`;
   };
 
   // Auto-generate serial number when creating new declaration
@@ -352,20 +365,18 @@ export default function CertificationsPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="serial_number">Matricola (auto)</Label>
+                  <Label htmlFor="serial_number">Matricola</Label>
                   <Input
                     id="serial_number"
                     value={formData.serial_number}
                     onChange={(e) =>
                       setFormData({ ...formData, serial_number: e.target.value })
                     }
-                    placeholder="ZPZ-2026-0001"
-                    readOnly={!editingDeclaration}
-                    className={!editingDeclaration ? "bg-muted" : ""}
+                    placeholder="ZPZ-2026-1834"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="declaration_date">Data (auto)</Label>
+                  <Label htmlFor="declaration_date">Data</Label>
                   <Input
                     id="declaration_date"
                     type="date"
@@ -373,8 +384,6 @@ export default function CertificationsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, declaration_date: e.target.value })
                     }
-                    readOnly={!editingDeclaration}
-                    className={!editingDeclaration ? "bg-muted" : ""}
                   />
                 </div>
               </div>
