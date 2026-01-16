@@ -48,14 +48,25 @@
                 print-color-adjust: exact;
             }
 
-            /* Forza l’inizio di ogni “.page” su un nuovo foglio SENZA creare fogli bianchi alternati */
+            /* Fix pagine bianche alternate:
+               non forziamo l'altezza A4 della "page" in stampa (i margini del browser possono ridurre l'area stampabile)
+               e gestiamo il salto pagina SOLO via break-after. */
             .page {
+                width: auto;
                 margin: 0;
+                padding: 20mm;
                 box-shadow: none;
+                min-height: auto !important;
+                height: auto !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+                break-after: page;
+                page-break-after: always;
             }
-            .page + .page {
-                break-before: page;
-                page-break-before: always;
+
+            .page:last-of-type {
+                break-after: auto;
+                page-break-after: auto;
             }
 
             .no-print {
