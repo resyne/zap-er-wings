@@ -1049,6 +1049,7 @@ export type Database = {
       conformity_declarations: {
         Row: {
           attachment_url: string | null
+          barrel_diameter: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -1063,6 +1064,7 @@ export type Database = {
         }
         Insert: {
           attachment_url?: string | null
+          barrel_diameter?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1077,6 +1079,7 @@ export type Database = {
         }
         Update: {
           attachment_url?: string | null
+          barrel_diameter?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -10500,6 +10503,7 @@ export type Database = {
         }[]
       }
       generate_configurator_code: { Args: never; Returns: string }
+      generate_conformity_serial: { Args: never; Returns: string }
       generate_cost_draft_number: { Args: never; Returns: string }
       generate_customer_code: { Args: never; Returns: string }
       generate_ddt_code: { Args: never; Returns: string }
