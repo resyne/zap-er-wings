@@ -222,7 +222,7 @@ export default function CertificationsPage() {
   );
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FileCheck className="h-8 w-8 text-primary" />
