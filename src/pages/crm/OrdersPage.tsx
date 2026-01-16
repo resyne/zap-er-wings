@@ -353,7 +353,7 @@ export default function OrdersPage() {
       number: '', // Auto-generated
       title: `Installazione per ordine ${orderData.customers?.name || 'Cliente'}`,
       description: newOrder.work_description || newOrder.notes,
-      status: 'to_do' as const,
+      status: 'da_fare' as const,
       customer_id: newOrder.customer_id,
       assigned_to: null, // Sempre null per service work orders
       back_office_manager: (newOrder.back_office_manager && newOrder.back_office_manager.trim() !== '') ? newOrder.back_office_manager : null,
