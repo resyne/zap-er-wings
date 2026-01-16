@@ -1040,9 +1040,10 @@ export default function OrdersPage() {
   }, [showArchivedOrders]);
 
   const filteredOrders = orders.filter(order => {
-    // Filtro archiviati
-    if (!showArchivedOrders && order.archived) return false;
-    if (showArchivedOrders && !order.archived) return false;
+    // Filtro archiviati - gestisce anche null/undefined come false
+    const isArchived = order.archived === true;
+    if (!showArchivedOrders && isArchived) return false;
+    if (showArchivedOrders && !isArchived) return false;
     
     const matchesSearch = `${order.number} ${order.notes || ""} ${order.customers?.name || ""}`
       .toLowerCase()
