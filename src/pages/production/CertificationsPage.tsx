@@ -21,10 +21,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Plus, Search, FileCheck, Pencil, Trash2, FileText, Eye } from "lucide-react";
+
+interface SalesOrder {
+  id: string;
+  number: string;
+  article: string | null;
+  customer_name: string | null;
+  company_name: string | null;
+}
 
 interface ConformityDeclaration {
   id: string;
@@ -47,6 +62,7 @@ export default function CertificationsPage() {
   const [editingDeclaration, setEditingDeclaration] = useState<ConformityDeclaration | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   
   const [formData, setFormData] = useState({
     serial_number: "",
@@ -58,6 +74,51 @@ export default function CertificationsPage() {
     notes: "",
   });
 
+  // Fetch orders for dropdown
+  const { data: orders = [] } = useQuery({
+    queryKey: ["sales-orders-for-certification"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sales_orders")
+        .select(`
+          id,
+          number,
+          article,
+          customers!inner(name, company_name)
+        `)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((order: any) => ({
+        id: order.id,
+        number: order.number,
+        article: order.article,
+        customer_name: order.customers?.name,
+        company_name: order.customers?.company_name,
+      })) as SalesOrder[];
+    },
+  });
+
+  // Handle order selection
+  const handleOrderSelect = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      // Extract model from article (first line or first product mention)
+      const articleLines = (order.article || "").split("\n");
+      const firstLine = articleLines[0] || "";
+      // Try to extract model like "ZPZ", "ZCL", "ZPZ MAX" etc
+      const modelMatch = firstLine.match(/\d+x\s+(Z[A-Z]+(?:\s+[A-Z]+)?)/i);
+      const extractedModel = modelMatch ? modelMatch[1].trim() : firstLine.replace(/^\d+x\s*/, "").split(" - ")[0].trim();
+      
+      setFormData(prev => ({
+        ...prev,
+        order_number: order.number || "",
+        customer_name: order.company_name || order.customer_name || "",
+        model: extractedModel || prev.model,
+      }));
+    }
+  };
+
   // Generate new serial number
   const generateSerialNumber = () => {
     const year = new Date().getFullYear();
@@ -68,6 +129,7 @@ export default function CertificationsPage() {
   // Auto-generate serial number when creating new declaration
   useEffect(() => {
     if (isDialogOpen && !editingDeclaration) {
+      setSelectedOrderId("");
       setFormData(prev => ({
         ...prev,
         serial_number: generateSerialNumber(),
@@ -322,6 +384,23 @@ export default function CertificationsPage() {
                 />
               </div>
 
+              {/* Order Selector */}
+              <div className="space-y-2">
+                <Label>Seleziona Ordine</Label>
+                <Select value={selectedOrderId} onValueChange={handleOrderSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un ordine dal sistema..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    {orders.map((order) => (
+                      <SelectItem key={order.id} value={order.id}>
+                        {order.number} - {order.company_name || order.customer_name || "N/D"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="model">Modello *</Label>
                 <Input
@@ -341,10 +420,9 @@ export default function CertificationsPage() {
                   <Input
                     id="order_number"
                     value={formData.order_number}
-                    onChange={(e) =>
-                      setFormData({ ...formData, order_number: e.target.value })
-                    }
-                    placeholder="Es. ORD-2026-123"
+                    readOnly
+                    className="bg-muted"
+                    placeholder="Seleziona ordine sopra"
                   />
                 </div>
                 <div className="space-y-2">
@@ -352,10 +430,9 @@ export default function CertificationsPage() {
                   <Input
                     id="customer_name"
                     value={formData.customer_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, customer_name: e.target.value })
-                    }
-                    placeholder="Nome cliente"
+                    readOnly
+                    className="bg-muted"
+                    placeholder="Seleziona ordine sopra"
                   />
                 </div>
               </div>
