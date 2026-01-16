@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, ExternalLink, Edit, Trash2, Package, Wrench, Truck } from "lucide-react";
+import { syncOrderStatusWithWorkOrders } from "@/hooks/useOrderStatusSync";
 
 interface OrderWorkOrdersManagerProps {
   orderId: string;
@@ -193,6 +194,10 @@ export function OrderWorkOrdersManager({ orderId, customerId, onUpdate }: OrderW
       setIsAddDialogOpen(false);
       resetForm();
       loadWorkOrders();
+      
+      // Sincronizza lo stato dell'ordine in base alle commesse
+      await syncOrderStatusWithWorkOrders(orderId);
+      
       onUpdate();
     } catch (error: any) {
       toast({
@@ -217,6 +222,10 @@ export function OrderWorkOrdersManager({ orderId, customerId, onUpdate }: OrderW
       });
 
       loadWorkOrders();
+      
+      // Sincronizza lo stato dell'ordine in base alle commesse
+      await syncOrderStatusWithWorkOrders(orderId);
+      
       onUpdate();
     } catch (error: any) {
       toast({

@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { syncOrderStatusWithWorkOrders } from "@/hooks/useOrderStatusSync";
 
 interface ShippingOrder {
   id: string;
@@ -644,6 +645,11 @@ export default function ShippingOrdersPage() {
 
         if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+        
+        // Sincronizza lo stato dell'ordine padre se esiste
+        if (order.sales_order_id) {
+          await syncOrderStatusWithWorkOrders(order.sales_order_id);
+        }
       },
       async () => {
         const { error } = await supabase
@@ -653,6 +659,11 @@ export default function ShippingOrdersPage() {
 
         if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ["shipping-orders"] });
+        
+        // Risincronizza lo stato dell'ordine dopo l'undo
+        if (order.sales_order_id) {
+          await syncOrderStatusWithWorkOrders(order.sales_order_id);
+        }
       },
       {
         duration: 10000,

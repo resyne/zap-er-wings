@@ -898,39 +898,55 @@ export default function OrdersPage() {
     const subStatuses = getSubOrdersStatus(order);
     
     if (subStatuses.length === 0) {
-      return order.status || 'draft';
+      return order.status || 'commissionato';
     }
+    
+    // Stati che indicano "completato"
+    const completedStatuses = ['completed', 'completato', 'completata', 'spedito', 'consegnato'];
+    
+    // Stati che indicano "in lavorazione"
+    const inProgressStatuses = ['in_progress', 'in_lavorazione', 'in_preparazione', 'pronto', 'in_test', 'stand_by', 'standby'];
     
     // Se tutti i sotto-ordini sono completati
     const allCompleted = subStatuses.every(s => 
-      s.status === 'completed' || s.status === 'spedito'
+      completedStatuses.includes(s.status)
     );
     
     if (allCompleted) {
-      return 'completed';
+      return 'completato';
     }
     
-    // Se almeno un sotto-ordine è in progress (non più in stato iniziale)
+    // Se almeno un sotto-ordine è in lavorazione o completato
     const anyInProgress = subStatuses.some(s => 
-      s.status === 'in_progress' || s.status === 'in_preparazione'
+      inProgressStatuses.includes(s.status) || completedStatuses.includes(s.status)
     );
     
     if (anyInProgress) {
-      return 'in_progress';
+      return 'in_lavorazione';
     }
     
-    // Altrimenti è ancora in draft/planned
-    return order.status || 'draft';
+    // Altrimenti è ancora commissionato (tutte da_fare/da_preparare/planned)
+    return 'commissionato';
   };
 
   const getSubOrderStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
       'planned': 'Pianificato',
+      'da_fare': 'Da Fare',
       'in_progress': 'In Corso',
+      'in_lavorazione': 'In Lavorazione',
+      'in_test': 'In Test',
+      'pronto': 'Pronto',
       'completed': 'Completato',
+      'completato': 'Completato',
+      'completata': 'Completata',
+      'standby': 'Standby',
+      'stand_by': 'Stand By',
+      'bloccato': 'Bloccato',
       'da_preparare': 'Da Preparare',
       'in_preparazione': 'In Preparazione',
-      'spedito': 'Spedito'
+      'spedito': 'Spedito',
+      'consegnato': 'Consegnato'
     };
     return labels[status] || status;
   };
