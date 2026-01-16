@@ -50,26 +50,42 @@ serve(async (req) => {
       );
     }
 
-    // Build template components for Meta API
-    const components = [];
-
-    // Add BODY component
-    if (template.components?.body) {
-      let bodyText = template.components.body.text || "";
+    // Helper function to generate example value based on variable content
+    const generateExample = (varContent: string, index: number): string => {
+      const lowerContent = varContent.toLowerCase();
       
-      // Find all variables {{...}}
+      if (lowerContent.includes("name") || lowerContent.includes("nome")) {
+        return "Mario Rossi";
+      } else if (lowerContent.includes("email")) {
+        return "email@example.com";
+      } else if (lowerContent.includes("phone") || lowerContent.includes("telefono")) {
+        return "+39123456789";
+      } else if (lowerContent.includes("date") || lowerContent.includes("data")) {
+        return "01/01/2025";
+      } else if (lowerContent.includes("amount") || lowerContent.includes("importo") || lowerContent.includes("prezzo")) {
+        return "100€";
+      } else if (lowerContent.includes("link") || lowerContent.includes("url")) {
+        return "https://example.com/link";
+      } else if (/^\d+$/.test(varContent)) {
+        const exampleMap = ["Mario Rossi", "email@example.com", "https://example.com/link", "+39123456789", "01/01/2025"];
+        return exampleMap[index % exampleMap.length];
+      } else {
+        return `[${varContent}]`;
+      }
+    };
+
+    // Helper function to process text and extract/remap variables
+    const processVariables = (text: string): { processedText: string; exampleValues: string[] } => {
       const varRegex = /\{\{([^}]+)\}\}/g;
-      const matches = [...bodyText.matchAll(varRegex)];
+      const matches = [...text.matchAll(varRegex)];
       const uniqueVars: string[] = [];
       
-      // Collect unique variables in order of appearance
       for (const match of matches) {
         if (!uniqueVars.includes(match[0])) {
           uniqueVars.push(match[0]);
         }
       }
       
-      // Create a mapping and ensure sequential numbering starting from 1
       const varMapping: Record<string, string> = {};
       const exampleValues: string[] = [];
       
@@ -77,50 +93,80 @@ serve(async (req) => {
         const varContent = fullVar.replace(/\{\{|\}\}/g, "").trim();
         const positionalVar = `{{${index + 1}}}`;
         
-        // Only remap if it's different
         if (fullVar !== positionalVar) {
           varMapping[fullVar] = positionalVar;
         }
         
-        // Generate example value based on variable content
-        const lowerContent = varContent.toLowerCase();
-        let example = "esempio";
-        
-        if (lowerContent.includes("name") || lowerContent.includes("nome")) {
-          example = "Mario Rossi";
-        } else if (lowerContent.includes("email")) {
-          example = "email@example.com";
-        } else if (lowerContent.includes("phone") || lowerContent.includes("telefono")) {
-          example = "+39123456789";
-        } else if (lowerContent.includes("date") || lowerContent.includes("data")) {
-          example = "01/01/2025";
-        } else if (lowerContent.includes("amount") || lowerContent.includes("importo") || lowerContent.includes("prezzo")) {
-          example = "100€";
-        } else if (lowerContent.includes("link") || lowerContent.includes("url")) {
-          example = "https://example.com/link";
-        } else if (/^\d+$/.test(varContent)) {
-          // Already a number, use generic example based on index
-          const exampleMap = ["Mario Rossi", "email@example.com", "https://example.com/link", "+39123456789", "01/01/2025"];
-          example = exampleMap[index % exampleMap.length];
-        } else {
-          example = `[${varContent}]`;
-        }
-        
-        exampleValues.push(example);
+        exampleValues.push(generateExample(varContent, index));
       });
       
-      // Replace variables with sequential positional ones
+      let processedText = text;
       for (const [original, positional] of Object.entries(varMapping)) {
-        // Use a function to avoid issues with special characters in replacement
-        bodyText = bodyText.split(original).join(positional);
+        processedText = processedText.split(original).join(positional);
       }
+      
+      return { processedText, exampleValues };
+    };
+
+    // Build template components for Meta API
+    const components = [];
+
+    // Add HEADER component if present
+    if (template.components?.header) {
+      const headerType = template.components.header.type?.toUpperCase() || "TEXT";
+      
+      if (headerType === "TEXT" && template.components.header.text) {
+        const { processedText, exampleValues } = processVariables(template.components.header.text);
+        
+        const headerComponent: Record<string, unknown> = {
+          type: "HEADER",
+          format: "TEXT",
+          text: processedText,
+        };
+        
+        if (exampleValues.length > 0) {
+          headerComponent.example = {
+            header_text: exampleValues
+          };
+        }
+        
+        components.push(headerComponent);
+      } else if (headerType === "IMAGE") {
+        components.push({
+          type: "HEADER",
+          format: "IMAGE",
+          example: {
+            header_handle: ["https://example.com/image.jpg"]
+          }
+        });
+      } else if (headerType === "VIDEO") {
+        components.push({
+          type: "HEADER",
+          format: "VIDEO",
+          example: {
+            header_handle: ["https://example.com/video.mp4"]
+          }
+        });
+      } else if (headerType === "DOCUMENT") {
+        components.push({
+          type: "HEADER",
+          format: "DOCUMENT",
+          example: {
+            header_handle: ["https://example.com/document.pdf"]
+          }
+        });
+      }
+    }
+
+    // Add BODY component
+    if (template.components?.body) {
+      const { processedText, exampleValues } = processVariables(template.components.body.text || "");
       
       const bodyComponent: Record<string, unknown> = {
         type: "BODY",
-        text: bodyText,
+        text: processedText,
       };
       
-      // Add example if there are variables (required by Meta)
       if (exampleValues.length > 0) {
         bodyComponent.example = {
           body_text: [exampleValues]
@@ -128,6 +174,43 @@ serve(async (req) => {
       }
       
       components.push(bodyComponent);
+    }
+
+    // Add FOOTER component if present
+    if (template.components?.footer?.text) {
+      components.push({
+        type: "FOOTER",
+        text: template.components.footer.text
+      });
+    }
+
+    // Add BUTTONS component if present
+    if (template.components?.buttons && template.components.buttons.length > 0) {
+      const buttons = template.components.buttons.map((btn: { type: string; text: string; url?: string; phone_number?: string }) => {
+        if (btn.type === "URL") {
+          return {
+            type: "URL",
+            text: btn.text,
+            url: btn.url || "https://example.com"
+          };
+        } else if (btn.type === "PHONE_NUMBER") {
+          return {
+            type: "PHONE_NUMBER",
+            text: btn.text,
+            phone_number: btn.phone_number || "+391234567890"
+          };
+        } else {
+          return {
+            type: "QUICK_REPLY",
+            text: btn.text
+          };
+        }
+      });
+      
+      components.push({
+        type: "BUTTONS",
+        buttons: buttons
+      });
     }
 
     // Build the request payload for Meta
