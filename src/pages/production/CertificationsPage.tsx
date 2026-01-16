@@ -22,16 +22,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Plus, Search, FileCheck, Pencil, Trash2, FileText, Eye } from "lucide-react";
+import { Plus, Search, FileCheck, Pencil, Trash2, FileText, Eye, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SalesOrder {
   id: string;
@@ -63,6 +70,7 @@ export default function CertificationsPage() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [orderSearchOpen, setOrderSearchOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     serial_number: "",
@@ -384,21 +392,60 @@ export default function CertificationsPage() {
                 />
               </div>
 
-              {/* Order Selector */}
+              {/* Order Selector with Search */}
               <div className="space-y-2">
                 <Label>Seleziona Ordine</Label>
-                <Select value={selectedOrderId} onValueChange={handleOrderSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona un ordine dal sistema..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    {orders.map((order) => (
-                      <SelectItem key={order.id} value={order.id}>
-                        {order.number} - {order.company_name || order.customer_name || "N/D"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={orderSearchOpen} onOpenChange={setOrderSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={orderSearchOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {selectedOrderId
+                        ? (() => {
+                            const order = orders.find(o => o.id === selectedOrderId);
+                            return order ? `${order.number} - ${order.company_name || order.customer_name || "N/D"}` : "Seleziona ordine...";
+                          })()
+                        : "Cerca e seleziona un ordine..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Cerca ordine per numero o cliente..." />
+                      <CommandList>
+                        <CommandEmpty>Nessun ordine trovato.</CommandEmpty>
+                        <CommandGroup>
+                          {orders.map((order) => (
+                            <CommandItem
+                              key={order.id}
+                              value={`${order.number} ${order.company_name || ""} ${order.customer_name || ""}`}
+                              onSelect={() => {
+                                handleOrderSelect(order.id);
+                                setOrderSearchOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedOrderId === order.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{order.number}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {order.company_name || order.customer_name || "N/D"}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
