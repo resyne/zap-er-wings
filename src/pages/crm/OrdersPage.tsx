@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal, LayoutGrid, List, ExternalLink } from "lucide-react";
+import { Plus, Search, Calendar, Package, FileImage, Upload, X, Edit, Trash2, MoreHorizontal, LayoutGrid, List, ExternalLink, ArchiveRestore } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -716,6 +716,55 @@ export default function OrdersPage() {
     }
   };
 
+  const handleUnarchiveOrder = async (orderId: string) => {
+    try {
+      // Dearchivia l'ordine principale
+      const { error: orderError } = await supabase
+        .from("sales_orders")
+        .update({ archived: false })
+        .eq("id", orderId);
+
+      if (orderError) throw orderError;
+
+      // Dearchivia le commesse di produzione collegate
+      const { error: workOrdersError } = await supabase
+        .from("work_orders")
+        .update({ archived: false })
+        .eq("sales_order_id", orderId);
+
+      if (workOrdersError) throw workOrdersError;
+
+      // Dearchivia le commesse di lavoro collegate
+      const { error: serviceOrdersError } = await supabase
+        .from("service_work_orders")
+        .update({ archived: false })
+        .eq("sales_order_id", orderId);
+
+      if (serviceOrdersError) throw serviceOrdersError;
+
+      // Dearchivia le commesse di spedizione collegate
+      const { error: shippingOrdersError } = await supabase
+        .from("shipping_orders")
+        .update({ archived: false })
+        .eq("sales_order_id", orderId);
+
+      if (shippingOrdersError) throw shippingOrdersError;
+
+      toast({
+        title: "Ordine ripristinato",
+        description: "L'ordine e tutte le commesse collegate sono stati ripristinati con successo",
+      });
+
+      loadOrders();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: "Impossibile ripristinare l'ordine: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteOrder = async (orderId: string) => {
     try {
       // Delete related records first
@@ -1397,13 +1446,23 @@ export default function OrdersPage() {
                           <Edit className="w-4 h-4 mr-2" />
                           Modifica
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          handleArchiveOrder(order.id);
-                        }}>
-                          <Package className="w-4 h-4 mr-2" />
-                          Archivia
-                        </DropdownMenuItem>
+                        {order.archived ? (
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnarchiveOrder(order.id);
+                          }}>
+                            <ArchiveRestore className="w-4 h-4 mr-2" />
+                            Ripristina
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchiveOrder(order.id);
+                          }}>
+                            <Package className="w-4 h-4 mr-2" />
+                            Archivia
+                          </DropdownMenuItem>
+                        )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
@@ -1513,13 +1572,23 @@ export default function OrdersPage() {
                                                     <Edit className="mr-2 h-4 w-4" />
                                                     Modifica
                                                   </DropdownMenuItem>
-                                                  <DropdownMenuItem onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleArchiveOrder(order.id);
-                                                  }}>
-                                                    <Package className="mr-2 h-4 w-4" />
-                                                    Archivia
-                                                  </DropdownMenuItem>
+                                                  {order.archived ? (
+                                                    <DropdownMenuItem onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleUnarchiveOrder(order.id);
+                                                    }}>
+                                                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                                                      Ripristina
+                                                    </DropdownMenuItem>
+                                                  ) : (
+                                                    <DropdownMenuItem onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleArchiveOrder(order.id);
+                                                    }}>
+                                                      <Package className="mr-2 h-4 w-4" />
+                                                      Archivia
+                                                    </DropdownMenuItem>
+                                                  )}
                                                   <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                       <DropdownMenuItem
