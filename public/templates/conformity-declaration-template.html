@@ -29,14 +29,29 @@
             position: relative;
         }
 
+        /* IMPORTANT: evita pagine bianche “alternate” in stampa.
+           Se il browser aggiunge margini/header/footer, un box alto 297mm può “sforare”
+           e creare una pagina extra vuota. Con @page margin:0 il box torna a combaciare con A4. */
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
         @media print {
-            body {
+            html, body {
                 background: white;
+                margin: 0;
+                padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             .page {
                 margin: 0;
                 box-shadow: none;
                 page-break-after: always;
+            }
+            .page:last-of-type {
+                page-break-after: auto;
             }
             .no-print {
                 display: none !important;
