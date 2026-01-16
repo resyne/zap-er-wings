@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,17 +21,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Plus, Search, FileCheck, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, FileCheck, Pencil, Trash2, FileText, Eye } from "lucide-react";
 
 interface ConformityDeclaration {
   id: string;
@@ -41,15 +34,10 @@ interface ConformityDeclaration {
   order_number: string | null;
   customer_id: string | null;
   customer_name: string;
+  barrel_diameter: string | null;
   notes: string | null;
   attachment_url: string | null;
   created_at: string;
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  code: string;
 }
 
 export default function CertificationsPage() {
@@ -57,15 +45,36 @@ export default function CertificationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDeclaration, setEditingDeclaration] = useState<ConformityDeclaration | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  
   const [formData, setFormData] = useState({
     serial_number: "",
     declaration_date: format(new Date(), "yyyy-MM-dd"),
     model: "",
     order_number: "",
-    customer_id: "",
     customer_name: "",
+    barrel_diameter: "",
     notes: "",
   });
+
+  // Generate new serial number
+  const generateSerialNumber = () => {
+    const year = new Date().getFullYear();
+    const randomPart = Math.floor(Math.random() * 9000 + 1000);
+    return `ZPZ-${year}-${randomPart}`;
+  };
+
+  // Auto-generate serial number when creating new declaration
+  useEffect(() => {
+    if (isDialogOpen && !editingDeclaration) {
+      setFormData(prev => ({
+        ...prev,
+        serial_number: generateSerialNumber(),
+        declaration_date: format(new Date(), "yyyy-MM-dd"),
+      }));
+    }
+  }, [isDialogOpen, editingDeclaration]);
 
   // Fetch declarations
   const { data: declarations = [], isLoading } = useQuery({
@@ -80,19 +89,6 @@ export default function CertificationsPage() {
     },
   });
 
-  // Fetch customers for dropdown
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers-list"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, name, code")
-        .order("name");
-      if (error) throw error;
-      return data as Customer[];
-    },
-  });
-
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -101,8 +97,8 @@ export default function CertificationsPage() {
         declaration_date: data.declaration_date,
         model: data.model,
         order_number: data.order_number || null,
-        customer_id: data.customer_id || null,
-        customer_name: data.customer_name,
+        customer_name: data.customer_name || "N/D",
+        barrel_diameter: data.barrel_diameter || null,
         notes: data.notes || null,
       });
       if (error) throw error;
@@ -128,8 +124,8 @@ export default function CertificationsPage() {
           declaration_date: data.declaration_date,
           model: data.model,
           order_number: data.order_number || null,
-          customer_id: data.customer_id || null,
           customer_name: data.customer_name,
+          barrel_diameter: data.barrel_diameter || null,
           notes: data.notes || null,
         })
         .eq("id", id);
@@ -167,12 +163,12 @@ export default function CertificationsPage() {
 
   const resetForm = () => {
     setFormData({
-      serial_number: "",
+      serial_number: generateSerialNumber(),
       declaration_date: format(new Date(), "yyyy-MM-dd"),
       model: "",
       order_number: "",
-      customer_id: "",
       customer_name: "",
+      barrel_diameter: "",
       notes: "",
     });
   };
@@ -184,8 +180,8 @@ export default function CertificationsPage() {
       declaration_date: declaration.declaration_date,
       model: declaration.model,
       order_number: declaration.order_number || "",
-      customer_id: declaration.customer_id || "",
       customer_name: declaration.customer_name,
+      barrel_diameter: declaration.barrel_diameter || "",
       notes: declaration.notes || "",
     });
     setIsDialogOpen(true);
@@ -193,8 +189,8 @@ export default function CertificationsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.serial_number || !formData.model || !formData.customer_name) {
-      toast.error("Compila tutti i campi obbligatori");
+    if (!formData.serial_number || !formData.model || !formData.barrel_diameter) {
+      toast.error("Compila tutti i campi obbligatori (Matricola, Modello, Diametro Canne)");
       return;
     }
     if (editingDeclaration) {
@@ -204,13 +200,42 @@ export default function CertificationsPage() {
     }
   };
 
-  const handleCustomerChange = (customerId: string) => {
-    const customer = customers.find((c) => c.id === customerId);
-    setFormData({
-      ...formData,
-      customer_id: customerId,
-      customer_name: customer?.name || "",
-    });
+  const generateDocument = async (declaration: ConformityDeclaration) => {
+    try {
+      // Fetch the template
+      const response = await fetch('/templates/conformity-declaration-template.html');
+      let template = await response.text();
+      
+      // Format the date
+      const formattedDate = format(new Date(declaration.declaration_date), "dd/MM/yyyy", { locale: it });
+      
+      // Replace placeholders
+      template = template.replace(/\{\{SERIAL_NUMBER\}\}/g, declaration.serial_number);
+      template = template.replace(/\{\{DECLARATION_DATE\}\}/g, formattedDate);
+      template = template.replace(/\{\{MODEL\}\}/g, declaration.model);
+      template = template.replace(/\{\{BARREL_DIAMETER\}\}/g, declaration.barrel_diameter || "N/D");
+      template = template.replace(/\{\{ORDER_NUMBER\}\}/g, declaration.order_number || "N/D");
+      template = template.replace(/\{\{CUSTOMER_NAME\}\}/g, declaration.customer_name);
+      
+      setPreviewHtml(template);
+      setIsPreviewOpen(true);
+    } catch (error) {
+      toast.error("Errore nella generazione del documento");
+      console.error(error);
+    }
+  };
+
+  const printDocument = () => {
+    if (!previewHtml) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(previewHtml);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
   };
 
   const filteredDeclarations = declarations.filter(
@@ -218,6 +243,7 @@ export default function CertificationsPage() {
       d.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (d.barrel_diameter && d.barrel_diameter.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (d.order_number && d.order_number.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -256,19 +282,20 @@ export default function CertificationsPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="serial_number">Matricola *</Label>
+                  <Label htmlFor="serial_number">Matricola (auto)</Label>
                   <Input
                     id="serial_number"
                     value={formData.serial_number}
                     onChange={(e) =>
                       setFormData({ ...formData, serial_number: e.target.value })
                     }
-                    placeholder="Es. ZAP-2026-001"
-                    required
+                    placeholder="ZPZ-2026-0001"
+                    readOnly={!editingDeclaration}
+                    className={!editingDeclaration ? "bg-muted" : ""}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="declaration_date">Data *</Label>
+                  <Label htmlFor="declaration_date">Data (auto)</Label>
                   <Input
                     id="declaration_date"
                     type="date"
@@ -276,9 +303,23 @@ export default function CertificationsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, declaration_date: e.target.value })
                     }
-                    required
+                    readOnly={!editingDeclaration}
+                    className={!editingDeclaration ? "bg-muted" : ""}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="barrel_diameter">Diametro Canne *</Label>
+                <Input
+                  id="barrel_diameter"
+                  value={formData.barrel_diameter}
+                  onChange={(e) =>
+                    setFormData({ ...formData, barrel_diameter: e.target.value })
+                  }
+                  placeholder="Es. 50mm, 60mm, 80mm"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
@@ -294,45 +335,29 @@ export default function CertificationsPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="order_number">N. Ordine</Label>
-                <Input
-                  id="order_number"
-                  value={formData.order_number}
-                  onChange={(e) =>
-                    setFormData({ ...formData, order_number: e.target.value })
-                  }
-                  placeholder="Es. ORD-2026-123"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="customer">Cliente *</Label>
-                <Select
-                  value={formData.customer_id}
-                  onValueChange={handleCustomerChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona un cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.code} - {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!formData.customer_id && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="order_number">N. Ordine</Label>
                   <Input
-                    className="mt-2"
+                    id="order_number"
+                    value={formData.order_number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, order_number: e.target.value })
+                    }
+                    placeholder="Es. ORD-2026-123"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer_name">Cliente</Label>
+                  <Input
+                    id="customer_name"
                     value={formData.customer_name}
                     onChange={(e) =>
                       setFormData({ ...formData, customer_name: e.target.value })
                     }
-                    placeholder="Oppure inserisci nome cliente manualmente"
+                    placeholder="Nome cliente"
                   />
-                )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -344,7 +369,7 @@ export default function CertificationsPage() {
                     setFormData({ ...formData, notes: e.target.value })
                   }
                   placeholder="Note aggiuntive..."
-                  rows={3}
+                  rows={2}
                 />
               </div>
 
@@ -402,6 +427,7 @@ export default function CertificationsPage() {
                 <TableRow>
                   <TableHead>Matricola</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead>Diametro Canne</TableHead>
                   <TableHead>Modello</TableHead>
                   <TableHead>N. Ordine</TableHead>
                   <TableHead>Cliente</TableHead>
@@ -411,7 +437,7 @@ export default function CertificationsPage() {
               <TableBody>
                 {filteredDeclarations.map((declaration) => (
                   <TableRow key={declaration.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium font-mono">
                       {declaration.serial_number}
                     </TableCell>
                     <TableCell>
@@ -419,15 +445,25 @@ export default function CertificationsPage() {
                         locale: it,
                       })}
                     </TableCell>
+                    <TableCell>{declaration.barrel_diameter || "-"}</TableCell>
                     <TableCell>{declaration.model}</TableCell>
                     <TableCell>{declaration.order_number || "-"}</TableCell>
                     <TableCell>{declaration.customer_name}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => generateDocument(declaration)}
+                          title="Genera Documento"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(declaration)}
+                          title="Modifica"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -439,6 +475,7 @@ export default function CertificationsPage() {
                               deleteMutation.mutate(declaration.id);
                             }
                           }}
+                          title="Elimina"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -451,6 +488,30 @@ export default function CertificationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Anteprima Dichiarazione di Conformità</span>
+              <Button onClick={printDocument} className="mr-8">
+                <FileText className="h-4 w-4 mr-2" />
+                Stampa / PDF
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="border rounded-lg overflow-hidden">
+            {previewHtml && (
+              <iframe
+                srcDoc={previewHtml}
+                className="w-full h-[70vh]"
+                title="Document Preview"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
