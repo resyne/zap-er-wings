@@ -986,11 +986,11 @@
             <div class="data-table" style="margin: 10px 0;">
                 <div class="data-row" style="margin: 5px 0; font-size: 12px;">
                     <span class="data-label">Matricola:</span>
-                    <span><input type="text" class="editable" id="matricola" value="1740" /></span>
+                    <span><strong>{{SERIAL_NUMBER}}</strong></span>
                 </div>
                 <div class="data-row" style="margin: 5px 0; font-size: 12px;">
                     <span class="data-label">Modello:</span>
-                    <span><input type="text" class="editable" id="modello" value="ZPZ MAX serie Z" style="width: 200px;" /></span>
+                    <span><strong>{{MODEL}}</strong></span>
                 </div>
             </div>
 
@@ -1013,7 +1013,7 @@
                 </div>
                 <div class="data-row" style="margin: 3px 0; font-size: 11px;">
                     <span class="data-label">• DIAMETRO CANNE (mm):</span>
-                    <span><input type="text" class="editable" id="diametro" value="250" style="width: 80px;" /></span>
+                    <span><strong>{{BARREL_DIAMETER}}</strong></span>
                 </div>
             </div>
 
@@ -1035,7 +1035,7 @@
             </p>
 
             <div class="signature" style="margin-top: 20px;">
-                <p><input type="text" class="editable" id="data" value="Scafati 22/06/25" style="width: 200px;" /></p>
+                <p><strong>Scafati, {{DECLARATION_DATE}}</strong></p>
                 <p style="margin-top: 8px; font-weight: bold; font-size: 12px;">Il Responsabile</p>
                 <div style="margin-top: 10px;">
                     <p style="font-weight: bold; font-size: 12px;">CLIMATEL</p>
@@ -1057,57 +1057,6 @@
         </div>
     </div>
 
-    <script>
-        // Funzione per resettare i campi
-        function resetFields() {
-            if(confirm('Vuoi ripristinare i valori originali?')) {
-                document.getElementById('modello').value = 'ZPZ MAX serie Z';
-                document.getElementById('matricola').value = '1740';
-                document.getElementById('diametro').value = '250';
-                document.getElementById('data').value = 'Scafati 22/06/25';
-            }
-        }
-
-        // Funzione per salvare i dati in localStorage
-        function saveData() {
-            const data = {
-                modello: document.getElementById('modello').value,
-                matricola: document.getElementById('matricola').value,
-                diametro: document.getElementById('diametro').value,
-                data: document.getElementById('data').value
-            };
-            
-            localStorage.setItem('dichiarazione_data', JSON.stringify(data));
-            alert('Dati salvati con successo!');
-        }
-
-        // Funzione per caricare i dati salvati
-        function loadData() {
-            const saved = localStorage.getItem('dichiarazione_data');
-            if(saved) {
-                const data = JSON.parse(saved);
-                document.getElementById('modello').value = data.modello || 'ZPZ MAX serie Z';
-                document.getElementById('matricola').value = data.matricola || '1740';
-                document.getElementById('diametro').value = data.diametro || '250';
-                document.getElementById('data').value = data.data || 'Scafati 22/06/25';
-            }
-        }
-
-        // Carica i dati all'avvio
-        window.addEventListener('load', loadData);
-
-        // Salvataggio automatico quando si modificano i campi
-        document.querySelectorAll('.editable').forEach(input => {
-            input.addEventListener('change', () => {
-                const data = {
-                    modello: document.getElementById('modello').value,
-                    matricola: document.getElementById('matricola').value,
-                    diametro: document.getElementById('diametro').value,
-                    data: document.getElementById('data').value
-                };
-                localStorage.setItem('dichiarazione_data', JSON.stringify(data));
-            });
-        });
-    </script>
+    <!-- I dati vengono popolati automaticamente dal sistema -->
 </body>
 </html>
