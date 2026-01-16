@@ -120,6 +120,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Anagrafica Prodotti", url: "/mfg/products", icon: Package },
       { title: "Distinte Base", url: "/mfg/bom", icon: Database },
       { title: "Esecuzioni", url: "/mfg/executions", icon: Clock },
+      { title: "Certificazioni", url: "/mfg/certifications", icon: ShieldCheck },
     ]
   },
   {

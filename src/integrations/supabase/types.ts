@@ -1046,6 +1046,59 @@ export type Database = {
         }
         Relationships: []
       }
+      conformity_declarations: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string
+          declaration_date: string
+          id: string
+          model: string
+          notes: string | null
+          order_number: string | null
+          serial_number: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name: string
+          declaration_date: string
+          id?: string
+          model: string
+          notes?: string | null
+          order_number?: string | null
+          serial_number: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          declaration_date?: string
+          id?: string
+          model?: string
+          notes?: string | null
+          order_number?: string | null
+          serial_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conformity_declarations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consultation_requests: {
         Row: {
           business_location: string

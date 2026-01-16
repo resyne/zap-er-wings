@@ -26,6 +26,7 @@ import ProductionOrdersPage from "./pages/production/ProductionOrdersPage";
 import ExecutionsPage from "./pages/production/ExecutionsPage";
 import SerialsPage from "./pages/production/SerialsPage";
 import RmaPage from "./pages/production/RmaPage";
+import CertificationsPage from "./pages/production/CertificationsPage";
 import LeadsPage from "./pages/crm/LeadsPage";
 import LeadKpiPage from "./pages/crm/LeadKpiPage";
 import EmailMarketingPage from "./pages/marketing/EmailMarketingPage";
@@ -145,6 +146,7 @@ const App = () => (
                 <Route path="mfg/bom" element={<BomPage />} />
                 <Route path="mfg/work-orders" element={<ProductionOrdersPage />} />
                 <Route path="mfg/executions" element={<ExecutionsPage />} />
+                <Route path="mfg/certifications" element={<CertificationsPage />} />
                 <Route path="mfg/serials" element={<SerialsPage />} />
                 <Route path="mfg/rma" element={<RmaPage />} />
                 <Route path="crm/leads" element={<LeadsPage />} />
