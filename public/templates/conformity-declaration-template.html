@@ -25,8 +25,10 @@
             margin: 20px auto;
             background: white;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            page-break-after: always;
             position: relative;
+            /* Evita che una singola “pagina” si spezzi tra due fogli */
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
 
         /* IMPORTANT: evita pagine bianche “alternate” in stampa.
@@ -45,14 +47,17 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+
+            /* Forza l’inizio di ogni “.page” su un nuovo foglio SENZA creare fogli bianchi alternati */
             .page {
                 margin: 0;
                 box-shadow: none;
-                page-break-after: always;
             }
-            .page:last-of-type {
-                page-break-after: auto;
+            .page + .page {
+                break-before: page;
+                page-break-before: always;
             }
+
             .no-print {
                 display: none !important;
             }
