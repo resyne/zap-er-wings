@@ -21,8 +21,8 @@ export default function AuthPage() {
   const location = useLocation();
   const { toast } = useToast();
 
-  // Get the redirect URL from state or default to dashboard
-  const from = (location.state as { from?: string })?.from || "/dashboard";
+  // Get the redirect URL from state or default to the main dashboard
+  const from = (location.state as { from?: string })?.from || "/personal-area";
 
   useEffect(() => {
     // Set up auth state listener first
