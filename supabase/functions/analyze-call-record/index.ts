@@ -317,6 +317,7 @@ async function matchAndLinkLead(supabase: any, callRecordId: string) {
           status: 'new',
           source: 'phone_call',
           pre_qualificato: true,
+          pipeline: 'Zapper',
           notes: `Lead creato automaticamente da chiamata telefonica.\nCodice: ${randomCode}\nData: ${callDate} ore ${callTime}\nNumero: ${customerNumber}`
         })
         .select('id')

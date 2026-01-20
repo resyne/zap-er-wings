@@ -99,6 +99,7 @@ async function createLeadFromCall(supabase: any, phoneNumber: string, callDate: 
         status: 'new',
         source: 'phone_call',
         pre_qualificato: true,
+        pipeline: 'Zapper',
         notes: `Lead creato automaticamente da chiamata telefonica.\nCodice: ${randomCode}\nData chiamata: ${callDate}\nNumero: ${phoneNumber}`
       })
       .select('id')
