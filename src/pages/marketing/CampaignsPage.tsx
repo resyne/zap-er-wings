@@ -158,7 +158,7 @@ export default function CampaignsPage() {
           name: newCampaign.name,
           description: newCampaign.description || null,
           trigger_type: newCampaign.trigger_type,
-          target_pipeline: newCampaign.target_pipeline || null
+          target_pipeline: newCampaign.target_pipeline === "all" ? null : (newCampaign.target_pipeline || null)
         })
         .select()
         .single();
@@ -734,7 +734,7 @@ export default function CampaignsPage() {
                   <SelectValue placeholder="Tutte le pipeline" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tutte le pipeline</SelectItem>
+                  <SelectItem value="all">Tutte le pipeline</SelectItem>
                   <SelectItem value="Zapper">Zapper</SelectItem>
                   <SelectItem value="Vesuviano">Vesuviano</SelectItem>
                   <SelectItem value="Zapper Pro">Zapper Pro</SelectItem>
