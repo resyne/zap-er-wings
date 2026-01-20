@@ -71,6 +71,8 @@ export default function CampaignsPage() {
   const [isStepDialogOpen, setIsStepDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [isEditStepDialogOpen, setIsEditStepDialogOpen] = useState(false);
+  const [editingStep, setEditingStep] = useState<CampaignStep | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
   const [activeTab, setActiveTab] = useState("campaigns");
 
@@ -305,6 +307,45 @@ export default function CampaignsPage() {
     } catch (error) {
       console.error("Error deleting step:", error);
       toast.error("Errore nell'eliminazione dello step");
+    }
+  };
+
+  const handleEditStep = (step: CampaignStep) => {
+    setEditingStep(step);
+    setIsEditStepDialogOpen(true);
+  };
+
+  const handleUpdateStep = async () => {
+    if (!editingStep || !selectedCampaign) return;
+
+    try {
+      const { error } = await supabase
+        .from("lead_automation_steps")
+        .update({
+          subject: editingStep.subject,
+          html_content: editingStep.html_content,
+          delay_days: editingStep.delay_days,
+          delay_hours: editingStep.delay_hours,
+          delay_minutes: editingStep.delay_minutes
+        })
+        .eq("id", editingStep.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedSteps = selectedCampaign.steps?.map(s => 
+        s.id === editingStep.id ? editingStep : s
+      ) || [];
+      const updatedCampaign = { ...selectedCampaign, steps: updatedSteps };
+      setSelectedCampaign(updatedCampaign);
+      setCampaigns(campaigns.map(c => c.id === selectedCampaign.id ? updatedCampaign : c));
+
+      setIsEditStepDialogOpen(false);
+      setEditingStep(null);
+      toast.success("Step aggiornato con successo");
+    } catch (error) {
+      console.error("Error updating step:", error);
+      toast.error("Errore nell'aggiornamento dello step");
     }
   };
 
@@ -562,6 +603,14 @@ export default function CampaignsPage() {
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     Preview
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditStep(step)}
+                                  >
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Modifica
                                   </Button>
                                   <Button
                                     size="sm"
@@ -959,6 +1008,127 @@ export default function CampaignsPage() {
             <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
               Chiudi
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Step Dialog */}
+      <Dialog open={isEditStepDialogOpen} onOpenChange={setIsEditStepDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifica Email</DialogTitle>
+            <DialogDescription>
+              Modifica il contenuto e le impostazioni di questo step
+            </DialogDescription>
+          </DialogHeader>
+          {editingStep && (
+            <div className="space-y-4">
+              <div>
+                <Label>Oggetto email *</Label>
+                <Input
+                  value={editingStep.subject}
+                  onChange={(e) => setEditingStep({ ...editingStep, subject: e.target.value })}
+                  placeholder="Es. Benvenuto in Zapper!"
+                />
+              </div>
+
+              <div>
+                <Label>Ritardo invio</Label>
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Giorni</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editingStep.delay_days}
+                      onChange={(e) => setEditingStep({ ...editingStep, delay_days: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Ore</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="23"
+                      value={editingStep.delay_hours}
+                      onChange={(e) => setEditingStep({ ...editingStep, delay_hours: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Minuti</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={editingStep.delay_minutes}
+                      onChange={(e) => setEditingStep({ ...editingStep, delay_minutes: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Contenuto HTML *</Label>
+                  <Button variant="outline" size="sm" asChild>
+                    <label className="cursor-pointer">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Carica file HTML
+                      <input
+                        type="file"
+                        accept=".html,.htm"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const content = ev.target?.result as string;
+                              setEditingStep({ ...editingStep, html_content: content });
+                            };
+                            reader.readAsText(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </Button>
+                </div>
+                <Textarea
+                  value={editingStep.html_content}
+                  onChange={(e) => setEditingStep({ ...editingStep, html_content: e.target.value })}
+                  placeholder="<html>...</html>"
+                  className="font-mono text-sm h-48"
+                />
+              </div>
+
+              {editingStep.html_content && (
+                <div>
+                  <Label>Anteprima</Label>
+                  <div className="border rounded-lg p-4 bg-background mt-2 max-h-64 overflow-auto">
+                    <div 
+                      dangerouslySetInnerHTML={{ 
+                        __html: processHtmlWithPlaceholders(editingStep.html_content) 
+                      }} 
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Placeholder:</strong> {`{{nome}}, {{cognome}}, {{email}}, {{telefono}}, {{azienda}}`}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditStepDialogOpen(false);
+              setEditingStep(null);
+            }}>
+              Annulla
+            </Button>
+            <Button onClick={handleUpdateStep}>Salva Modifiche</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
