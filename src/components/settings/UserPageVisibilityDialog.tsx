@@ -23,9 +23,10 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Dashboard Direzionale", url: "/direzione/dashboard" },
       { title: "Calendario Aziendale", url: "/direzione/calendario" },
+      { title: "Riepilogo Operativo", url: "/direzione/riepilogo-operativo" },
       { title: "Task Management", url: "/tasks" },
       { title: "Task KPI", url: "/direzione/task-kpi" },
-      { title: "Ordini", url: "/direzione/orders" },
+      { title: "Strategy", url: "/direzione/strategy" },
     ]
   },
   {
@@ -41,23 +42,36 @@ const navigationGroups: NavGroup[] = [
       { title: "Lead", url: "/crm/leads" },
       { title: "Lead KPI", url: "/crm/leads/kpi" },
       { title: "Clienti", url: "/crm/customers" },
+      { title: "Preventivatore Costi", url: "/crm/cost-estimator" },
       { title: "Offerte", url: "/crm/offers" },
+      { title: "Configuratore Prodotti", url: "/crm/product-configurator" },
+      { title: "Call Records", url: "/crm/call-records" },
+      { title: "ERP WhatsApp", url: "/crm/wasender" },
+    ]
+  },
+  {
+    title: "Commesse",
+    items: [
+      { title: "Ordini", url: "/direzione/orders" },
+      { title: "Commesse di Produzione", url: "/mfg/work-orders" },
+      { title: "Commesse di Lavoro", url: "/support/work-orders" },
+      { title: "Commesse di Spedizione", url: "/warehouse/shipping-orders" },
+      { title: "Rapporti di Intervento", url: "/support/service-reports" },
     ]
   },
   {
     title: "Produzione",
     items: [
+      { title: "Anagrafica Prodotti", url: "/mfg/products" },
       { title: "Distinte Base", url: "/mfg/bom" },
-      { title: "Commesse di Produzione", url: "/mfg/work-orders" },
       { title: "Esecuzioni", url: "/mfg/executions" },
+      { title: "Certificazioni", url: "/mfg/certifications" },
     ]
   },
   {
     title: "Assistenza Tecnica",
     items: [
       { title: "Dashboard", url: "/support" },
-      { title: "Commesse di Lavoro (CdL)", url: "/support/work-orders" },
-      { title: "Rapporti di Intervento", url: "/support/service-reports" },
       { title: "Ticket", url: "/support/tickets" },
     ]
   },
@@ -65,11 +79,9 @@ const navigationGroups: NavGroup[] = [
     title: "Magazzino",
     items: [
       { title: "Anagrafica Materiali", url: "/warehouse/materials" },
-      { title: "Commesse di Spedizione", url: "/warehouse/shipping-orders" },
       { title: "Scorte", url: "/wms/stock" },
       { title: "Movimenti", url: "/wms/movements" },
       { title: "Inventario", url: "/wms/inventory" },
-      { title: "Prelievi", url: "/wms/picking" },
       { title: "DDT", url: "/wms/ddt" },
     ]
   },
@@ -82,15 +94,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Ricevimenti", url: "/procurement/receipts" },
       { title: "Controllo Qualità", url: "/procurement/qc" },
       { title: "Rifornimenti", url: "/procurement/replenishment" },
-    ]
-  },
-  {
-    title: "Qualità",
-    items: [
-      { title: "Non Conformità", url: "/quality/nc" },
-      { title: "CAPA", url: "/quality/capa" },
-      { title: "Audit", url: "/quality/audits" },
-      { title: "HSE", url: "/quality/hse" },
     ]
   },
   {
@@ -111,12 +114,26 @@ const navigationGroups: NavGroup[] = [
       { title: "Movimenti", url: "/management-control/movements" },
       { title: "Commesse", url: "/management-control/projects" },
       { title: "Budget & Forecast", url: "/management-control/budget" },
+      { title: "Crediti e Debiti", url: "/management-control/credits-debts" },
+    ]
+  },
+  {
+    title: "Controllo di Gestione 2",
+    items: [
+      { title: "Registro", url: "/management-control-2/registro" },
+      { title: "Movimenti Finanziari", url: "/management-control-2/movimenti-finanziari" },
+      { title: "Setup Contabile", url: "/management-control-2/setup-contabile" },
+      { title: "Prima Nota", url: "/management-control-2/prima-nota" },
+      { title: "Scadenziario", url: "/management-control-2/scadenziario" },
+      { title: "Mastrino Contabile", url: "/management-control-2/mastrino" },
+      { title: "Registro Contabile", url: "/management-control-2/registro-fatture" },
     ]
   },
   {
     title: "Risorse Umane",
     items: [
       { title: "Personale", url: "/hr/people" },
+      { title: "Sicurezza sul Lavoro", url: "/hr/safety" },
       { title: "Tecnici", url: "/hr/technicians" },
       { title: "Timesheet", url: "/hr/timesheets" },
       { title: "Rimborsi", url: "/hr/expenses" },
@@ -168,6 +185,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Sistema",
     items: [
+      { title: "WhatsAppAPI", url: "/crm/whatsapp" },
       { title: "Integrazioni", url: "/integrations" },
       { title: "Impostazioni", url: "/settings" },
     ]
