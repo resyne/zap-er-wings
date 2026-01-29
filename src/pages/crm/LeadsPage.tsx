@@ -100,7 +100,37 @@ interface Offer {
 
 const leadSources = ["website", "referral", "social_media", "cold_call", "trade_show", "zapier", "other"];
 const pipelines = ["Zapper", "Vesuviano", "Zapper Pro", "Resyne"];
-const countries = ["Italia", "Francia", "Germania"];
+const countries = ["Italia", "Francia", "Germania", "Spagna", "UK"];
+
+// Funzione per rilevare automaticamente il paese dal prefisso telefonico
+const detectCountryFromPhone = (phone: string): string | null => {
+  if (!phone) return null;
+  
+  // Rimuovi spazi e caratteri non numerici tranne il +
+  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  
+  // Mappatura prefissi -> paesi
+  const prefixMap: { [key: string]: string } = {
+    '+39': 'Italia',
+    '+34': 'Spagna',
+    '+44': 'UK',
+    '+33': 'Francia',
+    // Varianti senza + per gestire input diversi
+    '0039': 'Italia',
+    '0034': 'Spagna',
+    '0044': 'UK',
+    '0033': 'Francia',
+  };
+  
+  // Controlla i prefissi in ordine di lunghezza (più lunghi prima)
+  for (const [prefix, country] of Object.entries(prefixMap)) {
+    if (cleanPhone.startsWith(prefix)) {
+      return country;
+    }
+  }
+  
+  return null;
+};
 // Tutte le colonne per la Kanban
 const kanbanStatuses = [
   { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
@@ -1234,7 +1264,15 @@ export default function LeadsPage() {
                       <Input
                         id="phone"
                         value={newLead.phone}
-                        onChange={(e) => setNewLead({...newLead, phone: e.target.value})}
+                        onChange={(e) => {
+                          const newPhone = e.target.value;
+                          const detectedCountry = detectCountryFromPhone(newPhone);
+                          setNewLead({
+                            ...newLead, 
+                            phone: newPhone,
+                            ...(detectedCountry && { country: detectedCountry })
+                          });
+                        }}
                         placeholder="+39 123 456 7890"
                       />
                     </div>
@@ -2646,7 +2684,15 @@ export default function LeadsPage() {
               <Input
                 id="edit_phone"
                 value={newLead.phone}
-                onChange={(e) => setNewLead({...newLead, phone: e.target.value})}
+                onChange={(e) => {
+                  const newPhone = e.target.value;
+                  const detectedCountry = detectCountryFromPhone(newPhone);
+                  setNewLead({
+                    ...newLead, 
+                    phone: newPhone,
+                    ...(detectedCountry && { country: detectedCountry })
+                  });
+                }}
                 placeholder="+39 123 456 7890"
               />
             </div>
