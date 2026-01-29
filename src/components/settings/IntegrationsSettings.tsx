@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, ExternalLink, Webhook, Zap, Users, ShoppingCart } from "lucide-react";
+import { Copy, ExternalLink, Webhook, Zap, Users, ShoppingCart, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import ZapierIntegration from "@/components/leads/ZapierIntegration";
@@ -14,6 +14,24 @@ export function IntegrationsSettings() {
 
   const baseUrl = "https://rucjkoleodtwrbftwgsm.supabase.co/functions/v1";
   
+  // External website lead endpoints
+  const externalLeadEndpoints = [
+    {
+      name: "Lead Vesuviano",
+      pipeline: "Vesuviano",
+      endpoint: `${baseUrl}/external-lead-webhook?pipeline=Vesuviano`,
+      description: "Endpoint per ricevere lead dal sito Vesuviano Forni",
+      color: "bg-orange-500"
+    },
+    {
+      name: "Lead ZAPPER",
+      pipeline: "ZAPPER",
+      endpoint: `${baseUrl}/external-lead-webhook?pipeline=ZAPPER`,
+      description: "Endpoint per ricevere lead dal sito ZAPPER",
+      color: "bg-blue-500"
+    }
+  ];
+
   const webhookEndpoints = [
     {
       name: "Webhook Generico",
@@ -53,12 +71,104 @@ export function IntegrationsSettings() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="zapier" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="external-leads" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="external-leads">Endpoint Lead</TabsTrigger>
           <TabsTrigger value="zapier">Zapier</TabsTrigger>
           <TabsTrigger value="webhooks">Webhook Endpoints</TabsTrigger>
           <TabsTrigger value="other">Altre Integrazioni</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="external-leads" className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold mb-2">Endpoint per Lead da Siti Esterni</h3>
+            <p className="text-muted-foreground text-sm">
+              Usa questi endpoint per ricevere lead direttamente dai tuoi siti web esterni. I lead verranno automaticamente importati nel CRM.
+            </p>
+          </div>
+
+          <div className="grid gap-4">
+            {externalLeadEndpoints.map((endpoint, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <div className={`p-2 rounded-lg ${endpoint.color}`}>
+                      <Globe className="h-5 w-5 text-white" />
+                    </div>
+                    {endpoint.name}
+                    <Badge variant="secondary">{endpoint.pipeline}</Badge>
+                  </CardTitle>
+                  <CardDescription>{endpoint.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>URL Endpoint (POST):</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={endpoint.endpoint}
+                        readOnly
+                        className="font-mono text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(endpoint.endpoint, endpoint.name)}
+                      >
+                        <Copy className="h-4 w-4" />
+                        {copiedEndpoint === endpoint.name ? "Copiato!" : "Copia"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h4 className="font-medium mb-2">Esempio di utilizzo (JavaScript/Fetch):</h4>
+                    <pre className="text-xs overflow-x-auto bg-background p-3 rounded border">
+{`fetch("${endpoint.endpoint}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    company_name: "Nome Azienda",
+    contact_name: "Nome Contatto",
+    email: "email@esempio.it",
+    phone: "+39 333 1234567",
+    notes: "Messaggio dal form",
+    source: "sito-${endpoint.pipeline.toLowerCase()}"
+  })
+})`}
+                    </pre>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h4 className="font-medium mb-2">Campi accettati:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li><code className="bg-background px-1 rounded">company_name</code> - Nome azienda</li>
+                      <li><code className="bg-background px-1 rounded">contact_name</code> - Nome contatto</li>
+                      <li><code className="bg-background px-1 rounded">email</code> - Email</li>
+                      <li><code className="bg-background px-1 rounded">phone</code> - Telefono (auto-detect paese dal prefisso)</li>
+                      <li><code className="bg-background px-1 rounded">value</code> - Valore stimato</li>
+                      <li><code className="bg-background px-1 rounded">notes</code> - Note/Messaggio</li>
+                      <li><code className="bg-background px-1 rounded">source</code> - Fonte del lead</li>
+                      <li><code className="bg-background px-1 rounded">luogo</code> - Località</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label>Documentazione API:</Label>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => window.open(endpoint.endpoint, '_blank')}
+                      className="p-0 h-auto"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Visualizza (GET)
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
         
         <TabsContent value="zapier" className="space-y-4">
           <Card>
