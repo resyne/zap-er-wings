@@ -3766,6 +3766,8 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          sender_email: string | null
+          sender_name: string | null
           target_pipeline: string | null
           trigger_type: string
           updated_at: string
@@ -3777,6 +3779,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          sender_email?: string | null
+          sender_name?: string | null
           target_pipeline?: string | null
           trigger_type?: string
           updated_at?: string
@@ -3788,6 +3792,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          sender_email?: string | null
+          sender_name?: string | null
           target_pipeline?: string | null
           trigger_type?: string
           updated_at?: string

@@ -40,6 +40,8 @@ interface Campaign {
   target_pipeline: string | null;
   is_active: boolean;
   created_at: string;
+  sender_email: string | null;
+  sender_name: string | null;
   steps?: CampaignStep[];
 }
 
@@ -81,12 +83,13 @@ export default function CampaignsPage() {
   const [loadingTranslation, setLoadingTranslation] = useState(false);
   const [activeTab, setActiveTab] = useState("campaigns");
 
-  // Form states
   const [newCampaign, setNewCampaign] = useState({
     name: "",
     description: "",
     trigger_type: "new_lead",
-    target_pipeline: ""
+    target_pipeline: "",
+    sender_email: "noreply@abbattitorizapper.it",
+    sender_name: "Vesuviano Forni"
   });
 
   const [newStep, setNewStep] = useState({
@@ -165,7 +168,9 @@ export default function CampaignsPage() {
           name: newCampaign.name,
           description: newCampaign.description || null,
           trigger_type: newCampaign.trigger_type,
-          target_pipeline: newCampaign.target_pipeline === "all" ? null : (newCampaign.target_pipeline || null)
+          target_pipeline: newCampaign.target_pipeline === "all" ? null : (newCampaign.target_pipeline || null),
+          sender_email: newCampaign.sender_email || "noreply@abbattitorizapper.it",
+          sender_name: newCampaign.sender_name || "Vesuviano Forni"
         })
         .select()
         .single();
@@ -174,7 +179,14 @@ export default function CampaignsPage() {
 
       setCampaigns([{ ...data, steps: [] }, ...campaigns]);
       setIsCreateDialogOpen(false);
-      setNewCampaign({ name: "", description: "", trigger_type: "new_lead", target_pipeline: "" });
+      setNewCampaign({ 
+        name: "", 
+        description: "", 
+        trigger_type: "new_lead", 
+        target_pipeline: "",
+        sender_email: "noreply@abbattitorizapper.it",
+        sender_name: "Vesuviano Forni"
+      });
       toast.success("Campagna creata con successo");
     } catch (error) {
       console.error("Error creating campaign:", error);
@@ -869,6 +881,35 @@ export default function CampaignsPage() {
                   <SelectItem value="Zapper Pro">Zapper Pro</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Configurazione Mittente
+              </h4>
+              <div>
+                <Label>Nome mittente</Label>
+                <Input
+                  value={newCampaign.sender_name}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, sender_name: e.target.value })}
+                  placeholder="Es. Vesuviano Forni"
+                />
+              </div>
+              <div>
+                <Label>Email mittente</Label>
+                <Input
+                  type="email"
+                  value={newCampaign.sender_email}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, sender_email: e.target.value })}
+                  placeholder="Es. noreply@abbattitorizapper.it"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  L'email deve essere verificata su Resend
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter>
