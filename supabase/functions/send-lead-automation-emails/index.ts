@@ -127,13 +127,19 @@ Deno.serve(async (req) => {
     console.log('Sending scheduled lead automation emails...')
 
     // Get pending executions that are due
-    const now = new Date().toISOString()
+    const now = new Date()
+    const nowIso = now.toISOString()
+    
+    // Only process emails scheduled within the last 7 days to avoid sending old backlog
+    // This prevents sending all old emails at once if the function was not running
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
     
     const { data: executions, error: execError } = await supabase
       .from('lead_automation_executions')
       .select('*')
       .eq('status', 'pending')
-      .lte('scheduled_at', now)
+      .lte('scheduled_at', nowIso)
+      .gte('scheduled_at', sevenDaysAgo) // Only emails scheduled in the last 7 days
       .order('scheduled_at', { ascending: true })
       .limit(50)
 
@@ -157,6 +163,52 @@ Deno.serve(async (req) => {
 
     for (const execution of executions as LeadAutomationExecution[]) {
       try {
+        // Fetch step details first to check step_order
+        const { data: step, error: stepError } = await supabase
+          .from('lead_automation_steps')
+          .select('id, campaign_id, subject, html_content, step_order')
+          .eq('id', execution.step_id)
+          .single()
+
+        if (stepError || !step) {
+          console.error(`Step ${execution.step_id} not found:`, stepError)
+          await supabase
+            .from('lead_automation_executions')
+            .update({ status: 'failed', sent_at: nowIso, error_message: 'Step not found' })
+            .eq('id', execution.id)
+          errorCount++
+          continue
+        }
+
+        // If this is step 2 or later, verify that previous steps were sent
+        if (step.step_order > 1) {
+          const { data: previousSteps, error: prevError } = await supabase
+            .from('lead_automation_steps')
+            .select('id')
+            .eq('campaign_id', execution.campaign_id)
+            .lt('step_order', step.step_order)
+            .eq('is_active', true)
+
+          if (!prevError && previousSteps && previousSteps.length > 0) {
+            // Check if all previous steps have been sent for this lead
+            const prevStepIds = previousSteps.map(s => s.id)
+            const { data: prevExecutions, error: prevExecError } = await supabase
+              .from('lead_automation_executions')
+              .select('id, status')
+              .eq('lead_id', execution.lead_id)
+              .eq('campaign_id', execution.campaign_id)
+              .in('step_id', prevStepIds)
+
+            if (!prevExecError && prevExecutions) {
+              const allPreviousSent = prevExecutions.every(e => e.status === 'sent')
+              if (!allPreviousSent) {
+                console.log(`Skipping step ${step.step_order} for lead ${execution.lead_id} - previous steps not yet sent`)
+                continue // Skip this execution, will retry later
+              }
+            }
+          }
+        }
+
         // Fetch full lead details including country
         const { data: lead, error: leadError } = await supabase
           .from('leads')
@@ -168,7 +220,7 @@ Deno.serve(async (req) => {
           console.error(`Lead ${execution.lead_id} not found:`, leadError)
           await supabase
             .from('lead_automation_executions')
-            .update({ status: 'failed', sent_at: now, error_message: 'Lead not found' })
+            .update({ status: 'failed', sent_at: nowIso, error_message: 'Lead not found' })
             .eq('id', execution.id)
           errorCount++
           continue
@@ -178,7 +230,7 @@ Deno.serve(async (req) => {
           console.error(`Lead ${execution.lead_id} has no email`)
           await supabase
             .from('lead_automation_executions')
-            .update({ status: 'failed', sent_at: now, error_message: 'No email address' })
+            .update({ status: 'failed', sent_at: nowIso, error_message: 'No email address' })
             .eq('id', execution.id)
           errorCount++
           continue
@@ -189,23 +241,6 @@ Deno.serve(async (req) => {
         // Determine language based on lead's country
         const languageCode = await getLanguageCode(supabase, typedLead.country)
         console.log(`Lead ${typedLead.email} - Country: ${typedLead.country || 'unknown'} - Language: ${languageCode}`)
-
-        // Fetch step details (default English content)
-        const { data: step, error: stepError } = await supabase
-          .from('lead_automation_steps')
-          .select('id, campaign_id, subject, html_content')
-          .eq('id', execution.step_id)
-          .single()
-
-        if (stepError || !step) {
-          console.error(`Step ${execution.step_id} not found:`, stepError)
-          await supabase
-            .from('lead_automation_executions')
-            .update({ status: 'failed', sent_at: now, error_message: 'Step not found' })
-            .eq('id', execution.id)
-          errorCount++
-          continue
-        }
 
         // Fetch campaign for logging
         const { data: campaign } = await supabase
@@ -241,7 +276,7 @@ Deno.serve(async (req) => {
             .from('lead_automation_executions')
             .update({ 
               status: 'failed', 
-              sent_at: now, 
+              sent_at: nowIso, 
               error_message: emailError.message || 'Email send failed' 
             })
             .eq('id', execution.id)
@@ -252,7 +287,7 @@ Deno.serve(async (req) => {
         // Update execution as sent with language info
         await supabase
           .from('lead_automation_executions')
-          .update({ status: 'sent', sent_at: now })
+          .update({ status: 'sent', sent_at: nowIso })
           .eq('id', execution.id)
 
         console.log(`Email sent successfully to ${typedLead.email} in ${languageCode}, resend id: ${emailResponse?.id}`)
@@ -263,7 +298,7 @@ Deno.serve(async (req) => {
         console.error(`Error processing execution ${execution.id}:`, errorMessage)
         await supabase
           .from('lead_automation_executions')
-          .update({ status: 'failed', sent_at: now, error_message: errorMessage })
+          .update({ status: 'failed', sent_at: nowIso, error_message: errorMessage })
           .eq('id', execution.id)
         errorCount++
       }
