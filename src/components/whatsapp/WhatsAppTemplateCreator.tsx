@@ -287,6 +287,51 @@ export function WhatsAppTemplateCreator({
               )}
             </div>
 
+            {/* Variables Helper */}
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-semibold text-primary">Variabili WhatsApp API</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                WhatsApp usa variabili <strong>numerate</strong>: <code className="bg-muted px-1 py-0.5 rounded">{"{{1}}"}</code>, <code className="bg-muted px-1 py-0.5 rounded">{"{{2}}"}</code>, ecc.
+                <br />Clicca sui pulsanti qui sotto per inserirle nel testo.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setFormData(prev => ({ ...prev, body: prev.body + "{{1}}" }))}
+                >
+                  {"{{1}}"} - Nome
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setFormData(prev => ({ ...prev, body: prev.body + "{{2}}" }))}
+                >
+                  {"{{2}}"} - Azienda
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setFormData(prev => ({ ...prev, body: prev.body + "{{3}}" }))}
+                >
+                  {"{{3}}"} - Data
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setFormData(prev => ({ ...prev, body: prev.body + "{{4}}" }))}
+                >
+                  {"{{4}}"} - Link
+                </Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                💡 I valori reali verranno inseriti quando invii il messaggio al cliente
+              </p>
+            </div>
+
             {/* Body Section */}
             <div className="space-y-3 rounded-lg border p-4">
               <div className="flex items-center gap-2">
