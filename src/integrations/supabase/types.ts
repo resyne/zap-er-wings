@@ -1304,6 +1304,27 @@ export type Database = {
           },
         ]
       }
+      country_language_mapping: {
+        Row: {
+          country_name: string
+          created_at: string
+          id: string
+          language_code: string
+        }
+        Insert: {
+          country_name: string
+          created_at?: string
+          id?: string
+          language_code: string
+        }
+        Update: {
+          country_name?: string
+          created_at?: string
+          id?: string
+          language_code?: string
+        }
+        Relationships: []
+      }
       crm_companies: {
         Row: {
           annual_revenue: number | null
@@ -3824,6 +3845,44 @@ export type Database = {
           },
           {
             foreignKeyName: "lead_automation_executions_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "lead_automation_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_automation_step_translations: {
+        Row: {
+          created_at: string
+          html_content: string
+          id: string
+          language_code: string
+          step_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          html_content: string
+          id?: string
+          language_code: string
+          step_id: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          html_content?: string
+          id?: string
+          language_code?: string
+          step_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_automation_step_translations_step_id_fkey"
             columns: ["step_id"]
             isOneToOne: false
             referencedRelation: "lead_automation_steps"
