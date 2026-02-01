@@ -26,6 +26,7 @@ interface SendMessageRequest {
   header_document_url?: string; // URL del documento per header template
   header_document_filename?: string; // Nome del documento per header template
   sent_by?: string; // User ID che ha inviato il messaggio
+  lead_id?: string; // Lead ID to link conversation
 }
 
 serve(async (req) => {
@@ -36,7 +37,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SendMessageRequest = await req.json();
-    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, media_filename, header_document_url, header_document_filename, sent_by } = body;
+    const { account_id, to, type, content, template_name, template_language, template_params, media_url, media_caption, media_filename, header_document_url, header_document_filename, sent_by, lead_id } = body;
 
     // Get account details
     const { data: account, error: accountError } = await supabase
@@ -195,13 +196,20 @@ serve(async (req) => {
       .single();
 
     if (!conversation) {
+      const insertData: any = {
+        account_id: account_id,
+        customer_phone: recipientPhone,
+        conversation_type: "business_initiated",
+      };
+      
+      // Link to lead if provided
+      if (lead_id) {
+        insertData.lead_id = lead_id;
+      }
+      
       const { data: newConv, error: convError } = await supabase
         .from("whatsapp_conversations")
-        .insert({
-          account_id: account_id,
-          customer_phone: recipientPhone,
-          conversation_type: "business_initiated",
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -210,6 +218,12 @@ serve(async (req) => {
       } else {
         conversation = newConv;
       }
+    } else if (lead_id && !conversation.lead_id) {
+      // Update existing conversation with lead_id if not already set
+      await supabase
+        .from("whatsapp_conversations")
+        .update({ lead_id: lead_id })
+        .eq("id", conversation.id);
     }
 
     // Save message to database

@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   MessageCircle, Check, CheckCheck, Clock, AlertCircle, 
-  Image, FileText, Video, Mic, Plus, RefreshCw, Link2
+  Image, FileText, Video, Mic, Plus, RefreshCw, Link2, Bot
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -47,6 +48,34 @@ interface WaSenderMessage {
   content: string | null;
   media_url: string | null;
   file_name: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+}
+
+// WhatsApp Business API (Meta) types
+interface WhatsAppConversation {
+  id: string;
+  account_id: string;
+  customer_phone: string;
+  customer_name: string | null;
+  lead_id: string | null;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  unread_count: number;
+  status: string;
+}
+
+interface WhatsAppMessage {
+  id: string;
+  conversation_id: string;
+  direction: string;
+  message_type: string;
+  content: string | null;
+  media_url: string | null;
+  template_name: string | null;
+  template_params: any[] | null;
+  interactive_data: any | null;
   status: string;
   error_message: string | null;
   created_at: string;
@@ -125,10 +154,45 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
     refetchInterval: 5000 // Poll every 5 seconds
   });
 
+  // Fetch WhatsApp Business API (Meta) conversations for this lead
+  const { data: waApiConversations, refetch: refetchWaApiConversations } = useQuery({
+    queryKey: ['whatsapp-api-lead-conversations', leadId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('whatsapp_conversations')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('last_message_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as WhatsAppConversation[];
+    }
+  });
+
+  // Fetch messages for all WhatsApp API conversations
+  const { data: waApiMessages, isLoading: waApiMessagesLoading, refetch: refetchWaApiMessages } = useQuery({
+    queryKey: ['whatsapp-api-lead-messages', waApiConversations?.map(c => c.id)],
+    queryFn: async () => {
+      if (!waApiConversations || waApiConversations.length === 0) return [];
+      
+      const conversationIds = waApiConversations.map(c => c.id);
+      const { data, error } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data as WhatsAppMessage[];
+    },
+    enabled: !!waApiConversations && waApiConversations.length > 0,
+    refetchInterval: 5000
+  });
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, waApiMessages]);
 
   // Create conversation mutation
   const createConversationMutation = useMutation({
@@ -231,20 +295,67 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
     }
   };
 
-  // No accounts configured
-  if (!accountsLoading && (!accounts || accounts.length === 0)) {
-    return (
-      <div className="text-center py-6">
-        <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground mb-2">
-          Nessun account WhatsApp configurato
-        </p>
-        <Button variant="outline" size="sm" asChild>
-          <a href="/crm/wasender">Configura Account</a>
-        </Button>
-      </div>
-    );
-  }
+  // Helper to render WhatsApp API message content with template resolution
+  const renderWaApiMessageContent = (msg: WhatsAppMessage) => {
+    // If it's a template message, show template info
+    if (msg.message_type === 'template' && msg.template_name) {
+      let displayContent = msg.content || `[Template: ${msg.template_name}]`;
+      
+      // Try to resolve template parameters if available
+      if (msg.template_params && Array.isArray(msg.template_params)) {
+        const params = msg.template_params;
+        params.forEach((param, index) => {
+          const placeholder = `{{${index + 1}}}`;
+          displayContent = displayContent.replace(placeholder, String(param));
+        });
+      }
+      
+      return (
+        <div className="space-y-1">
+          <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
+          <Badge variant="outline" className="text-xs">
+            <Bot className="h-3 w-3 mr-1" />
+            Automation
+          </Badge>
+        </div>
+      );
+    }
+    
+    // Handle interactive messages (button replies)
+    if (msg.message_type === 'interactive' && msg.interactive_data) {
+      const data = msg.interactive_data as any;
+      return (
+        <div className="space-y-1">
+          {msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
+          {data.button_text && (
+            <Badge variant="secondary" className="text-xs">
+              🔘 {data.button_text}
+            </Badge>
+          )}
+        </div>
+      );
+    }
+    
+    // Regular text or media
+    if (msg.media_url) {
+      return (
+        <div className="space-y-1">
+          <a href={msg.media_url} target="_blank" rel="noopener noreferrer" 
+             className="flex items-center gap-1 text-primary hover:underline text-sm">
+            <FileText className="h-3 w-3" />
+            Allegato
+          </a>
+          {msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
+        </div>
+      );
+    }
+    
+    return <p className="text-sm whitespace-pre-wrap">{msg.content || ""}</p>;
+  };
+
+  const hasWaApiMessages = waApiMessages && waApiMessages.length > 0;
+  const hasWaSenderConversation = selectedConversation || conversation;
+  const hasAnyContent = hasWaApiMessages || hasWaSenderConversation;
 
   // No phone number for lead
   if (!leadPhone) {
@@ -258,85 +369,137 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
     );
   }
 
-  // No conversation yet - show create button
-  if (!conversationLoading && !conversation && !selectedConversation) {
+  // Show WhatsApp API automation messages section
+  const renderWaApiSection = () => {
+    if (!waApiMessages || waApiMessages.length === 0) return null;
+    
     return (
-      <div className="space-y-4">
-        {accounts && accounts.length > 1 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Account:</span>
-            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Seleziona account" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map(acc => (
-                  <SelectItem key={acc.id} value={acc.id}>
-                    {acc.account_name || acc.phone_number}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        
-        <div className="text-center py-6 border rounded-lg bg-muted/30">
-          <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground mb-3">
-            Nessuna conversazione WhatsApp con questo lead
-          </p>
-          <Button 
-            onClick={() => createConversationMutation.mutate()}
-            disabled={createConversationMutation.isPending}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Inizia Conversazione
-          </Button>
-          <p className="text-xs text-muted-foreground mt-2">
-            Verrà creata una chat con {leadPhone}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* Account selector if multiple accounts */}
-      {accounts && accounts.length > 1 && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Account:</span>
-          <Select value={selectedAccountId} onValueChange={(val) => {
-            setSelectedAccountId(val);
-            setSelectedConversation(null);
-          }}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Seleziona account" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map(acc => (
-                <SelectItem key={acc.id} value={acc.id}>
-                  {acc.account_name || acc.phone_number}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* Chat messages area */}
       <div className="border rounded-lg bg-card">
         <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
           <div className="flex items-center gap-2">
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="text-xs bg-emerald-100 text-emerald-700">
-                {(leadName || leadPhone || "?").substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-sm font-medium">{leadName || leadPhone}</p>
-              {leadName && <p className="text-xs text-muted-foreground">{leadPhone}</p>}
-            </div>
+            <Bot className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Messaggi Automazione WhatsApp</span>
+            <Badge variant="secondary" className="text-xs">{waApiMessages.length}</Badge>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => {
+              refetchWaApiConversations();
+              refetchWaApiMessages();
+            }}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <ScrollArea className="h-[250px] p-3">
+          <div className="space-y-3">
+            {waApiMessages.map(msg => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                    msg.direction === 'outbound'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  }`}
+                >
+                  {renderWaApiMessageContent(msg)}
+                  
+                  <div className={`flex items-center gap-1 mt-1 ${
+                    msg.direction === 'outbound' ? 'justify-end' : ''
+                  }`}>
+                    <span className={`text-xs ${
+                      msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
+                    }`}>
+                      {format(new Date(msg.created_at), 'dd/MM HH:mm')}
+                    </span>
+                    {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                  </div>
+                  
+                  {msg.status === 'failed' && msg.error_message && (
+                    <p className="text-xs text-destructive mt-1">{msg.error_message}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  };
+
+  // Show WaSender manual chat section
+  const renderWaSenderSection = () => {
+    // No WaSender accounts configured
+    if (!accountsLoading && (!accounts || accounts.length === 0)) {
+      return null; // Don't show WaSender section if not configured
+    }
+
+    // No conversation yet - show create button
+    if (!conversationLoading && !conversation && !selectedConversation) {
+      return (
+        <div className="border rounded-lg bg-card p-4">
+          <div className="text-center">
+            <MessageCircle className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground mb-3">
+              Avvia una chat manuale WhatsApp
+            </p>
+            {accounts && accounts.length > 1 && (
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <span className="text-sm text-muted-foreground">Account:</span>
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Seleziona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map(acc => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.account_name || acc.phone_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button 
+              size="sm"
+              onClick={() => createConversationMutation.mutate()}
+              disabled={createConversationMutation.isPending}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Inizia Chat
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="border rounded-lg bg-card">
+        <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            {accounts && accounts.length > 1 && (
+              <Select value={selectedAccountId} onValueChange={(val) => {
+                setSelectedAccountId(val);
+                setSelectedConversation(null);
+              }}>
+                <SelectTrigger className="w-[150px] h-7 text-xs">
+                  <SelectValue placeholder="Account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts?.map(acc => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.account_name || acc.phone_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <span className="text-sm font-medium">Chat Manuale</span>
           </div>
           <Button 
             variant="ghost" 
@@ -350,7 +513,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
           </Button>
         </div>
 
-        <ScrollArea className="h-[300px] p-3">
+        <ScrollArea className="h-[250px] p-3">
           {messagesLoading ? (
             <div className="flex items-center justify-center h-full">
               <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -365,33 +528,29 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                   <div
                     className={`max-w-[80%] rounded-lg px-3 py-2 ${
                       msg.direction === 'outbound'
-                        ? 'bg-emerald-500 text-white'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
                     }`}
                   >
-                    {/* Media content */}
                     {msg.message_type !== 'text' && renderMediaContent(msg)}
                     
-                    {/* Text content */}
                     {msg.content && (
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     )}
                     
-                    {/* Timestamp and status */}
                     <div className={`flex items-center gap-1 mt-1 ${
                       msg.direction === 'outbound' ? 'justify-end' : ''
                     }`}>
                       <span className={`text-xs ${
-                        msg.direction === 'outbound' ? 'text-emerald-100' : 'text-muted-foreground'
+                        msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
                       }`}>
                         {format(new Date(msg.created_at), 'HH:mm')}
                       </span>
                       {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                     </div>
                     
-                    {/* Error message */}
                     {msg.status === 'failed' && msg.error_message && (
-                      <p className="text-xs text-red-200 mt-1">{msg.error_message}</p>
+                      <p className="text-xs text-destructive mt-1">{msg.error_message}</p>
                     )}
                   </div>
                 </div>
@@ -400,14 +559,12 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <MessageCircle className="h-8 w-8 mb-2" />
-              <p className="text-sm">Nessun messaggio</p>
-              <p className="text-xs">Invia il primo messaggio!</p>
+              <MessageCircle className="h-6 w-6 mb-2" />
+              <p className="text-xs">Nessun messaggio</p>
             </div>
           )}
         </ScrollArea>
 
-        {/* Input area with drag & drop support */}
         {selectedConversation && (
           <WaSenderChatInput
             conversationId={selectedConversation.id}
@@ -422,12 +579,74 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
           />
         )}
       </div>
+    );
+  };
 
-      {/* Link to full chat */}
+  // Main render with tabs if both types exist, or single section otherwise
+  if (hasWaApiMessages && (hasWaSenderConversation || (accounts && accounts.length > 0))) {
+    return (
+      <div className="space-y-3">
+        <Tabs defaultValue="automation" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="automation" className="text-xs">
+              <Bot className="h-3 w-3 mr-1" />
+              Automazione ({waApiMessages?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="manual" className="text-xs">
+              <MessageCircle className="h-3 w-3 mr-1" />
+              Chat Manuale
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="automation" className="mt-3">
+            {renderWaApiSection()}
+          </TabsContent>
+          <TabsContent value="manual" className="mt-3">
+            {renderWaSenderSection()}
+          </TabsContent>
+        </Tabs>
+        
+        <Button variant="link" size="sm" className="p-0 h-auto" asChild>
+          <a href="/crm/wasender" className="flex items-center gap-1 text-xs">
+            <Link2 className="h-3 w-3" />
+            Vai a ERP WhatsApp
+          </a>
+        </Button>
+      </div>
+    );
+  }
+
+  // Only automation messages
+  if (hasWaApiMessages) {
+    return (
+      <div className="space-y-3">
+        {renderWaApiSection()}
+        
+        <Button variant="link" size="sm" className="p-0 h-auto" asChild>
+          <a href="/crm/whatsapp" className="flex items-center gap-1 text-xs">
+            <Link2 className="h-3 w-3" />
+            Vai a WhatsApp API
+          </a>
+        </Button>
+      </div>
+    );
+  }
+
+  // Only WaSender (or nothing)
+  return (
+    <div className="space-y-3">
+      {renderWaSenderSection() || (
+        <div className="text-center py-6">
+          <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">
+            Nessun messaggio WhatsApp
+          </p>
+        </div>
+      )}
+      
       <Button variant="link" size="sm" className="p-0 h-auto" asChild>
         <a href="/crm/wasender" className="flex items-center gap-1 text-xs">
           <Link2 className="h-3 w-3" />
-          Vai a ERP WhatsApp per tutte le chat
+          Vai a ERP WhatsApp
         </a>
       </Button>
     </div>
