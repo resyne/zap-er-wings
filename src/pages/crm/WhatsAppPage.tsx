@@ -787,8 +787,17 @@ export default function WhatsAppPage() {
 
   // Estrai numero di parametri dal body del template
   const getTemplateParamCount = (template: WhatsAppTemplate) => {
-    const body = template.components?.body?.text || '';
-    const matches = body.match(/\{\{\d+\}\}/g);
+    let bodyText = '';
+    
+    // Handle both array format and object format for components
+    if (Array.isArray(template.components)) {
+      const bodyComponent = template.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+      bodyText = bodyComponent?.text || '';
+    } else if (template.components?.body?.text) {
+      bodyText = template.components.body.text;
+    }
+    
+    const matches = bodyText.match(/\{\{\d+\}\}/g);
     return matches ? matches.length : 0;
   };
 
