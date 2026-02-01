@@ -75,10 +75,19 @@ export default function CampaignsPage() {
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [isEditStepDialogOpen, setIsEditStepDialogOpen] = useState(false);
+  const [isEditCampaignDialogOpen, setIsEditCampaignDialogOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<CampaignStep | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewStepId, setPreviewStepId] = useState<string | null>(null);
   const [previewLanguage, setPreviewLanguage] = useState("default");
+  const [editingCampaign, setEditingCampaign] = useState({
+    name: "",
+    description: "",
+    trigger_type: "new_lead",
+    target_pipeline: "",
+    sender_email: "",
+    sender_name: ""
+  });
   const [previewSubject, setPreviewSubject] = useState("");
   const [loadingTranslation, setLoadingTranslation] = useState(false);
   const [activeTab, setActiveTab] = useState("campaigns");
@@ -366,6 +375,59 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleOpenEditCampaign = (campaign: Campaign) => {
+    setEditingCampaign({
+      name: campaign.name,
+      description: campaign.description || "",
+      trigger_type: campaign.trigger_type,
+      target_pipeline: campaign.target_pipeline || "all",
+      sender_email: campaign.sender_email || "noreply@abbattitorizapper.it",
+      sender_name: campaign.sender_name || "Vesuviano Forni"
+    });
+    setIsEditCampaignDialogOpen(true);
+  };
+
+  const handleUpdateCampaign = async () => {
+    if (!selectedCampaign || !editingCampaign.name) {
+      toast.error("Il nome della campagna è obbligatorio");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("lead_automation_campaigns")
+        .update({
+          name: editingCampaign.name,
+          description: editingCampaign.description || null,
+          trigger_type: editingCampaign.trigger_type,
+          target_pipeline: editingCampaign.target_pipeline === "all" ? null : (editingCampaign.target_pipeline || null),
+          sender_email: editingCampaign.sender_email || "noreply@abbattitorizapper.it",
+          sender_name: editingCampaign.sender_name || "Vesuviano Forni"
+        })
+        .eq("id", selectedCampaign.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedCampaign = {
+        ...selectedCampaign,
+        name: editingCampaign.name,
+        description: editingCampaign.description || null,
+        trigger_type: editingCampaign.trigger_type,
+        target_pipeline: editingCampaign.target_pipeline === "all" ? null : (editingCampaign.target_pipeline || null),
+        sender_email: editingCampaign.sender_email,
+        sender_name: editingCampaign.sender_name
+      };
+      setSelectedCampaign(updatedCampaign);
+      setCampaigns(campaigns.map(c => c.id === selectedCampaign.id ? updatedCampaign : c));
+      setIsEditCampaignDialogOpen(false);
+      toast.success("Campagna aggiornata con successo");
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      toast.error("Errore nell'aggiornamento dello step");
+    }
+  };
+
   const handleDeleteTemplate = async (templateId: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo template?")) return;
 
@@ -642,10 +704,16 @@ export default function CampaignsPage() {
                           {selectedCampaign.description || "Nessuna descrizione"}
                         </CardDescription>
                       </div>
-                      <Button onClick={() => setIsStepDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Aggiungi Email
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => handleOpenEditCampaign(selectedCampaign)}>
+                          <Settings className="h-4 w-4 mr-2" />
+                          Impostazioni
+                        </Button>
+                        <Button onClick={() => setIsStepDialogOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Aggiungi Email
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -1294,6 +1362,103 @@ export default function CampaignsPage() {
               Annulla
             </Button>
             <Button onClick={handleUpdateStep}>Salva Modifiche</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Campaign Dialog */}
+      <Dialog open={isEditCampaignDialogOpen} onOpenChange={setIsEditCampaignDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Impostazioni Campagna</DialogTitle>
+            <DialogDescription>
+              Modifica le impostazioni della campagna
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome campagna *</Label>
+              <Input
+                value={editingCampaign.name}
+                onChange={(e) => setEditingCampaign({ ...editingCampaign, name: e.target.value })}
+                placeholder="Es. Benvenuto nuovo lead"
+              />
+            </div>
+            <div>
+              <Label>Descrizione</Label>
+              <Textarea
+                value={editingCampaign.description}
+                onChange={(e) => setEditingCampaign({ ...editingCampaign, description: e.target.value })}
+                placeholder="Descrizione opzionale della campagna"
+              />
+            </div>
+            <div>
+              <Label>Trigger</Label>
+              <Select
+                value={editingCampaign.trigger_type}
+                onValueChange={(v) => setEditingCampaign({ ...editingCampaign, trigger_type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new_lead">Nuovo Lead</SelectItem>
+                  <SelectItem value="lead_status_change">Cambio stato lead</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Pipeline target (opzionale)</Label>
+              <Select
+                value={editingCampaign.target_pipeline}
+                onValueChange={(v) => setEditingCampaign({ ...editingCampaign, target_pipeline: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tutte le pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le pipeline</SelectItem>
+                  <SelectItem value="Zapper">Zapper</SelectItem>
+                  <SelectItem value="Vesuviano">Vesuviano</SelectItem>
+                  <SelectItem value="Zapper Pro">Zapper Pro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Configurazione Mittente
+              </h4>
+              <div>
+                <Label>Nome mittente</Label>
+                <Input
+                  value={editingCampaign.sender_name}
+                  onChange={(e) => setEditingCampaign({ ...editingCampaign, sender_name: e.target.value })}
+                  placeholder="Es. Vesuviano Forni"
+                />
+              </div>
+              <div>
+                <Label>Email mittente</Label>
+                <Input
+                  type="email"
+                  value={editingCampaign.sender_email}
+                  onChange={(e) => setEditingCampaign({ ...editingCampaign, sender_email: e.target.value })}
+                  placeholder="Es. noreply@abbattitorizapper.it"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  L'email deve essere verificata su Resend
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCampaignDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleUpdateCampaign}>Salva Modifiche</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
