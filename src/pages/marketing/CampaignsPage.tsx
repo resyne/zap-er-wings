@@ -420,6 +420,7 @@ export default function CampaignsPage() {
 
     setLoadingTranslation(true);
     try {
+      // First check if translation exists in database
       const { data, error } = await supabase
         .from("lead_automation_step_translations")
         .select("subject, html_content")
@@ -433,13 +434,39 @@ export default function CampaignsPage() {
         setPreviewHtml(data.html_content);
         setPreviewSubject(data.subject);
       } else {
-        // Fallback to default
+        // No translation found - generate one using AI
         const step = selectedCampaign?.steps?.find(s => s.id === stepId);
         if (step) {
-          setPreviewHtml(step.html_content);
-          setPreviewSubject(step.subject);
+          toast.info("Generazione traduzione in corso con AI...");
+          
+          const { data: translationData, error: translationError } = await supabase.functions.invoke(
+            'translate-email-content',
+            {
+              body: {
+                step_id: stepId,
+                subject: step.subject,
+                html_content: step.html_content,
+                target_language: language
+              }
+            }
+          );
+
+          if (translationError) {
+            console.error("Translation error:", translationError);
+            toast.error("Errore nella traduzione automatica");
+            setPreviewHtml(step.html_content);
+            setPreviewSubject(step.subject);
+          } else if (translationData?.error) {
+            console.error("Translation API error:", translationData.error);
+            toast.error(translationData.error);
+            setPreviewHtml(step.html_content);
+            setPreviewSubject(step.subject);
+          } else {
+            setPreviewHtml(translationData.translated_html);
+            setPreviewSubject(translationData.translated_subject);
+            toast.success("Traduzione generata e salvata!");
+          }
         }
-        toast.info("Traduzione non disponibile, mostro contenuto predefinito");
       }
     } catch (error) {
       console.error("Error loading translation:", error);

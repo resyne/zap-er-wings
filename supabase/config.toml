@@ -90,7 +90,8 @@ verify_jwt = false
 [functions.send-lead-automation-emails]
 verify_jwt = false
 
-# Cron Jobs - Scheduled tasks
+[functions.translate-email-content]
+verify_jwt = false
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
   cron = "*/5 * * * *"
