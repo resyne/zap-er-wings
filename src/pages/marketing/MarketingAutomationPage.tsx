@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, MessageCircle, Zap } from "lucide-react";
 import { WhatsAppAutomationManager } from "@/components/marketing/WhatsAppAutomationManager";
+import { AutomationActivityLog } from "@/components/marketing/AutomationActivityLog";
 
 // Lazy load CampaignsPage to avoid circular dependencies
 const CampaignsPage = lazy(() => import("./CampaignsPage"));
@@ -24,6 +25,11 @@ export default function MarketingAutomationPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Activity Log Summary */}
+      <div className="mb-6">
+        <AutomationActivityLog />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
