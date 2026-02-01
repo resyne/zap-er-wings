@@ -32,6 +32,7 @@ interface WhatsAppStep {
   campaign_id: string;
   step_order: number;
   template_id: string | null;
+  template_name: string | null;
   delay_days: number;
   delay_hours: number;
   delay_minutes: number;
@@ -101,7 +102,7 @@ export const WhatsAppAutomationManager = () => {
   });
   
   const [stepForm, setStepForm] = useState({
-    template_id: "",
+    template_name: "",
     delay_days: 0,
     delay_hours: 0,
     delay_minutes: 0
@@ -275,7 +276,7 @@ export const WhatsAppAutomationManager = () => {
   };
 
   const saveStep = async () => {
-    if (!selectedCampaign || !stepForm.template_id) return;
+    if (!selectedCampaign || !stepForm.template_name) return;
 
     try {
       const nextOrder = steps.length + 1;
@@ -283,7 +284,7 @@ export const WhatsAppAutomationManager = () => {
       const payload = {
         campaign_id: selectedCampaign,
         step_order: editingStep ? editingStep.step_order : nextOrder,
-        template_id: stepForm.template_id,
+        template_name: stepForm.template_name,
         delay_days: stepForm.delay_days,
         delay_hours: stepForm.delay_hours,
         delay_minutes: stepForm.delay_minutes
@@ -356,7 +357,7 @@ export const WhatsAppAutomationManager = () => {
 
   const resetStepForm = () => {
     setStepForm({
-      template_id: "",
+      template_name: "",
       delay_days: 0,
       delay_hours: 0,
       delay_minutes: 0
@@ -380,7 +381,7 @@ export const WhatsAppAutomationManager = () => {
   const openEditStep = (step: WhatsAppStep) => {
     setEditingStep(step);
     setStepForm({
-      template_id: step.template_id || "",
+      template_name: step.template_name || step.template?.name || "",
       delay_days: step.delay_days,
       delay_hours: step.delay_hours,
       delay_minutes: step.delay_minutes
@@ -534,51 +535,69 @@ export const WhatsAppAutomationManager = () => {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {steps.map((step, index) => (
-                    <div
-                      key={step.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold">
-                          {index + 1}
+                  {steps.map((step, index) => {
+                    // Get available languages for this template name
+                    const templateName = step.template_name || step.template?.name;
+                    const availableLanguages = templates
+                      .filter(t => t.name === templateName)
+                      .map(t => t.language.toUpperCase());
+                    
+                    return (
+                      <div
+                        key={step.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="font-medium flex items-center gap-2">
+                              {templateName || "Template non trovato"}
+                              {templateName && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Languages className="h-3 w-3 mr-1" />
+                                  AI
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-2">
+                              <Clock className="h-3 w-3" />
+                              {step.delay_days > 0 && `${step.delay_days}g `}
+                              {step.delay_hours > 0 && `${step.delay_hours}h `}
+                              {step.delay_minutes > 0 && `${step.delay_minutes}m`}
+                              {step.delay_days === 0 && step.delay_hours === 0 && step.delay_minutes === 0 && "Immediato"}
+                            </div>
+                            {availableLanguages.length > 0 && (
+                              <div className="flex gap-1 mt-1">
+                                {availableLanguages.map(lang => (
+                                  <Badge key={lang} variant="outline" className="text-xs">
+                                    {lang}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium">
-                            {step.template?.name || "Template non trovato"}
-                          </div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
-                            {step.delay_days > 0 && `${step.delay_days}g `}
-                            {step.delay_hours > 0 && `${step.delay_hours}h `}
-                            {step.delay_minutes > 0 && `${step.delay_minutes}m`}
-                            {step.delay_days === 0 && step.delay_hours === 0 && step.delay_minutes === 0 && "Immediato"}
-                          </div>
-                          {step.template?.language && (
-                            <Badge variant="outline" className="mt-1">
-                              {step.template.language.toUpperCase()}
-                            </Badge>
-                          )}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditStep(step)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteStep(step.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditStep(step)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteStep(step.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -767,24 +786,39 @@ export const WhatsAppAutomationManager = () => {
           
           <div className="space-y-4">
             <div>
-              <Label>Template WhatsApp</Label>
+              <Label className="flex items-center gap-2">
+                Template WhatsApp
+                <Badge variant="secondary" className="text-xs">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  AI seleziona lingua
+                </Badge>
+              </Label>
               <Select
-                value={stepForm.template_id}
-                onValueChange={(v) => setStepForm(prev => ({ ...prev, template_id: v }))}
+                value={stepForm.template_name}
+                onValueChange={(v) => setStepForm(prev => ({ ...prev, template_name: v }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleziona template" />
+                  <SelectValue placeholder="Seleziona template generico" />
                 </SelectTrigger>
                 <SelectContent>
-                  {templates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name} ({t.language.toUpperCase()}) - {t.category}
-                    </SelectItem>
-                  ))}
+                  {/* Group templates by name and show only unique names */}
+                  {Array.from(new Set(templates.map(t => t.name))).map((templateName) => {
+                    const templateVariants = templates.filter(t => t.name === templateName);
+                    const languages = templateVariants.map(t => t.language.toUpperCase()).join(", ");
+                    const category = templateVariants[0]?.category || "";
+                    return (
+                      <SelectItem key={templateName} value={templateName}>
+                        {templateName} - {category}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({languages})
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Solo template approvati da Meta
+                L'AI selezionerà automaticamente la lingua corretta in base al paese del lead
               </p>
             </div>
 
@@ -828,7 +862,7 @@ export const WhatsAppAutomationManager = () => {
             <Button variant="outline" onClick={() => setShowStepDialog(false)}>
               Annulla
             </Button>
-            <Button onClick={saveStep} disabled={!stepForm.template_id}>
+            <Button onClick={saveStep} disabled={!stepForm.template_name}>
               {editingStep ? "Salva" : "Aggiungi"}
             </Button>
           </DialogFooter>
