@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Eye, Pencil, AlertCircle, CheckCircle2, Clock, XCircle,
-  FileText, Image, Video, Loader2, Trash2, Copy, Send
+  FileText, Image, Video, Loader2, Trash2, Copy, Send, Plus, X, Phone, Link
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -54,7 +54,8 @@ export function WhatsAppTemplatePreview({
     body: "",
     header: "",
     footer: "",
-    headerType: "none" as "none" | "text" | "image" | "document" | "video"
+    headerType: "none" as "none" | "text" | "image" | "document" | "video",
+    buttons: [] as { type: string; text: string; url?: string; phone_number?: string }[]
   });
 
   // Initialize edit data when template changes
@@ -67,7 +68,8 @@ export function WhatsAppTemplatePreview({
         body: components.body,
         header: components.header,
         footer: components.footer,
-        headerType: components.headerType
+        headerType: components.headerType,
+        buttons: components.buttons
       });
       setActiveTab("preview");
     }
@@ -227,6 +229,26 @@ export function WhatsAppTemplatePreview({
         components.push({
           type: "FOOTER",
           text: editData.footer
+        });
+      }
+
+      // Add buttons if present
+      if (editData.buttons && editData.buttons.length > 0) {
+        components.push({
+          type: "BUTTONS",
+          buttons: editData.buttons.map(btn => {
+            const buttonObj: any = {
+              type: btn.type,
+              text: btn.text
+            };
+            if (btn.type === "URL" && btn.url) {
+              buttonObj.url = btn.url;
+            }
+            if (btn.type === "PHONE_NUMBER" && btn.phone_number) {
+              buttonObj.phone_number = btn.phone_number;
+            }
+            return buttonObj;
+          })
         });
       }
 
@@ -509,6 +531,120 @@ export function WhatsAppTemplatePreview({
                   onChange={(e) => setEditData({ ...editData, footer: e.target.value })}
                   placeholder="es. Rispondi STOP per cancellarti"
                 />
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Pulsanti (opzionale)</Label>
+                  {editData.buttons.length < 3 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditData({
+                          ...editData,
+                          buttons: [...editData.buttons, { type: "QUICK_REPLY", text: "" }]
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Aggiungi
+                    </Button>
+                  )}
+                </div>
+                
+                {editData.buttons.map((btn, idx) => (
+                  <Card key={idx} className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={btn.type}
+                          onValueChange={(v) => {
+                            const newButtons = [...editData.buttons];
+                            newButtons[idx] = { ...newButtons[idx], type: v };
+                            setEditData({ ...editData, buttons: newButtons });
+                          }}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="QUICK_REPLY">Quick Reply</SelectItem>
+                            <SelectItem value="URL">URL</SelectItem>
+                            <SelectItem value="PHONE_NUMBER">Telefono</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={btn.text}
+                          onChange={(e) => {
+                            const newButtons = [...editData.buttons];
+                            newButtons[idx] = { ...newButtons[idx], text: e.target.value };
+                            setEditData({ ...editData, buttons: newButtons });
+                          }}
+                          placeholder="Testo pulsante (max 25 car.)"
+                          className="flex-1"
+                          maxLength={25}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newButtons = editData.buttons.filter((_, i) => i !== idx);
+                            setEditData({ ...editData, buttons: newButtons });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {/* Character count indicator */}
+                      <div className="flex justify-end">
+                        <span className={`text-xs ${btn.text.length > 25 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {btn.text.length}/25
+                        </span>
+                      </div>
+                      
+                      {btn.type === "URL" && (
+                        <div className="flex items-center gap-2">
+                          <Link className="h-4 w-4 text-muted-foreground" />
+                          <Input
+                            value={btn.url || ""}
+                            onChange={(e) => {
+                              const newButtons = [...editData.buttons];
+                              newButtons[idx] = { ...newButtons[idx], url: e.target.value };
+                              setEditData({ ...editData, buttons: newButtons });
+                            }}
+                            placeholder="https://esempio.com"
+                            className="flex-1"
+                          />
+                        </div>
+                      )}
+                      
+                      {btn.type === "PHONE_NUMBER" && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <Input
+                            value={btn.phone_number || ""}
+                            onChange={(e) => {
+                              const newButtons = [...editData.buttons];
+                              newButtons[idx] = { ...newButtons[idx], phone_number: e.target.value };
+                              setEditData({ ...editData, buttons: newButtons });
+                            }}
+                            placeholder="+39123456789"
+                            className="flex-1"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+                
+                <p className="text-xs text-muted-foreground">
+                  Max 3 pulsanti. Ogni pulsante max 25 caratteri.
+                </p>
               </div>
 
               {/* Warning for approved templates */}
