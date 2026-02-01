@@ -177,6 +177,10 @@ serve(async (req) => {
                   case "text":
                     content = message.text?.body;
                     break;
+                  case "button":
+                    // Quick reply / button reply (older webhook format)
+                    content = message.button?.text || message.button?.payload || "[Pulsante]";
+                    break;
                   case "image":
                     content = message.image?.caption || "[Immagine]";
                     mediaUrl = message.image?.id;
