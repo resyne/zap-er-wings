@@ -50,6 +50,7 @@ interface WhatsAppAccount {
   credits_balance: number;
   is_active: boolean;
   created_at: string;
+  pipeline: string | null;
 }
 
 interface WhatsAppTemplate {
@@ -131,7 +132,8 @@ export default function WhatsAppPage() {
     display_phone_number: '',
     waba_id: '',
     access_token: '',
-    verified_name: ''
+    verified_name: '',
+    pipeline: ''
   });
 
   // templateFormData rimosso - ora usiamo WhatsAppTemplateCreator
@@ -361,7 +363,8 @@ export default function WhatsAppPage() {
         display_phone_number: data.display_phone_number,
         waba_id: data.waba_id,
         access_token: data.access_token,
-        verified_name: data.verified_name || null
+        verified_name: data.verified_name || null,
+        pipeline: data.pipeline || null
       });
       if (error) throw error;
     },
@@ -369,7 +372,41 @@ export default function WhatsAppPage() {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
       toast.success('Account WhatsApp aggiunto');
       setIsAccountDialogOpen(false);
-      setAccountFormData({ phone_number_id: '', display_phone_number: '', waba_id: '', access_token: '', verified_name: '' });
+      setAccountFormData({ phone_number_id: '', display_phone_number: '', waba_id: '', access_token: '', verified_name: '', pipeline: '' });
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const { error } = await supabase.from('whatsapp_accounts').delete().eq('id', accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
+      toast.success('Numero WhatsApp eliminato');
+      if (selectedAccount) {
+        setSelectedAccount(null);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const updateAccountPipelineMutation = useMutation({
+    mutationFn: async ({ accountId, pipeline }: { accountId: string; pipeline: string | null }) => {
+      const { error } = await supabase
+        .from('whatsapp_accounts')
+        .update({ pipeline })
+        .eq('id', accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
+      toast.success('Pipeline aggiornata');
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -818,18 +855,37 @@ export default function WhatsAppPage() {
 
       {/* Account selector */}
       {accounts && accounts.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {accounts.map(account => (
-            <Button
-              key={account.id}
-              variant={selectedAccount?.id === account.id ? "default" : "outline"}
-              onClick={() => setSelectedAccount(account)}
-              className="flex items-center gap-2"
-            >
-              <Phone className="h-4 w-4" />
-              {account.display_phone_number}
-              {account.verified_name && <span className="text-xs opacity-70">({account.verified_name})</span>}
-            </Button>
+            <div key={account.id} className="relative group">
+              <Button
+                variant={selectedAccount?.id === account.id ? "default" : "outline"}
+                onClick={() => setSelectedAccount(account)}
+                className="flex items-center gap-2 pr-8"
+              >
+                <Phone className="h-4 w-4" />
+                {account.display_phone_number}
+                {account.verified_name && <span className="text-xs opacity-70">({account.verified_name})</span>}
+                {account.pipeline && (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {account.pipeline}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-full opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Sei sicuro di voler eliminare il numero ${account.display_phone_number}?`)) {
+                    deleteAccountMutation.mutate(account.id);
+                  }
+                }}
+              >
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            </div>
           ))}
         </div>
       )}
@@ -1469,6 +1525,37 @@ export default function WhatsAppPage() {
                   </div>
                 </div>
                 
+                {/* Pipeline CRM */}
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Pipeline CRM</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Collega questo numero a una pipeline del CRM
+                      </p>
+                    </div>
+                    <Select
+                      value={selectedAccount.pipeline || "none"}
+                      onValueChange={(v) => {
+                        updateAccountPipelineMutation.mutate({
+                          accountId: selectedAccount.id,
+                          pipeline: v === "none" ? null : v
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Nessuna pipeline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nessuna pipeline</SelectItem>
+                        <SelectItem value="Zapper">Zapper</SelectItem>
+                        <SelectItem value="Vesuviano">Vesuviano</SelectItem>
+                        <SelectItem value="Zapper Pro">Zapper Pro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
                 {/* Access Token Update */}
                 <div className="pt-4 border-t space-y-3">
                   <div className="flex items-center justify-between">
@@ -1793,6 +1880,26 @@ export default function WhatsAppPage() {
                 value={accountFormData.verified_name}
                 onChange={(e) => setAccountFormData(prev => ({ ...prev, verified_name: e.target.value }))}
               />
+            </div>
+            <div>
+              <Label>Pipeline CRM</Label>
+              <Select
+                value={accountFormData.pipeline || "none"}
+                onValueChange={(v) => setAccountFormData(prev => ({ ...prev, pipeline: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nessuna pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessuna pipeline</SelectItem>
+                  <SelectItem value="Zapper">Zapper</SelectItem>
+                  <SelectItem value="Vesuviano">Vesuviano</SelectItem>
+                  <SelectItem value="Zapper Pro">Zapper Pro</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Collega questo numero a una pipeline CRM
+              </p>
             </div>
           </div>
           <DialogFooter>
