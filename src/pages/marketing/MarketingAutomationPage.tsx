@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, MessageCircle, Zap } from "lucide-react";
-import { AutomationManager } from "@/components/crm/AutomationManager";
 import { WhatsAppAutomationManager } from "@/components/marketing/WhatsAppAutomationManager";
+
+// Lazy load CampaignsPage to avoid circular dependencies
+const CampaignsPage = lazy(() => import("./CampaignsPage"));
 
 export default function MarketingAutomationPage() {
   const [activeTab, setActiveTab] = useState("email");
@@ -39,22 +40,15 @@ export default function MarketingAutomationPage() {
           </TabsList>
         </div>
 
-        {/* Email Automation Tab */}
-        <TabsContent value="email">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email Automation
-              </CardTitle>
-              <CardDescription>
-                Gestisci le tue automazioni email di follow-up e monitora gli invii programmati
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AutomationManager />
-            </CardContent>
-          </Card>
+        {/* Email Automation Tab - Uses CampaignsPage */}
+        <TabsContent value="email" className="-mx-6 -mt-6">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          }>
+            <CampaignsPage />
+          </Suspense>
         </TabsContent>
 
         {/* WhatsApp Automation Tab */}
