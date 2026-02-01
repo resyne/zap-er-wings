@@ -91,6 +91,7 @@ interface WhatsAppMessage {
   content: string | null;
   media_url: string | null;
   template_name: string | null;
+  template_params?: string[] | null;
   status: string;
   error_message: string | null;
   created_at: string;
@@ -801,6 +802,37 @@ export default function WhatsAppPage() {
     return matches ? matches.length : 0;
   };
 
+  const getTemplateBodyText = (template: WhatsAppTemplate) => {
+    // Handle both array format and object format for components
+    if (Array.isArray(template.components)) {
+      const bodyComponent = template.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+      return bodyComponent?.text || '';
+    }
+    if (template.components?.body?.text) return template.components.body.text;
+    return '';
+  };
+
+  const fillTemplateVariables = (text: string, params?: Array<string | null | undefined>) => {
+    if (!text) return '';
+    return text.replace(/\{\{(\d+)\}\}/g, (_m, nStr) => {
+      const idx = Math.max(1, Number(nStr)) - 1;
+      const val = params?.[idx];
+      const normalized = (val ?? '').toString().trim();
+      return normalized.length ? normalized : '-';
+    });
+  };
+
+  const getMessageDisplayText = (msg: WhatsAppMessage): string | null => {
+    if (msg.message_type === 'template' && msg.template_name) {
+      const tpl = templates?.find(t => t.name === msg.template_name) || null;
+      const body = tpl ? getTemplateBodyText(tpl) : '';
+      const filled = body ? fillTemplateVariables(body, msg.template_params || []) : '';
+      // If we can render the template body, show it; otherwise fall back to stored content.
+      return filled || msg.content;
+    }
+    return msg.content;
+  };
+
   // Apri dialogo invio template
   const openSendTemplateDialog = (template: WhatsAppTemplate) => {
     const paramCount = getTemplateParamCount(template);
@@ -1125,6 +1157,7 @@ export default function WhatsAppPage() {
                         <div className="space-y-4">
                           {messages?.map(msg => {
                             const senderName = msg.direction === 'outbound' ? getUserName(msg.sent_by) : null;
+                            const displayText = getMessageDisplayText(msg);
                             return (
                               <div
                                 key={msg.id}
@@ -1193,7 +1226,13 @@ export default function WhatsAppPage() {
                                   )}
                                   
                                   {/* Text content */}
-                                  {msg.content && <p className="text-sm">{msg.content}</p>}
+                                  {msg.message_type === 'template' && msg.template_name && (
+                                    <p className="text-xs opacity-80 mb-1">Template: {msg.template_name}</p>
+                                  )}
+
+                                  {displayText && (
+                                    <p className="text-sm whitespace-pre-wrap">{displayText}</p>
+                                  )}
                                   
                                   <div className={`flex items-center justify-end gap-1 mt-1 ${
                                     msg.direction === 'outbound' ? 'text-green-100' : 'text-muted-foreground'
@@ -1273,7 +1312,7 @@ export default function WhatsAppPage() {
                             {chatSelectedTemplate && (
                               <>
                                 <div className="text-xs text-muted-foreground bg-background p-2 rounded border">
-                                  {chatSelectedTemplate.components?.body?.text}
+                                   {fillTemplateVariables(getTemplateBodyText(chatSelectedTemplate), chatTemplateParams)}
                                 </div>
                                 
                                 {getTemplateParamCount(chatSelectedTemplate) > 0 && (
