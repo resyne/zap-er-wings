@@ -469,20 +469,44 @@ export default function WhatsAppPage() {
         });
       }
 
-      const { error } = await supabase.from('whatsapp_templates').insert({
+      const { data: newTemplate, error } = await supabase.from('whatsapp_templates').insert({
         account_id: selectedAccount!.id,
         name: data.name,
         language: data.language,
         category: data.category,
         components: components,
-        status: 'PENDING'
-      });
+        status: 'DRAFT'
+      }).select().single();
       if (error) throw error;
+      
+      return newTemplate;
     },
-    onSuccess: () => {
+    onSuccess: async (newTemplate) => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
-      toast.success('Template creato - Clicca "Carica su Meta" per inviarlo per approvazione');
+      toast.success('Template creato! Sto generando le traduzioni AI in EN, FR, ES...');
       setIsTemplateDialogOpen(false);
+      
+      // Trigger AI translation in background
+      try {
+        const response = await supabase.functions.invoke('translate-whatsapp-template', {
+          body: { template_id: newTemplate.id }
+        });
+        
+        if (response.error) {
+          console.error('Translation error:', response.error);
+          toast.error('Errore nella traduzione automatica');
+        } else {
+          const results = response.data?.results || [];
+          const successCount = results.filter((r: any) => r.success).length;
+          if (successCount > 0) {
+            queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+            toast.success(`✨ Create ${successCount} traduzioni AI (EN, FR, ES)`);
+          }
+        }
+      } catch (translationError) {
+        console.error('Translation error:', translationError);
+        // Non mostrare errore critico - il template originale è stato creato
+      }
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
