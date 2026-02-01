@@ -2379,6 +2379,11 @@ export default function WhatsAppPage() {
           setIsTemplatePreviewOpen(false);
           openSendTemplateDialog(template);
         }}
+        onUploadToMeta={(templateId) => {
+          setIsTemplatePreviewOpen(false);
+          setPreviewTemplate(null);
+          uploadTemplateToMetaMutation.mutate(templateId);
+        }}
       />
     </div>
   );
