@@ -2212,15 +2212,15 @@ export default function WhatsAppPage() {
                   const leadId = v === "none" ? "" : v;
                   const selectedLead = leads?.find(l => l.id === leadId);
                   
-                  // Se il lead è vesuviano e ha un link configuratore, lo usiamo come parametro 3
+                  // Se il lead è vesuviano e ha un link configuratore, lo usiamo come parametro 5
                   let newParams = [...sendTemplateData.params];
                   if (selectedLead?.pipeline === 'vesuviano' && selectedLead?.external_configurator_link) {
-                    // Assicurati che ci siano almeno 3 parametri
-                    while (newParams.length < 3) {
+                    // Assicurati che ci siano almeno 5 parametri
+                    while (newParams.length < 5) {
                       newParams.push('');
                     }
-                    // Imposta il parametro 3 con il link del configuratore
-                    newParams[2] = selectedLead.external_configurator_link;
+                    // Imposta il parametro 5 con il link del configuratore
+                    newParams[4] = selectedLead.external_configurator_link;
                   }
                   
                   setSendTemplateData(prev => ({ 
@@ -2256,7 +2256,7 @@ export default function WhatsAppPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Seleziona un lead per auto-compilare telefono e parametri. Per lead Vesuviano, il link configuratore viene aggiunto come parametro 3.
+                Seleziona un lead per auto-compilare telefono e parametri. Per lead Vesuviano, il link configuratore viene aggiunto come parametro 5 {"{{5}}"}.
               </p>
             </div>
 
