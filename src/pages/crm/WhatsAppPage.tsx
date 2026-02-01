@@ -19,7 +19,7 @@ import {
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
-  Image as ImageIcon, Volume2
+  Image as ImageIcon, Volume2, Languages
 } from "lucide-react";
 import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
 import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplatePreview";
@@ -534,7 +534,69 @@ export default function WhatsAppPage() {
     }
   });
 
-  // Mutation per sincronizzare i template da Meta
+  // Mutation per tradurre un singolo template esistente
+  const translateTemplateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const response = await supabase.functions.invoke('translate-whatsapp-template', {
+        body: { template_id: templateId }
+      });
+      if (response.error) throw new Error(response.error.message);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+      const results = data?.results || [];
+      const successCount = results.filter((r: any) => r.success).length;
+      if (successCount > 0) {
+        toast.success(`✨ Create ${successCount} traduzioni AI (EN, FR, ES)`);
+      } else {
+        toast.info('Traduzioni già esistenti o template già tradotto');
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore traduzione: ${error.message}`);
+    }
+  });
+
+  // Mutation per tradurre tutti i template italiani esistenti
+  const translateAllTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      // Prendi tutti i template italiani
+      const italianTemplates = templates?.filter(t => t.language === 'it') || [];
+      if (italianTemplates.length === 0) {
+        throw new Error('Nessun template italiano da tradurre');
+      }
+      
+      let totalSuccess = 0;
+      let totalErrors = 0;
+      
+      for (const template of italianTemplates) {
+        try {
+          const response = await supabase.functions.invoke('translate-whatsapp-template', {
+            body: { template_id: template.id }
+          });
+          if (!response.error) {
+            const results = response.data?.results || [];
+            totalSuccess += results.filter((r: any) => r.success).length;
+          } else {
+            totalErrors++;
+          }
+        } catch (err) {
+          totalErrors++;
+        }
+      }
+      
+      return { totalSuccess, totalErrors, totalTemplates: italianTemplates.length };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+      toast.success(`✨ Traduzione completata: ${data.totalSuccess} nuove traduzioni create da ${data.totalTemplates} template`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
   const syncTemplatesMutation = useMutation({
     mutationFn: async () => {
       const response = await supabase.functions.invoke('whatsapp-sync-templates', {
@@ -1320,10 +1382,24 @@ export default function WhatsAppPage() {
                   <CardTitle>Template Messaggi</CardTitle>
                   <CardDescription>Gestisci i template per messaggi di marketing, utility e autenticazione</CardDescription>
                 </div>
-                <Button onClick={() => setIsTemplateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuovo Template
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    onClick={() => translateAllTemplatesMutation.mutate()}
+                    disabled={translateAllTemplatesMutation.isPending}
+                  >
+                    {translateAllTemplatesMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Languages className="h-4 w-4 mr-2" />
+                    )}
+                    Traduci Tutti
+                  </Button>
+                  <Button onClick={() => setIsTemplateDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuovo Template
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -1362,6 +1438,22 @@ export default function WhatsAppPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* Translate button - only for IT templates that don't have all translations */}
+                            {template.language === 'it' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                disabled={translateTemplateMutation.isPending}
+                                onClick={() => translateTemplateMutation.mutate(template.id)}
+                                title="Traduci in EN, FR, ES"
+                              >
+                                {translateTemplateMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Languages className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
                             {(template.status === 'PENDING' || template.status === 'FAILED') && !template.meta_template_id && (
                               <Button 
                                 variant="outline" 
