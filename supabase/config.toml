@@ -75,7 +75,6 @@ verify_jwt = false
 [functions.strategy-wise-oracle]
 verify_jwt = false
 
-# Cron Jobs - Scheduled tasks
 [functions.analyze-call-record]
 verify_jwt = false
 
@@ -85,12 +84,29 @@ verify_jwt = false
 [functions.external-lead-webhook]
 verify_jwt = false
 
+[functions.process-lead-automations]
+verify_jwt = false
+
+[functions.send-lead-automation-emails]
+verify_jwt = false
+
+# Cron Jobs - Scheduled tasks
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
-  cron = "*/5 * * * *"  # Runs every 5 minutes
+  cron = "*/5 * * * *"
   region = "eu-west-1"
 
 [[edge_runtime.scheduled_functions]]
   name = "sync-call-records-imap"
-  cron = "* * * * *"  # Runs every minute
+  cron = "* * * * *"
+  region = "eu-west-1"
+
+[[edge_runtime.scheduled_functions]]
+  name = "process-lead-automations"
+  cron = "*/5 * * * *"
+  region = "eu-west-1"
+
+[[edge_runtime.scheduled_functions]]
+  name = "send-lead-automation-emails"
+  cron = "*/2 * * * *"
   region = "eu-west-1"
