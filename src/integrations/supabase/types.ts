@@ -10241,6 +10241,9 @@ export type Database = {
           step_order: number
           template_id: string | null
           template_name: string | null
+          trigger_button_text: string | null
+          trigger_from_step_id: string | null
+          trigger_type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -10254,6 +10257,9 @@ export type Database = {
           step_order?: number
           template_id?: string | null
           template_name?: string | null
+          trigger_button_text?: string | null
+          trigger_from_step_id?: string | null
+          trigger_type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -10267,6 +10273,9 @@ export type Database = {
           step_order?: number
           template_id?: string | null
           template_name?: string | null
+          trigger_button_text?: string | null
+          trigger_from_step_id?: string | null
+          trigger_type?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -10282,6 +10291,13 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_automation_steps_trigger_from_step_id_fkey"
+            columns: ["trigger_from_step_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_automation_steps"
             referencedColumns: ["id"]
           },
         ]
