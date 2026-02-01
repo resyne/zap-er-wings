@@ -10051,6 +10051,7 @@ export type Database = {
           is_active: boolean | null
           messaging_limit: string | null
           phone_number_id: string
+          pipeline: string | null
           quality_rating: string | null
           status: string | null
           updated_at: string
@@ -10067,6 +10068,7 @@ export type Database = {
           is_active?: boolean | null
           messaging_limit?: string | null
           phone_number_id: string
+          pipeline?: string | null
           quality_rating?: string | null
           status?: string | null
           updated_at?: string
@@ -10083,6 +10085,7 @@ export type Database = {
           is_active?: boolean | null
           messaging_limit?: string | null
           phone_number_id?: string
+          pipeline?: string | null
           quality_rating?: string | null
           status?: string | null
           updated_at?: string
