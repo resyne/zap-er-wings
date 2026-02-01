@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock, MessageCircle, Plus, Trash2, Edit, Languages, CheckCircle, XCircle, Users, Sparkles } from "lucide-react";
+import { Clock, MessageCircle, Plus, Trash2, Edit, Languages, CheckCircle, XCircle, Users, Sparkles, MousePointerClick } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -37,10 +37,14 @@ interface WhatsAppStep {
   delay_hours: number;
   delay_minutes: number;
   is_active: boolean;
+  trigger_type: string | null;
+  trigger_button_text: string | null;
+  trigger_from_step_id: string | null;
   template?: {
     name: string;
     language: string;
     status: string;
+    components?: any[];
   };
 }
 
@@ -105,7 +109,10 @@ export const WhatsAppAutomationManager = () => {
     template_name: "",
     delay_days: 0,
     delay_hours: 0,
-    delay_minutes: 0
+    delay_minutes: 0,
+    trigger_type: "delay" as "delay" | "button_reply",
+    trigger_button_text: "",
+    trigger_from_step_id: ""
   });
 
   useEffect(() => {
@@ -287,7 +294,10 @@ export const WhatsAppAutomationManager = () => {
         template_name: stepForm.template_name,
         delay_days: stepForm.delay_days,
         delay_hours: stepForm.delay_hours,
-        delay_minutes: stepForm.delay_minutes
+        delay_minutes: stepForm.delay_minutes,
+        trigger_type: stepForm.trigger_type,
+        trigger_button_text: stepForm.trigger_type === "button_reply" ? stepForm.trigger_button_text : null,
+        trigger_from_step_id: stepForm.trigger_type === "button_reply" && stepForm.trigger_from_step_id ? stepForm.trigger_from_step_id : null
       };
 
       if (editingStep) {
@@ -360,7 +370,10 @@ export const WhatsAppAutomationManager = () => {
       template_name: "",
       delay_days: 0,
       delay_hours: 0,
-      delay_minutes: 0
+      delay_minutes: 0,
+      trigger_type: "delay",
+      trigger_button_text: "",
+      trigger_from_step_id: ""
     });
   };
 
@@ -384,7 +397,10 @@ export const WhatsAppAutomationManager = () => {
       template_name: step.template_name || step.template?.name || "",
       delay_days: step.delay_days,
       delay_hours: step.delay_hours,
-      delay_minutes: step.delay_minutes
+      delay_minutes: step.delay_minutes,
+      trigger_type: (step.trigger_type as "delay" | "button_reply") || "delay",
+      trigger_button_text: step.trigger_button_text || "",
+      trigger_from_step_id: step.trigger_from_step_id || ""
     });
     setShowStepDialog(true);
   };
@@ -542,6 +558,12 @@ export const WhatsAppAutomationManager = () => {
                       .filter(t => t.name === templateName)
                       .map(t => t.language.toUpperCase());
                     
+                    // Get the trigger step info
+                    const triggerStep = step.trigger_from_step_id 
+                      ? steps.find(s => s.id === step.trigger_from_step_id)
+                      : null;
+                    const triggerStepName = triggerStep?.template_name || triggerStep?.template?.name;
+                    
                     return (
                       <div
                         key={step.id}
@@ -561,13 +583,27 @@ export const WhatsAppAutomationManager = () => {
                                 </Badge>
                               )}
                             </div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-2">
-                              <Clock className="h-3 w-3" />
-                              {step.delay_days > 0 && `${step.delay_days}g `}
-                              {step.delay_hours > 0 && `${step.delay_hours}h `}
-                              {step.delay_minutes > 0 && `${step.delay_minutes}m`}
-                              {step.delay_days === 0 && step.delay_hours === 0 && step.delay_minutes === 0 && "Immediato"}
-                            </div>
+                            {/* Trigger info */}
+                            {step.trigger_type === "button_reply" ? (
+                              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                <MousePointerClick className="h-3 w-3" />
+                                <span>Su click: </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {step.trigger_button_text}
+                                </Badge>
+                                {triggerStepName && (
+                                  <span className="text-xs">da Step "{triggerStepName}"</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                {step.delay_days > 0 && `${step.delay_days}g `}
+                                {step.delay_hours > 0 && `${step.delay_hours}h `}
+                                {step.delay_minutes > 0 && `${step.delay_minutes}m`}
+                                {step.delay_days === 0 && step.delay_hours === 0 && step.delay_minutes === 0 && "Immediato"}
+                              </div>
+                            )}
                             {availableLanguages.length > 0 && (
                               <div className="flex gap-1 mt-1">
                                 {availableLanguages.map(lang => (
@@ -774,13 +810,13 @@ export const WhatsAppAutomationManager = () => {
 
       {/* Dialog Aggiungi/Modifica Step */}
       <Dialog open={showStepDialog} onOpenChange={setShowStepDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingStep ? "Modifica Step" : "Aggiungi Step"}
             </DialogTitle>
             <DialogDescription>
-              Seleziona un template e configura il ritardo
+              Seleziona un template e configura quando attivarlo
             </DialogDescription>
           </DialogHeader>
           
@@ -822,47 +858,132 @@ export const WhatsAppAutomationManager = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Giorni</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={stepForm.delay_days}
-                  onChange={(e) => setStepForm(prev => ({ ...prev, delay_days: parseInt(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
-                <Label>Ore</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="23"
-                  value={stepForm.delay_hours}
-                  onChange={(e) => setStepForm(prev => ({ ...prev, delay_hours: parseInt(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
-                <Label>Minuti</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={stepForm.delay_minutes}
-                  onChange={(e) => setStepForm(prev => ({ ...prev, delay_minutes: parseInt(e.target.value) || 0 }))}
-                />
-              </div>
+            {/* Trigger Type Selection */}
+            <div>
+              <Label>Attivazione Step</Label>
+              <Select
+                value={stepForm.trigger_type}
+                onValueChange={(v) => setStepForm(prev => ({ 
+                  ...prev, 
+                  trigger_type: v as "delay" | "button_reply",
+                  // Reset button fields if switching to delay
+                  trigger_button_text: v === "delay" ? "" : prev.trigger_button_text,
+                  trigger_from_step_id: v === "delay" ? "" : prev.trigger_from_step_id
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="delay">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Ritardo temporale
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="button_reply">
+                    <div className="flex items-center gap-2">
+                      <MousePointerClick className="h-4 w-4" />
+                      Click su pulsante Quick Reply
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Ritardo rispetto al trigger o allo step precedente
-            </p>
+
+            {/* Delay Configuration - only show for delay trigger */}
+            {stepForm.trigger_type === "delay" && (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Giorni</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepForm.delay_days}
+                      onChange={(e) => setStepForm(prev => ({ ...prev, delay_days: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Ore</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="23"
+                      value={stepForm.delay_hours}
+                      onChange={(e) => setStepForm(prev => ({ ...prev, delay_hours: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Minuti</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={stepForm.delay_minutes}
+                      onChange={(e) => setStepForm(prev => ({ ...prev, delay_minutes: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ritardo rispetto al trigger o allo step precedente
+                </p>
+              </>
+            )}
+
+            {/* Button Reply Configuration - only show for button_reply trigger */}
+            {stepForm.trigger_type === "button_reply" && (
+              <>
+                <div>
+                  <Label>Step Precedente (con pulsante)</Label>
+                  <Select
+                    value={stepForm.trigger_from_step_id}
+                    onValueChange={(v) => setStepForm(prev => ({ ...prev, trigger_from_step_id: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona lo step con il pulsante" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {steps
+                        .filter(s => editingStep ? s.id !== editingStep.id : true)
+                        .map((s, idx) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            Step {idx + 1}: {s.template_name || s.template?.name || "Template"}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Seleziona quale step precedente contiene il pulsante da monitorare
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Testo del Pulsante</Label>
+                  <Input
+                    value={stepForm.trigger_button_text}
+                    onChange={(e) => setStepForm(prev => ({ ...prev, trigger_button_text: e.target.value }))}
+                    placeholder="Es: Sì, voglio info"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Inserisci il testo esatto del pulsante Quick Reply che attiva questo step
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowStepDialog(false)}>
               Annulla
             </Button>
-            <Button onClick={saveStep} disabled={!stepForm.template_name}>
+            <Button 
+              onClick={saveStep} 
+              disabled={
+                !stepForm.template_name || 
+                (stepForm.trigger_type === "button_reply" && (!stepForm.trigger_button_text || !stepForm.trigger_from_step_id))
+              }
+            >
               {editingStep ? "Salva" : "Aggiungi"}
             </Button>
           </DialogFooter>
