@@ -44,14 +44,17 @@ Deno.serve(async (req) => {
 
     console.log('Processing lead automations...')
 
-    // Get leads created in the last hour that haven't been processed yet
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    // Get leads created in the last 30 days that have email and haven't been processed yet
+    // We use a LEFT JOIN to find leads without any executions for active campaigns
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('id, email, contact_name, company_name, phone, pipeline, created_at')
-      .gte('created_at', oneHourAgo)
+      .gte('created_at', thirtyDaysAgo)
       .not('email', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(200) // Process in batches
 
     if (leadsError) {
       console.error('Error fetching leads:', leadsError)
@@ -59,9 +62,9 @@ Deno.serve(async (req) => {
     }
 
     if (!leads || leads.length === 0) {
-      console.log('No new leads to process')
+      console.log('No leads with email found in the last 30 days')
       return new Response(
-        JSON.stringify({ success: true, message: 'No new leads to process', processed: 0 }),
+        JSON.stringify({ success: true, message: 'No leads to process', processed: 0 }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       )
     }
