@@ -208,6 +208,19 @@ serve(async (req) => {
 
     // Add BUTTONS component if present
     if (normalizedComponents.buttons && normalizedComponents.buttons.length > 0) {
+      // Validate button text length (Meta limit is 25 characters)
+      const MAX_BUTTON_TEXT_LENGTH = 25;
+      for (const btn of normalizedComponents.buttons) {
+        if (btn.text && btn.text.length > MAX_BUTTON_TEXT_LENGTH) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Il testo del pulsante "${btn.text}" supera il limite di ${MAX_BUTTON_TEXT_LENGTH} caratteri (${btn.text.length} caratteri). Modifica il template per accorciare il testo del pulsante.`
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       const buttons = normalizedComponents.buttons.map((btn) => {
         if (btn.type === "URL") {
           return {
