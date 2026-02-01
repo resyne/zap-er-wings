@@ -96,6 +96,9 @@ verify_jwt = false
 [functions.enroll-leads-in-campaign]
 verify_jwt = false
 
+[functions.translate-whatsapp-template]
+verify_jwt = false
+
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
   cron = "*/5 * * * *"
