@@ -1345,18 +1345,16 @@ export default function LeadsPage() {
                     </div>
                     <div>
                       <Label htmlFor="country">Paese</Label>
-                      <Input
-                        id="country"
-                        list="countries-list"
-                        value={newLead.country}
-                        onChange={(e) => setNewLead({...newLead, country: e.target.value})}
-                        placeholder="Italia"
-                      />
-                      <datalist id="countries-list">
-                        {countries.map(country => (
-                          <option key={country} value={country} />
-                        ))}
-                      </datalist>
+                      <Select value={newLead.country} onValueChange={(value) => setNewLead({...newLead, country: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona paese" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map(country => (
+                            <SelectItem key={country} value={country}>{country}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="city_create">Città</Label>
@@ -2774,18 +2772,16 @@ export default function LeadsPage() {
             </div>
             <div>
               <Label htmlFor="edit_country">Paese</Label>
-              <Input
-                id="edit_country"
-                list="countries-list-edit"
-                value={newLead.country}
-                onChange={(e) => setNewLead({...newLead, country: e.target.value})}
-                placeholder="Seleziona o digita un paese"
-              />
-              <datalist id="countries-list-edit">
-                {countries.map(country => (
-                  <option key={country} value={country} />
-                ))}
-              </datalist>
+              <Select value={newLead.country} onValueChange={(value) => setNewLead({...newLead, country: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona paese" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries.map(country => (
+                    <SelectItem key={country} value={country}>{country}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="edit_city">Città</Label>
