@@ -33,6 +33,13 @@ interface CampaignStep {
   html_content: string;
 }
 
+interface Campaign {
+  id: string;
+  name: string;
+  sender_email: string | null;
+  sender_name: string | null;
+}
+
 interface StepTranslation {
   language_code: string;
   subject: string;
@@ -242,12 +249,12 @@ Deno.serve(async (req) => {
         const languageCode = await getLanguageCode(supabase, typedLead.country)
         console.log(`Lead ${typedLead.email} - Country: ${typedLead.country || 'unknown'} - Language: ${languageCode}`)
 
-        // Fetch campaign for logging
+        // Fetch campaign for sender info
         const { data: campaign } = await supabase
           .from('lead_automation_campaigns')
-          .select('id, name')
+          .select('id, name, sender_email, sender_name')
           .eq('id', execution.campaign_id)
-          .single()
+          .single() as { data: Campaign | null; error: any }
 
         // Get translated content based on language
         const stepContent = await getStepContent(supabase, execution.step_id, languageCode, step as CampaignStep)
@@ -260,11 +267,15 @@ Deno.serve(async (req) => {
         const htmlContent = replacePlaceholders(stepContent.html_content, typedLead, configuratorLink)
         const subject = replacePlaceholders(stepContent.subject, typedLead, configuratorLink)
 
-        console.log(`Sending email to ${typedLead.email} for campaign "${campaign?.name || 'Unknown'}" in ${languageCode}`)
+        // Use campaign sender settings or defaults
+        const senderName = campaign?.sender_name || 'Vesuviano Forni'
+        const senderEmail = campaign?.sender_email || 'noreply@abbattitorizapper.it'
+
+        console.log(`Sending email to ${typedLead.email} for campaign "${campaign?.name || 'Unknown'}" from ${senderName} <${senderEmail}> in ${languageCode}`)
 
         // Send email via Resend
         const { data: emailResponse, error: emailError } = await resend.emails.send({
-          from: 'Vesuviano Forni <noreply@abbattitorizapper.it>',
+          from: `${senderName} <${senderEmail}>`,
           to: [typedLead.email],
           subject: subject,
           html: htmlContent,
