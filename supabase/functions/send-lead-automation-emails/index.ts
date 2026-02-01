@@ -141,14 +141,29 @@ Deno.serve(async (req) => {
           .eq('id', execution.campaign_id)
           .single()
 
+        // Fetch full lead data with configurator link
+        const { data: fullLead, error: fullLeadError } = await supabase
+          .from('leads')
+          .select('id, email, contact_name, company_name, phone, external_configurator_link, configurator_link')
+          .eq('id', execution.lead_id)
+          .single()
+
+        const typedLead = (fullLead || lead) as Lead & { external_configurator_link?: string, configurator_link?: string }
+        
+        // Get configurator link (prefer external_configurator_link, fallback to configurator_link)
+        const configuratorLink = typedLead.external_configurator_link || typedLead.configurator_link || ''
+        
+        console.log(`Lead ${typedLead.email} - Configurator link: ${configuratorLink}`)
+
         // Replace placeholders in HTML content
-        const typedLead = lead as Lead
         let htmlContent = step.html_content
           .replace(/\{\{nome\}\}/gi, typedLead.contact_name?.split(' ')[0] || 'there')
           .replace(/\{\{cognome\}\}/gi, typedLead.contact_name?.split(' ').slice(1).join(' ') || '')
           .replace(/\{\{email\}\}/gi, typedLead.email)
           .replace(/\{\{telefono\}\}/gi, typedLead.phone || '')
           .replace(/\{\{azienda\}\}/gi, typedLead.company_name || '')
+          .replace(/\{\{linkconfiguratore\}\}/gi, configuratorLink)
+          .replace(/\{\{configurator_link\}\}/gi, configuratorLink)
 
         let subject = step.subject
           .replace(/\{\{nome\}\}/gi, typedLead.contact_name?.split(' ')[0] || 'there')
