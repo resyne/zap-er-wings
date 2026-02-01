@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Eye, Pencil, AlertCircle, CheckCircle2, Clock, XCircle,
-  FileText, Image, Video, Loader2, Trash2, Copy
+  FileText, Image, Video, Loader2, Trash2, Copy, Send
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,13 +36,15 @@ interface WhatsAppTemplatePreviewProps {
   isOpen: boolean;
   onClose: () => void;
   onSendTemplate?: (template: WhatsAppTemplate) => void;
+  onUploadToMeta?: (templateId: string) => void;
 }
 
 export function WhatsAppTemplatePreview({ 
   template, 
   isOpen, 
   onClose,
-  onSendTemplate 
+  onSendTemplate,
+  onUploadToMeta
 }: WhatsAppTemplatePreviewProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
@@ -56,8 +58,8 @@ export function WhatsAppTemplatePreview({
   });
 
   // Initialize edit data when template changes
-  useState(() => {
-    if (template) {
+  useEffect(() => {
+    if (template && isOpen) {
       const components = parseComponents(template.components);
       setEditData({
         name: template.name,
@@ -67,8 +69,9 @@ export function WhatsAppTemplatePreview({
         footer: components.footer,
         headerType: components.headerType
       });
+      setActiveTab("preview");
     }
-  });
+  }, [template, isOpen]);
 
   const parseComponents = (components: any): {
     header: string;
@@ -140,6 +143,8 @@ export function WhatsAppTemplatePreview({
         return <Clock className="h-4 w-4 text-yellow-600" />;
       case "REJECTED":
         return <XCircle className="h-4 w-4 text-red-600" />;
+      case "DRAFT":
+        return <Pencil className="h-4 w-4 text-blue-600" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-600" />;
     }
@@ -150,6 +155,7 @@ export function WhatsAppTemplatePreview({
       case "APPROVED": return "bg-green-100 text-green-800";
       case "PENDING": return "bg-yellow-100 text-yellow-800";
       case "REJECTED": return "bg-red-100 text-red-800";
+      case "DRAFT": return "bg-blue-100 text-blue-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -230,7 +236,7 @@ export function WhatsAppTemplatePreview({
           name: editData.name,
           category: editData.category,
           components: components.length > 0 ? components : { body: { type: "BODY", text: editData.body } },
-          status: "PENDING", // Reset status for re-submission
+          status: template.status === "DRAFT" ? "DRAFT" : "PENDING", // Keep DRAFT status if already DRAFT
           rejection_reason: null,
           updated_at: new Date().toISOString()
         })
@@ -261,8 +267,9 @@ export function WhatsAppTemplatePreview({
   if (!template) return null;
 
   const components = parseComponents(template.components);
-  const canEdit = template.status === "PENDING" || template.status === "REJECTED" || template.status === "FAILED";
-  const canDelete = !template.meta_template_id; // Can only delete if not yet on Meta
+  const canEdit = template.status === "DRAFT" || template.status === "PENDING" || template.status === "REJECTED" || template.status === "FAILED";
+  const canDelete = !template.meta_template_id || template.status === "DRAFT"; // Can delete if not yet on Meta or if DRAFT
+  const canUploadToMeta = template.status === "DRAFT" && onUploadToMeta;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -544,6 +551,15 @@ export function WhatsAppTemplatePreview({
               <Button variant="outline" onClick={onClose}>
                 Chiudi
               </Button>
+              {canUploadToMeta && (
+                <Button 
+                  variant="default"
+                  onClick={() => onUploadToMeta(template.id)}
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  Invia a Meta
+                </Button>
+              )}
               {template.status === "APPROVED" && onSendTemplate && (
                 <Button onClick={() => onSendTemplate(template)}>
                   Invia Template
