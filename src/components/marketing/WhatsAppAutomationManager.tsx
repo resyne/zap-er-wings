@@ -963,10 +963,10 @@ export const WhatsAppAutomationManager = () => {
                   <Input
                     value={stepForm.trigger_button_text}
                     onChange={(e) => setStepForm(prev => ({ ...prev, trigger_button_text: e.target.value }))}
-                    placeholder="Es: Sì, voglio info"
+                    placeholder="Es: Sì, voglio info (lascia vuoto per qualsiasi pulsante)"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Inserisci il testo esatto del pulsante Quick Reply che attiva questo step
+                    Inserisci il testo del pulsante Quick Reply, oppure lascia vuoto per attivare con qualsiasi pulsante
                   </p>
                 </div>
               </>
@@ -981,7 +981,7 @@ export const WhatsAppAutomationManager = () => {
               onClick={saveStep} 
               disabled={
                 !stepForm.template_name || 
-                (stepForm.trigger_type === "button_reply" && (!stepForm.trigger_button_text || !stepForm.trigger_from_step_id))
+                (stepForm.trigger_type === "button_reply" && !stepForm.trigger_from_step_id)
               }
             >
               {editingStep ? "Salva" : "Aggiungi"}
