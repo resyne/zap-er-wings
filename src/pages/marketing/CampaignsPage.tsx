@@ -28,7 +28,8 @@ import {
   ArrowRight,
   Target,
   Zap,
-  Settings
+  Settings,
+  Globe
 } from "lucide-react";
 
 interface Campaign {
@@ -74,6 +75,10 @@ export default function CampaignsPage() {
   const [isEditStepDialogOpen, setIsEditStepDialogOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<CampaignStep | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
+  const [previewStepId, setPreviewStepId] = useState<string | null>(null);
+  const [previewLanguage, setPreviewLanguage] = useState("default");
+  const [previewSubject, setPreviewSubject] = useState("");
+  const [loadingTranslation, setLoadingTranslation] = useState(false);
   const [activeTab, setActiveTab] = useState("campaigns");
 
   // Form states
@@ -398,7 +403,58 @@ export default function CampaignsPage() {
       .replace(/\{\{cognome\}\}/gi, "Rossi")
       .replace(/\{\{email\}\}/gi, "mario.rossi@example.com")
       .replace(/\{\{telefono\}\}/gi, "+39 123 456 7890")
-      .replace(/\{\{azienda\}\}/gi, "Esempio S.r.l.");
+      .replace(/\{\{azienda\}\}/gi, "Esempio S.r.l.")
+      .replace(/\{\{linkconfiguratore\}\}/gi, "https://example.com/configuratore/ABC123");
+  };
+
+  const loadTranslation = async (stepId: string, language: string) => {
+    if (language === "default") {
+      // Load default from step
+      const step = selectedCampaign?.steps?.find(s => s.id === stepId);
+      if (step) {
+        setPreviewHtml(step.html_content);
+        setPreviewSubject(step.subject);
+      }
+      return;
+    }
+
+    setLoadingTranslation(true);
+    try {
+      const { data, error } = await supabase
+        .from("lead_automation_step_translations")
+        .select("subject, html_content")
+        .eq("step_id", stepId)
+        .eq("language_code", language)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setPreviewHtml(data.html_content);
+        setPreviewSubject(data.subject);
+      } else {
+        // Fallback to default
+        const step = selectedCampaign?.steps?.find(s => s.id === stepId);
+        if (step) {
+          setPreviewHtml(step.html_content);
+          setPreviewSubject(step.subject);
+        }
+        toast.info("Traduzione non disponibile, mostro contenuto predefinito");
+      }
+    } catch (error) {
+      console.error("Error loading translation:", error);
+      toast.error("Errore nel caricamento della traduzione");
+    } finally {
+      setLoadingTranslation(false);
+    }
+  };
+
+  const handleOpenPreview = (step: CampaignStep) => {
+    setPreviewStepId(step.id);
+    setPreviewHtml(step.html_content);
+    setPreviewSubject(step.subject);
+    setPreviewLanguage("default");
+    setIsPreviewDialogOpen(true);
   };
 
   if (loading) {
@@ -596,10 +652,7 @@ export default function CampaignsPage() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      setPreviewHtml(step.html_content);
-                                      setIsPreviewDialogOpen(true);
-                                    }}
+                                    onClick={() => handleOpenPreview(step)}
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     Preview
@@ -989,21 +1042,65 @@ export default function CampaignsPage() {
       </Dialog>
 
       {/* Preview Dialog */}
-      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+      <Dialog open={isPreviewDialogOpen} onOpenChange={(open) => {
+        setIsPreviewDialogOpen(open);
+        if (!open) {
+          setPreviewStepId(null);
+          setPreviewLanguage("default");
+        }
+      }}>
         <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Anteprima Email</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Anteprima Email</span>
+              {previewStepId && (
+                <Select
+                  value={previewLanguage}
+                  onValueChange={(lang) => {
+                    setPreviewLanguage(lang);
+                    if (previewStepId) {
+                      loadTranslation(previewStepId, lang);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Lingua" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">🇮🇹 Italiano (Default)</SelectItem>
+                    <SelectItem value="en">🇬🇧 English</SelectItem>
+                    <SelectItem value="es">🇪🇸 Español</SelectItem>
+                    <SelectItem value="fr">🇫🇷 Français</SelectItem>
+                    <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
+                    <SelectItem value="pt">🇵🇹 Português</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </DialogTitle>
             <DialogDescription>
-              I placeholder sono sostituiti con dati di esempio
+              {previewSubject && (
+                <div className="mt-2">
+                  <strong>Oggetto:</strong> {previewSubject}
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground mt-1">
+                I placeholder sono sostituiti con dati di esempio
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="h-[500px] border rounded-lg p-4 bg-background">
-            <div 
-              dangerouslySetInnerHTML={{ 
-                __html: processHtmlWithPlaceholders(previewHtml) 
-              }} 
-            />
-          </ScrollArea>
+          {loadingTranslation ? (
+            <div className="flex items-center justify-center h-[500px]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <ScrollArea className="h-[500px] border rounded-lg p-4 bg-background">
+              <div 
+                dangerouslySetInnerHTML={{ 
+                  __html: processHtmlWithPlaceholders(previewHtml) 
+                }} 
+              />
+            </ScrollArea>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
               Chiudi
