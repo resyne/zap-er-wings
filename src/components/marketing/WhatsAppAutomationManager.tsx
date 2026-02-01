@@ -25,6 +25,7 @@ interface WhatsAppCampaign {
   require_opt_in: boolean;
   auto_select_language: boolean;
   created_at: string;
+  activated_at: string | null;
 }
 
 interface WhatsAppStep {
@@ -259,17 +260,31 @@ export const WhatsAppAutomationManager = () => {
     }
   };
 
-  const toggleCampaign = async (id: string, currentStatus: boolean) => {
+  const toggleCampaign = async (id: string, currentStatus: boolean, currentActivatedAt: string | null) => {
     try {
+      // When activating for the first time, set activated_at
+      const isActivating = !currentStatus;
+      const shouldSetActivatedAt = isActivating && !currentActivatedAt;
+      
+      const updatePayload: any = { is_active: isActivating };
+      if (shouldSetActivatedAt) {
+        updatePayload.activated_at = new Date().toISOString();
+      }
+      
       const { error } = await supabase
         .from("whatsapp_automation_campaigns")
-        .update({ is_active: !currentStatus })
+        .update(updatePayload)
         .eq("id", id);
 
       if (error) throw error;
+      
+      const description = shouldSetActivatedAt 
+        ? "Campagna attivata. Solo i lead creati da ora in poi saranno processati."
+        : `Campagna ${isActivating ? "attivata" : "disattivata"}`;
+        
       toast({
         title: "Campagna aggiornata",
-        description: `Campagna ${!currentStatus ? "attivata" : "disattivata"}`,
+        description,
       });
       fetchData();
     } catch (error: any) {
@@ -464,7 +479,7 @@ export const WhatsAppAutomationManager = () => {
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <Switch
                     checked={campaign.is_active}
-                    onCheckedChange={() => toggleCampaign(campaign.id, campaign.is_active)}
+                    onCheckedChange={() => toggleCampaign(campaign.id, campaign.is_active, campaign.activated_at)}
                   />
                   <Button
                     variant="ghost"
@@ -509,9 +524,14 @@ export const WhatsAppAutomationManager = () => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Creata il {format(new Date(campaign.created_at), "dd/MM/yyyy", { locale: it })}
-              </p>
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <span>Creata il {format(new Date(campaign.created_at), "dd/MM/yyyy", { locale: it })}</span>
+                {campaign.activated_at && (
+                  <span className="text-primary font-medium">
+                    Attiva dal {format(new Date(campaign.activated_at), "dd/MM/yyyy HH:mm", { locale: it })} — solo nuovi lead
+                  </span>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

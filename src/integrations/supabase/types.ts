@@ -10104,6 +10104,7 @@ export type Database = {
       }
       whatsapp_automation_campaigns: {
         Row: {
+          activated_at: string | null
           auto_select_language: boolean | null
           created_at: string | null
           created_by: string | null
@@ -10118,6 +10119,7 @@ export type Database = {
           whatsapp_account_id: string | null
         }
         Insert: {
+          activated_at?: string | null
           auto_select_language?: boolean | null
           created_at?: string | null
           created_by?: string | null
@@ -10132,6 +10134,7 @@ export type Database = {
           whatsapp_account_id?: string | null
         }
         Update: {
+          activated_at?: string | null
           auto_select_language?: boolean | null
           created_at?: string | null
           created_by?: string | null
