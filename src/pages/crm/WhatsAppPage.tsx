@@ -1303,7 +1303,7 @@ export default function WhatsAppPage() {
                                       templateName: chatSelectedTemplate.name,
                                       templateLanguage: chatSelectedTemplate.language,
                                       recipientPhone: selectedConversation!.customer_phone,
-                                      params: chatTemplateParams.filter(p => p.trim() !== '')
+                                      params: chatTemplateParams // Don't filter - Meta expects exact param count
                                     });
                                     setShowTemplateSelector(false);
                                     setChatSelectedTemplate(null);
@@ -2344,7 +2344,7 @@ export default function WhatsAppPage() {
                     templateName: selectedTemplate.name,
                     templateLanguage: selectedTemplate.language,
                     recipientPhone: sendTemplateData.recipientPhone,
-                    params: sendTemplateData.params.filter(p => p.trim() !== ''),
+                    params: sendTemplateData.params, // Don't filter - Meta expects exact param count
                     headerDocumentUrl: sendTemplateData.headerDocumentUrl || undefined
                   });
                 }
