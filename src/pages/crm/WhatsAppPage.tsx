@@ -1298,7 +1298,7 @@ export default function WhatsAppPage() {
                               <SelectContent>
                                 {approvedTemplates?.map(t => (
                                   <SelectItem key={t.id} value={t.id}>
-                                    {t.name} ({t.category})
+                                    {t.name} • {t.language?.toUpperCase() || 'IT'} ({t.category})
                                   </SelectItem>
                                 ))}
                                 {(!approvedTemplates || approvedTemplates.length === 0) && (
