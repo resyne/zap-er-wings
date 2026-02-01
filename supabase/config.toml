@@ -99,6 +99,9 @@ verify_jwt = false
 [functions.translate-whatsapp-template]
 verify_jwt = false
 
+[functions.process-whatsapp-automations]
+verify_jwt = false
+
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
   cron = "*/5 * * * *"
@@ -116,5 +119,10 @@ verify_jwt = false
 
 [[edge_runtime.scheduled_functions]]
   name = "send-lead-automation-emails"
+  cron = "*/2 * * * *"
+  region = "eu-west-1"
+
+[[edge_runtime.scheduled_functions]]
+  name = "process-whatsapp-automations"
   cron = "*/2 * * * *"
   region = "eu-west-1"
