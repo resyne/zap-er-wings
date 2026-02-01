@@ -103,12 +103,20 @@ serve(async (req) => {
         
         // Add body parameters if provided
         if (template_params && template_params.length > 0) {
+          // Filter and validate parameters - replace empty strings with placeholder
+          const validParams = template_params.map((param, index) => {
+            const textValue = (param === null || param === undefined || param === '') 
+              ? '-' // Fallback for empty params
+              : String(param);
+            return {
+              type: "text",
+              text: textValue,
+            };
+          });
+          
           components.push({
             type: "body",
-            parameters: template_params.map((param) => ({
-              type: "text",
-              text: param,
-            })),
+            parameters: validParams,
           });
         }
         
