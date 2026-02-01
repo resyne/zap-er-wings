@@ -10102,6 +10102,187 @@ export type Database = {
           },
         ]
       }
+      whatsapp_automation_campaigns: {
+        Row: {
+          auto_select_language: boolean | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          require_opt_in: boolean | null
+          target_pipeline: string | null
+          trigger_type: string
+          updated_at: string | null
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          auto_select_language?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          require_opt_in?: boolean | null
+          target_pipeline?: string | null
+          trigger_type?: string
+          updated_at?: string | null
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          auto_select_language?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          require_opt_in?: boolean | null
+          target_pipeline?: string | null
+          trigger_type?: string
+          updated_at?: string | null
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_automation_campaigns_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_automation_executions: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          lead_id: string
+          scheduled_for: string
+          selected_language: string | null
+          sent_at: string | null
+          status: string | null
+          step_id: string
+          template_used_id: string | null
+          wamid: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          lead_id: string
+          scheduled_for: string
+          selected_language?: string | null
+          sent_at?: string | null
+          status?: string | null
+          step_id: string
+          template_used_id?: string | null
+          wamid?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          lead_id?: string
+          scheduled_for?: string
+          selected_language?: string | null
+          sent_at?: string | null
+          status?: string | null
+          step_id?: string
+          template_used_id?: string | null
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_automation_executions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_automation_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_automation_executions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_automation_executions_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_automation_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_automation_executions_template_used_id_fkey"
+            columns: ["template_used_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_automation_steps: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          delay_days: number | null
+          delay_hours: number | null
+          delay_minutes: number | null
+          id: string
+          is_active: boolean | null
+          step_order: number
+          template_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          delay_days?: number | null
+          delay_hours?: number | null
+          delay_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          step_order?: number
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          delay_days?: number | null
+          delay_hours?: number | null
+          delay_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          step_order?: number
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_automation_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_automation_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_automation_steps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversations: {
         Row: {
           account_id: string | null
@@ -10293,6 +10474,51 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_opt_ins: {
+        Row: {
+          campaign_id: string | null
+          id: string
+          is_active: boolean | null
+          lead_id: string
+          opted_in_at: string | null
+          opted_out_at: string | null
+          source: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          lead_id: string
+          opted_in_at?: string | null
+          opted_out_at?: string | null
+          source?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          lead_id?: string
+          opted_in_at?: string | null
+          opted_out_at?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_opt_ins_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_automation_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_opt_ins_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
