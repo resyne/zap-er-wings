@@ -10985,6 +10985,10 @@ export type Database = {
         }
         Returns: string
       }
+      detect_country_from_phone: {
+        Args: { phone_number: string }
+        Returns: string
+      }
       find_lead_by_normalized_phone: {
         Args: { search_pattern: string }
         Returns: {
