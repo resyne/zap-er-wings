@@ -101,7 +101,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Offerte", url: "/crm/offers", icon: FileText },
       { title: "Configuratore Prodotti", url: "/crm/product-configurator", icon: Settings },
       { title: "Call Records", url: "/crm/call-records", icon: Phone },
-      { title: "ERP WhatsApp", url: "/crm/wasender", icon: MessageCircle },
+      { title: "WhatsApp", url: "/crm/whatsapp", icon: MessageCircle },
     ]
   },
   {
