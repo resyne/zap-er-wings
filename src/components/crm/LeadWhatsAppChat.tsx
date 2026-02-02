@@ -242,22 +242,18 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     enabled: !!selectedAccountId
   });
 
-  // Fetch ALL templates for message display (includes all languages)
+  // Fetch ALL templates for message display (includes all languages and all accounts)
   const { data: allTemplates } = useQuery({
-    queryKey: ['whatsapp-templates-all', selectedAccountId],
+    queryKey: ['whatsapp-templates-all-accounts'],
     queryFn: async () => {
-      if (!selectedAccountId) return [];
-      
       const { data, error } = await supabase
         .from('whatsapp_templates')
         .select('id, name, language, category, status, components')
-        .eq('account_id', selectedAccountId)
         .order('name');
       
       if (error) throw error;
       return data as WhatsAppTemplate[];
-    },
-    enabled: !!selectedAccountId
+    }
   });
 
   // Calculate conversation window status
