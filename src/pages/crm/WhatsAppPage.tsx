@@ -1120,7 +1120,7 @@ export default function WhatsAppPage() {
                       return (
                         <div
                           key={conv.id}
-                          className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                          className={`group p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
                             selectedConversation?.id === conv.id ? 'bg-muted' : ''
                           }`}
                           onClick={() => setSelectedConversation(conv)}
