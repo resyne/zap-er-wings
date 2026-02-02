@@ -104,7 +104,14 @@ function LeadCardComponent({
               {/* Header: Title + Priority + Menu */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm truncate">{lead.company_name}</h4>
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="font-medium text-sm truncate">{lead.company_name}</h4>
+                    {lead.configurator_opened && (
+                      <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 px-1.5 py-0">
+                        <Settings2 className="h-3 w-3" />
+                      </Badge>
+                    )}
+                  </div>
                   {lead.contact_name && (
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <User className="h-3 w-3" />
@@ -150,14 +157,8 @@ function LeadCardComponent({
                 </div>
               </div>
 
-              {/* Configurator badge + Created date */}
+              {/* Created date */}
               <div className="flex flex-wrap items-center gap-1.5">
-                {lead.configurator_opened && (
-                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                    <Settings2 className="h-3 w-3 mr-1" />
-                    Configuratore
-                  </Badge>
-                )}
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <CalendarPlus className="h-3 w-3" />
                   {format(new Date(lead.created_at), "dd/MM/yy", { locale: it })}
