@@ -160,6 +160,7 @@ export default function LeadsPage() {
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [showConfiguratorOnly, setShowConfiguratorOnly] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("priority");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1131,9 +1132,10 @@ export default function LeadsPage() {
       const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
       const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
       const matchesConfigurator = !showConfiguratorOnly || lead.configurator_opened === true;
+      const matchesSource = selectedSource === "all" || lead.source === selectedSource;
       const isArchived = lead.archived === true;
       const matchesArchived = showArchived ? isArchived : !isArchived;
-      return matchesSearch && matchesPipeline && matchesCountry && matchesConfigurator && matchesArchived;
+      return matchesSearch && matchesPipeline && matchesCountry && matchesConfigurator && matchesSource && matchesArchived;
     });
 
     return filtered.sort((a, b) => {
@@ -1162,7 +1164,7 @@ export default function LeadsPage() {
           return 0;
       }
     });
-  }, [leads, searchTerm, selectedPipeline, selectedCountry, showConfiguratorOnly, showArchived, sortBy, priorityOrder]);
+  }, [leads, searchTerm, selectedPipeline, selectedCountry, showConfiguratorOnly, selectedSource, showArchived, sortBy, priorityOrder]);
 
   // OPTIMIZED: Memoize grouping by status
   const leadsByStatus = useMemo(() => {
@@ -1898,6 +1900,24 @@ export default function LeadsPage() {
                     {country}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="source-filter">Fonte:</Label>
+            <Select value={selectedSource} onValueChange={setSelectedSource}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Tutte le fonti" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutte le fonti</SelectItem>
+                <SelectItem value="website">Sito web</SelectItem>
+                <SelectItem value="referral">Referral</SelectItem>
+                <SelectItem value="social_media">Social Media</SelectItem>
+                <SelectItem value="cold_call">Cold Call</SelectItem>
+                <SelectItem value="trade_show">Fiera</SelectItem>
+                <SelectItem value="zapier">Zapier</SelectItem>
+                <SelectItem value="other">Altro</SelectItem>
               </SelectContent>
             </Select>
           </div>
