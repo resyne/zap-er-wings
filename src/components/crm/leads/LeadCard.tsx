@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Phone, Mail, Calendar, MoreVertical, Edit, Trash2, Archive, ArchiveRestore, Plus, MapPin, User, Flame } from "lucide-react";
+import { Phone, Mail, Calendar, MoreVertical, Edit, Trash2, Archive, ArchiveRestore, Plus, MapPin, User, Flame, Settings2, CalendarPlus } from "lucide-react";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { Draggable } from "@hello-pangea/dnd";
@@ -148,6 +148,20 @@ function LeadCardComponent({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
+              </div>
+
+              {/* Configurator badge + Created date */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {lead.configurator_opened && (
+                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <Settings2 className="h-3 w-3 mr-1" />
+                    Configuratore
+                  </Badge>
+                )}
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <CalendarPlus className="h-3 w-3" />
+                  {format(new Date(lead.created_at), "dd/MM/yy", { locale: it })}
+                </span>
               </div>
 
               {/* Contact info */}
