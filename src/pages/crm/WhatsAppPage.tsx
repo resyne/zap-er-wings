@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { 
   MessageCircle, Plus, Settings, ArrowLeft, Building2, 
   Send, Phone, CreditCard, FileText, RefreshCw, Check,
@@ -71,6 +72,7 @@ interface WhatsAppTemplate {
   components: any;
   rejection_reason: string | null;
   created_at: string;
+  is_disabled?: boolean;
 }
 
 interface WhatsAppConversation {
@@ -265,8 +267,8 @@ export default function WhatsAppPage() {
     enabled: !!selectedAccount
   });
 
-  // Template approvati per invio dalla chat
-  const approvedTemplates = templates?.filter(t => t.status === 'APPROVED');
+  // Template approvati e non disabilitati per invio dalla chat
+  const approvedTemplates = templates?.filter(t => t.status === 'APPROVED' && !t.is_disabled);
 
   const { data: conversations } = useQuery({
     queryKey: ['whatsapp-conversations', selectedAccount?.id],
@@ -607,7 +609,7 @@ export default function WhatsAppPage() {
     }
   });
 
-  const syncTemplatesMutation = useMutation({
+const syncTemplatesMutation = useMutation({
     mutationFn: async () => {
       const response = await supabase.functions.invoke('whatsapp-sync-templates', {
         body: { account_id: selectedAccount!.id }
@@ -621,6 +623,24 @@ export default function WhatsAppPage() {
     },
     onError: (error: Error) => {
       toast.error(`Errore sincronizzazione: ${error.message}`);
+    }
+  });
+
+  // Mutation per disabilitare/abilitare un template
+  const toggleTemplateDisabledMutation = useMutation({
+    mutationFn: async ({ templateId, isDisabled }: { templateId: string; isDisabled: boolean }) => {
+      const { error } = await supabase
+        .from('whatsapp_templates')
+        .update({ is_disabled: isDisabled })
+        .eq('id', templateId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { isDisabled }) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+      toast.success(isDisabled ? 'Template disabilitato' : 'Template abilitato');
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
     }
   });
 
@@ -1603,23 +1623,42 @@ export default function WhatsAppPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">Attivo</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Lingua</TableHead>
                       <TableHead>Stato</TableHead>
                       <TableHead>Creato</TableHead>
                       <TableHead className="text-right">Azioni</TableHead>
-                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {templates?.map(template => (
                       <TableRow 
                         key={template.id} 
-                        className="cursor-pointer hover:bg-muted/50"
+                        className={`cursor-pointer hover:bg-muted/50 ${template.is_disabled ? 'opacity-50' : ''}`}
                         onClick={() => openTemplatePreview(template)}
                       >
-                        <TableCell className="font-medium">{template.name}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Switch
+                            checked={!template.is_disabled}
+                            onCheckedChange={(checked) => 
+                              toggleTemplateDisabledMutation.mutate({ 
+                                templateId: template.id, 
+                                isDisabled: !checked 
+                              })
+                            }
+                            disabled={toggleTemplateDisabledMutation.isPending}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {template.name}
+                          {template.is_disabled && (
+                            <Badge variant="outline" className="ml-2 text-muted-foreground">
+                              Disabilitato
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge className={getCategoryColor(template.category)}>
                             {template.category}
@@ -1669,7 +1708,7 @@ export default function WhatsAppPage() {
                                 {template.status === 'FAILED' ? 'Riprova' : 'Carica su Meta'}
                               </Button>
                             )}
-                            {template.status === 'APPROVED' && (
+                            {template.status === 'APPROVED' && !template.is_disabled && (
                               <Button 
                                 variant="default" 
                                 size="sm"
@@ -1685,7 +1724,7 @@ export default function WhatsAppPage() {
                     ))}
                     {(!templates || templates.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           Nessun template creato
                         </TableCell>
                       </TableRow>
