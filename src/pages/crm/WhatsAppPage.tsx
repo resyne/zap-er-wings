@@ -20,7 +20,7 @@ import {
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
-  Image as ImageIcon, Volume2, Languages, Archive, MoreVertical
+  Image as ImageIcon, Volume2, Languages, Archive, MoreVertical, Star
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -429,6 +429,22 @@ export default function WhatsAppPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
       toast.success('Pipeline aggiornata');
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const updateConversationRatingMutation = useMutation({
+    mutationFn: async ({ conversationId, rating }: { conversationId: string; rating: number | null }) => {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ rating })
+        .eq('id', conversationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -1389,6 +1405,32 @@ const syncTemplatesMutation = useMutation({
                                   {conv.customer_phone}
                                 </p>
                               )}
+                              {/* Star rating */}
+                              <div className="flex items-center gap-0.5 my-1" onClick={(e) => e.stopPropagation()}>
+                                {[1, 2, 3].map((star) => (
+                                  <button
+                                    key={star}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newRating = (conv as any).rating === star ? null : star;
+                                      updateConversationRatingMutation.mutate({ 
+                                        conversationId: conv.id, 
+                                        rating: newRating 
+                                      });
+                                    }}
+                                    className="p-0.5 hover:scale-110 transition-transform"
+                                    title={`${star} ${star === 1 ? 'stella' : 'stelle'}`}
+                                  >
+                                    <Star
+                                      className={`h-4 w-4 ${
+                                        ((conv as any).rating || 0) >= star
+                                          ? 'fill-yellow-400 text-yellow-400'
+                                          : 'text-muted-foreground/40 hover:text-yellow-400/60'
+                                      }`}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
                               <p className="text-sm text-muted-foreground truncate">
                                 {conv.last_message_preview || 'Nessun messaggio'}
                               </p>
