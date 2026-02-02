@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,9 +214,10 @@ export default function LeadsPage() {
     loadLeads();
     loadUsers();
     loadOffers();
-  }, []);
+  }, [selectedPipeline]); // Reload when pipeline changes
 
   // Realtime subscription per nuovi lead, aggiornamenti ed eliminazioni
+  // OPTIMIZED: Removed toast notifications for updates to reduce re-renders and visual noise
   useEffect(() => {
     const channel = supabase
       .channel('leads-changes')
@@ -228,12 +229,16 @@ export default function LeadsPage() {
           table: 'leads'
         },
         (payload) => {
-          console.log('Nuovo lead ricevuto:', payload.new);
-          setLeads((prevLeads) => [payload.new as Lead, ...prevLeads]);
-          toast({
-            title: "Nuovo lead",
-            description: `Nuovo lead aggiunto: ${(payload.new as Lead).company_name}`,
-          });
+          const newLead = payload.new as Lead;
+          // Only add if matches current pipeline filter
+          if (!selectedPipeline || newLead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase()) {
+            setLeads((prevLeads) => [newLead, ...prevLeads]);
+            // Only toast for new leads (important event)
+            toast({
+              title: "Nuovo lead",
+              description: `Nuovo lead: ${newLead.company_name}`,
+            });
+          }
         }
       )
       .on(
@@ -244,16 +249,12 @@ export default function LeadsPage() {
           table: 'leads'
         },
         (payload) => {
-          console.log('Lead aggiornato:', payload.new);
+          // Silent update - no toast to reduce noise
           setLeads((prevLeads) => 
             prevLeads.map(lead => 
               lead.id === (payload.new as Lead).id ? payload.new as Lead : lead
             )
           );
-          toast({
-            title: "Lead aggiornato",
-            description: `Lead "${(payload.new as Lead).company_name}" è stato aggiornato`,
-          });
         }
       )
       .on(
@@ -264,14 +265,10 @@ export default function LeadsPage() {
           table: 'leads'
         },
         (payload) => {
-          console.log('Lead eliminato:', payload.old);
+          // Silent delete
           setLeads((prevLeads) => 
             prevLeads.filter(lead => lead.id !== (payload.old as Lead).id)
           );
-          toast({
-            title: "Lead eliminato",
-            description: "Un lead è stato eliminato",
-          });
         }
       )
       .subscribe();
@@ -279,7 +276,7 @@ export default function LeadsPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast]);
+  }, [selectedPipeline, toast]);
 
   // Gestione parametro URL per aprire un lead specifico
   useEffect(() => {
@@ -300,10 +297,18 @@ export default function LeadsPage() {
 
   const loadLeads = async () => {
     try {
-      const { data, error } = await supabase
+      // OPTIMIZED: Filter by pipeline at DB level to reduce data transfer
+      let query = supabase
         .from("leads")
-        .select("*, created_by")
-        .order("created_at", { ascending: false });
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500); // Limit initial load
+
+      if (selectedPipeline) {
+        query = query.eq("pipeline", selectedPipeline);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setLeads((data || []) as Lead[]);
@@ -1112,74 +1117,77 @@ export default function LeadsPage() {
     });
   }, []);
 
-  const priorityOrder: Record<string, number> = { hot: 0, mid: 1, low: 2 };
+  const priorityOrder: Record<string, number> = useMemo(() => ({ hot: 0, mid: 1, low: 2 }), []);
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
-    const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
-    // showArchived: true = mostra SOLO archiviati, false = mostra SOLO non archiviati
-    const isArchived = lead.archived === true;
-    const matchesArchived = showArchived ? isArchived : !isArchived;
-    return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
-  }).sort((a, b) => {
-    switch (sortBy) {
-      case "priority":
-        const priorityA = priorityOrder[a.priority || ''] ?? 99;
-        const priorityB = priorityOrder[b.priority || ''] ?? 99;
-        return priorityA - priorityB;
-      case "created_desc":
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      case "created_asc":
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      case "company_asc":
-        return (a.company_name || '').localeCompare(b.company_name || '');
-      case "company_desc":
-        return (b.company_name || '').localeCompare(a.company_name || '');
-      case "value_desc":
-        return (b.value || 0) - (a.value || 0);
-      case "value_asc":
-        return (a.value || 0) - (b.value || 0);
-      case "next_activity":
-        const dateA = a.next_activity_date ? new Date(a.next_activity_date).getTime() : Infinity;
-        const dateB = b.next_activity_date ? new Date(b.next_activity_date).getTime() : Infinity;
-        return dateA - dateB;
-      default:
-        return 0;
-    }
-  });
+  // OPTIMIZED: Memoize filtered and sorted leads
+  const filteredLeads = useMemo(() => {
+    const filtered = leads.filter(lead => {
+      const matchesSearch = `${lead.company_name} ${lead.contact_name} ${lead.email}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
+      const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
+      const isArchived = lead.archived === true;
+      const matchesArchived = showArchived ? isArchived : !isArchived;
+      return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
+    });
 
-  // Group leads by status (solo per le fasi kanban)
-  // I lead pre_qualificato vanno nella colonna "pre_qualified"
-  const leadsByStatus = kanbanStatuses.reduce((acc, status) => {
-    if (status.id === "pre_qualified") {
-      // Nella colonna Pre-Qualificato vanno i lead con pre_qualificato = true e status = new
-      acc[status.id] = filteredLeads.filter(lead => lead.pre_qualificato === true && lead.status === "new");
-    } else if (status.id === "new") {
-      // Nella colonna Nuovo vanno i lead con status = new ma non pre_qualificato
-      acc[status.id] = filteredLeads.filter(lead => lead.status === status.id && !lead.pre_qualificato);
-    } else {
-      acc[status.id] = filteredLeads.filter(lead => lead.status === status.id);
-    }
-    return acc;
-  }, {} as Record<string, Lead[]>);
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "priority":
+          const priorityA = priorityOrder[a.priority || ''] ?? 99;
+          const priorityB = priorityOrder[b.priority || ''] ?? 99;
+          return priorityA - priorityB;
+        case "created_desc":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "created_asc":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "company_asc":
+          return (a.company_name || '').localeCompare(b.company_name || '');
+        case "company_desc":
+          return (b.company_name || '').localeCompare(a.company_name || '');
+        case "value_desc":
+          return (b.value || 0) - (a.value || 0);
+        case "value_asc":
+          return (a.value || 0) - (b.value || 0);
+        case "next_activity":
+          const dateA = a.next_activity_date ? new Date(a.next_activity_date).getTime() : Infinity;
+          const dateB = b.next_activity_date ? new Date(b.next_activity_date).getTime() : Infinity;
+          return dateA - dateB;
+        default:
+          return 0;
+      }
+    });
+  }, [leads, searchTerm, selectedPipeline, selectedCountry, showArchived, sortBy, priorityOrder]);
 
-  // Filtra solo i lead nelle fasi kanban
-  const activeLeads = filteredLeads.filter(lead => 
-    kanbanStatuses.some(status => status.id === lead.status) || lead.pre_qualificato
-  );
+  // OPTIMIZED: Memoize grouping by status
+  const leadsByStatus = useMemo(() => {
+    return kanbanStatuses.reduce((acc, status) => {
+      if (status.id === "pre_qualified") {
+        acc[status.id] = filteredLeads.filter(lead => lead.pre_qualificato === true && lead.status === "new");
+      } else if (status.id === "new") {
+        acc[status.id] = filteredLeads.filter(lead => lead.status === status.id && !lead.pre_qualificato);
+      } else {
+        acc[status.id] = filteredLeads.filter(lead => lead.status === status.id);
+      }
+      return acc;
+    }, {} as Record<string, Lead[]>);
+  }, [filteredLeads]);
 
-  const totalLeads = filteredLeads.length;
-  const recentLeads = filteredLeads.filter(lead => {
-    const createdDate = new Date(lead.created_at);
+  // OPTIMIZED: Memoize statistics
+  const { totalLeads, recentLeads, totalValue, activeLeads } = useMemo(() => {
+    const total = filteredLeads.length;
     const last24Hours = new Date();
     last24Hours.setHours(last24Hours.getHours() - 24);
-    return createdDate > last24Hours;
-  }).length;
-
-  const totalValue = filteredLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+    
+    const recent = filteredLeads.filter(lead => new Date(lead.created_at) > last24Hours).length;
+    const value = filteredLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+    const active = filteredLeads.filter(lead => 
+      kanbanStatuses.some(status => status.id === lead.status) || lead.pre_qualificato
+    );
+    
+    return { totalLeads: total, recentLeads: recent, totalValue: value, activeLeads: active };
+  }, [filteredLeads]);
 
   if (loading) {
     return (
