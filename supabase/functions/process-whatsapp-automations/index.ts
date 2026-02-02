@@ -49,6 +49,9 @@ serve(async (req) => {
       .lte('scheduled_for', now)
       .order('scheduled_for', { ascending: true })
       .limit(50);
+    
+    // Filter out conditional executions that shouldn't be processed yet
+    // These should only be processed when their trigger condition is met (via webhook)
 
     if (execError) {
       console.error('Error fetching executions:', execError);
@@ -80,6 +83,13 @@ serve(async (req) => {
           error_message: 'Missing campaign, step, or lead data'
         }).eq('id', execution.id);
         failed++;
+        continue;
+      }
+      
+      // Skip conditional steps - they should only be triggered by button replies via webhook
+      if (step.trigger_type && step.trigger_type !== 'delay') {
+        console.log(`Skipping conditional step execution ${execution.id}: trigger_type=${step.trigger_type}, waiting for trigger`);
+        skipped++;
         continue;
       }
 
