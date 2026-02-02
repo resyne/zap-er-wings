@@ -43,7 +43,7 @@ serve(async (req) => {
         *,
         campaign:whatsapp_automation_campaigns(*),
         step:whatsapp_automation_steps(*),
-        lead:leads(id, contact_name, company_name, phone, country, pipeline, whatsapp_opt_in, created_at)
+        lead:leads(id, contact_name, company_name, phone, country, pipeline, created_at, external_configurator_link, configurator_link)
       `)
       .eq('status', 'pending')
       .lte('scheduled_for', now)
@@ -111,17 +111,6 @@ serve(async (req) => {
         await supabase.from('whatsapp_automation_executions').update({
           status: 'cancelled',
           error_message: 'Lead created before campaign activation'
-        }).eq('id', execution.id);
-        skipped++;
-        continue;
-      }
-
-      // Check opt-in if required
-      if (campaign.require_opt_in && !lead.whatsapp_opt_in) {
-        console.log(`Skipping execution ${execution.id}: opt-in not granted`);
-        await supabase.from('whatsapp_automation_executions').update({
-          status: 'cancelled',
-          error_message: 'Opt-in not granted'
         }).eq('id', execution.id);
         skipped++;
         continue;
