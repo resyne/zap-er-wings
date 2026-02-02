@@ -251,6 +251,18 @@ serve(async (req) => {
                     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                   })
                   .eq("id", conversation.id);
+                
+                // Handle button reply triggers for automation
+                if (messageType === "button" || messageType === "interactive") {
+                  const buttonText = messageType === "button" 
+                    ? (message.button?.text || message.button?.payload)
+                    : (message.interactive?.button_reply?.title || message.interactive?.list_reply?.title);
+                  
+                  if (buttonText) {
+                    console.log(`Button reply received: "${buttonText}" from ${from}`);
+                    await handleButtonReplyTrigger(supabase, conversation, from, buttonText);
+                  }
+                }
               }
 
               // Process status updates
@@ -294,3 +306,116 @@ serve(async (req) => {
     });
   }
 });
+
+// Handle button reply triggers for conditional automation steps
+async function handleButtonReplyTrigger(
+  supabase: any,
+  conversation: any,
+  customerPhone: string,
+  buttonText: string
+) {
+  try {
+    // Find the lead by phone
+    const normalizedPhone = customerPhone.replace(/\D/g, '');
+    const { data: leads } = await supabase
+      .from("leads")
+      .select("id")
+      .or(`phone.ilike.%${normalizedPhone}%,phone.ilike.%${customerPhone}%`);
+    
+    if (!leads || leads.length === 0) {
+      console.log(`No lead found for phone: ${customerPhone}`);
+      return;
+    }
+    
+    const leadId = leads[0].id;
+    console.log(`Found lead ${leadId} for phone ${customerPhone}`);
+    
+    // Find sent executions for this lead that have conditional follow-up steps
+    const { data: sentExecutions } = await supabase
+      .from("whatsapp_automation_executions")
+      .select(`
+        id,
+        lead_id,
+        campaign_id,
+        step_id,
+        step:whatsapp_automation_steps(id, step_order, campaign_id)
+      `)
+      .eq("lead_id", leadId)
+      .eq("status", "sent")
+      .order("sent_at", { ascending: false });
+    
+    if (!sentExecutions || sentExecutions.length === 0) {
+      console.log(`No sent executions found for lead ${leadId}`);
+      return;
+    }
+    
+    // For each sent execution, check if there are conditional steps waiting for this button reply
+    for (const sentExec of sentExecutions) {
+      // Find conditional steps that trigger from this step
+      const { data: conditionalSteps } = await supabase
+        .from("whatsapp_automation_steps")
+        .select("*")
+        .eq("trigger_from_step_id", sentExec.step_id)
+        .eq("trigger_type", "button_reply")
+        .eq("is_active", true);
+      
+      if (!conditionalSteps || conditionalSteps.length === 0) {
+        continue;
+      }
+      
+      for (const condStep of conditionalSteps) {
+        // Check if button text matches (if specified) or accept any button
+        const triggerButtonText = condStep.trigger_button_text?.trim().toLowerCase();
+        const receivedButtonText = buttonText.trim().toLowerCase();
+        
+        // If trigger_button_text is empty or null, accept any button reply
+        // Otherwise, check for a match
+        const shouldTrigger = !triggerButtonText || 
+                               triggerButtonText === receivedButtonText ||
+                               receivedButtonText.includes(triggerButtonText);
+        
+        if (!shouldTrigger) {
+          console.log(`Button text "${buttonText}" doesn't match trigger "${condStep.trigger_button_text}"`);
+          continue;
+        }
+        
+        // Check if execution already exists for this step
+        const { data: existingExec } = await supabase
+          .from("whatsapp_automation_executions")
+          .select("id")
+          .eq("lead_id", leadId)
+          .eq("step_id", condStep.id)
+          .limit(1);
+        
+        if (existingExec && existingExec.length > 0) {
+          console.log(`Execution already exists for conditional step ${condStep.id}`);
+          continue;
+        }
+        
+        // Create the conditional execution - schedule immediately
+        const scheduledFor = new Date();
+        scheduledFor.setDate(scheduledFor.getDate() + (condStep.delay_days || 0));
+        scheduledFor.setHours(scheduledFor.getHours() + (condStep.delay_hours || 0));
+        scheduledFor.setMinutes(scheduledFor.getMinutes() + (condStep.delay_minutes || 0));
+        
+        const { error: insertError } = await supabase
+          .from("whatsapp_automation_executions")
+          .insert({
+            lead_id: leadId,
+            campaign_id: sentExec.campaign_id,
+            step_id: condStep.id,
+            status: "pending",
+            scheduled_for: scheduledFor.toISOString()
+          });
+        
+        if (insertError) {
+          console.error("Error creating conditional execution:", insertError);
+        } else {
+          console.log(`Created conditional execution for step ${condStep.id} (template: ${condStep.template_name})`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error handling button reply trigger:", error);
+  }
+}

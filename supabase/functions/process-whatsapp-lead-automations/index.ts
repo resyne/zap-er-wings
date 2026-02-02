@@ -32,6 +32,9 @@ interface CampaignStep {
   delay_hours: number;
   delay_minutes: number;
   is_active: boolean;
+  trigger_type?: string;
+  trigger_from_step_id?: string;
+  trigger_button_text?: string;
 }
 
 Deno.serve(async (req) => {
@@ -158,10 +161,18 @@ Deno.serve(async (req) => {
 
         console.log(`Creating ${steps.length} WhatsApp executions for lead ${lead.id} in campaign ${campaign.name}`)
 
-        // Create executions for each step
+        // Create executions ONLY for delay-based steps
+        // Conditional steps (button_reply) will be created when the trigger condition is met
         const leadCreatedAt = new Date(lead.created_at)
         
         for (const step of steps as CampaignStep[]) {
+          // Skip conditional steps - they are created dynamically when user replies
+          const triggerType = (step as any).trigger_type
+          if (triggerType && triggerType !== 'delay') {
+            console.log(`Skipping conditional step ${step.id} (trigger_type: ${triggerType}) - will be created on trigger`)
+            continue
+          }
+          
           // Calculate scheduled_for based on lead creation time + delay
           const scheduledFor = new Date(leadCreatedAt)
           scheduledFor.setDate(scheduledFor.getDate() + step.delay_days)
@@ -188,7 +199,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Created ${totalExecutionsCreated} new WhatsApp executions`)
+    console.log(`Created ${totalExecutionsCreated} new WhatsApp executions (excluding conditional steps)`)
 
     return new Response(
       JSON.stringify({
