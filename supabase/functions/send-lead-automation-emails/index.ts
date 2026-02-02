@@ -187,30 +187,65 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // If this is step 2 or later, verify that previous steps were sent
+        // If this is step 2 or later, verify that the previous step was sent
+        // AND reschedule this execution based on when the previous step was actually sent
         if (step.step_order > 1) {
-          const { data: previousSteps, error: prevError } = await supabase
+          // Get the previous step
+          const { data: previousStep, error: prevStepError } = await supabase
             .from('lead_automation_steps')
             .select('id')
             .eq('campaign_id', execution.campaign_id)
-            .lt('step_order', step.step_order)
+            .eq('step_order', step.step_order - 1)
             .eq('is_active', true)
+            .single()
 
-          if (!prevError && previousSteps && previousSteps.length > 0) {
-            // Check if all previous steps have been sent for this lead
-            const prevStepIds = previousSteps.map(s => s.id)
-            const { data: prevExecutions, error: prevExecError } = await supabase
+          if (prevStepError || !previousStep) {
+            console.log(`No previous step found for step ${step.step_order}, proceeding`)
+          } else {
+            // Check if the previous step was sent
+            const { data: prevExecution, error: prevExecError } = await supabase
               .from('lead_automation_executions')
-              .select('id, status')
+              .select('id, status, sent_at')
               .eq('lead_id', execution.lead_id)
               .eq('campaign_id', execution.campaign_id)
-              .in('step_id', prevStepIds)
+              .eq('step_id', previousStep.id)
+              .single()
 
-            if (!prevExecError && prevExecutions) {
-              const allPreviousSent = prevExecutions.every(e => e.status === 'sent')
-              if (!allPreviousSent) {
-                console.log(`Skipping step ${step.step_order} for lead ${execution.lead_id} - previous steps not yet sent`)
+            if (!prevExecError && prevExecution) {
+              if (prevExecution.status !== 'sent') {
+                console.log(`Skipping step ${step.step_order} for lead ${execution.lead_id} - previous step not yet sent`)
                 continue // Skip this execution, will retry later
+              }
+
+              // Previous step was sent - check if enough time has passed based on THIS step's delay
+              // Get this step's delay configuration
+              const { data: currentStepConfig } = await supabase
+                .from('lead_automation_steps')
+                .select('delay_days, delay_hours, delay_minutes')
+                .eq('id', step.id)
+                .single()
+
+              if (currentStepConfig && prevExecution.sent_at) {
+                const prevSentAt = new Date(prevExecution.sent_at)
+                const delayMs = 
+                  (currentStepConfig.delay_days || 0) * 24 * 60 * 60 * 1000 +
+                  (currentStepConfig.delay_hours || 0) * 60 * 60 * 1000 +
+                  (currentStepConfig.delay_minutes || 0) * 60 * 1000
+                
+                const expectedSendTime = new Date(prevSentAt.getTime() + delayMs)
+                
+                if (now < expectedSendTime) {
+                  // Not enough time has passed since previous step was sent
+                  console.log(`Skipping step ${step.step_order} for lead ${execution.lead_id} - delay not yet elapsed (prev sent: ${prevExecution.sent_at}, expected: ${expectedSendTime.toISOString()})`)
+                  
+                  // Update scheduled_at to the correct time based on previous step's sent_at
+                  await supabase
+                    .from('lead_automation_executions')
+                    .update({ scheduled_at: expectedSendTime.toISOString() })
+                    .eq('id', execution.id)
+                  
+                  continue
+                }
               }
             }
           }
