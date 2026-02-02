@@ -172,6 +172,9 @@ export default function WhatsAppPage() {
   
   // State per filtro archiviate
   const [showArchived, setShowArchived] = useState(false);
+  
+  // State per filtro lingua
+  const [languageFilter, setLanguageFilter] = useState<string>("all");
 
   // Query per clienti e lead (per associazione)
   const { data: customers } = useQuery({
@@ -936,6 +939,21 @@ const syncTemplatesMutation = useMutation({
     }
   });
 
+  // Mutation per marcare una conversazione come non letta
+  const markAsUnreadMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ unread_count: 1 })
+        .eq('id', conversationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      toast.success('Conversazione segnata come da leggere');
+    }
+  });
+
   // Handler per selezionare una conversazione e marcarla come letta
   const handleSelectConversation = (conv: WhatsAppConversation) => {
     setSelectedConversation(conv);
@@ -966,12 +984,46 @@ const syncTemplatesMutation = useMutation({
     });
   };
 
-  // Filtra conversazioni in base alla ricerca e stato archiviazione
+  // Mappa paese -> lingua per filtro
+  const countryToLanguage: Record<string, string> = {
+    'Italia': 'it',
+    'Italy': 'it',
+    'Spagna': 'es',
+    'Spain': 'es',
+    'Francia': 'fr',
+    'France': 'fr',
+    'Germania': 'de',
+    'Germany': 'de',
+    'Portogallo': 'pt',
+    'Portugal': 'pt',
+    'Regno Unito': 'en',
+    'UK': 'en',
+    'United Kingdom': 'en',
+    'Stati Uniti': 'en',
+    'USA': 'en',
+    'United States': 'en',
+    'Svizzera': 'de',
+    'Switzerland': 'de',
+    'Grecia': 'el',
+    'Greece': 'el',
+    'Polonia': 'pl',
+    'Poland': 'pl',
+  };
+
+  // Filtra conversazioni in base alla ricerca, stato archiviazione e lingua
   const filteredConversations = conversations?.filter(conv => {
     // Filtra per stato archiviazione
     const isArchived = conv.status === 'archived';
     if (showArchived && !isArchived) return false;
     if (!showArchived && isArchived) return false;
+    
+    // Filtra per lingua
+    if (languageFilter !== 'all') {
+      const matchedLead = findLeadByPhone(conv.customer_phone);
+      const leadCountry = matchedLead?.country;
+      const leadLang = leadCountry ? countryToLanguage[leadCountry] : null;
+      if (leadLang !== languageFilter) return false;
+    }
     
     if (!conversationSearch) return true;
     const search = conversationSearch.toLowerCase();
@@ -983,6 +1035,12 @@ const syncTemplatesMutation = useMutation({
       matchedLead?.contact_name?.toLowerCase().includes(search) ||
       matchedLead?.pipeline?.toLowerCase().includes(search)
     );
+  })
+  // Ordina per più recente
+  ?.sort((a, b) => {
+    const dateA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+    const dateB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+    return dateB - dateA;
   });
 
   const getStatusIcon = (status: string) => {
@@ -1162,14 +1220,30 @@ const syncTemplatesMutation = useMutation({
                       </Button>
                     </div>
                   </div>
-                  <div className="relative mt-2">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cerca conversazioni..."
-                      value={conversationSearch}
-                      onChange={(e) => setConversationSearch(e.target.value)}
-                      className="pl-8"
-                    />
+                  <div className="flex gap-2 mt-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Cerca..."
+                        value={conversationSearch}
+                        onChange={(e) => setConversationSearch(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                    <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue placeholder="🌍" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">🌍 Tutti</SelectItem>
+                        <SelectItem value="it">🇮🇹 IT</SelectItem>
+                        <SelectItem value="es">🇪🇸 ES</SelectItem>
+                        <SelectItem value="fr">🇫🇷 FR</SelectItem>
+                        <SelectItem value="de">🇩🇪 DE</SelectItem>
+                        <SelectItem value="en">🇬🇧 EN</SelectItem>
+                        <SelectItem value="pt">🇵🇹 PT</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -1267,6 +1341,21 @@ const syncTemplatesMutation = useMutation({
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                      {conv.unread_count === 0 ? (
+                                        <DropdownMenuItem
+                                          onClick={() => markAsUnreadMutation.mutate(conv.id)}
+                                        >
+                                          <MessageCircle className="h-4 w-4 mr-2" />
+                                          Segna come da leggere
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem
+                                          onClick={() => markAsReadMutation.mutate(conv.id)}
+                                        >
+                                          <Check className="h-4 w-4 mr-2" />
+                                          Segna come letto
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuItem
                                         onClick={() => archiveConversationMutation.mutate(conv.id)}
                                       >

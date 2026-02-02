@@ -100,12 +100,15 @@ function getConversationWindow(messages: WhatsAppMessage[]): {
 export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCountry }: LeadWhatsAppChatProps) {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [templateParams, setTemplateParams] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ url: string; name: string; type: 'image' | 'document' | 'video' | 'audio' } | null>(null);
 
   // Get current user
   useEffect(() => {
@@ -356,6 +359,80 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       setTemplateParams([]);
       refetchMessages();
       toast.success('Template inviato');
+    } catch (err: any) {
+      toast.error(err.message || 'Errore invio');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
+    setIsUploadingFile(true);
+    try {
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+      const fileName = `whatsapp-lead-files/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      // Determine file type
+      let fileType: 'image' | 'document' | 'video' | 'audio' = 'document';
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
+        fileType = 'image';
+      } else if (['mp4', 'mov', 'avi', 'webm'].includes(fileExt)) {
+        fileType = 'video';
+      } else if (['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(fileExt)) {
+        fileType = 'audio';
+      }
+      
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file);
+        
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(fileName);
+      
+      setAttachedFile({ url: publicUrl, name: file.name, type: fileType });
+      toast.success(`File "${file.name}" allegato`);
+    } catch (error: any) {
+      toast.error('Errore upload file: ' + error.message);
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  // Send message with media
+  const sendMediaMessage = async () => {
+    if (!attachedFile || !conversation || !selectedAccountId) return;
+    if (!windowStatus.isOpen) {
+      toast.error("Finestra 24h chiusa. Usa un template per riavviare la conversazione.");
+      return;
+    }
+    
+    setIsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          account_id: selectedAccountId,
+          to: conversation.customer_phone,
+          type: attachedFile.type,
+          media_url: attachedFile.url,
+          media_caption: message.trim() || undefined,
+          media_filename: attachedFile.name,
+          sent_by: currentUserId,
+          lead_id: leadId
+        }
+      });
+      
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Errore invio media');
+      }
+      
+      setMessage('');
+      setAttachedFile(null);
+      refetchMessages();
+      toast.success('Media inviato');
     } catch (err: any) {
       toast.error(err.message || 'Errore invio');
     } finally {
@@ -667,27 +744,88 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
 
           {/* Free-form text input (only when window is open) */}
           {windowStatus.isOpen && (
-            <div className="flex gap-2">
-              <Input
-                placeholder="Scrivi un messaggio..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && message.trim()) {
-                    e.preventDefault();
-                    sendTextMessage();
-                  }
-                }}
-                disabled={isSending}
-                className="flex-1"
-              />
-              <Button 
-                onClick={sendTextMessage}
-                disabled={isSending || !message.trim()}
-                size="icon"
-              >
-                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
+            <div className="space-y-2">
+              {/* Attached file preview */}
+              {attachedFile && (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                  {attachedFile.type === 'image' ? (
+                    <Image className="h-4 w-4 text-primary" />
+                  ) : attachedFile.type === 'video' ? (
+                    <Video className="h-4 w-4 text-primary" />
+                  ) : attachedFile.type === 'audio' ? (
+                    <Mic className="h-4 w-4 text-primary" />
+                  ) : (
+                    <FileText className="h-4 w-4 text-primary" />
+                  )}
+                  <span className="text-sm truncate flex-1">{attachedFile.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setAttachedFile(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleFileUpload(file);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+                
+                {/* Attach button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingFile || isSending}
+                  title="Allega file"
+                >
+                  {isUploadingFile ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4" />
+                  )}
+                </Button>
+                
+                <Input
+                  placeholder={attachedFile ? "Aggiungi una didascalia..." : "Scrivi un messaggio..."}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (attachedFile) {
+                        sendMediaMessage();
+                      } else if (message.trim()) {
+                        sendTextMessage();
+                      }
+                    }
+                  }}
+                  disabled={isSending}
+                  className="flex-1"
+                />
+                
+                <Button 
+                  onClick={attachedFile ? sendMediaMessage : sendTextMessage}
+                  disabled={isSending || (!attachedFile && !message.trim())}
+                  size="icon"
+                >
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           )}
         </div>
