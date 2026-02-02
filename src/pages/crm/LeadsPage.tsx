@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { LeadMap } from "@/components/crm/LeadMap";
 import { MapIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import AILeadAnalysisDialog from "@/components/crm/AILeadAnalysisDialog";
 
 
 interface Lead {
@@ -165,6 +166,7 @@ export default function LeadsPage() {
   const [activeView, setActiveView] = useState<"kanban" | "map">("kanban");
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
+  const [isAIAnalysisOpen, setIsAIAnalysisOpen] = useState(false);
   const [leadForOffer, setLeadForOffer] = useState<Lead | null>(null);
   const [newLead, setNewLead] = useState({
     // Titolo lead
@@ -1211,6 +1213,10 @@ export default function LeadsPage() {
           <p className={`text-muted-foreground ${isMobile ? 'text-sm' : ''}`}>Gestisci i tuoi lead con il kanban board</p>
         </div>
         <div className={`flex ${isMobile ? 'flex-col w-full' : 'gap-2'}`}>
+          <Button onClick={() => setIsAIAnalysisOpen(true)} variant="outline" size={isMobile ? "sm" : "default"} className={isMobile ? 'mb-2' : ''}>
+            <Sparkles className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
+            {isMobile ? 'AI' : 'Analisi AI'}
+          </Button>
           <Button onClick={handleOpenBigin} variant="outline" size={isMobile ? "sm" : "default"} className={isMobile ? 'mb-2' : ''}>
             <ExternalLink className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} mr-2`} />
             {isMobile ? 'Bigin CRM' : 'Apri Bigin CRM'}
@@ -3070,6 +3076,20 @@ export default function LeadsPage() {
         } : undefined}
       />
 
+      {/* Dialog per analisi AI dei lead */}
+      <AILeadAnalysisDialog
+        open={isAIAnalysisOpen}
+        onOpenChange={setIsAIAnalysisOpen}
+        pipeline={selectedPipeline}
+        onLeadClick={(leadId) => {
+          const lead = leads.find(l => l.id === leadId);
+          if (lead) {
+            setSelectedLead(lead);
+            setIsDetailsDialogOpen(true);
+            setIsAIAnalysisOpen(false);
+          }
+        }}
+      />
 
     </div>
   );
