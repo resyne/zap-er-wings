@@ -216,6 +216,7 @@ serve(async (req) => {
       }
 
       // Build template parameters (personalization)
+      // Mapping: {{1}} Nome, {{2}} Azienda, {{3}} Data, {{4}} Link generico, {{5}} Link Configuratore
       const templateParams: string[] = [];
       const components = template.components as any[];
       if (components) {
@@ -223,14 +224,22 @@ serve(async (req) => {
         if (bodyComponent && bodyComponent.text) {
           // Count parameters in template
           const paramMatches = bodyComponent.text.match(/\{\{\d+\}\}/g) || [];
+          const configuratorLink = lead.external_configurator_link || lead.configurator_link || '';
+          const today = new Date().toLocaleDateString('it-IT');
+          
           for (let i = 0; i < paramMatches.length; i++) {
-            // Default personalization: name, company, etc.
+            // Map parameters according to standard: {{1}} Nome, {{2}} Azienda, {{3}} Data, {{4}} Link, {{5}} Configuratore
             if (i === 0) templateParams.push(lead.contact_name || lead.company_name || 'Cliente');
             else if (i === 1) templateParams.push(lead.company_name || '');
+            else if (i === 2) templateParams.push(today);
+            else if (i === 3) templateParams.push(''); // Generic link placeholder
+            else if (i === 4) templateParams.push(configuratorLink); // {{5}} = Configurator link
             else templateParams.push('');
           }
         }
       }
+      
+      console.log(`Template params for ${lead.id}: ${JSON.stringify(templateParams)}, configurator_link: ${lead.external_configurator_link || lead.configurator_link || 'N/A'}`)
 
       console.log(`Sending WhatsApp to ${lead.phone} using template ${templateName} (${selectedLanguage})`);
 
