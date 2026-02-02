@@ -327,20 +327,63 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     }
   };
 
+  // Helper to resolve template content from templates list
+  const resolveTemplateContent = (templateName: string, templateParams: any[] | null): string => {
+    // Find matching template in the loaded templates
+    const template = templates?.find(t => t.name === templateName);
+    if (!template || !Array.isArray(template.components)) {
+      return `[Template: ${templateName}]`;
+    }
+    
+    // Extract body text from template components
+    const bodyComponent = template.components.find((c: any) => c.type === 'BODY');
+    let bodyText = bodyComponent?.text || '';
+    
+    // Replace variables with params
+    if (templateParams && Array.isArray(templateParams)) {
+      templateParams.forEach((param, index) => {
+        bodyText = bodyText.replace(`{{${index + 1}}}`, String(param));
+      });
+    }
+    
+    // Also get header if present
+    const headerComponent = template.components.find((c: any) => c.type === 'HEADER');
+    let headerText = '';
+    if (headerComponent?.format === 'TEXT' && headerComponent?.text) {
+      headerText = headerComponent.text + '\n\n';
+    }
+    
+    // Get footer if present
+    const footerComponent = template.components.find((c: any) => c.type === 'FOOTER');
+    let footerText = '';
+    if (footerComponent?.text) {
+      footerText = '\n\n' + footerComponent.text;
+    }
+    
+    return headerText + bodyText + footerText;
+  };
+
   const renderMessageContent = (msg: WhatsAppMessage) => {
     if (msg.message_type === 'template' && msg.template_name) {
-      let displayContent = msg.content || `[Template: ${msg.template_name}]`;
-      if (msg.template_params && Array.isArray(msg.template_params)) {
+      // Try to get content from message first, or resolve from template
+      let displayContent = msg.content;
+      
+      if (!displayContent || displayContent.includes('{{')) {
+        // Resolve from template if content is empty or still has placeholders
+        displayContent = resolveTemplateContent(msg.template_name, msg.template_params);
+      } else if (msg.template_params && Array.isArray(msg.template_params)) {
+        // Replace any remaining placeholders
         msg.template_params.forEach((param, index) => {
-          displayContent = displayContent.replace(`{{${index + 1}}}`, String(param));
+          displayContent = displayContent!.replace(`{{${index + 1}}}`, String(param));
         });
       }
+      
       return (
         <div className="space-y-1">
           <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
           <Badge variant="outline" className="text-xs">
             <Bot className="h-3 w-3 mr-1" />
-            Template
+            {msg.template_name}
           </Badge>
         </div>
       );
