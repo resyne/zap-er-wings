@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Building2, Users, Phone, Mail, MapPin, FileText, Zap, ChevronDown, 
   Edit, Archive, ArchiveRestore, Trash2, CheckCircle2, XCircle, Calendar,
-  Activity, Upload, MessageCircle, User, Link, ExternalLink
+  Activity, Upload, MessageCircle, User, Link, ExternalLink, CalendarPlus
 } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Lead } from "@/hooks/useLeads";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +120,11 @@ export function LeadDetailsDialog({
                 € {formatAmount(lead.value)}
               </Badge>
             )}
+            {/* Created date */}
+            <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
+              <CalendarPlus className="h-3.5 w-3.5" />
+              {format(new Date(lead.created_at), "dd MMM yyyy", { locale: it })}
+            </span>
           </div>
 
           {/* Customer Details */}
