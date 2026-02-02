@@ -19,8 +19,14 @@ import {
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
-  Image as ImageIcon, Volume2, Languages
+  Image as ImageIcon, Volume2, Languages, Archive, MoreVertical
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
 import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplatePreview";
 import { WhatsAppTemplateCreator, TemplateFormData } from "@/components/whatsapp/WhatsAppTemplateCreator";
@@ -873,6 +879,26 @@ export default function WhatsAppPage() {
     }
   });
 
+  const archiveConversationMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ status: 'archived' })
+        .eq('id', conversationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      toast.success('Conversazione archiviata');
+      if (selectedConversation) {
+        setSelectedConversation(null);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
   // Helper per normalizzare numero di telefono (ultimi 8 digit)
   const normalizePhone = (phone: string | null | undefined): string => {
     if (!phone) return '';
@@ -1121,19 +1147,42 @@ export default function WhatsAppPage() {
                                   {conv.unread_count > 0 && (
                                     <Badge className="bg-green-600">{conv.unread_count}</Badge>
                                   )}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (confirm('Eliminare questa conversazione?')) {
-                                        deleteConversationMutation.mutate(conv.id);
-                                      }
-                                    }}
-                                  >
-                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                  </Button>
+                                  {conv.status === 'archived' && (
+                                    <Badge variant="outline" className="text-xs">
+                                      <Archive className="h-3 w-3 mr-1" />
+                                      Archiviata
+                                    </Badge>
+                                  )}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                      >
+                                        <MoreVertical className="h-3 w-3" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                      <DropdownMenuItem
+                                        onClick={() => archiveConversationMutation.mutate(conv.id)}
+                                      >
+                                        <Archive className="h-4 w-4 mr-2" />
+                                        Archivia
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        onClick={() => {
+                                          if (confirm('Eliminare questa conversazione e tutti i messaggi?')) {
+                                            deleteConversationMutation.mutate(conv.id);
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Elimina
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
                               </div>
                               {matchedLead && (
