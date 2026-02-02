@@ -31,6 +31,8 @@ import {
 import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
 import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplatePreview";
 import { WhatsAppTemplateCreator, TemplateFormData } from "@/components/whatsapp/WhatsAppTemplateCreator";
+import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubble";
+import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -176,7 +178,12 @@ export default function WhatsAppPage() {
   // State per filtro lingua
   const [languageFilter, setLanguageFilter] = useState<string>("all");
 
-  // Query per clienti e lead (per associazione)
+  // Translation state
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [translationTargetLang, setTranslationTargetLang] = useState<string>("en");
+  const [translationInput, setTranslationInput] = useState("");
+  const { translateOutbound, outboundTranslation, clearOutboundTranslation, isTranslatingOutbound } = useChatTranslation();
+
   const { data: customers } = useQuery({
     queryKey: ['customers-list'],
     queryFn: async () => {
@@ -1512,7 +1519,13 @@ const syncTemplatesMutation = useMutation({
                                     <p className="text-xs opacity-80 mb-1">Template: {msg.template_name}</p>
                                   )}
 
-                                  {displayText && (
+                                  {displayText && msg.direction === 'inbound' ? (
+                                    <TranslatedMessageBubble
+                                      messageId={msg.id}
+                                      originalText={displayText}
+                                      isInbound={true}
+                                    />
+                                  ) : displayText && (
                                     <p className="text-sm whitespace-pre-wrap">{displayText}</p>
                                   )}
                                   
@@ -1643,17 +1656,145 @@ const syncTemplatesMutation = useMutation({
                           </div>
                         )}
                         
-                        {/* Input messaggi - solo se nella finestra 24h */}
+                        {/* Translation Section */}
                         {isWithin24hWindow() && (
-                          <WhatsAppChatInput
-                            accountId={selectedAccount!.id}
-                            conversationPhone={selectedConversation.customer_phone}
-                            userId={user?.id}
-                            onMessageSent={() => {
-                              queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
-                              queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
-                            }}
-                          />
+                          <div className="space-y-2">
+                            {/* Toggle traduzione */}
+                            <div className="flex items-center justify-between">
+                              <Button
+                                variant={showTranslation ? "secondary" : "ghost"}
+                                size="sm"
+                                onClick={() => {
+                                  setShowTranslation(!showTranslation);
+                                  if (!showTranslation) {
+                                    // Auto-detect language from lead country
+                                    const matchedLead = findLeadByPhone(selectedConversation.customer_phone);
+                                    const leadCountry = (matchedLead as any)?.country;
+                                    const detectedLang = getLanguageFromCountry(leadCountry);
+                                    if (detectedLang !== 'it') {
+                                      setTranslationTargetLang(detectedLang);
+                                    }
+                                  } else {
+                                    clearOutboundTranslation();
+                                    setTranslationInput("");
+                                  }
+                                }}
+                                className="gap-2"
+                              >
+                                <Languages className="h-4 w-4" />
+                                {showTranslation ? "Chiudi traduzione" : "Traduci"}
+                              </Button>
+                              
+                              {showTranslation && (
+                                <Select value={translationTargetLang} onValueChange={setTranslationTargetLang}>
+                                  <SelectTrigger className="w-40">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {SUPPORTED_LANGUAGES.filter(l => l.code !== 'it').map(lang => (
+                                      <SelectItem key={lang.code} value={lang.code}>
+                                        {lang.flag} {lang.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
+
+                            {/* Input traduzione */}
+                            {showTranslation && (
+                              <div className="space-y-2 p-3 bg-muted rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">🇮🇹 Scrivi in italiano:</span>
+                                </div>
+                                <Textarea
+                                  placeholder="Scrivi il messaggio in italiano..."
+                                  value={translationInput}
+                                  onChange={(e) => setTranslationInput(e.target.value)}
+                                  className="min-h-[60px] resize-none"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    if (translationInput.trim()) {
+                                      await translateOutbound(translationInput, translationTargetLang);
+                                    }
+                                  }}
+                                  disabled={!translationInput.trim() || isTranslatingOutbound}
+                                  className="gap-2"
+                                >
+                                  {isTranslatingOutbound ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Languages className="h-4 w-4" />
+                                  )}
+                                  Traduci in {getLanguageFlag(translationTargetLang)} {SUPPORTED_LANGUAGES.find(l => l.code === translationTargetLang)?.name}
+                                </Button>
+
+                                {/* Preview traduzione */}
+                                {outboundTranslation && (
+                                  <div className="space-y-2 pt-2 border-t">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm text-muted-foreground">
+                                        {getLanguageFlag(outboundTranslation.targetLang)} Anteprima traduzione:
+                                      </span>
+                                    </div>
+                                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded text-sm whitespace-pre-wrap">
+                                      {outboundTranslation.translated}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      onClick={async () => {
+                                        // Send the translated message
+                                        try {
+                                          const response = await supabase.functions.invoke("whatsapp-send", {
+                                            body: {
+                                              account_id: selectedAccount!.id,
+                                              to: selectedConversation.customer_phone,
+                                              type: "text",
+                                              content: outboundTranslation.translated,
+                                              sent_by: user?.id
+                                            }
+                                          });
+                                          
+                                          if (response.error || !response.data?.success) {
+                                            throw new Error(response.data?.error || "Errore invio messaggio");
+                                          }
+                                          
+                                          toast.success("Messaggio tradotto inviato");
+                                          clearOutboundTranslation();
+                                          setTranslationInput("");
+                                          setShowTranslation(false);
+                                          queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
+                                          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                        } catch (err: any) {
+                                          toast.error(err.message || "Errore durante l'invio");
+                                        }
+                                      }}
+                                      className="w-full gap-2"
+                                    >
+                                      <Send className="h-4 w-4" />
+                                      Invia traduzione
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Normal chat input */}
+                            {!showTranslation && (
+                              <WhatsAppChatInput
+                                accountId={selectedAccount!.id}
+                                conversationPhone={selectedConversation.customer_phone}
+                                userId={user?.id}
+                                onMessageSent={() => {
+                                  queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
+                                  queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                }}
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     </CardContent>
