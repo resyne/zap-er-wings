@@ -147,6 +147,8 @@ export function WhatsAppTemplatePreview({
         return <XCircle className="h-4 w-4 text-red-600" />;
       case "DRAFT":
         return <Pencil className="h-4 w-4 text-blue-600" />;
+      case "DISABLED":
+        return <XCircle className="h-4 w-4 text-gray-400" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-600" />;
     }
@@ -158,6 +160,7 @@ export function WhatsAppTemplatePreview({
       case "PENDING": return "bg-yellow-100 text-yellow-800";
       case "REJECTED": return "bg-red-100 text-red-800";
       case "DRAFT": return "bg-blue-100 text-blue-800";
+      case "DISABLED": return "bg-gray-100 text-gray-500";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -195,70 +198,75 @@ export function WhatsAppTemplatePreview({
     }
   });
 
-  // Update template mutation (only for PENDING/REJECTED templates not yet on Meta)
+  // Build components helper
+  const buildComponentsArray = () => {
+    const components: any[] = [];
+    
+    if (editData.headerType !== "none") {
+      if (editData.headerType === "text" && editData.header) {
+        components.push({
+          type: "HEADER",
+          format: "TEXT",
+          text: editData.header
+        });
+      } else if (editData.headerType !== "text") {
+        components.push({
+          type: "HEADER",
+          format: editData.headerType.toUpperCase()
+        });
+      }
+    }
+    
+    if (editData.body) {
+      components.push({
+        type: "BODY",
+        text: editData.body
+      });
+    }
+    
+    if (editData.footer) {
+      components.push({
+        type: "FOOTER",
+        text: editData.footer
+      });
+    }
+
+    if (editData.buttons && editData.buttons.length > 0) {
+      components.push({
+        type: "BUTTONS",
+        buttons: editData.buttons.map(btn => {
+          const buttonObj: any = {
+            type: btn.type,
+            text: btn.text
+          };
+          if (btn.type === "URL" && btn.url) {
+            buttonObj.url = btn.url;
+          }
+          if (btn.type === "PHONE_NUMBER" && btn.phone_number) {
+            buttonObj.phone_number = btn.phone_number;
+          }
+          return buttonObj;
+        })
+      });
+    }
+    
+    return components.length > 0 ? components : { body: { type: "BODY", text: editData.body } };
+  };
+
+  // Update template mutation (for PENDING/REJECTED/DRAFT templates)
   const updateTemplateMutation = useMutation({
     mutationFn: async () => {
       if (!template) return;
       
-      // Build components array in Meta format
-      const components: any[] = [];
-      
-      if (editData.headerType !== "none") {
-        if (editData.headerType === "text" && editData.header) {
-          components.push({
-            type: "HEADER",
-            format: "TEXT",
-            text: editData.header
-          });
-        } else if (editData.headerType !== "text") {
-          components.push({
-            type: "HEADER",
-            format: editData.headerType.toUpperCase()
-          });
-        }
-      }
-      
-      if (editData.body) {
-        components.push({
-          type: "BODY",
-          text: editData.body
-        });
-      }
-      
-      if (editData.footer) {
-        components.push({
-          type: "FOOTER",
-          text: editData.footer
-        });
-      }
-
-      // Add buttons if present
-      if (editData.buttons && editData.buttons.length > 0) {
-        components.push({
-          type: "BUTTONS",
-          buttons: editData.buttons.map(btn => {
-            const buttonObj: any = {
-              type: btn.type,
-              text: btn.text
-            };
-            if (btn.type === "URL" && btn.url) {
-              buttonObj.url = btn.url;
-            }
-            if (btn.type === "PHONE_NUMBER" && btn.phone_number) {
-              buttonObj.phone_number = btn.phone_number;
-            }
-            return buttonObj;
-          })
-        });
-      }
+      const components = buildComponentsArray();
 
       const { error } = await supabase
         .from("whatsapp_templates")
         .update({
           name: editData.name,
           category: editData.category,
-          components: components.length > 0 ? components : { body: { type: "BODY", text: editData.body } },
-          status: template.status === "DRAFT" ? "DRAFT" : "PENDING", // Keep DRAFT status if already DRAFT
+          components: components,
+          status: template.status === "DRAFT" ? "DRAFT" : "PENDING",
           rejection_reason: null,
           updated_at: new Date().toISOString()
         })
@@ -270,6 +278,50 @@ export function WhatsAppTemplatePreview({
       queryClient.invalidateQueries({ queryKey: ["whatsapp-templates"] });
       toast.success("Template aggiornato - ricaricalo su Meta per la revisione");
       setActiveTab("preview");
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Create new version mutation (for APPROVED templates - disables old, creates new)
+  const createNewVersionMutation = useMutation({
+    mutationFn: async () => {
+      if (!template) return;
+      
+      const components = buildComponentsArray();
+      
+      // 1. Disable the old template
+      const { error: disableError } = await supabase
+        .from("whatsapp_templates")
+        .update({
+          status: "DISABLED",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", template.id);
+      
+      if (disableError) throw disableError;
+      
+      // 2. Create new template with new name
+      const { error: createError } = await supabase
+        .from("whatsapp_templates")
+        .insert({
+          account_id: template.account_id,
+          name: editData.name,
+          language: template.language,
+          category: editData.category,
+          components: components,
+          status: "DRAFT",
+          template_id: null,
+          meta_template_id: null
+        });
+      
+      if (createError) throw createError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      toast.success("Nuova versione creata! Il vecchio template è stato disabilitato. Invia il nuovo a Meta per l'approvazione.");
+      onClose();
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -289,9 +341,11 @@ export function WhatsAppTemplatePreview({
   if (!template) return null;
 
   const components = parseComponents(template.components);
-  const canEdit = template.status === "DRAFT" || template.status === "PENDING" || template.status === "REJECTED" || template.status === "FAILED";
-  const canDelete = !template.meta_template_id || template.status === "DRAFT"; // Can delete if not yet on Meta or if DRAFT
-  const canUploadToMeta = template.status === "DRAFT" && onUploadToMeta;
+  // Ora si può modificare sempre - per template approvati creeremo una nuova versione
+  const canEdit = true;
+  const isApproved = template.status === "APPROVED";
+  const canDelete = !template.meta_template_id || template.status === "DRAFT" || template.status === "DISABLED"; // Can delete if not yet on Meta or if DRAFT/DISABLED
+  const canUploadToMeta = (template.status === "DRAFT" || template.status === "PENDING") && onUploadToMeta;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -309,10 +363,9 @@ export function WhatsAppTemplatePreview({
               <Eye className="h-4 w-4" />
               Anteprima
             </TabsTrigger>
-            <TabsTrigger value="edit" disabled={!canEdit} className="flex items-center gap-2">
+            <TabsTrigger value="edit" className="flex items-center gap-2">
               <Pencil className="h-4 w-4" />
-              Modifica
-              {!canEdit && <span className="text-xs text-muted-foreground">(già approvato)</span>}
+              {isApproved ? "Nuova versione" : "Modifica"}
             </TabsTrigger>
           </TabsList>
 
@@ -648,20 +701,39 @@ export function WhatsAppTemplatePreview({
               </div>
 
               {/* Warning for approved templates */}
-              <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20">
-                <CardContent className="pt-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-yellow-800 dark:text-yellow-200">Nota sulle modifiche</p>
-                      <p className="text-yellow-700 dark:text-yellow-300">
-                        Secondo le policy WhatsApp, i template già approvati non possono essere modificati.
-                        Per modificare un template approvato, devi creare una nuova versione con un nome diverso (es. {template.name}_v2).
-                      </p>
+              {isApproved ? (
+                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-blue-800 dark:text-blue-200">Creazione nuova versione</p>
+                        <p className="text-blue-700 dark:text-blue-300">
+                          Stai creando una nuova versione del template. Il template attuale verrà disabilitato 
+                          e questa nuova versione dovrà essere inviata a Meta per l'approvazione.
+                        </p>
+                        <p className="text-blue-700 dark:text-blue-300 mt-1">
+                          <strong>Suggerimento:</strong> Usa un nome diverso (es. {template.name}_v2)
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-yellow-800 dark:text-yellow-200">Nota sulle modifiche</p>
+                        <p className="text-yellow-700 dark:text-yellow-300">
+                          Dopo il salvataggio, dovrai inviare il template a Meta per l'approvazione.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -707,15 +779,29 @@ export function WhatsAppTemplatePreview({
               <Button variant="outline" onClick={() => setActiveTab("preview")}>
                 Annulla
               </Button>
-              <Button
-                onClick={() => updateTemplateMutation.mutate()}
-                disabled={updateTemplateMutation.isPending || !editData.body.trim()}
-              >
-                {updateTemplateMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : null}
-                Salva Modifiche
-              </Button>
+              {isApproved ? (
+                <Button
+                  onClick={() => createNewVersionMutation.mutate()}
+                  disabled={createNewVersionMutation.isPending || !editData.body.trim() || !editData.name.trim()}
+                >
+                  {createNewVersionMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-1" />
+                  )}
+                  Crea Nuova Versione
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => updateTemplateMutation.mutate()}
+                  disabled={updateTemplateMutation.isPending || !editData.body.trim()}
+                >
+                  {updateTemplateMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : null}
+                  Salva Modifiche
+                </Button>
+              )}
             </>
           )}
         </DialogFooter>
