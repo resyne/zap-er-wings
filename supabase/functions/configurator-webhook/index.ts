@@ -42,7 +42,14 @@ Deno.serve(async (req) => {
       configurator_last_updated: new Date().toISOString(),
     }
 
-    // Track specific events
+    // Check for direct link_opened field (from external Vesuviano site)
+    if (payload.link_opened === true) {
+      updates.configurator_opened = true
+      updates.configurator_opened_at = payload.last_opened_at || payload.timestamp || new Date().toISOString()
+      console.log('[CONFIGURATOR-WEBHOOK] Direct link_opened detected, setting configurator_opened=true')
+    }
+
+    // Track specific events (legacy event_type format)
     switch (payload.event_type) {
       case 'link_opened':
         updates.configurator_opened = true
