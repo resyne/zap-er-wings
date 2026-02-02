@@ -873,14 +873,38 @@ export default function WhatsAppPage() {
     }
   });
 
+  // Helper per normalizzare numero di telefono (ultimi 8 digit)
+  const normalizePhone = (phone: string | null | undefined): string => {
+    if (!phone) return '';
+    // Rimuovi tutto tranne numeri
+    const digits = phone.replace(/\D/g, '');
+    // Prendi ultimi 8 digit per matching flessibile
+    return digits.slice(-8);
+  };
+
+  // Trova lead associato a un numero di telefono
+  const findLeadByPhone = (phone: string) => {
+    if (!leads || !phone) return null;
+    const normalizedPhone = normalizePhone(phone);
+    if (normalizedPhone.length < 6) return null;
+    
+    return leads.find(lead => {
+      const leadNormalized = normalizePhone(lead.phone);
+      return leadNormalized.length >= 6 && leadNormalized === normalizedPhone;
+    });
+  };
+
   // Filtra conversazioni in base alla ricerca
   const filteredConversations = conversations?.filter(conv => {
     if (!conversationSearch) return true;
     const search = conversationSearch.toLowerCase();
+    const matchedLead = findLeadByPhone(conv.customer_phone);
     return (
       conv.customer_name?.toLowerCase().includes(search) ||
       conv.customer_phone.toLowerCase().includes(search) ||
-      conv.last_message_preview?.toLowerCase().includes(search)
+      conv.last_message_preview?.toLowerCase().includes(search) ||
+      matchedLead?.contact_name?.toLowerCase().includes(search) ||
+      matchedLead?.pipeline?.toLowerCase().includes(search)
     );
   });
 
@@ -1063,56 +1087,73 @@ export default function WhatsAppPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <ScrollArea className="h-[480px]">
-                    {filteredConversations?.map(conv => (
-                      <div
-                        key={conv.id}
-                        className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
-                          selectedConversation?.id === conv.id ? 'bg-muted' : ''
-                        }`}
-                        onClick={() => setSelectedConversation(conv)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback>
-                              {conv.customer_name?.charAt(0) || <User className="h-4 w-4" />}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium truncate">
-                                {conv.customer_name || conv.customer_phone}
-                              </p>
-                              <div className="flex items-center gap-1">
-                                {conv.unread_count > 0 && (
-                                  <Badge className="bg-green-600">{conv.unread_count}</Badge>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm('Eliminare questa conversazione?')) {
-                                      deleteConversationMutation.mutate(conv.id);
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3 text-destructive" />
-                                </Button>
+                    {filteredConversations?.map(conv => {
+                      const matchedLead = findLeadByPhone(conv.customer_phone);
+                      const displayName = matchedLead?.contact_name || conv.customer_name || conv.customer_phone;
+                      
+                      return (
+                        <div
+                          key={conv.id}
+                          className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                            selectedConversation?.id === conv.id ? 'bg-muted' : ''
+                          }`}
+                          onClick={() => setSelectedConversation(conv)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback>
+                                {displayName?.charAt(0) || <User className="h-4 w-4" />}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <p className="font-medium truncate">
+                                    {displayName}
+                                  </p>
+                                  {matchedLead?.pipeline && (
+                                    <Badge variant="secondary" className="text-xs shrink-0">
+                                      {matchedLead.pipeline}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {conv.unread_count > 0 && (
+                                    <Badge className="bg-green-600">{conv.unread_count}</Badge>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm('Eliminare questa conversazione?')) {
+                                        deleteConversationMutation.mutate(conv.id);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conv.last_message_preview || 'Nessun messaggio'}
-                            </p>
-                            {conv.last_message_at && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true, locale: it })}
+                              {matchedLead && (
+                                <p className="text-xs text-muted-foreground">
+                                  {conv.customer_phone}
+                                </p>
+                              )}
+                              <p className="text-sm text-muted-foreground truncate">
+                                {conv.last_message_preview || 'Nessun messaggio'}
                               </p>
-                            )}
+                              {conv.last_message_at && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true, locale: it })}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {(!filteredConversations || filteredConversations.length === 0) && (
                       <div className="p-8 text-center text-muted-foreground">
                         <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
