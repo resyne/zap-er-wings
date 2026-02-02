@@ -191,7 +191,7 @@ export default function WhatsAppPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, contact_name, phone, email, pipeline, external_configurator_link')
+        .select('id, contact_name, phone, email, pipeline, external_configurator_link, country')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -1135,6 +1135,43 @@ export default function WhatsAppPage() {
                       const matchedLead = findLeadByPhone(conv.customer_phone);
                       const displayName = matchedLead?.contact_name || conv.customer_name || conv.customer_phone;
                       
+                      // Helper per ottenere la bandiera del paese
+                      const getCountryFlag = (country: string | null | undefined) => {
+                        const flags: Record<string, string> = {
+                          'Italia': '🇮🇹',
+                          'Italy': '🇮🇹',
+                          'Francia': '🇫🇷',
+                          'France': '🇫🇷',
+                          'Germania': '🇩🇪',
+                          'Germany': '🇩🇪',
+                          'Spagna': '🇪🇸',
+                          'Spain': '🇪🇸',
+                          'Regno Unito': '🇬🇧',
+                          'United Kingdom': '🇬🇧',
+                          'UK': '🇬🇧',
+                          'Portogallo': '🇵🇹',
+                          'Portugal': '🇵🇹',
+                          'Olanda': '🇳🇱',
+                          'Netherlands': '🇳🇱',
+                          'Belgio': '🇧🇪',
+                          'Belgium': '🇧🇪',
+                          'Austria': '🇦🇹',
+                          'Svizzera': '🇨🇭',
+                          'Switzerland': '🇨🇭',
+                          'USA': '🇺🇸',
+                          'United States': '🇺🇸',
+                          'Stati Uniti': '🇺🇸',
+                          'Grecia': '🇬🇷',
+                          'Greece': '🇬🇷',
+                          'Polonia': '🇵🇱',
+                          'Poland': '🇵🇱',
+                        };
+                        return country ? flags[country] || '🌍' : null;
+                      };
+                      
+                      const leadCountry = (matchedLead as any)?.country;
+                      const countryFlag = getCountryFlag(leadCountry);
+                      
                       return (
                         <div
                           key={conv.id}
@@ -1152,6 +1189,11 @@ export default function WhatsAppPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 min-w-0">
+                                  {countryFlag && (
+                                    <span className="text-base shrink-0" title={leadCountry}>
+                                      {countryFlag}
+                                    </span>
+                                  )}
                                   <p className="font-medium truncate">
                                     {displayName}
                                   </p>
