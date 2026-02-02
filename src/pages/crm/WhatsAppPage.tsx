@@ -167,6 +167,9 @@ export default function WhatsAppPage() {
   // State per preview template
   const [isTemplatePreviewOpen, setIsTemplatePreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<WhatsAppTemplate | null>(null);
+  
+  // State per filtro archiviate
+  const [showArchived, setShowArchived] = useState(false);
 
   // Query per clienti e lead (per associazione)
   const { data: customers } = useQuery({
@@ -920,8 +923,13 @@ export default function WhatsAppPage() {
     });
   };
 
-  // Filtra conversazioni in base alla ricerca
+  // Filtra conversazioni in base alla ricerca e stato archiviazione
   const filteredConversations = conversations?.filter(conv => {
+    // Filtra per stato archiviazione
+    const isArchived = conv.status === 'archived';
+    if (showArchived && !isArchived) return false;
+    if (!showArchived && isArchived) return false;
+    
     if (!conversationSearch) return true;
     const search = conversationSearch.toLowerCase();
     const matchedLead = findLeadByPhone(conv.customer_phone);
@@ -1097,9 +1105,19 @@ export default function WhatsAppPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Conversazioni</CardTitle>
-                    <Button size="sm" onClick={() => setIsNewConversationDialogOpen(true)}>
-                      <UserPlus className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant={showArchived ? "default" : "outline"}
+                        onClick={() => setShowArchived(!showArchived)}
+                        title={showArchived ? "Mostra attive" : "Mostra archiviate"}
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" onClick={() => setIsNewConversationDialogOpen(true)}>
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="relative mt-2">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
