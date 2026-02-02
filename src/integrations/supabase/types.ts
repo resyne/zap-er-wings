@@ -10318,6 +10318,7 @@ export type Database = {
           last_message_at: string | null
           last_message_preview: string | null
           lead_id: string | null
+          rating: number | null
           status: string | null
           unread_count: number | null
           updated_at: string
@@ -10334,6 +10335,7 @@ export type Database = {
           last_message_at?: string | null
           last_message_preview?: string | null
           lead_id?: string | null
+          rating?: number | null
           status?: string | null
           unread_count?: number | null
           updated_at?: string
@@ -10350,6 +10352,7 @@ export type Database = {
           last_message_at?: string | null
           last_message_preview?: string | null
           lead_id?: string | null
+          rating?: number | null
           status?: string | null
           unread_count?: number | null
           updated_at?: string
