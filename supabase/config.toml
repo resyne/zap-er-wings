@@ -108,6 +108,9 @@ verify_jwt = false
 [functions.analyze-leads-priority]
 verify_jwt = false
 
+[functions.translate-chat-message]
+verify_jwt = false
+
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
   cron = "*/5 * * * *"
