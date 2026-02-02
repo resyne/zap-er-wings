@@ -17,6 +17,7 @@ import LeadFileUpload from "@/components/crm/LeadFileUpload";
 import LeadComments from "@/components/crm/LeadComments";
 import LeadCallHistory from "@/components/crm/LeadCallHistory";
 import LeadWhatsApp from "@/components/crm/LeadWhatsApp";
+import LeadWhatsAppChat from "@/components/crm/LeadWhatsAppChat";
 import { GenerateConfiguratorLink } from "@/components/crm/GenerateConfiguratorLink";
 import { ConfiguratorStatus } from "@/components/crm/ConfiguratorStatus";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -2529,11 +2530,19 @@ export default function LeadsPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-3 pb-3 border-t pt-3">
-                    <LeadWhatsApp 
-                      leadId={selectedLead.id} 
-                      leadPhone={selectedLead.phone} 
-                      leadName={selectedLead.contact_name || selectedLead.company_name}
-                    />
+                    {selectedLead.phone ? (
+                      <LeadWhatsAppChat 
+                        leadId={selectedLead.id} 
+                        leadPhone={selectedLead.phone}
+                        leadName={selectedLead.contact_name || selectedLead.company_name}
+                        leadCountry={selectedLead.country}
+                      />
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground text-sm">
+                        <MessageCircle className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                        Nessun numero di telefono associato
+                      </div>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
