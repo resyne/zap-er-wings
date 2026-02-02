@@ -922,6 +922,29 @@ const syncTemplatesMutation = useMutation({
     }
   });
 
+  // Mutation per marcare una conversazione come letta (reset unread_count)
+  const markAsReadMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ unread_count: 0 })
+        .eq('id', conversationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+    }
+  });
+
+  // Handler per selezionare una conversazione e marcarla come letta
+  const handleSelectConversation = (conv: WhatsAppConversation) => {
+    setSelectedConversation(conv);
+    // Marca come letta se ha messaggi non letti
+    if (conv.unread_count > 0) {
+      markAsReadMutation.mutate(conv.id);
+    }
+  };
+
   // Helper per normalizzare numero di telefono (ultimi 8 digit)
   const normalizePhone = (phone: string | null | undefined): string => {
     if (!phone) return '';
@@ -1198,7 +1221,7 @@ const syncTemplatesMutation = useMutation({
                           className={`group p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
                             selectedConversation?.id === conv.id ? 'bg-muted' : ''
                           }`}
-                          onClick={() => setSelectedConversation(conv)}
+                          onClick={() => handleSelectConversation(conv)}
                         >
                           <div className="flex items-start gap-3">
                             <Avatar className="h-10 w-10">
