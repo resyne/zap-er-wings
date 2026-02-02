@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle, Sparkles } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle, Sparkles, Settings2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
@@ -159,6 +159,7 @@ export default function LeadsPage() {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("Zapper");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
+  const [showConfiguratorOnly, setShowConfiguratorOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>("priority");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1129,9 +1130,10 @@ export default function LeadsPage() {
         .includes(searchTerm.toLowerCase());
       const matchesPipeline = !selectedPipeline || lead.pipeline?.toLowerCase() === selectedPipeline.toLowerCase();
       const matchesCountry = selectedCountry === "all" || lead.country === selectedCountry;
+      const matchesConfigurator = !showConfiguratorOnly || lead.configurator_opened === true;
       const isArchived = lead.archived === true;
       const matchesArchived = showArchived ? isArchived : !isArchived;
-      return matchesSearch && matchesPipeline && matchesCountry && matchesArchived;
+      return matchesSearch && matchesPipeline && matchesCountry && matchesConfigurator && matchesArchived;
     });
 
     return filtered.sort((a, b) => {
@@ -1160,7 +1162,7 @@ export default function LeadsPage() {
           return 0;
       }
     });
-  }, [leads, searchTerm, selectedPipeline, selectedCountry, showArchived, sortBy, priorityOrder]);
+  }, [leads, searchTerm, selectedPipeline, selectedCountry, showConfiguratorOnly, showArchived, sortBy, priorityOrder]);
 
   // OPTIMIZED: Memoize grouping by status
   const leadsByStatus = useMemo(() => {
@@ -1917,6 +1919,19 @@ export default function LeadsPage() {
               </SelectContent>
             </Select>
           </div>
+          <Button
+            type="button"
+            variant={showConfiguratorOnly ? "default" : "outline"}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowConfiguratorOnly((prev) => !prev);
+            }}
+            size="sm"
+            className={showConfiguratorOnly ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+          >
+            <Settings2 className="h-4 w-4 mr-2" />
+            Configuratore
+          </Button>
           <Button
             type="button"
             variant={showArchived ? "default" : "outline"}
