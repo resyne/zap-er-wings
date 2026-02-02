@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Eye, Pencil, AlertCircle, CheckCircle2, Clock, XCircle,
-  FileText, Image, Video, Loader2, Trash2, Copy, Send, Plus, X, Phone, Link
+  FileText, Image, Video, Loader2, Trash2, Copy, Send, Plus, X, Phone, Link, Upload
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -55,8 +55,10 @@ export function WhatsAppTemplatePreview({
     header: "",
     footer: "",
     headerType: "none" as "none" | "text" | "image" | "document" | "video",
+    headerMediaUrl: "" as string,
     buttons: [] as { type: string; text: string; url?: string; phone_number?: string }[]
   });
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   // Initialize edit data when template changes
   useEffect(() => {
@@ -69,6 +71,7 @@ export function WhatsAppTemplatePreview({
         header: components.header,
         footer: components.footer,
         headerType: components.headerType,
+        headerMediaUrl: components.headerMediaUrl || "",
         buttons: components.buttons
       });
       setActiveTab("preview");
@@ -80,15 +83,17 @@ export function WhatsAppTemplatePreview({
     body: string;
     footer: string;
     headerType: "none" | "text" | "image" | "document" | "video";
+    headerMediaUrl: string;
     buttons: { type: string; text: string; url?: string }[];
   } => {
     let header = "";
     let body = "";
     let footer = "";
     let headerType: "none" | "text" | "image" | "document" | "video" = "none";
+    let headerMediaUrl = "";
     let buttons: { type: string; text: string; url?: string }[] = [];
 
-    if (!components) return { header, body, footer, headerType, buttons };
+    if (!components) return { header, body, footer, headerType, headerMediaUrl, buttons };
 
     // Handle old format (single body object)
     if (components.body?.text) {
@@ -97,6 +102,7 @@ export function WhatsAppTemplatePreview({
         body: components.body.text, 
         footer: "", 
         headerType: "none",
+        headerMediaUrl: "",
         buttons: []
       };
     }
@@ -111,10 +117,13 @@ export function WhatsAppTemplatePreview({
               header = comp.text || "";
             } else if (comp.format === "IMAGE") {
               headerType = "image";
+              headerMediaUrl = comp.example?.header_handle?.[0] || comp.media_url || "";
             } else if (comp.format === "DOCUMENT") {
               headerType = "document";
+              headerMediaUrl = comp.example?.header_handle?.[0] || comp.media_url || "";
             } else if (comp.format === "VIDEO") {
               headerType = "video";
+              headerMediaUrl = comp.example?.header_handle?.[0] || comp.media_url || "";
             }
             break;
           case "BODY":
@@ -134,7 +143,7 @@ export function WhatsAppTemplatePreview({
       }
     }
 
-    return { header, body, footer, headerType, buttons };
+    return { header, body, footer, headerType, headerMediaUrl, buttons };
   };
 
   const getStatusIcon = (status: string) => {
@@ -210,10 +219,19 @@ export function WhatsAppTemplatePreview({
           text: editData.header
         });
       } else if (editData.headerType !== "text") {
-        components.push({
+        const headerComp: any = {
           type: "HEADER",
           format: editData.headerType.toUpperCase()
-        });
+        };
+        // Add media URL if present (for sample media during template creation)
+        if (editData.headerMediaUrl) {
+          headerComp.media_url = editData.headerMediaUrl;
+          // Meta API format for examples
+          headerComp.example = {
+            header_handle: [editData.headerMediaUrl]
+          };
+        }
+        components.push(headerComp);
       }
     }
     
@@ -559,6 +577,120 @@ export function WhatsAppTemplatePreview({
                     onChange={(e) => setEditData({ ...editData, header: e.target.value })}
                     placeholder="Testo header"
                   />
+                )}
+                
+                {/* Media upload for image/document/video headers */}
+                {(editData.headerType === "image" || editData.headerType === "document" || editData.headerType === "video") && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editData.headerMediaUrl}
+                        onChange={(e) => setEditData({ ...editData, headerMediaUrl: e.target.value })}
+                        placeholder={`URL ${editData.headerType === "image" ? "immagine" : editData.headerType === "document" ? "documento" : "video"} (es. https://...)`}
+                        className="flex-1"
+                      />
+                      <span className="text-muted-foreground">oppure</span>
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept={
+                            editData.headerType === "image" 
+                              ? "image/jpeg,image/png" 
+                              : editData.headerType === "document" 
+                                ? ".pdf" 
+                                : "video/mp4"
+                          }
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            setIsUploadingMedia(true);
+                            try {
+                              const fileExt = file.name.split('.').pop();
+                              const fileName = `template-media/${Date.now()}.${fileExt}`;
+                              
+                              const { data, error } = await supabase.storage
+                                .from('whatsapp-media')
+                                .upload(fileName, file, {
+                                  cacheControl: '3600',
+                                  upsert: false
+                                });
+                              
+                              if (error) throw error;
+                              
+                              const { data: urlData } = supabase.storage
+                                .from('whatsapp-media')
+                                .getPublicUrl(fileName);
+                              
+                              setEditData({ ...editData, headerMediaUrl: urlData.publicUrl });
+                              toast.success("File caricato!");
+                            } catch (err: any) {
+                              toast.error(`Errore upload: ${err.message}`);
+                            } finally {
+                              setIsUploadingMedia(false);
+                            }
+                          }}
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          disabled={isUploadingMedia}
+                          asChild
+                        >
+                          <span>
+                            {isUploadingMedia ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+                    
+                    {/* Preview */}
+                    {editData.headerMediaUrl && (
+                      <div className="border rounded p-2 bg-muted/50">
+                        {editData.headerType === "image" ? (
+                          <img 
+                            src={editData.headerMediaUrl} 
+                            alt="Header preview" 
+                            className="max-h-32 rounded"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm">
+                            {editData.headerType === "document" ? (
+                              <FileText className="h-4 w-4" />
+                            ) : (
+                              <Video className="h-4 w-4" />
+                            )}
+                            <span className="truncate">{editData.headerMediaUrl}</span>
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1"
+                          onClick={() => setEditData({ ...editData, headerMediaUrl: "" })}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Rimuovi
+                        </Button>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-muted-foreground">
+                      {editData.headerType === "image" && "Formati: JPEG, PNG. Max 5MB."}
+                      {editData.headerType === "document" && "Formato: PDF. Max 100MB."}
+                      {editData.headerType === "video" && "Formato: MP4. Max 16MB."}
+                    </p>
+                  </div>
                 )}
               </div>
 
