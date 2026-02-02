@@ -10553,6 +10553,7 @@ export type Database = {
           created_at: string
           example_values: Json | null
           id: string
+          is_disabled: boolean
           language: string
           meta_template_id: string | null
           name: string
@@ -10568,6 +10569,7 @@ export type Database = {
           created_at?: string
           example_values?: Json | null
           id?: string
+          is_disabled?: boolean
           language?: string
           meta_template_id?: string | null
           name: string
@@ -10583,6 +10585,7 @@ export type Database = {
           created_at?: string
           example_values?: Json | null
           id?: string
+          is_disabled?: boolean
           language?: string
           meta_template_id?: string | null
           name?: string
