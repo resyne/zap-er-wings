@@ -86,12 +86,9 @@ serve(async (req) => {
         continue;
       }
       
-      // Skip conditional steps - they should only be triggered by button replies via webhook
-      if (step.trigger_type && step.trigger_type !== 'delay') {
-        console.log(`Skipping conditional step execution ${execution.id}: trigger_type=${step.trigger_type}, waiting for trigger`);
-        skipped++;
-        continue;
-      }
+      // Note: Conditional steps (trigger_type = 'button_reply') are now processed normally
+      // The webhook creates the execution when the button is clicked, so if we have a pending execution
+      // for a conditional step, it means the trigger already happened and we should process it.
 
       // Check if campaign is still active
       if (!campaign.is_active) {
