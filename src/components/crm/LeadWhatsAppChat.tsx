@@ -11,11 +11,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   MessageCircle, Check, CheckCheck, Clock, AlertCircle, 
   Image, FileText, Video, Mic, RefreshCw, Send, Loader2,
-  Bot, Lock, Unlock, Paperclip, X, Timer
+  Bot, Lock, Unlock, Paperclip, X, Timer, Languages, Globe
 } from "lucide-react";
 import { format, differenceInHours, differenceInMinutes } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
+import { useChatTranslation, SUPPORTED_LANGUAGES, getLanguageFromCountry, getLanguageFlag, getLanguageName } from "@/hooks/useChatTranslation";
 
 interface LeadWhatsAppChatProps {
   leadId: string;
@@ -109,6 +110,19 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [attachedFile, setAttachedFile] = useState<{ url: string; name: string; type: 'image' | 'document' | 'video' | 'audio' } | null>(null);
+  
+  // Translation state
+  const [targetLanguage, setTargetLanguage] = useState<string>(() => getLanguageFromCountry(leadCountry));
+  const [showTranslationMode, setShowTranslationMode] = useState(false);
+  const {
+    translateIncoming,
+    translateOutbound,
+    outboundTranslation,
+    clearOutboundTranslation,
+    isTranslatingOutbound,
+    isMessageTranslating,
+    getCachedTranslation
+  } = useChatTranslation();
 
   // Get current user
   useEffect(() => {
@@ -534,7 +548,110 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       );
     }
     
+    // For inbound messages, show with translation
+    if (msg.direction === 'inbound' && msg.content) {
+      return <TranslatedMessageBubbleInline messageId={msg.id} originalText={msg.content} />;
+    }
+    
     return <p className="text-sm whitespace-pre-wrap">{msg.content || ""}</p>;
+  };
+
+  // Inline component for translated messages
+  const TranslatedMessageBubbleInline = ({ messageId, originalText }: { messageId: string; originalText: string }) => {
+    const [translation, setTranslation] = useState<{
+      translatedText: string;
+      sourceLanguage: string;
+      sourceLanguageName?: string;
+      sameLanguage?: boolean;
+    } | null>(null);
+    const [showTranslation, setShowTranslation] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasChecked, setHasChecked] = useState(false);
+
+    useEffect(() => {
+      if (hasChecked) return;
+      
+      const cached = getCachedTranslation(messageId);
+      if (cached) {
+        if (!cached.same_language) {
+          setTranslation({
+            translatedText: cached.translation,
+            sourceLanguage: cached.source_language,
+            sourceLanguageName: cached.source_language_name,
+            sameLanguage: cached.same_language
+          });
+        }
+        setHasChecked(true);
+        return;
+      }
+
+      // Simple heuristic: check for common Italian words
+      const italianWords = ['ciao', 'buongiorno', 'grazie', 'salve', 'vorrei', 'avrei', 'posso', 'come', 'quando', 'dove', 'perché', 'sono', 'siamo', 'hai', 'abbiamo', 'buona', 'sera', 'giorno'];
+      const lowerText = originalText.toLowerCase();
+      const hasItalianWords = italianWords.some(word => lowerText.includes(word));
+      
+      if (hasItalianWords && lowerText.length < 150) {
+        setHasChecked(true);
+        return;
+      }
+
+      setIsLoading(true);
+      translateIncoming(messageId, originalText).then(result => {
+        if (result && !result.same_language) {
+          setTranslation({
+            translatedText: result.translation,
+            sourceLanguage: result.source_language,
+            sourceLanguageName: result.source_language_name,
+            sameLanguage: result.same_language
+          });
+        }
+        setHasChecked(true);
+        setIsLoading(false);
+      });
+    }, [messageId, originalText, hasChecked]);
+
+    if (!translation) {
+      return (
+        <div>
+          <p className="text-sm whitespace-pre-wrap">{originalText}</p>
+          {isLoading && (
+            <div className="flex items-center gap-1 text-xs opacity-60 mt-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Traduzione...
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        {/* Original text */}
+        <div className="flex items-center gap-1 mb-0.5">
+          <span className="text-xs">{getLanguageFlag(translation.sourceLanguage)}</span>
+          <span className="text-[10px] opacity-60">{getLanguageName(translation.sourceLanguage)}</span>
+        </div>
+        <p className="text-sm whitespace-pre-wrap opacity-70 italic text-xs">{originalText}</p>
+        
+        {/* Translation */}
+        {showTranslation && (
+          <div className="border-t border-current/10 pt-1 mt-1">
+            <div className="flex items-center gap-1 mb-0.5">
+              <span className="text-xs">🇮🇹</span>
+              <span className="text-[10px] opacity-60">Traduzione</span>
+            </div>
+            <p className="text-sm whitespace-pre-wrap">{translation.translatedText}</p>
+          </div>
+        )}
+        
+        <button
+          className="text-[10px] opacity-50 hover:opacity-80 underline"
+          onClick={() => setShowTranslation(!showTranslation)}
+        >
+          {showTranslation ? "Nascondi" : "Mostra traduzione"}
+        </button>
+      </div>
+    );
   };
 
   const getSelectedTemplatePreview = () => {
@@ -745,6 +862,114 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
           {/* Free-form text input (only when window is open) */}
           {windowStatus.isOpen && (
             <div className="space-y-2">
+              {/* Translation mode toggle and selector */}
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <Button
+                  variant={showTranslationMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setShowTranslationMode(!showTranslationMode);
+                    clearOutboundTranslation();
+                  }}
+                  className="h-7"
+                >
+                  <Languages className="h-3.5 w-3.5 mr-1" />
+                  Traduci
+                </Button>
+                
+                {showTranslationMode && (
+                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                    <SelectTrigger className="w-[140px] h-7 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LANGUAGES.filter(l => l.code !== 'it').map(lang => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.flag} {lang.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
+                <div className="flex-1 text-right text-xs text-muted-foreground">
+                  {showTranslationMode ? (
+                    <>Scrivi in italiano → traduci in {getLanguageName(targetLanguage)}</>
+                  ) : (
+                    <>Modalità diretta</>
+                  )}
+                </div>
+              </div>
+
+              {/* Outbound translation preview */}
+              {outboundTranslation && showTranslationMode && (
+                <div className="p-2 bg-accent/50 rounded-lg border border-accent space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-medium">Anteprima traduzione</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={clearOutboundTranslation}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">🇮🇹 Originale:</span>
+                      <p className="text-xs opacity-70">{outboundTranslation.original}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">{getLanguageFlag(outboundTranslation.targetLang)} {getLanguageName(outboundTranslation.targetLang)}:</span>
+                      <p className="text-sm font-medium">{outboundTranslation.translated}</p>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={async () => {
+                      // Send the translated message
+                      setIsSending(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+                          body: {
+                            account_id: selectedAccountId,
+                            to: conversation!.customer_phone,
+                            type: 'text',
+                            content: outboundTranslation.translated,
+                            sent_by: currentUserId,
+                            lead_id: leadId
+                          }
+                        });
+                        
+                        if (error || !data?.success) {
+                          throw new Error(data?.error || 'Errore invio messaggio');
+                        }
+                        
+                        setMessage('');
+                        clearOutboundTranslation();
+                        refetchMessages();
+                        toast.success('Messaggio tradotto inviato');
+                      } catch (err: any) {
+                        toast.error(err.message || 'Errore invio');
+                      } finally {
+                        setIsSending(false);
+                      }
+                    }}
+                    disabled={isSending}
+                  >
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                    Invia traduzione
+                  </Button>
+                </div>
+              )}
+
               {/* Attached file preview */}
               {attachedFile && (
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
@@ -801,30 +1026,62 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                 </Button>
                 
                 <Input
-                  placeholder={attachedFile ? "Aggiungi una didascalia..." : "Scrivi un messaggio..."}
+                  placeholder={
+                    attachedFile 
+                      ? "Aggiungi una didascalia..." 
+                      : showTranslationMode 
+                        ? "Scrivi in italiano..." 
+                        : "Scrivi un messaggio..."
+                  }
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    // Clear any previous translation when typing
+                    if (outboundTranslation) clearOutboundTranslation();
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       if (attachedFile) {
                         sendMediaMessage();
                       } else if (message.trim()) {
-                        sendTextMessage();
+                        if (showTranslationMode && !outboundTranslation) {
+                          // Translate first
+                          translateOutbound(message, targetLanguage);
+                        } else {
+                          sendTextMessage();
+                        }
                       }
                     }
                   }}
-                  disabled={isSending}
+                  disabled={isSending || isTranslatingOutbound}
                   className="flex-1"
                 />
                 
-                <Button 
-                  onClick={attachedFile ? sendMediaMessage : sendTextMessage}
-                  disabled={isSending || (!attachedFile && !message.trim())}
-                  size="icon"
-                >
-                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
+                {/* Translate / Send button */}
+                {showTranslationMode && !outboundTranslation ? (
+                  <Button 
+                    onClick={() => translateOutbound(message, targetLanguage)}
+                    disabled={isSending || isTranslatingOutbound || !message.trim()}
+                    size="icon"
+                    variant="secondary"
+                    title="Traduci messaggio"
+                  >
+                    {isTranslatingOutbound ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Languages className="h-4 w-4" />
+                    )}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={attachedFile ? sendMediaMessage : sendTextMessage}
+                    disabled={isSending || (!attachedFile && !message.trim())}
+                    size="icon"
+                  >
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                )}
               </div>
             </div>
           )}
