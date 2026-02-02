@@ -56,6 +56,7 @@ interface WhatsAppMessage {
   status: string;
   error_message: string | null;
   created_at: string;
+  sent_by: string | null;
 }
 
 interface WhatsAppTemplate {
@@ -104,6 +105,14 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
   const [isSending, setIsSending] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [templateParams, setTemplateParams] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id || null);
+    });
+  }, []);
 
   // Fetch active WhatsApp Business API accounts
   const { data: accounts, isLoading: accountsLoading } = useQuery({
@@ -118,6 +127,26 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       return data as WhatsAppAccount[];
     }
   });
+
+  // Fetch user profiles for showing who sent messages
+  const { data: userProfiles } = useQuery({
+    queryKey: ['user-profiles-for-chat'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email');
+      if (error) throw error;
+      return data as { id: string; first_name: string | null; last_name: string | null; email: string | null }[];
+    }
+  });
+
+  const getUserName = (userId: string | null): string | null => {
+    if (!userId || !userProfiles) return null;
+    const profile = userProfiles.find(p => p.id === userId);
+    if (!profile) return null;
+    const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+    return fullName || profile.email || null;
+  };
 
   // Auto-select first account
   useEffect(() => {
@@ -194,7 +223,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     refetchInterval: 5000
   });
 
-  // Fetch approved templates for the account
+  // Fetch approved templates for the account (for sending)
   const { data: templates } = useQuery({
     queryKey: ['whatsapp-templates-approved', selectedAccountId],
     queryFn: async () => {
@@ -205,6 +234,24 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
         .select('id, name, language, category, status, components')
         .eq('account_id', selectedAccountId)
         .eq('status', 'APPROVED')
+        .order('name');
+      
+      if (error) throw error;
+      return data as WhatsAppTemplate[];
+    },
+    enabled: !!selectedAccountId
+  });
+
+  // Fetch ALL templates for message display (includes all languages)
+  const { data: allTemplates } = useQuery({
+    queryKey: ['whatsapp-templates-all', selectedAccountId],
+    queryFn: async () => {
+      if (!selectedAccountId) return [];
+      
+      const { data, error } = await supabase
+        .from('whatsapp_templates')
+        .select('id, name, language, category, status, components')
+        .eq('account_id', selectedAccountId)
         .order('name');
       
       if (error) throw error;
@@ -263,7 +310,9 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
           account_id: selectedAccountId,
           to: conversation.customer_phone,
           type: 'text',
-          content: message.trim()
+          content: message.trim(),
+          sent_by: currentUserId,
+          lead_id: leadId
         }
       });
       
@@ -297,7 +346,9 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
           type: 'template',
           template_name: template.name,
           template_language: template.language,
-          template_params: templateParams.filter(p => p.trim() !== '')
+          template_params: templateParams.filter(p => p.trim() !== ''),
+          sent_by: currentUserId,
+          lead_id: leadId
         }
       });
       
@@ -329,8 +380,9 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
 
   // Helper to resolve template content from templates list
   const resolveTemplateContent = (templateName: string, templateParams: any[] | null): string => {
-    // Find matching template in the loaded templates
-    const template = templates?.find(t => t.name === templateName);
+    // Find matching template in ALL templates (includes all languages)
+    // Try to find any version of this template
+    const template = allTemplates?.find(t => t.name === templateName) || templates?.find(t => t.name === templateName);
     if (!template || !Array.isArray(template.components)) {
       return `[Template: ${templateName}]`;
     }
@@ -360,7 +412,15 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       footerText = '\n\n' + footerComponent.text;
     }
     
-    return headerText + bodyText + footerText;
+    // Get buttons if present
+    const buttonsComponent = template.components.find((c: any) => c.type === 'BUTTONS');
+    let buttonsText = '';
+    if (buttonsComponent?.buttons && Array.isArray(buttonsComponent.buttons)) {
+      const buttonLabels = buttonsComponent.buttons.map((b: any) => `🔘 ${b.text}`).join(' | ');
+      buttonsText = '\n\n' + buttonLabels;
+    }
+    
+    return headerText + bodyText + footerText + buttonsText;
   };
 
   const renderMessageContent = (msg: WhatsAppMessage) => {
@@ -502,6 +562,18 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                           : 'bg-muted'
                       }`}
                     >
+                      {/* Show who sent the message for outbound */}
+                      {msg.direction === 'outbound' && msg.sent_by && (
+                        <p className="text-xs opacity-70 mb-1 font-medium">
+                          {getUserName(msg.sent_by) || 'Operatore'}
+                        </p>
+                      )}
+                      {msg.direction === 'outbound' && !msg.sent_by && msg.message_type === 'template' && (
+                        <p className="text-xs opacity-70 mb-1 font-medium flex items-center gap-1">
+                          <Bot className="h-3 w-3" /> Automazione
+                        </p>
+                      )}
+                      
                       {renderMessageContent(msg)}
                       
                       <div className={`flex items-center gap-1 mt-1 ${
