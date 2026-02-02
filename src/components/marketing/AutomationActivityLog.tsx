@@ -24,6 +24,32 @@ export function AutomationActivityLog() {
 
   useEffect(() => {
     loadLogs();
+
+    // Subscribe to realtime updates for both tables
+    const emailChannel = supabase
+      .channel('email-automation-logs')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'lead_automation_executions' },
+        () => loadLogs()
+      )
+      .subscribe();
+
+    const whatsappChannel = supabase
+      .channel('whatsapp-automation-logs')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'whatsapp_automation_executions' },
+        () => loadLogs()
+      )
+      .subscribe();
+
+    // Also refresh every 30 seconds as fallback
+    const interval = setInterval(loadLogs, 30000);
+
+    return () => {
+      supabase.removeChannel(emailChannel);
+      supabase.removeChannel(whatsappChannel);
+      clearInterval(interval);
+    };
   }, []);
 
   const loadLogs = async () => {
