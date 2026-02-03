@@ -177,6 +177,15 @@ export default function WhatsAppPage() {
   
   // State per filtro lingua
   const [languageFilter, setLanguageFilter] = useState<string>("all");
+  
+  // State per edit account
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [editAccountData, setEditAccountData] = useState({
+    phone_number_id: '',
+    display_phone_number: '',
+    waba_id: '',
+    verified_name: ''
+  });
 
   // Translation state
   const [showTranslation, setShowTranslation] = useState(false);
@@ -429,6 +438,29 @@ export default function WhatsAppPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
       toast.success('Pipeline aggiornata');
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  const updateAccountDetailsMutation = useMutation({
+    mutationFn: async ({ accountId, data }: { accountId: string; data: { phone_number_id: string; display_phone_number: string; waba_id: string; verified_name: string | null } }) => {
+      const { error } = await supabase
+        .from('whatsapp_accounts')
+        .update({
+          phone_number_id: data.phone_number_id,
+          display_phone_number: data.display_phone_number,
+          waba_id: data.waba_id,
+          verified_name: data.verified_name
+        })
+        .eq('id', accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
+      toast.success('Dati account aggiornati');
+      setIsEditingAccount(false);
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -2149,27 +2181,105 @@ const syncTemplatesMutation = useMutation({
           <TabsContent value="settings" className="mt-4 space-y-6">
             {/* Account Info Card */}
             <Card>
-              <CardHeader>
-                <CardTitle>Configurazione Account</CardTitle>
-                <CardDescription>Dettagli dell'account WhatsApp Business</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Configurazione Account</CardTitle>
+                  <CardDescription>Dettagli dell'account WhatsApp Business</CardDescription>
+                </div>
+                {!isEditingAccount ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingAccount(true);
+                      setEditAccountData({
+                        phone_number_id: selectedAccount.phone_number_id,
+                        display_phone_number: selectedAccount.display_phone_number,
+                        waba_id: selectedAccount.waba_id,
+                        verified_name: selectedAccount.verified_name || ''
+                      });
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Modifica
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingAccount(false)}
+                    >
+                      Annulla
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        updateAccountDetailsMutation.mutate({
+                          accountId: selectedAccount.id,
+                          data: {
+                            phone_number_id: editAccountData.phone_number_id,
+                            display_phone_number: editAccountData.display_phone_number,
+                            waba_id: editAccountData.waba_id,
+                            verified_name: editAccountData.verified_name || null
+                          }
+                        });
+                      }}
+                      disabled={updateAccountDetailsMutation.isPending}
+                    >
+                      {updateAccountDetailsMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : null}
+                      Salva
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Phone Number ID</Label>
-                    <Input value={selectedAccount.phone_number_id} readOnly className="bg-muted" />
+                    {isEditingAccount ? (
+                      <Input 
+                        value={editAccountData.phone_number_id} 
+                        onChange={(e) => setEditAccountData(prev => ({ ...prev, phone_number_id: e.target.value }))}
+                      />
+                    ) : (
+                      <Input value={selectedAccount.phone_number_id} readOnly className="bg-muted" />
+                    )}
                   </div>
                   <div>
                     <Label>Numero</Label>
-                    <Input value={selectedAccount.display_phone_number} readOnly className="bg-muted" />
+                    {isEditingAccount ? (
+                      <Input 
+                        value={editAccountData.display_phone_number} 
+                        onChange={(e) => setEditAccountData(prev => ({ ...prev, display_phone_number: e.target.value }))}
+                      />
+                    ) : (
+                      <Input value={selectedAccount.display_phone_number} readOnly className="bg-muted" />
+                    )}
                   </div>
                   <div>
                     <Label>WABA ID</Label>
-                    <Input value={selectedAccount.waba_id} readOnly className="bg-muted" />
+                    {isEditingAccount ? (
+                      <Input 
+                        value={editAccountData.waba_id} 
+                        onChange={(e) => setEditAccountData(prev => ({ ...prev, waba_id: e.target.value }))}
+                      />
+                    ) : (
+                      <Input value={selectedAccount.waba_id} readOnly className="bg-muted" />
+                    )}
                   </div>
                   <div>
                     <Label>Nome Verificato</Label>
-                    <Input value={selectedAccount.verified_name || '-'} readOnly className="bg-muted" />
+                    {isEditingAccount ? (
+                      <Input 
+                        value={editAccountData.verified_name} 
+                        onChange={(e) => setEditAccountData(prev => ({ ...prev, verified_name: e.target.value }))}
+                      />
+                    ) : (
+                      <Input value={selectedAccount.verified_name || '-'} readOnly className="bg-muted" />
+                    )}
                   </div>
                 </div>
                 
