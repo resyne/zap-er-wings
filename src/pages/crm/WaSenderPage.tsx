@@ -915,6 +915,7 @@ export default function WaSenderPage() {
                                       status={msg.status}
                                       errorMessage={msg.error_message}
                                       showLabel={msg.status === 'failed'}
+                                      isOutbound={true}
                                     />
                                   )}
                                 </div>

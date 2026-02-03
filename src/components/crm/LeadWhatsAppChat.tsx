@@ -875,6 +875,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                             templateParams={msg.template_params}
                             onRetrySuccess={() => queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', conversation?.id] })}
                             showLabel={msg.status === 'failed'}
+                            isOutbound={true}
                           />
                         )}
                       </div>

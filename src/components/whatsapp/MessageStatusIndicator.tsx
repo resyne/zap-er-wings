@@ -27,6 +27,7 @@ interface MessageStatusIndicatorProps {
   onRetrySuccess?: () => void;
   showLabel?: boolean;
   size?: 'sm' | 'md';
+  isOutbound?: boolean; // For styling on green bubble background
 }
 
 const statusConfig: Record<MessageStatus, { 
@@ -35,41 +36,47 @@ const statusConfig: Record<MessageStatus, {
   description: string;
   colorClass: string;
   bgClass: string;
+  outboundColorClass: string; // For messages on green background
 }> = {
   pending: {
     icon: Clock,
     label: 'In attesa',
     description: 'Messaggio in coda per l\'invio',
     colorClass: 'text-amber-500',
-    bgClass: 'bg-amber-500/10'
+    bgClass: 'bg-amber-500/10',
+    outboundColorClass: 'text-amber-200'
   },
   sent: {
     icon: Check,
     label: 'Inviato',
     description: 'Messaggio inviato al server WhatsApp',
     colorClass: 'text-gray-400',
-    bgClass: 'bg-gray-400/10'
+    bgClass: 'bg-gray-400/10',
+    outboundColorClass: 'text-white/70'
   },
   delivered: {
     icon: CheckCheck,
     label: 'Consegnato',
     description: 'Messaggio consegnato al dispositivo',
     colorClass: 'text-gray-400',
-    bgClass: 'bg-gray-400/10'
+    bgClass: 'bg-gray-400/10',
+    outboundColorClass: 'text-white/70'
   },
   read: {
     icon: CheckCheck,
     label: 'Letto',
     description: 'Messaggio visualizzato dal destinatario',
     colorClass: 'text-blue-500',
-    bgClass: 'bg-blue-500/10'
+    bgClass: 'bg-blue-500/10',
+    outboundColorClass: 'text-sky-200'
   },
   failed: {
     icon: AlertCircle,
     label: 'Non inviato',
     description: 'Errore nell\'invio del messaggio',
     colorClass: 'text-destructive',
-    bgClass: 'bg-destructive/10'
+    bgClass: 'bg-destructive/10',
+    outboundColorClass: 'text-red-200'
   }
 };
 
@@ -86,7 +93,8 @@ export function MessageStatusIndicator({
   templateParams,
   onRetrySuccess,
   showLabel = false,
-  size = 'sm'
+  size = 'sm',
+  isOutbound = false
 }: MessageStatusIndicatorProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   
@@ -96,6 +104,12 @@ export function MessageStatusIndicator({
   
   const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
+  
+  // Use appropriate color based on whether this is on green (outbound) background
+  const activeColorClass = isOutbound ? config.outboundColorClass : config.colorClass;
+  const failedBgClass = normalizedStatus === 'failed' 
+    ? (isOutbound ? 'bg-red-900/40' : config.bgClass) 
+    : '';
   
   const handleRetry = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -160,13 +174,13 @@ export function MessageStatusIndicator({
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={cn(
-              "flex items-center gap-1 cursor-default",
-              showLabel && normalizedStatus === 'failed' && "px-1.5 py-0.5 rounded",
-              showLabel && normalizedStatus === 'failed' && config.bgClass
+              "flex items-center gap-1.5 cursor-default",
+              showLabel && normalizedStatus === 'failed' && "px-2 py-1 rounded-md",
+              showLabel && normalizedStatus === 'failed' && failedBgClass
             )}>
-              <Icon className={cn(iconSize, config.colorClass)} />
+              <Icon className={cn(iconSize, activeColorClass)} />
               {showLabel && (
-                <span className={cn(textSize, config.colorClass, "font-medium")}>
+                <span className={cn(textSize, activeColorClass, "font-semibold")}>
                   {config.label}
                 </span>
               )}
@@ -192,16 +206,16 @@ export function MessageStatusIndicator({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "h-5 w-5 rounded-full",
-                  size === 'sm' ? 'h-5 w-5' : 'h-6 w-6'
+                  "rounded-full hover:bg-white/20",
+                  size === 'sm' ? 'h-6 w-6' : 'h-7 w-7'
                 )}
                 onClick={handleRetry}
                 disabled={isRetrying}
               >
                 {isRetrying ? (
-                  <Loader2 className={cn(iconSize, "animate-spin")} />
+                  <Loader2 className={cn(iconSize, "animate-spin", isOutbound ? "text-white/70" : "")} />
                 ) : (
-                  <RefreshCw className={cn(iconSize, "text-muted-foreground hover:text-foreground")} />
+                  <RefreshCw className={cn(iconSize, isOutbound ? "text-white/80 hover:text-white" : "text-muted-foreground hover:text-foreground")} />
                 )}
               </Button>
             </TooltipTrigger>
