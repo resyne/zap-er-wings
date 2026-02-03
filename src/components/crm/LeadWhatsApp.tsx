@@ -14,6 +14,7 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 import WaSenderChatInput from "@/components/wasender/WaSenderChatInput";
+import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
 
 interface LeadWhatsAppProps {
   leadId: string;
@@ -231,16 +232,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
 
   // Note: sendMessageMutation removed - now using WaSenderChatInput component
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'sent': return <Check className="h-3 w-3 text-muted-foreground" />;
-      case 'delivered': return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
-      case 'read': return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case 'pending': return <Clock className="h-3 w-3 text-muted-foreground" />;
-      case 'failed': return <AlertCircle className="h-3 w-3 text-destructive" />;
-      default: return <Clock className="h-3 w-3 text-muted-foreground" />;
-    }
-  };
+  // getStatusIcon replaced by MessageStatusIndicator component
 
   const getMessageTypeIcon = (type: string) => {
     switch (type) {
@@ -409,7 +401,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                 >
                   {renderWaApiMessageContent(msg)}
                   
-                  <div className={`flex items-center gap-1 mt-1 ${
+                  <div className={`flex items-center gap-1.5 mt-1 ${
                     msg.direction === 'outbound' ? 'justify-end' : ''
                   }`}>
                     <span className={`text-xs ${
@@ -417,11 +409,17 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                     }`}>
                       {format(new Date(msg.created_at), 'dd/MM HH:mm')}
                     </span>
-                    {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                    {msg.direction === 'outbound' && (
+                      <MessageStatusIndicator
+                        status={msg.status}
+                        errorMessage={msg.error_message}
+                        showLabel={msg.status === 'failed'}
+                      />
+                    )}
                   </div>
                   
                   {msg.status === 'failed' && msg.error_message && (
-                    <p className="text-xs text-destructive mt-1">{msg.error_message}</p>
+                    <p className="text-xs text-destructive mt-1">⚠️ {msg.error_message}</p>
                   )}
                 </div>
               </div>
@@ -538,7 +536,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     )}
                     
-                    <div className={`flex items-center gap-1 mt-1 ${
+                    <div className={`flex items-center gap-1.5 mt-1 ${
                       msg.direction === 'outbound' ? 'justify-end' : ''
                     }`}>
                       <span className={`text-xs ${
@@ -546,11 +544,17 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                       }`}>
                         {format(new Date(msg.created_at), 'HH:mm')}
                       </span>
-                      {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                      {msg.direction === 'outbound' && (
+                        <MessageStatusIndicator
+                          status={msg.status}
+                          errorMessage={msg.error_message}
+                          showLabel={msg.status === 'failed'}
+                        />
+                      )}
                     </div>
                     
                     {msg.status === 'failed' && msg.error_message && (
-                      <p className="text-xs text-destructive mt-1">{msg.error_message}</p>
+                      <p className="text-xs text-destructive mt-1">⚠️ {msg.error_message}</p>
                     )}
                   </div>
                 </div>
