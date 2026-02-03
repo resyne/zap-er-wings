@@ -31,6 +31,7 @@ import {
 import { WhatsAppChatInput } from "@/components/whatsapp/WhatsAppChatInput";
 import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplatePreview";
 import { WhatsAppTemplateCreator, TemplateFormData } from "@/components/whatsapp/WhatsAppTemplateCreator";
+import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
 import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubble";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
@@ -1107,15 +1108,7 @@ const syncTemplatesMutation = useMutation({
     return dateB - dateA;
   });
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'read': return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case 'delivered': return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
-      case 'sent': return <Check className="h-3 w-3 text-muted-foreground" />;
-      case 'failed': return <AlertCircle className="h-3 w-3 text-destructive" />;
-      default: return <Clock className="h-3 w-3 text-muted-foreground" />;
-    }
-  };
+  // getStatusIcon replaced by MessageStatusIndicator component
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -1612,14 +1605,34 @@ const syncTemplatesMutation = useMutation({
                                     <p className="text-sm whitespace-pre-wrap">{displayText}</p>
                                   )}
                                   
-                                  <div className={`flex items-center justify-end gap-1 mt-1 ${
+                                  <div className={`flex items-center justify-end gap-1.5 mt-1 ${
                                     msg.direction === 'outbound' ? 'text-green-100' : 'text-muted-foreground'
                                   }`}>
                                     <span className="text-xs">
                                       {format(new Date(msg.created_at), 'HH:mm')}
                                     </span>
-                                    {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                                    {msg.direction === 'outbound' && (
+                                      <MessageStatusIndicator
+                                        status={msg.status}
+                                        errorMessage={msg.error_message}
+                                        messageId={msg.id}
+                                        accountId={selectedAccount?.id}
+                                        conversationPhone={selectedConversation?.customer_phone}
+                                        messageType={msg.message_type}
+                                        content={msg.content}
+                                        mediaUrl={msg.media_url}
+                                        templateName={msg.template_name}
+                                        templateParams={msg.template_params}
+                                        onRetrySuccess={() => queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', selectedConversation?.id] })}
+                                        showLabel={msg.status === 'failed'}
+                                      />
+                                    )}
                                   </div>
+                                  {msg.status === 'failed' && msg.error_message && (
+                                    <p className="text-xs text-red-200 mt-1 opacity-90">
+                                      ⚠️ {msg.error_message}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             );

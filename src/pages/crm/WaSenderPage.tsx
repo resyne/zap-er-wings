@@ -24,6 +24,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import WaSenderChatInput from "@/components/wasender/WaSenderChatInput";
+import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
 
 interface BusinessUnit {
   id: string;
@@ -573,15 +574,7 @@ export default function WaSenderPage() {
     );
   });
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'read': return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case 'delivered': return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
-      case 'sent': return <Check className="h-3 w-3 text-muted-foreground" />;
-      case 'failed': return <AlertCircle className="h-3 w-3 text-destructive" />;
-      default: return <Clock className="h-3 w-3 text-muted-foreground" />;
-    }
-  };
+  // getStatusIcon replaced by MessageStatusIndicator component
 
   const startConversationFromContact = (contact: WaSenderContact) => {
     setNewContactData({
@@ -911,16 +904,22 @@ export default function WaSenderPage() {
                                   <p className="text-sm opacity-75">📄 Documento</p>
                                 )}
                                 
-                                <div className={`flex items-center justify-end gap-1 mt-1 ${
+                                <div className={`flex items-center justify-end gap-1.5 mt-1 ${
                                   msg.direction === 'outbound' ? 'text-emerald-100' : 'text-muted-foreground'
                                 }`}>
                                   <span className="text-xs">
                                     {format(new Date(msg.created_at), 'HH:mm')}
                                   </span>
-                                  {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                                  {msg.direction === 'outbound' && (
+                                    <MessageStatusIndicator
+                                      status={msg.status}
+                                      errorMessage={msg.error_message}
+                                      showLabel={msg.status === 'failed'}
+                                    />
+                                  )}
                                 </div>
                                 {msg.error_message && (
-                                  <p className="text-xs text-red-200 mt-1">{msg.error_message}</p>
+                                  <p className="text-xs text-red-200 mt-1">⚠️ {msg.error_message}</p>
                                 )}
                               </div>
                             </div>

@@ -18,6 +18,7 @@ import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { useChatTranslation, SUPPORTED_LANGUAGES, getLanguageFromCountry, getLanguageFlag, getLanguageName } from "@/hooks/useChatTranslation";
 import WhatsAppAudioPlayer from "./WhatsAppAudioPlayer";
+import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
 
 interface LeadWhatsAppChatProps {
   leadId: string;
@@ -459,16 +460,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'sent': return <Check className="h-3 w-3 text-muted-foreground" />;
-      case 'delivered': return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
-      case 'read': return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case 'pending': return <Clock className="h-3 w-3 text-muted-foreground" />;
-      case 'failed': return <AlertCircle className="h-3 w-3 text-destructive" />;
-      default: return <Clock className="h-3 w-3 text-muted-foreground" />;
-    }
-  };
+  // getStatusIcon replaced by MessageStatusIndicator component
 
   // Helper to resolve template content from templates list
   const resolveTemplateContent = (templateName: string, templateParams: any[] | null): string => {
@@ -861,7 +853,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                       
                       {renderMessageContent(msg)}
                       
-                      <div className={`flex items-center gap-1 mt-1 ${
+                      <div className={`flex items-center gap-1.5 mt-1 ${
                         msg.direction === 'outbound' ? 'justify-end' : ''
                       }`}>
                         <span className={`text-xs ${
@@ -869,11 +861,26 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                         }`}>
                           {format(new Date(msg.created_at), 'dd/MM HH:mm')}
                         </span>
-                        {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                        {msg.direction === 'outbound' && (
+                          <MessageStatusIndicator
+                            status={msg.status}
+                            errorMessage={msg.error_message}
+                            messageId={msg.id}
+                            accountId={conversation?.account_id}
+                            conversationPhone={conversation?.customer_phone}
+                            messageType={msg.message_type}
+                            content={msg.content}
+                            mediaUrl={msg.media_url}
+                            templateName={msg.template_name}
+                            templateParams={msg.template_params}
+                            onRetrySuccess={() => queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', conversation?.id] })}
+                            showLabel={msg.status === 'failed'}
+                          />
+                        )}
                       </div>
                       
                       {msg.status === 'failed' && msg.error_message && (
-                        <p className="text-xs text-destructive mt-1">{msg.error_message}</p>
+                        <p className="text-xs text-destructive mt-1">⚠️ {msg.error_message}</p>
                       )}
                     </div>
                   </div>
