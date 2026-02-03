@@ -25,6 +25,8 @@ interface TemplateComponents {
 async function translateText(text: string, targetLanguage: string): Promise<string> {
   if (!text || text.trim() === "") return text;
   
+  console.log(`Translating text to ${targetLanguage}: "${text.substring(0, 50)}..."`);
+  
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
     headers: {
@@ -36,13 +38,15 @@ async function translateText(text: string, targetLanguage: string): Promise<stri
       messages: [
         {
           role: "system",
-          content: `You are a professional translator. Translate the following text to ${targetLanguage}. 
-IMPORTANT RULES:
+          content: `You are a professional translator. Translate the following text from Italian to ${targetLanguage}. 
+CRITICAL RULES:
+- You MUST translate ALL the text to ${targetLanguage}
 - Keep all variables like {{1}}, {{2}}, etc. EXACTLY as they are - do not translate or modify them
 - Keep emojis as they are
 - Maintain the same tone and style
 - Only output the translated text, nothing else
-- Do not add quotes or explanations`
+- Do not add quotes or explanations
+- Do NOT keep any Italian words in the output - everything must be in ${targetLanguage}`
         },
         {
           role: "user",
@@ -60,7 +64,56 @@ IMPORTANT RULES:
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() || text;
+  const translatedText = data.choices?.[0]?.message?.content?.trim();
+  
+  if (!translatedText) {
+    console.error(`Translation returned empty result for ${targetLanguage}`);
+    throw new Error(`Translation returned empty result`);
+  }
+  
+  // Validate that translation actually happened (check if first word changed for non-variable text)
+  const originalFirstWord = text.trim().split(/\s+/)[0]?.replace(/[^\w]/g, '').toLowerCase();
+  const translatedFirstWord = translatedText.trim().split(/\s+/)[0]?.replace(/[^\w]/g, '').toLowerCase();
+  
+  if (originalFirstWord && translatedFirstWord && 
+      originalFirstWord === translatedFirstWord && 
+      !originalFirstWord.startsWith('{{')) {
+    console.warn(`Translation may have failed - first word unchanged: "${originalFirstWord}". Retrying...`);
+    // Retry once with more explicit instruction
+    const retryResponse = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: `Translate this Italian text to ${targetLanguage}. Output ONLY the ${targetLanguage} translation. Keep {{1}}, {{2}} variables unchanged.`
+          },
+          {
+            role: "user",
+            content: text
+          }
+        ],
+        temperature: 0.5,
+      }),
+    });
+    
+    if (retryResponse.ok) {
+      const retryData = await retryResponse.json();
+      const retryText = retryData.choices?.[0]?.message?.content?.trim();
+      if (retryText) {
+        console.log(`Retry translation successful: "${retryText.substring(0, 50)}..."`);
+        return retryText;
+      }
+    }
+  }
+  
+  console.log(`Translation successful: "${translatedText.substring(0, 50)}..."`);
+  return translatedText;
 }
 
 async function translateComponents(
