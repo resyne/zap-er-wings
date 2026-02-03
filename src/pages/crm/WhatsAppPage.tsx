@@ -91,6 +91,8 @@ interface WhatsAppConversation {
   status: string;
   expires_at: string | null;
   created_at: string;
+  rating?: number | null;
+  leads?: { pipeline: string | null } | null;
 }
 
 interface WhatsAppMessage {
@@ -305,7 +307,7 @@ export default function WhatsAppPage() {
       if (!selectedAccount) return [];
       const { data, error } = await supabase
         .from('whatsapp_conversations')
-        .select('*')
+        .select('*, leads:lead_id(pipeline)')
         .eq('account_id', selectedAccount.id)
         .order('last_message_at', { ascending: false });
       if (error) throw error;
@@ -1037,7 +1039,7 @@ const syncTemplatesMutation = useMutation({
     return digits.slice(-8);
   };
 
-  // Trova lead associato a un numero di telefono
+  // Trova lead associato a un numero di telefono (solo dalla stessa pipeline dell'account)
   const findLeadByPhone = (phone: string) => {
     if (!leads || !phone) return null;
     const normalizedPhone = normalizePhone(phone);
@@ -1045,7 +1047,10 @@ const syncTemplatesMutation = useMutation({
     
     return leads.find(lead => {
       const leadNormalized = normalizePhone(lead.phone);
-      return leadNormalized.length >= 6 && leadNormalized === normalizedPhone;
+      // Match solo se il numero corrisponde E la pipeline corrisponde all'account selezionato
+      return leadNormalized.length >= 6 && 
+             leadNormalized === normalizedPhone &&
+             (!selectedAccount?.pipeline || lead.pipeline === selectedAccount.pipeline);
     });
   };
 
@@ -1075,8 +1080,14 @@ const syncTemplatesMutation = useMutation({
     'Poland': 'pl',
   };
 
-  // Filtra conversazioni in base alla ricerca, stato archiviazione e lingua
+  // Filtra conversazioni in base alla ricerca, stato archiviazione, lingua e PIPELINE
   const filteredConversations = conversations?.filter(conv => {
+    // FILTRO PIPELINE: escludi conversazioni il cui lead collegato appartiene a una pipeline diversa
+    // Se la conversazione ha un lead_id collegato e quel lead ha una pipeline diversa dall'account, escludila
+    if (selectedAccount?.pipeline && conv.leads?.pipeline && conv.leads.pipeline !== selectedAccount.pipeline) {
+      return false;
+    }
+    
     // Filtra per stato archiviazione
     const isArchived = conv.status === 'archived';
     if (showArchived && !isArchived) return false;
