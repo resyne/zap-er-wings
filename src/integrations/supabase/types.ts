@@ -10443,6 +10443,7 @@ export type Database = {
           error_message: string | null
           id: string
           interactive_data: Json | null
+          media_downloaded: boolean | null
           media_mime_type: string | null
           media_url: string | null
           message_type: string
@@ -10451,6 +10452,9 @@ export type Database = {
           status: string | null
           template_name: string | null
           template_params: Json | null
+          transcription: string | null
+          transcription_language: string | null
+          transcription_translated: string | null
           wamid: string | null
         }
         Insert: {
@@ -10463,6 +10467,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           interactive_data?: Json | null
+          media_downloaded?: boolean | null
           media_mime_type?: string | null
           media_url?: string | null
           message_type: string
@@ -10471,6 +10476,9 @@ export type Database = {
           status?: string | null
           template_name?: string | null
           template_params?: Json | null
+          transcription?: string | null
+          transcription_language?: string | null
+          transcription_translated?: string | null
           wamid?: string | null
         }
         Update: {
@@ -10483,6 +10491,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           interactive_data?: Json | null
+          media_downloaded?: boolean | null
           media_mime_type?: string | null
           media_url?: string | null
           message_type?: string
@@ -10491,6 +10500,9 @@ export type Database = {
           status?: string | null
           template_name?: string | null
           template_params?: Json | null
+          transcription?: string | null
+          transcription_language?: string | null
+          transcription_translated?: string | null
           wamid?: string | null
         }
         Relationships: [

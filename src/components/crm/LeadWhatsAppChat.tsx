@@ -17,6 +17,7 @@ import { format, differenceInHours, differenceInMinutes } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { useChatTranslation, SUPPORTED_LANGUAGES, getLanguageFromCountry, getLanguageFlag, getLanguageName } from "@/hooks/useChatTranslation";
+import WhatsAppAudioPlayer from "./WhatsAppAudioPlayer";
 
 interface LeadWhatsAppChatProps {
   leadId: string;
@@ -51,6 +52,7 @@ interface WhatsAppMessage {
   message_type: string;
   content: string | null;
   media_url: string | null;
+  media_downloaded: boolean | null;
   template_name: string | null;
   template_params: any[] | null;
   interactive_data: any | null;
@@ -58,6 +60,9 @@ interface WhatsAppMessage {
   error_message: string | null;
   created_at: string;
   sent_by: string | null;
+  transcription: string | null;
+  transcription_translated: string | null;
+  transcription_language: string | null;
 }
 
 interface WhatsAppTemplate {
@@ -511,6 +516,96 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
   };
 
   const renderMessageContent = (msg: WhatsAppMessage) => {
+    // Handle audio messages first
+    if (msg.message_type === 'audio' && msg.media_url) {
+      return (
+        <WhatsAppAudioPlayer
+          messageId={msg.id}
+          mediaId={msg.media_url}
+          accountId={selectedAccountId}
+          isDownloaded={msg.media_downloaded || false}
+          existingTranscription={msg.transcription}
+          existingTranslation={msg.transcription_translated}
+          existingLanguage={msg.transcription_language}
+          onTranscriptionComplete={() => refetchMessages()}
+        />
+      );
+    }
+
+    // Handle image messages
+    if (msg.message_type === 'image' && msg.media_url) {
+      const isUrl = msg.media_url.startsWith('http');
+      return (
+        <div className="space-y-1">
+          {isUrl ? (
+            <img 
+              src={msg.media_url} 
+              alt="Immagine" 
+              className="max-w-[200px] rounded-lg cursor-pointer hover:opacity-90"
+              onClick={() => window.open(msg.media_url!, '_blank')}
+            />
+          ) : (
+            <div className="flex items-center gap-2 text-xs">
+              <Image className="h-4 w-4" />
+              <span>[Immagine]</span>
+            </div>
+          )}
+          {msg.content && msg.content !== '[Immagine]' && (
+            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+          )}
+        </div>
+      );
+    }
+
+    // Handle video messages
+    if (msg.message_type === 'video' && msg.media_url) {
+      const isUrl = msg.media_url.startsWith('http');
+      return (
+        <div className="space-y-1">
+          {isUrl ? (
+            <video 
+              src={msg.media_url} 
+              controls 
+              className="max-w-[200px] rounded-lg"
+            />
+          ) : (
+            <div className="flex items-center gap-2 text-xs">
+              <Video className="h-4 w-4" />
+              <span>[Video]</span>
+            </div>
+          )}
+          {msg.content && msg.content !== '[Video]' && (
+            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+          )}
+        </div>
+      );
+    }
+
+    // Handle document messages
+    if (msg.message_type === 'document' && msg.media_url) {
+      const isUrl = msg.media_url.startsWith('http');
+      return (
+        <div className="space-y-1">
+          {isUrl ? (
+            <a 
+              href={msg.media_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-xs hover:underline"
+            >
+              <FileText className="h-4 w-4" />
+              <span>{msg.content || 'Documento'}</span>
+            </a>
+          ) : (
+            <div className="flex items-center gap-2 text-xs">
+              <FileText className="h-4 w-4" />
+              <span>{msg.content || '[Documento]'}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     if (msg.message_type === 'template' && msg.template_name) {
       // Try to get content from message first, or resolve from template
       let displayContent = msg.content;
