@@ -414,6 +414,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                         status={msg.status}
                         errorMessage={msg.error_message}
                         showLabel={msg.status === 'failed'}
+                        isOutbound={true}
                       />
                     )}
                   </div>
@@ -549,6 +550,7 @@ export default function LeadWhatsApp({ leadId, leadPhone, leadName }: LeadWhatsA
                           status={msg.status}
                           errorMessage={msg.error_message}
                           showLabel={msg.status === 'failed'}
+                          isOutbound={true}
                         />
                       )}
                     </div>

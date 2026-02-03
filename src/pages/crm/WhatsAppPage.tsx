@@ -1625,6 +1625,7 @@ const syncTemplatesMutation = useMutation({
                                         templateParams={msg.template_params}
                                         onRetrySuccess={() => queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', selectedConversation?.id] })}
                                         showLabel={msg.status === 'failed'}
+                                        isOutbound={true}
                                       />
                                     )}
                                   </div>
