@@ -207,17 +207,26 @@ export default function WhatsAppPage() {
     }
   });
 
+  // Query leads filtrata per pipeline dell'account selezionato
   const { data: leads } = useQuery({
-    queryKey: ['leads-list-whatsapp'],
+    queryKey: ['leads-list-whatsapp', selectedAccount?.pipeline],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('leads')
         .select('id, contact_name, phone, email, pipeline, external_configurator_link, country')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
+      
+      // Filtra per pipeline dell'account se configurata
+      if (selectedAccount?.pipeline) {
+        query = query.eq('pipeline', selectedAccount.pipeline);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!selectedAccount
   });
 
   // Query per profili utenti (per mostrare chi ha inviato)
