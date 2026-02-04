@@ -2864,35 +2864,57 @@ export default function OffersPage() {
                       // Carica i prodotti dell'offerta
                       if (selectedOfferItems.length > 0) {
                         setSelectedProducts(selectedOfferItems.map(item => {
-                          // La description nel DB contiene "nome\ndescrizione" 
-                          // Dobbiamo separare le due parti
-                          const fullDesc = item.description || '';
-                          const lines = fullDesc.split('\n');
-                          
-                          // Se c'è un product_id valido, il nome è dalla tabella products
-                          // altrimenti è la prima riga della description
+                          // Nel DB salviamo la description come:
+                          //   "Titolo\nDescrizione"  (se descrizione presente)
+                          //   "Titolo"              (se descrizione vuota)
+                          // Questo vale sia per prodotti da catalogo che manuali.
+                          const fullDesc = (item.description || '').trim();
+                          const lines = fullDesc ? fullDesc.split('\n') : [];
+                          const hasNewline = fullDesc.includes('\n');
+
+                          const catalogName = (item.product_id && item.products?.name)
+                            ? item.products.name.trim()
+                            : '';
+
                           let productName = '';
                           let description = '';
-                          
-                          if (item.product_id && item.products?.name) {
-                            // Prodotto da catalogo: usa il nome dal catalogo
-                            productName = item.products.name;
-                            // La description potrebbe iniziare con il nome, quindi lo rimuoviamo
-                            if (lines[0] === item.products.name) {
+
+                          if (catalogName) {
+                            // Prodotto da catalogo: se la prima riga è diversa dal nome catalogo,
+                            // significa che l'utente ha personalizzato il titolo.
+                            if (hasNewline) {
+                              const firstLine = (lines[0] || '').trim();
+                              productName = firstLine || catalogName;
                               description = lines.slice(1).join('\n');
                             } else {
-                              description = fullDesc;
+                              // Caso senza newline: può essere "Titolo" (custom o standard)
+                              // oppure (dati legacy) una descrizione lunga.
+                              if (!fullDesc || fullDesc === catalogName) {
+                                productName = catalogName;
+                                description = '';
+                              } else if (fullDesc.length > 120) {
+                                productName = catalogName;
+                                description = fullDesc;
+                              } else {
+                                productName = fullDesc;
+                                description = '';
+                              }
                             }
                           } else {
-                            // Prodotto manuale: la prima riga è il nome
-                            productName = lines[0] || '';
-                            description = lines.slice(1).join('\n');
+                            // Prodotto manuale: la prima riga è il titolo
+                            if (hasNewline) {
+                              productName = (lines[0] || '').trim();
+                              description = lines.slice(1).join('\n');
+                            } else {
+                              productName = fullDesc;
+                              description = '';
+                            }
                           }
-                          
+
                           return {
                             product_id: item.product_id,
-                            product_name: productName,
-                            description: description,
+                            product_name: productName || 'Prodotto',
+                            description,
                             quantity: item.quantity,
                             unit_price: item.unit_price,
                             discount_percent: item.discount_percent || 0,
