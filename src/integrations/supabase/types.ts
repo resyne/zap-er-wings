@@ -10450,6 +10450,7 @@ export type Database = {
           read_at: string | null
           sent_by: string | null
           status: string | null
+          template_language: string | null
           template_name: string | null
           template_params: Json | null
           transcription: string | null
@@ -10474,6 +10475,7 @@ export type Database = {
           read_at?: string | null
           sent_by?: string | null
           status?: string | null
+          template_language?: string | null
           template_name?: string | null
           template_params?: Json | null
           transcription?: string | null
@@ -10498,6 +10500,7 @@ export type Database = {
           read_at?: string | null
           sent_by?: string | null
           status?: string | null
+          template_language?: string | null
           template_name?: string | null
           template_params?: Json | null
           transcription?: string | null
