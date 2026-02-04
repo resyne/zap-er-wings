@@ -216,25 +216,52 @@ serve(async (req) => {
       }
 
       // Build template parameters (personalization)
-      // Mapping: {{1}} Nome, {{2}} Azienda, {{3}} Data, {{4}} Link generico, {{5}} Link Configuratore
+      // Standard mapping: {{1}} Nome, {{2}} Azienda/Link, {{3}} Data, {{4}} Link generico, {{5}} Link Configuratore
+      // But we need to be smart about it based on what the template actually expects
       const templateParams: string[] = [];
       const components = template.components as any[];
       if (components) {
         const bodyComponent = components.find((c: any) => c.type === 'BODY');
         if (bodyComponent && bodyComponent.text) {
+          const bodyText = bodyComponent.text as string;
           // Count parameters in template
-          const paramMatches = bodyComponent.text.match(/\{\{\d+\}\}/g) || [];
+          const paramMatches = bodyText.match(/\{\{\d+\}\}/g) || [];
           const configuratorLink = lead.external_configurator_link || lead.configurator_link || '';
           const today = new Date().toLocaleDateString('it-IT');
           
-          for (let i = 0; i < paramMatches.length; i++) {
-            // Map parameters according to standard: {{1}} Nome, {{2}} Azienda, {{3}} Data, {{4}} Link, {{5}} Configuratore
-            if (i === 0) templateParams.push(lead.contact_name || lead.company_name || 'Cliente');
-            else if (i === 1) templateParams.push(lead.company_name || '');
-            else if (i === 2) templateParams.push(today);
-            else if (i === 3) templateParams.push(''); // Generic link placeholder
-            else if (i === 4) templateParams.push(configuratorLink); // {{5}} = Configurator link
-            else templateParams.push('');
+          // Extract parameter numbers to understand which ones are needed
+          const paramNumbers = paramMatches.map((m: string) => parseInt(m.replace(/[{}]/g, '')));
+          const maxParam = Math.max(...paramNumbers, 0);
+          
+          // Build params array based on actual parameter numbers in template
+          for (let p = 1; p <= maxParam; p++) {
+            // Check what's around this parameter in the template to guess its purpose
+            const paramRegex = new RegExp(`([^\\n]{0,30})\\{\\{${p}\\}\\}([^\\n]{0,30})`);
+            const contextMatch = bodyText.match(paramRegex);
+            const beforeText = contextMatch?.[1]?.toLowerCase() || '';
+            const afterText = contextMatch?.[2]?.toLowerCase() || '';
+            
+            // Smart mapping based on context
+            if (beforeText.includes('👉') || beforeText.includes('link') || beforeText.includes('enlace') || 
+                afterText.includes('http') || p === 2 && configuratorLink && paramNumbers.length === 2) {
+              // This looks like a link parameter
+              templateParams.push(configuratorLink || '-');
+            } else if (p === 1) {
+              // First parameter is usually the name
+              templateParams.push(lead.contact_name || lead.company_name || 'Cliente');
+            } else if (beforeText.includes('azienda') || beforeText.includes('empresa') || beforeText.includes('company')) {
+              templateParams.push(lead.company_name || '-');
+            } else if (beforeText.includes('data') || beforeText.includes('fecha') || beforeText.includes('date')) {
+              templateParams.push(today);
+            } else if (p === 5 || (configuratorLink && p > 3)) {
+              // Parameter 5 or higher parameters with configurator link available
+              templateParams.push(configuratorLink || '-');
+            } else if (p === 2) {
+              // Default for {{2}}: check if it seems like a link context
+              templateParams.push(lead.company_name || '-');
+            } else {
+              templateParams.push('-');
+            }
           }
         }
       }
