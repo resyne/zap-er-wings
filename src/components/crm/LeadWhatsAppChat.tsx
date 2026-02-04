@@ -800,10 +800,22 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     );
   }
 
+  // Get currently selected account name for display
+  const selectedAccount = accounts?.find(a => a.id === selectedAccountId);
+  const selectedAccountName = selectedAccount?.verified_name || selectedAccount?.display_phone_number || '';
+
   return (
     <div className="space-y-3">
-      {/* Account selector */}
-      {accounts && accounts.length > 1 && (
+      {/* Account display - auto-selected based on pipeline, no selector when pipeline is set */}
+      {leadPipeline && selectedAccountName && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
+          <MessageCircle className="h-4 w-4" />
+          <span className="font-medium">{selectedAccountName}</span>
+        </div>
+      )}
+      
+      {/* Account selector - only shown when NO pipeline defined (fallback case) */}
+      {!leadPipeline && accounts && accounts.length > 1 && (
         <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Seleziona account WhatsApp" />
