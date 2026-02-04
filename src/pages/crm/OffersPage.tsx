@@ -2863,17 +2863,44 @@ export default function OffersPage() {
                       
                       // Carica i prodotti dell'offerta
                       if (selectedOfferItems.length > 0) {
-                        setSelectedProducts(selectedOfferItems.map(item => ({
-                          product_id: item.product_id,
-                          product_name: item.products?.name || '',
-                          description: item.description || '',
-                          quantity: item.quantity,
-                          unit_price: item.unit_price,
-                          discount_percent: item.discount_percent || 0,
-                          vat_rate: item.vat_rate || 22,
-                          reverse_charge: item.reverse_charge || false,
-                          notes: item.notes || ''
-                        })));
+                        setSelectedProducts(selectedOfferItems.map(item => {
+                          // La description nel DB contiene "nome\ndescrizione" 
+                          // Dobbiamo separare le due parti
+                          const fullDesc = item.description || '';
+                          const lines = fullDesc.split('\n');
+                          
+                          // Se c'è un product_id valido, il nome è dalla tabella products
+                          // altrimenti è la prima riga della description
+                          let productName = '';
+                          let description = '';
+                          
+                          if (item.product_id && item.products?.name) {
+                            // Prodotto da catalogo: usa il nome dal catalogo
+                            productName = item.products.name;
+                            // La description potrebbe iniziare con il nome, quindi lo rimuoviamo
+                            if (lines[0] === item.products.name) {
+                              description = lines.slice(1).join('\n');
+                            } else {
+                              description = fullDesc;
+                            }
+                          } else {
+                            // Prodotto manuale: la prima riga è il nome
+                            productName = lines[0] || '';
+                            description = lines.slice(1).join('\n');
+                          }
+                          
+                          return {
+                            product_id: item.product_id,
+                            product_name: productName,
+                            description: description,
+                            quantity: item.quantity,
+                            unit_price: item.unit_price,
+                            discount_percent: item.discount_percent || 0,
+                            vat_rate: item.vat_rate || 22,
+                            reverse_charge: item.reverse_charge || false,
+                            notes: item.notes || ''
+                          };
+                        }));
                       } else {
                         setSelectedProducts([]);
                       }
