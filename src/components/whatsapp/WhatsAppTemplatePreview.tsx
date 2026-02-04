@@ -834,17 +834,21 @@ export function WhatsAppTemplatePreview({
 
               {/* Warning for approved templates */}
               {isApproved ? (
-                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
+                <Card className={`border-2 ${editData.name === template.name ? 'border-destructive bg-destructive/10' : 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20'}`}>
                   <CardContent className="pt-4">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <AlertCircle className={`h-5 w-5 mt-0.5 ${editData.name === template.name ? 'text-destructive' : 'text-blue-600'}`} />
                       <div className="text-sm">
-                        <p className="font-medium text-blue-800 dark:text-blue-200">Creazione nuova versione</p>
-                        <p className="text-blue-700 dark:text-blue-300">
-                          Stai creando una nuova versione del template. Il template attuale verrà disabilitato 
-                          e questa nuova versione dovrà essere inviata a Meta per l'approvazione.
+                        <p className={`font-medium ${editData.name === template.name ? 'text-destructive' : 'text-blue-800 dark:text-blue-200'}`}>
+                          {editData.name === template.name ? 'Nome obbligatorio diverso!' : 'Creazione nuova versione'}
                         </p>
-                        <p className="text-blue-700 dark:text-blue-300 mt-1">
+                        <p className={editData.name === template.name ? 'text-destructive/80' : 'text-blue-700 dark:text-blue-300'}>
+                          {editData.name === template.name 
+                            ? 'Devi usare un nome diverso per creare una nuova versione del template.'
+                            : 'Stai creando una nuova versione del template. Il template attuale verrà disabilitato e questa nuova versione dovrà essere inviata a Meta per l\'approvazione.'
+                          }
+                        </p>
+                        <p className={`mt-1 ${editData.name === template.name ? 'text-destructive/80' : 'text-blue-700 dark:text-blue-300'}`}>
                           <strong>Suggerimento:</strong> Usa un nome diverso (es. {template.name}_v2)
                         </p>
                       </div>
@@ -914,7 +918,8 @@ export function WhatsAppTemplatePreview({
               {isApproved ? (
                 <Button
                   onClick={() => createNewVersionMutation.mutate()}
-                  disabled={createNewVersionMutation.isPending || !editData.body.trim() || !editData.name.trim()}
+                  disabled={createNewVersionMutation.isPending || !editData.body.trim() || !editData.name.trim() || editData.name === template.name}
+                  title={editData.name === template.name ? "Devi usare un nome diverso per la nuova versione" : undefined}
                 >
                   {createNewVersionMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
