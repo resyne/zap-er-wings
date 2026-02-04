@@ -165,13 +165,20 @@ serve(async (req) => {
 
     console.log("Sending message:", JSON.stringify(messagePayload, null, 2));
 
+    // Sanitize access token - remove non-printable ASCII characters
+    const sanitizedToken = account.access_token.replace(/[^\x20-\x7E]/g, '').trim();
+    
+    if (sanitizedToken.length < 50) {
+      throw new Error("Access token appears invalid or corrupted after sanitization");
+    }
+
     // Send message via Meta Graph API
     const response = await fetch(
       `${GRAPH_API_URL}/${account.phone_number_id}/messages`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${account.access_token}`,
+          Authorization: `Bearer ${sanitizedToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(messagePayload),
