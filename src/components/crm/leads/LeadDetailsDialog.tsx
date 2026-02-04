@@ -120,25 +120,6 @@ export function LeadDetailsDialog({
                 € {formatAmount(lead.value)}
               </Badge>
             )}
-            {/* Created date and source */}
-            <div className="flex items-center gap-3 ml-auto">
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <CalendarPlus className="h-3.5 w-3.5" />
-                {format(new Date(lead.created_at), "dd MMM yyyy", { locale: it })}
-              </span>
-              {lead.source && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {lead.source === 'facebook' || lead.source === 'website' || lead.source === 'social' ? (
-                    <Globe className="h-3.5 w-3.5" />
-                  ) : lead.source === 'zapier' || lead.source === 'automation' || lead.source === 'call' ? (
-                    <Bot className="h-3.5 w-3.5" />
-                  ) : (
-                    <UserPlus className="h-3.5 w-3.5" />
-                  )}
-                  {lead.source}
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Customer Details */}
@@ -152,6 +133,22 @@ export function LeadDetailsDialog({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className={cn("grid gap-3 px-3 pb-3 border-t pt-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                {/* Created date */}
+                <div className="flex items-center gap-2">
+                  <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm">Aggiunto: {format(new Date(lead.created_at), "dd MMM yyyy", { locale: it })}</span>
+                </div>
+                {/* Source */}
+                <div className="flex items-center gap-2">
+                  {lead.source === 'facebook' || lead.source === 'website' || lead.source === 'social' ? (
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : lead.source === 'zapier' || lead.source === 'automation' || lead.source === 'call' ? (
+                    <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                  <span className="text-sm">Fonte: {lead.source || 'Manuale'}</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <User className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-sm">{lead.contact_name || '-'}</span>
