@@ -1102,19 +1102,32 @@ const syncTemplatesMutation = useMutation({
   };
 
   // Filtra conversazioni in base alla ricerca, stato archiviazione, lingua e PIPELINE
+  // STRICT ISOLATION: Zapper vede solo chat Zapper, Vesuviano vede solo chat Vesuviano
   const filteredConversations = conversations?.filter(conv => {
-    // FILTRO PIPELINE: escludi conversazioni il cui lead collegato appartiene a una pipeline diversa
-    // Se la conversazione ha un lead_id collegato e quel lead ha una pipeline diversa dall'account, escludila
+    // 1) FILTRO PIPELINE RIGIDO su lead collegato
     if (selectedAccount?.pipeline && conv.leads?.pipeline && conv.leads.pipeline !== selectedAccount.pipeline) {
       return false;
     }
     
-    // Filtra per stato archiviazione
+    // 2) FILTRO PIPELINE RIGIDO su match telefono (se il telefono appartiene a un lead di altra pipeline, escludilo)
+    if (selectedAccount?.pipeline) {
+      const phoneNorm = normalizePhone(conv.customer_phone);
+      if (phoneNorm.length >= 6) {
+        // Cerca se esiste un lead con quel numero in QUALSIASI pipeline
+        const leadWithPhone = leads?.find(l => normalizePhone(l.phone) === phoneNorm);
+        if (leadWithPhone && leadWithPhone.pipeline && leadWithPhone.pipeline !== selectedAccount.pipeline) {
+          // Il numero appartiene a un lead di un'altra pipeline -> escludi
+          return false;
+        }
+      }
+    }
+    
+    // 3) Filtra per stato archiviazione
     const isArchived = conv.status === 'archived';
     if (showArchived && !isArchived) return false;
     if (!showArchived && isArchived) return false;
     
-    // Filtra per lingua
+    // 4) Filtra per lingua
     if (languageFilter !== 'all') {
       const matchedLead = findLeadByPhone(conv.customer_phone);
       const leadCountry = matchedLead?.country;
@@ -1122,6 +1135,7 @@ const syncTemplatesMutation = useMutation({
       if (leadLang !== languageFilter) return false;
     }
     
+    // 5) Ricerca testuale
     if (!conversationSearch) return true;
     const search = conversationSearch.toLowerCase();
     const matchedLead = findLeadByPhone(conv.customer_phone);
