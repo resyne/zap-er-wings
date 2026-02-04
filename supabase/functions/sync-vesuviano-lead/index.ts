@@ -47,13 +47,32 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Auto-generate email if missing (API requires email)
+    let leadEmail = lead.email
+    if (!leadEmail || leadEmail.trim() === '') {
+      // Generate random email for API requirement
+      const randomId = Math.random().toString(36).substring(2, 12)
+      leadEmail = `${randomId}@vesuvianoforni.it`
+      console.log('Auto-generated email for lead:', leadEmail)
+      
+      // Save the generated email to the lead
+      const { error: emailUpdateError } = await supabase
+        .from('leads')
+        .update({ email: leadEmail })
+        .eq('id', leadId)
+      
+      if (emailUpdateError) {
+        console.error('Error saving auto-generated email:', emailUpdateError)
+      }
+    }
+
     // Prepare webhook URL for callbacks
     const erpWebhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/configurator-webhook`
 
     // Prepare data for external API
     const apiData = {
       name: lead.contact_name || lead.company_name || 'Nome non specificato',
-      email: lead.email || '',
+      email: leadEmail,
       phone: lead.phone || '',
       pipeline_id: lead.id,
       price_list: 'A', // Default price list
