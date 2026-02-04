@@ -9,15 +9,21 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Country to language mapping
+// Country to language mapping - includes Italian names (Spagna, Francia, etc.)
 const COUNTRY_LANGUAGE_MAP: Record<string, string> = {
+  // Italian
   'italy': 'it', 'italia': 'it', 'it': 'it',
+  // Spanish - including Italian name "Spagna"
   'spain': 'es', 'españa': 'es', 'spagna': 'es', 'es': 'es',
+  // French - including Italian name "Francia"
   'france': 'fr', 'francia': 'fr', 'fr': 'fr',
+  // German - including Italian name "Germania"
   'germany': 'de', 'germania': 'de', 'deutschland': 'de', 'de': 'de',
-  'portugal': 'pt', 'portogallo': 'pt', 'brasil': 'pt_BR', 'brazil': 'pt_BR', 'pt': 'pt',
+  // Portuguese
+  'portugal': 'pt', 'portogallo': 'pt', 'brasil': 'pt_BR', 'brazil': 'pt_BR', 'brasile': 'pt_BR', 'pt': 'pt',
+  // English
   'united kingdom': 'en', 'uk': 'en', 'usa': 'en', 'united states': 'en', 
-  'canada': 'en', 'australia': 'en', 'en': 'en',
+  'canada': 'en', 'australia': 'en', 'regno unito': 'en', 'stati uniti': 'en', 'en': 'en',
 };
 
 function getLanguageForCountry(country: string | null): string {
