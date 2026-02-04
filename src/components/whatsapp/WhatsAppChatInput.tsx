@@ -294,9 +294,12 @@ export function WhatsAppChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && (message.trim() || selectedFile)) {
+    // Block multiple sends while isSending is true
+    if (e.key === "Enter" && !e.shiftKey && (message.trim() || selectedFile || audioBlob)) {
       e.preventDefault();
-      sendMessage();
+      if (!isSending && !disabled) {
+        sendMessage();
+      }
     }
   };
 
