@@ -202,6 +202,8 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       const normalizedPhone = leadPhone.replace(/[^\d]/g, "");
       const phoneSuffix = normalizedPhone.slice(-8);
       
+      console.log('[LeadWhatsAppChat] Searching conversation for lead:', leadId, 'account:', selectedAccountId, 'phoneSuffix:', phoneSuffix);
+      
       // Try to find existing conversation by lead_id first
       let { data: existing, error: findError } = await supabase
         .from('whatsapp_conversations')
@@ -210,7 +212,12 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
         .eq('lead_id', leadId)
         .maybeSingle();
       
-      if (findError && findError.code !== 'PGRST116') throw findError;
+      if (findError && findError.code !== 'PGRST116') {
+        console.error('[LeadWhatsAppChat] Error finding by lead_id:', findError);
+        throw findError;
+      }
+      
+      console.log('[LeadWhatsAppChat] Found by lead_id:', existing?.id || 'none');
       
       // If not found by lead_id, try to find by phone number (last 8 digits)
       if (!existing) {
@@ -221,13 +228,18 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
           .ilike('customer_phone', `%${phoneSuffix}`)
           .maybeSingle();
         
-        if (phoneError && phoneError.code !== 'PGRST116') throw phoneError;
+        if (phoneError && phoneError.code !== 'PGRST116') {
+          console.error('[LeadWhatsAppChat] Error finding by phone:', phoneError);
+          throw phoneError;
+        }
         existing = phoneMatch;
+        console.log('[LeadWhatsAppChat] Found by phone suffix:', existing?.id || 'none');
       }
       
       if (existing) {
         // Update lead_id if not set
         if (!existing.lead_id) {
+          console.log('[LeadWhatsAppChat] Updating conversation lead_id');
           await supabase
             .from('whatsapp_conversations')
             .update({ lead_id: leadId })
@@ -236,6 +248,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
         return existing as WhatsAppConversation;
       }
       
+      console.log('[LeadWhatsAppChat] No conversation found');
       // Don't auto-create conversation - let user initiate
       return null;
     },
