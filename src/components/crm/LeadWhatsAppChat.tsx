@@ -25,6 +25,7 @@ interface LeadWhatsAppChatProps {
   leadPhone: string;
   leadName?: string;
   leadCountry?: string;
+  leadPipeline?: string;
 }
 
 interface WhatsAppAccount {
@@ -32,6 +33,7 @@ interface WhatsAppAccount {
   display_phone_number: string;
   verified_name: string | null;
   is_active: boolean;
+  pipeline: string | null;
 }
 
 interface WhatsAppConversation {
@@ -104,7 +106,7 @@ function getConversationWindow(messages: WhatsAppMessage[]): {
   return { isOpen, lastInboundAt, hoursRemaining, minutesRemaining };
 }
 
-export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCountry }: LeadWhatsAppChatProps) {
+export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCountry, leadPipeline }: LeadWhatsAppChatProps) {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,13 +139,13 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     });
   }, []);
 
-  // Fetch active WhatsApp Business API accounts
+  // Fetch active WhatsApp Business API accounts (include pipeline for matching)
   const { data: accounts, isLoading: accountsLoading } = useQuery({
-    queryKey: ['whatsapp-accounts-lead'],
+    queryKey: ['whatsapp-accounts-lead-with-pipeline'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('whatsapp_accounts')
-        .select('id, display_phone_number, verified_name, is_active')
+        .select('id, display_phone_number, verified_name, is_active, pipeline')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -171,12 +173,21 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     return fullName || profile.email || null;
   };
 
-  // Auto-select first account
+  // Auto-select account matching lead pipeline, or fallback to first
   useEffect(() => {
     if (accounts && accounts.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(accounts[0].id);
+      // Find account matching lead pipeline
+      const matchingAccount = leadPipeline 
+        ? accounts.find(a => a.pipeline?.toLowerCase() === leadPipeline.toLowerCase())
+        : null;
+      
+      if (matchingAccount) {
+        setSelectedAccountId(matchingAccount.id);
+      } else {
+        setSelectedAccountId(accounts[0].id);
+      }
     }
-  }, [accounts, selectedAccountId]);
+  }, [accounts, selectedAccountId, leadPipeline]);
 
   // Fetch or create conversation for this lead
   const { data: conversation, refetch: refetchConversation } = useQuery({
@@ -184,18 +195,32 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     queryFn: async () => {
       if (!selectedAccountId) return null;
       
-      // Normalize phone number
+      // Normalize phone number and get last 8 digits for matching
       const normalizedPhone = leadPhone.replace(/[^\d]/g, "");
+      const phoneSuffix = normalizedPhone.slice(-8);
       
-      // Try to find existing conversation
-      const { data: existing, error: findError } = await supabase
+      // Try to find existing conversation by lead_id first
+      let { data: existing, error: findError } = await supabase
         .from('whatsapp_conversations')
         .select('*')
         .eq('account_id', selectedAccountId)
-        .or(`lead_id.eq.${leadId},customer_phone.eq.${normalizedPhone}`)
+        .eq('lead_id', leadId)
         .maybeSingle();
       
       if (findError && findError.code !== 'PGRST116') throw findError;
+      
+      // If not found by lead_id, try to find by phone number (last 8 digits)
+      if (!existing) {
+        const { data: phoneMatch, error: phoneError } = await supabase
+          .from('whatsapp_conversations')
+          .select('*')
+          .eq('account_id', selectedAccountId)
+          .ilike('customer_phone', `%${phoneSuffix}`)
+          .maybeSingle();
+        
+        if (phoneError && phoneError.code !== 'PGRST116') throw phoneError;
+        existing = phoneMatch;
+      }
       
       if (existing) {
         // Update lead_id if not set
@@ -208,21 +233,8 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
         return existing as WhatsAppConversation;
       }
       
-      // Create new conversation
-      const { data: newConv, error: createError } = await supabase
-        .from('whatsapp_conversations')
-        .insert({
-          account_id: selectedAccountId,
-          customer_phone: normalizedPhone,
-          customer_name: leadName || null,
-          lead_id: leadId,
-          status: 'active'
-        })
-        .select()
-        .single();
-      
-      if (createError) throw createError;
-      return newConv as WhatsAppConversation;
+      // Don't auto-create conversation - let user initiate
+      return null;
     },
     enabled: !!selectedAccountId && !!leadPhone
   });

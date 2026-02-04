@@ -342,6 +342,7 @@ export function LeadDetailsDialog({
                     leadPhone={lead.phone}
                     leadName={lead.contact_name || lead.company_name}
                     leadCountry={lead.country}
+                    leadPipeline={lead.pipeline}
                   />
                 ) : (
                   <div className="text-center py-4 text-muted-foreground text-sm">
