@@ -173,21 +173,24 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     return fullName || profile.email || null;
   };
 
-  // Auto-select account matching lead pipeline, or fallback to first
+  // Auto-select account matching lead pipeline.
+  // If an account is already selected but belongs to a different pipeline, force-switch to prevent cross-pipeline contamination.
   useEffect(() => {
-    if (accounts && accounts.length > 0 && !selectedAccountId) {
-      // Find account matching lead pipeline
-      const matchingAccount = leadPipeline 
-        ? accounts.find(a => a.pipeline?.toLowerCase() === leadPipeline.toLowerCase())
-        : null;
-      
-      if (matchingAccount) {
-        setSelectedAccountId(matchingAccount.id);
-      } else {
-        setSelectedAccountId(accounts[0].id);
-      }
+    if (!accounts || accounts.length === 0) return;
+
+    const norm = (v?: string | null) => (v ?? "").toLowerCase().trim();
+    const desired = leadPipeline
+      ? accounts.find((a) => norm(a.pipeline) === norm(leadPipeline))
+      : null;
+
+    const fallback = desired ?? accounts[0];
+    const selected = accounts.find((a) => a.id === selectedAccountId) ?? null;
+    const selectedMatchesPipeline = !leadPipeline || norm(selected?.pipeline) === norm(leadPipeline);
+
+    if (!selectedAccountId || !selectedMatchesPipeline) {
+      setSelectedAccountId(fallback.id);
     }
-  }, [accounts, selectedAccountId, leadPipeline]);
+  }, [accounts, selectedAccountId, leadPipeline, leadId]);
 
   // Fetch or create conversation for this lead
   const { data: conversation, refetch: refetchConversation } = useQuery({
