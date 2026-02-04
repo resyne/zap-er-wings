@@ -240,6 +240,7 @@ serve(async (req) => {
         message_type: type,
         content: messageContent,
         template_name: template_name,
+        template_language: template_language || null, // Save the language used
         template_params: template_params,
         media_url: header_document_url || media_url,
         status: "sent",

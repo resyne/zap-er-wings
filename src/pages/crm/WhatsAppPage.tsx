@@ -104,6 +104,7 @@ interface WhatsAppMessage {
   content: string | null;
   media_url: string | null;
   template_name: string | null;
+  template_language: string | null; // Language code of the template used
   template_params?: string[] | null;
   status: string;
   error_message: string | null;
@@ -923,7 +924,17 @@ const syncTemplatesMutation = useMutation({
 
   const getMessageDisplayText = (msg: WhatsAppMessage): string | null => {
     if (msg.message_type === 'template' && msg.template_name) {
-      const tpl = templates?.find(t => t.name === msg.template_name) || null;
+      // Use the saved template_language if available, otherwise search globally
+      // This ensures we show the correct language version that was actually sent
+      let tpl: WhatsAppTemplate | null = null;
+      if (msg.template_language) {
+        // Find template by name AND language (exact match)
+        tpl = templates?.find(t => t.name === msg.template_name && t.language === msg.template_language) || null;
+      }
+      // Fallback: find any template with that name (for old messages without language saved)
+      if (!tpl) {
+        tpl = templates?.find(t => t.name === msg.template_name) || null;
+      }
       const body = tpl ? getTemplateBodyText(tpl) : '';
       const filled = body ? fillTemplateVariables(body, msg.template_params || []) : '';
       // If we can render the template body, show it; otherwise fall back to stored content.
