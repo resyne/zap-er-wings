@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,8 @@ import {
   CheckCheck, Clock, AlertCircle, User, Pencil, Trash2,
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
-  Image as ImageIcon, Volume2, Languages, Archive, MoreVertical, Star
+  Image as ImageIcon, Volume2, Languages, Archive, MoreVertical, Star,
+  ChevronsUp
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -196,6 +197,15 @@ export default function WhatsAppPage() {
   const [translationTargetLang, setTranslationTargetLang] = useState<string>("en");
   const [translationInput, setTranslationInput] = useState("");
   const { translateOutbound, outboundTranslation, clearOutboundTranslation, isTranslatingOutbound } = useChatTranslation();
+  
+  // Ref for chat scroll area
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  
+  const scrollToTop = () => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const { data: customers } = useQuery({
     queryKey: ['customers-list'],
@@ -1540,8 +1550,22 @@ const syncTemplatesMutation = useMutation({
                       </div>
                     </CardHeader>
                     <CardContent className="p-0 flex flex-col h-[520px]">
-                      <ScrollArea className="flex-1 p-4">
-                        <div className="space-y-4">
+                      <div className="relative flex-1 overflow-hidden">
+                        {/* Scroll to top button */}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute top-2 left-1/2 -translate-x-1/2 z-10 shadow-md opacity-80 hover:opacity-100"
+                          onClick={scrollToTop}
+                        >
+                          <ChevronsUp className="h-4 w-4 mr-1" />
+                          Vai all'inizio
+                        </Button>
+                        <div 
+                          ref={chatScrollRef}
+                          className="h-full p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted"
+                        >
+                          <div className="space-y-4 pt-8">
                           {messages?.map(msg => {
                             const senderName = msg.direction === 'outbound' ? getUserName(msg.sent_by) : null;
                             const displayText = getMessageDisplayText(msg);
@@ -1660,8 +1684,9 @@ const syncTemplatesMutation = useMutation({
                               </div>
                             );
                           })}
+                          </div>
                         </div>
-                      </ScrollArea>
+                      </div>
                       <div className="p-4 border-t space-y-2">
                         {/* Warning se fuori dalla finestra 24h */}
                         {!isWithin24hWindow() && (
