@@ -97,30 +97,43 @@ Deno.serve(async (req) => {
 
       // Extract lead data with flexible field names
       const companyName = body.company_name || body.companyName || body.company || body.azienda || null;
-      const contactName = body.contact_name || body.contactName || body.name || body.nome || body.full_name || null;
+      // Support first_name/last_name combo or full contact_name
+      let contactName = body.contact_name || body.contactName || body.name || body.nome || body.full_name || body.customer_name || null;
+      if (!contactName && (body.first_name || body.firstName)) {
+        const firstName = body.first_name || body.firstName || '';
+        const lastName = body.last_name || body.lastName || '';
+        contactName = `${firstName} ${lastName}`.trim() || null;
+      }
       const email = (body.email || body.email_address || '').trim() || null;
       const phone = body.phone || body.telefono || body.phone_number || body.cellulare || null;
       const value = body.value || body.valore || body.budget || null;
       const notes = body.notes || body.note || body.message || body.messaggio || null;
       const source = body.source || body.fonte || 'website';
-      const luogo = body.luogo || body.location || body.citta || body.city || null;
+      const city = body.luogo || body.location || body.citta || body.city || null;
+      const ovenType = body.oven_type || body.ovenType || null;
 
       // Detect country from phone
       const detectedCountry = phone ? detectCountryFromPhone(phone) : null;
 
-      // Prepare lead data
+      // Build notes with additional info
+      let fullNotes = notes ? `${notes}\n\nFonte: ${source}` : `Lead da ${source}`;
+      if (ovenType) {
+        fullNotes += `\nTipo forno: ${ovenType}`;
+      }
+
+      // Prepare lead data (without 'luogo' which doesn't exist in the table)
       const leadData: any = {
         company_name: companyName || contactName || 'Lead da sito web',
         contact_name: contactName,
         email: email,
         phone: phone,
         value: typeof value === 'string' ? parseFloat(value.replace(/[^\d.-]/g, '')) || null : value,
-        notes: notes ? `${notes}\n\nFonte: ${source}` : `Lead da ${source}`,
+        notes: fullNotes,
         source: source,
         pipeline: pipeline,
         status: 'new',
         country: detectedCountry || 'Italia',
-        luogo: luogo
+        city: city
       };
 
       console.log('Creating lead:', leadData);
