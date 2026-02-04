@@ -134,18 +134,38 @@ export default function PublicOfferPage() {
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
         const total = subtotal - discount;
         
-        // Extract product name and description
-        // For manual items, the description contains: "ProductName\nDescription"
-        // For catalog items, use products.name
-        let productName = item.products?.name || '';
-        let productDescription = item.description || '';
-        
-        if (!productName && item.description) {
-          // This is a manual item, split the description
-          const lines = item.description.split('\n');
-          productName = lines[0] || 'N/A';
-          productDescription = lines.slice(1).join('\n');
+        // Supporta sia formato nuovo (product_name + description separati)
+        // sia legacy (description = "Titolo\nDescrizione").
+        let productName = (item.product_name || item.products?.name || '') as string;
+        let productDescription = (item.description || '') as string;
+
+        // Legacy fallback: se product_name non è presente ma la description è "Titolo\nDescrizione"
+        if (!item.product_name && typeof item.description === 'string' && item.description.includes('\n')) {
+          const [first, ...rest] = item.description.split('\n');
+          productName = first?.trim() || productName || 'N/A';
+          productDescription = rest.join('\n');
         }
+
+        // Legacy fallback: manual title-only (description = "Titolo")
+        if (!item.product_name && !item.product_id && typeof item.description === 'string' && !item.description.includes('\n')) {
+          const maybeTitle = item.description.trim();
+          if (maybeTitle) {
+            productName = maybeTitle;
+            productDescription = '';
+          }
+        }
+
+        // Legacy fallback: catalog title-only (description = "Titolo")
+        if (!item.product_name && item.product_id && typeof item.description === 'string' && !item.description.includes('\n')) {
+          const maybeTitle = item.description.trim();
+          if (maybeTitle) {
+            productName = maybeTitle;
+            productDescription = '';
+          }
+        }
+
+        // Ultimo fallback
+        if (!productName) productName = 'N/A';
         
         // Translate product description if needed
         if (offerLanguage !== 'it' && productDescription) {
