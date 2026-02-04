@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Phone, Mail, Calendar, MoreVertical, Edit, Trash2, Archive, ArchiveRestore, Plus, MapPin, User, Flame, Settings2, CalendarPlus } from "lucide-react";
+import { Phone, Mail, Calendar, MoreVertical, Edit, Trash2, Archive, ArchiveRestore, Plus, MapPin, User, Flame, Settings2, CalendarPlus, Globe, Bot, UserPlus } from "lucide-react";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { Draggable } from "@hello-pangea/dnd";
@@ -157,12 +157,24 @@ function LeadCardComponent({
                 </div>
               </div>
 
-              {/* Created date */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              {/* Created date and source */}
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <CalendarPlus className="h-3 w-3" />
                   {format(new Date(lead.created_at), "dd/MM/yy", { locale: it })}
                 </span>
+                {lead.source && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {lead.source === 'facebook' || lead.source === 'website' || lead.source === 'social' ? (
+                      <Globe className="h-3 w-3" />
+                    ) : lead.source === 'zapier' || lead.source === 'automation' || lead.source === 'call' ? (
+                      <Bot className="h-3 w-3" />
+                    ) : (
+                      <UserPlus className="h-3 w-3" />
+                    )}
+                    {lead.source}
+                  </span>
+                )}
               </div>
 
               {/* Contact info */}
