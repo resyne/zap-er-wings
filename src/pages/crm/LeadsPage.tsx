@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle, Sparkles, Settings2 } from "lucide-react";
+import { Plus, Search, TrendingUp, Mail, Phone, Users, Building2, Zap, GripVertical, Trash2, Edit, Calendar, Clock, User, ExternalLink, FileText, Link, Archive, ArchiveRestore, CheckCircle2, XCircle, Upload, X, ChevronDown, MapPin, Flame, Activity, MessageSquare, Download, MoreVertical, MessageCircle, Sparkles, Settings2, CalendarPlus, Bot, UserPlus } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LeadActivities from "@/components/crm/LeadActivities";
@@ -2253,6 +2255,20 @@ export default function LeadsPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className={cn("grid gap-3 px-3 pb-3 border-t pt-3", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    <div className="flex items-center gap-2">
+                      <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">
+                        Aggiunto: {selectedLead.created_at ? format(new Date(selectedLead.created_at), "dd MMM yyyy", { locale: it }) : "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedLead.created_by ? (
+                        <UserPlus className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      ) : (
+                        <Bot className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      )}
+                      <span className="text-sm">Fonte: {selectedLead.created_by ? "Utente" : "Automation"}</span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                       <span className="text-sm">{selectedLead.contact_name || '-'}</span>
