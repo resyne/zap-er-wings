@@ -50,6 +50,9 @@ serve(async (req) => {
       );
     }
 
+    // Sanitize access token - remove any whitespace, newlines, or invalid HTTP header characters
+    const accessToken = account.access_token.toString().trim().replace(/[\r\n\t]/g, '');
+
     // Helper function to generate example value based on variable content
     const generateExample = (varContent: string, index: number): string => {
       const lowerContent = varContent.toLowerCase();
@@ -264,13 +267,11 @@ serve(async (req) => {
     const response = await fetch(createUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${account.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
     });
-
-    const data = await response.json();
 
     if (!response.ok) {
       console.error("Meta API error:", data);
