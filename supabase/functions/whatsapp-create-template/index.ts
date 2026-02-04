@@ -51,7 +51,18 @@ serve(async (req) => {
     }
 
     // Sanitize access token - remove any whitespace, newlines, or invalid HTTP header characters
-    const accessToken = account.access_token.toString().trim().replace(/[\r\n\t]/g, '');
+    // Only allow ASCII printable characters (32-126), excluding control chars
+    const rawToken = account.access_token?.toString() || '';
+    const accessToken = rawToken.replace(/[^\x20-\x7E]/g, '').trim();
+    
+    console.log("Token length:", rawToken.length, "Sanitized length:", accessToken.length);
+    
+    if (!accessToken || accessToken.length < 50) {
+      return new Response(
+        JSON.stringify({ error: "Access token is invalid or too short after sanitization" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Helper function to generate example value based on variable content
     const generateExample = (varContent: string, index: number): string => {
@@ -272,6 +283,8 @@ serve(async (req) => {
       },
       body: JSON.stringify(payload),
     });
+
+    const data = await response.json();
 
     if (!response.ok) {
       console.error("Meta API error:", data);
