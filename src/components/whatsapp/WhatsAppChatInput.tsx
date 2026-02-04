@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Send, Mic, Paperclip, Image, FileText, 
   X, Loader2, Square, Play, Pause, Phone
@@ -443,13 +443,14 @@ export function WhatsAppChatInput({
         </DropdownMenu>
 
         {/* Text input */}
-        <Input
+        <Textarea
           placeholder={selectedFile ? "Aggiungi una didascalia..." : "Scrivi un messaggio..."}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled || isRecording || isSending}
-          className="flex-1"
+          className="flex-1 min-h-[40px] max-h-[120px] resize-none py-2"
+          rows={1}
         />
 
         {/* Mic / Send button */}
