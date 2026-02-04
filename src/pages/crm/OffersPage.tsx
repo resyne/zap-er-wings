@@ -361,14 +361,36 @@ export default function OffersPage() {
       
       // Build products table
       const productsTableRows = (offerItems || []).map((item: any) => {
+        // Supporta sia il formato nuovo (product_name + description separati)
+        // sia il legacy (description = "Titolo\nDescrizione").
+        let displayName = (item.product_name || item.products?.name || 'N/A') as string;
+        let displayDesc = (item.description || '') as string;
+
+        // Legacy (vecchio salvataggio in OffersPage): description = "Titolo\nDescrizione" oppure solo "Titolo"
+        if (!item.product_name && typeof item.description === 'string') {
+          if (item.description.includes('\n')) {
+            const [first, ...rest] = item.description.split('\n');
+            displayName = first?.trim() || displayName;
+            displayDesc = rest.join('\n');
+          } else if (!item.product_id) {
+            // Manual legacy title-only
+            displayName = item.description.trim() || displayName;
+            displayDesc = '';
+          } else if (item.product_id) {
+            // Catalog legacy title-only
+            displayName = item.description.trim() || displayName;
+            displayDesc = '';
+          }
+        }
+
         const subtotal = item.quantity * item.unit_price;
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
         const total = subtotal - discount;
         
         return `
           <tr>
-            <td>${item.products?.name || 'N/A'}</td>
-            <td>${item.description || ''}</td>
+            <td>${displayName}</td>
+            <td>${displayDesc || ''}</td>
             <td>${item.quantity}</td>
             <td>€ ${item.unit_price.toFixed(2)}</td>
             <td>${item.discount_percent || 0}%</td>
@@ -882,12 +904,11 @@ export default function OffersPage() {
           const offerItems = selectedProducts.map(item => {
             const productName = item.product_name?.trim() || 'Prodotto';
             const productDesc = item.description?.trim() || '';
-            const fullDescription = productDesc ? `${productName}\n${productDesc}` : productName;
-            
             return {
               offer_id: offerData.id,
               product_id: item.product_id?.startsWith('manual-') ? null : item.product_id,
-              description: fullDescription,
+              product_name: productName,
+              description: productDesc,
               quantity: item.quantity,
               unit_price: item.unit_price,
               discount_percent: item.discount_percent || 0,
@@ -946,12 +967,11 @@ export default function OffersPage() {
           const offerItems = selectedProducts.map(item => {
             const productName = item.product_name?.trim() || 'Prodotto';
             const productDesc = item.description?.trim() || '';
-            const fullDescription = productDesc ? `${productName}\n${productDesc}` : productName;
-            
             return {
               offer_id: offerData.id,
               product_id: item.product_id?.startsWith('manual-') ? null : item.product_id,
-              description: fullDescription,
+              product_name: productName,
+              description: productDesc,
               quantity: item.quantity,
               unit_price: item.unit_price,
               discount_percent: item.discount_percent || 0,
@@ -1188,6 +1208,7 @@ export default function OffersPage() {
         const duplicatedItems = offerItems.map(item => ({
           offer_id: newOfferData.id,
           product_id: item.product_id,
+          product_name: item.product_name,
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
@@ -2669,15 +2690,41 @@ export default function OffersPage() {
                       <div key={item.id} className="border rounded-lg p-3 bg-muted/30">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <div className="font-medium text-sm">
-                              {item.products?.name || 'Prodotto'}
+                            {(() => {
+                              // Supporta sia formato nuovo sia legacy
+                              let name = (item.product_name || item.products?.name || 'Prodotto') as string;
+                              let desc = (item.description || '') as string;
+
+                              if (!item.product_name && typeof item.description === 'string') {
+                                if (item.description.includes('\n')) {
+                                  const [first, ...rest] = item.description.split('\n');
+                                  name = first?.trim() || name;
+                                  desc = rest.join('\n');
+                                } else if (!item.product_id) {
+                                  // Manual legacy title-only
+                                  name = item.description.trim() || name;
+                                  desc = '';
+                                } else if (item.product_id) {
+                                  // Catalog legacy title-only
+                                  name = item.description.trim() || name;
+                                  desc = '';
+                                }
+                              }
+
+                              return (
+                                <>
+                                  <div className="font-medium text-sm">
+                                    {name}
                               {item.products?.code && <span className="text-xs text-muted-foreground ml-2">({item.products.code})</span>}
-                            </div>
-                            {item.description && (
-                              <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
-                                {item.description}
-                              </div>
-                            )}
+                                  </div>
+                                  {desc && (
+                                    <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                                      {desc}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                         <div className="grid grid-cols-4 gap-2 text-xs mt-2 pt-2 border-t">
@@ -2864,57 +2911,42 @@ export default function OffersPage() {
                       // Carica i prodotti dell'offerta
                       if (selectedOfferItems.length > 0) {
                         setSelectedProducts(selectedOfferItems.map(item => {
-                          // Nel DB salviamo la description come:
-                          //   "Titolo\nDescrizione"  (se descrizione presente)
-                          //   "Titolo"              (se descrizione vuota)
-                          // Questo vale sia per prodotti da catalogo che manuali.
-                          const fullDesc = (item.description || '').trim();
-                          const lines = fullDesc ? fullDesc.split('\n') : [];
-                          const hasNewline = fullDesc.includes('\n');
+                          // Formato nuovo: product_name + description separati.
+                          // Legacy: description = "Titolo\nDescrizione".
+                          const isManual = !item.product_id;
 
-                          const catalogName = (item.product_id && item.products?.name)
-                            ? item.products.name.trim()
-                            : '';
+                          let productName = (item.product_name || '').toString().trim();
+                          let description = (item.description || '').toString();
 
-                          let productName = '';
-                          let description = '';
-
-                          if (catalogName) {
-                            // Prodotto da catalogo: se la prima riga è diversa dal nome catalogo,
-                            // significa che l'utente ha personalizzato il titolo.
-                            if (hasNewline) {
-                              const firstLine = (lines[0] || '').trim();
-                              productName = firstLine || catalogName;
-                              description = lines.slice(1).join('\n');
-                            } else {
-                              // Caso senza newline: può essere "Titolo" (custom o standard)
-                              // oppure (dati legacy) una descrizione lunga.
-                              if (!fullDesc || fullDesc === catalogName) {
-                                productName = catalogName;
-                                description = '';
-                              } else if (fullDesc.length > 120) {
-                                productName = catalogName;
-                                description = fullDesc;
+                          if (!productName) {
+                            if (isManual) {
+                              // Manual legacy: description contiene solo il titolo oppure "Titolo\nDescrizione"
+                              if (description.includes('\n')) {
+                                const [first, ...rest] = description.split('\n');
+                                productName = (first || '').trim() || 'Prodotto';
+                                description = rest.join('\n');
                               } else {
-                                productName = fullDesc;
+                                productName = description.trim() || 'Prodotto';
                                 description = '';
                               }
-                            }
-                          } else {
-                            // Prodotto manuale: la prima riga è il titolo
-                            if (hasNewline) {
-                              productName = (lines[0] || '').trim();
-                              description = lines.slice(1).join('\n');
                             } else {
-                              productName = fullDesc;
-                              description = '';
+                              // Catalog legacy (vecchio salvataggio in OffersPage):
+                              // description = "Titolo\nDescrizione" oppure solo "Titolo"
+                              if (description.includes('\n')) {
+                                const [first, ...rest] = description.split('\n');
+                                productName = (first || '').trim() || (item.products?.name || 'Prodotto');
+                                description = rest.join('\n');
+                              } else {
+                                productName = description.trim() || (item.products?.name || 'Prodotto');
+                                description = '';
+                              }
                             }
                           }
 
                           return {
-                            product_id: item.product_id,
+                            product_id: item.product_id || `manual-${item.id}`,
                             product_name: productName || 'Prodotto',
-                            description,
+                            description: description || '',
                             quantity: item.quantity,
                             unit_price: item.unit_price,
                             discount_percent: item.discount_percent || 0,
