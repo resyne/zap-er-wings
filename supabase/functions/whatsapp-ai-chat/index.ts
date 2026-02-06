@@ -92,6 +92,40 @@ serve(async (req) => {
       pipeline: conversation.lead.pipeline,
     } : null;
 
+    // Fetch knowledge base entries for context
+    const { data: knowledgeEntries } = await supabase
+      .from("whatsapp_ai_knowledge")
+      .select("question, answer, category, keywords")
+      .eq("is_active", true)
+      .or(`account_id.eq.${account_id},account_id.is.null`)
+      .order("usage_count", { ascending: false })
+      .limit(20);
+
+    // Build knowledge base context
+    let knowledgeContext = "";
+    if (knowledgeEntries && knowledgeEntries.length > 0) {
+      // Find relevant entries based on last customer message
+      const lastCustomerMessage = chronologicalMessages
+        .filter(m => m.direction === "inbound")
+        .pop()?.content?.toLowerCase() || "";
+
+      const relevantEntries = knowledgeEntries.filter(entry => {
+        const matchesKeyword = entry.keywords?.some((kw: string) => 
+          lastCustomerMessage.includes(kw.toLowerCase())
+        );
+        const matchesQuestion = entry.question.toLowerCase()
+          .split(" ")
+          .some(word => word.length > 3 && lastCustomerMessage.includes(word));
+        return matchesKeyword || matchesQuestion;
+      }).slice(0, 5);
+
+      if (relevantEntries.length > 0) {
+        knowledgeContext = `\nKNOWLEDGE BASE AZIENDALE (usa queste informazioni per rispondere in modo coerente):
+${relevantEntries.map((e, i) => `${i + 1}. Situazione: "${e.question}"\n   Risposta tipo: "${e.answer}"`).join("\n\n")}
+`;
+      }
+    }
+
     // Build system prompt
     const defaultSystemPrompt = `Sei un assistente di vendita per forni professionali. 
 Il tuo obiettivo è:
@@ -107,7 +141,7 @@ Mantieni le risposte brevi e conversazionali, come in una chat WhatsApp.`;
 
     // Build the AI prompt
     const aiPrompt = `${systemPrompt}
-
+${knowledgeContext}
 ${leadInfo ? `INFORMAZIONI CLIENTE:
 - Nome: ${leadInfo.name || 'Non disponibile'}
 - Paese: ${leadInfo.country || 'Non specificato'}
@@ -122,6 +156,7 @@ ${conversationContext || "[Nessun messaggio precedente]"}
 ISTRUZIONI:
 Genera una risposta appropriata per continuare la conversazione.
 Rispondi come farebbe un venditore esperto in una chat WhatsApp.
+Se nella Knowledge Base ci sono informazioni pertinenti, usale per rispondere in modo coerente con lo stile aziendale.
 
 Inoltre, suggerisci un delay intelligente (in minuti, da 1 a 15) prima di inviare il messaggio, 
 basandoti sull'urgenza percepita e sulla natura della conversazione:
@@ -146,7 +181,7 @@ Rispondi SEMPRE in questo formato JSON:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "user", content: aiPrompt }
         ],

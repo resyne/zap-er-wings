@@ -10144,6 +10144,56 @@ export type Database = {
           },
         ]
       }
+      whatsapp_ai_knowledge: {
+        Row: {
+          account_id: string | null
+          answer: string
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          keywords: string[] | null
+          question: string
+          updated_at: string
+          usage_count: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          answer: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          keywords?: string[] | null
+          question: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          answer?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          keywords?: string[] | null
+          question?: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_knowledge_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_ai_queue: {
         Row: {
           account_id: string
