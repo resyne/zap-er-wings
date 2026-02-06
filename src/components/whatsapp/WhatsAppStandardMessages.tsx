@@ -59,11 +59,20 @@ interface AttachmentData {
   type: string;
 }
 
+interface LeadData {
+  name?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  country?: string;
+}
+
 interface StandardMessagesDialogProps {
   accountId: string;
   accountName?: string;
   onSelectMessage: (message: string, attachment?: AttachmentData) => void;
   trigger: React.ReactNode;
+  leadData?: LeadData;
 }
 
 const getAttachmentIcon = (type: string | null) => {
@@ -79,11 +88,24 @@ const getAttachmentIcon = (type: string | null) => {
   }
 };
 
+// Helper function to replace variables with lead data
+const replaceVariables = (message: string, leadData?: LeadData): string => {
+  if (!leadData) return message;
+  
+  return message
+    .replace(/\{\{nome\}\}/gi, leadData.name || '')
+    .replace(/\{\{azienda\}\}/gi, leadData.company || '')
+    .replace(/\{\{email\}\}/gi, leadData.email || '')
+    .replace(/\{\{telefono\}\}/gi, leadData.phone || '')
+    .replace(/\{\{paese\}\}/gi, leadData.country || '');
+};
+
 export function StandardMessagesDialog({ 
   accountId, 
   accountName,
   onSelectMessage, 
-  trigger 
+  trigger,
+  leadData
 }: StandardMessagesDialogProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -125,7 +147,10 @@ export function StandardMessagesDialog({
       type: msg.attachment_type || 'document'
     } : undefined;
     
-    onSelectMessage(msg.message, attachment);
+    // Replace variables with lead data
+    const processedMessage = replaceVariables(msg.message, leadData);
+    
+    onSelectMessage(processedMessage, attachment);
     setOpen(false);
     toast.success(`Messaggio "${msg.name}" selezionato${attachment ? ' con allegato' : ''}`);
   };
@@ -448,6 +473,28 @@ function ManageMessagesDialog({
                   onChange={(e) => setFormMessage(e.target.value)}
                   rows={4}
                 />
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="text-xs text-muted-foreground mr-1">Variabili:</span>
+                  {[
+                    { key: '{{nome}}', label: 'Nome' },
+                    { key: '{{azienda}}', label: 'Azienda' },
+                    { key: '{{email}}', label: 'Email' },
+                    { key: '{{telefono}}', label: 'Telefono' },
+                    { key: '{{paese}}', label: 'Paese' },
+                  ].map(v => (
+                    <Badge 
+                      key={v.key}
+                      variant="outline" 
+                      className="text-[10px] cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => setFormMessage(prev => prev + v.key)}
+                    >
+                      {v.label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Le variabili verranno sostituite automaticamente con i dati del lead
+                </p>
               </div>
 
               {/* Attachment selector */}
