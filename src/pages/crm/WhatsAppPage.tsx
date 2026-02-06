@@ -21,8 +21,9 @@ import {
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
   Image as ImageIcon, Volume2, Languages, Archive, MoreVertical, Star,
-  ChevronsUp
+  ChevronsUp, FolderOpen
 } from "lucide-react";
+import WhatsAppBusinessFilesLibrary from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2473,6 +2474,26 @@ const syncTemplatesMutation = useMutation({
                     {selectedAccount.status}
                   </Badge>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Business Files Library Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  Libreria File Business
+                </CardTitle>
+                <CardDescription>
+                  Carica e gestisci file (PDF, immagini, video, audio) da inviare ai clienti tramite WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WhatsAppBusinessFilesLibrary
+                  accountId={selectedAccount.id}
+                  accountName={selectedAccount.verified_name || selectedAccount.display_phone_number}
+                  mode="manage"
+                />
               </CardContent>
             </Card>
 
